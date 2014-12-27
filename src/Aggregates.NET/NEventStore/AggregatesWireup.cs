@@ -41,8 +41,4 @@ namespace Aggregates.NEventStore
         }
     }
     
-    public static AggregatesWireup Aggregates(this Wireup wireup, IBuilder builder)
-    {
-        return new AggregatesWireup(wireup, builder);
-    }
 }

@@ -19,6 +19,7 @@ We fill in the gap between NEventStore and NServicebus.  Commands from NServiceb
 Current features include -
 
 - Aggregate root
+- Aggregate defined by **any** type of Id
 - Type safe Unit of Work and Repository pattern
 - Automatic NServicebus and NEventstore configuration
 - Automatic publishing of domain events
@@ -43,4 +44,4 @@ Code will be released on Nuget once the library is fully under test and we can v
 Documentation
 -------------
 
-Comming soon!
+Coming soon!

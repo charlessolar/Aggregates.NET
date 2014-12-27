@@ -1,9 +1,9 @@
 using Aggregates.Contracts;
 using NEventStore;
 using NServiceBus;
+using NServiceBus.ObjectBuilder.Common;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 
 namespace Aggregates
 {
@@ -19,18 +19,17 @@ namespace Aggregates
         public String BucketId { get; private set; }
         public Int32 Version { get; private set; }
 
+        public virtual IContainer Container { get; set; }
+
         private readonly IEventStream _eventStream;
         private readonly IMessageCreator _eventFactory;
-
         protected readonly IEventRouter _router;
-
-        private Aggregate() { }
-
-        protected Aggregate(IEventRouter router, IMessageCreator eventFactory, IEventStream eventStream)
+        
+        protected Aggregate()
         {
-            _router =  router;
-            _eventFactory = eventFactory;
-            _eventStream = eventStream;
+            _router = Container.Build(typeof(IEventRouter)) as IEventRouter;
+            _eventFactory = Container.Build(typeof(IMessageCreator)) as IMessageCreator;
+            _eventStream = Container.Build(typeof(IEventStream)) as IEventStream;
 
             _router.Register(this);
         }

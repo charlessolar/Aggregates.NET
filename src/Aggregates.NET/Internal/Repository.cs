@@ -17,7 +17,7 @@ namespace Aggregates.Internal
 
     public class Repository<T> : IRepository<T> where T : class, IEventSourceBase
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(Repository<>));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(Repository<T>));
         private readonly IStoreEvents _store;
         private readonly IContainer _container;
 
@@ -31,11 +31,12 @@ namespace Aggregates.Internal
             _store = store;
         }
 
-        public void Commit(Guid commitId, IDictionary<String, String> headers)
+        public void Commit(Guid commitId, IDictionary<String, String> headers = null)
         {
             foreach (var stream in _streams)
             {
-                headers.ToList().ForEach(h => stream.Value.UncommittedHeaders[h.Key] = h.Value);
+                if (headers != null)
+                    headers.ToList().ForEach(h => stream.Value.UncommittedHeaders[h.Key] = h.Value);
                 try
                 {
                     stream.Value.CommitChanges(commitId);
@@ -79,27 +80,29 @@ namespace Aggregates.Internal
         }
 
 
-        public T Get<T, TId>(TId id) where T : class, IEventSource<TId>
+        public T Get<TId>(TId id)
         {
-            return Get<T, TId>(Bucket.Default, id);
+            return Get<TId>(Bucket.Default, id);
         }
 
-        public T Get<T, TId>(TId id, Int32 version) where T : class, IEventSource<TId>
+        public T Get<TId>(TId id, Int32 version)
         {
-            return Get<T, TId>(Bucket.Default, id, version);
+            return Get<TId>(Bucket.Default, id, version);
         }
 
-        public T Get<T, TId>(String bucketId, TId id) where T : class, IEventSource<TId>
+        public T Get<TId>(String bucketId, TId id)
         {
-            return Get<T, TId>(bucketId, id, Int32.MaxValue);
+            return Get<TId>(bucketId, id, Int32.MaxValue);
         }
 
-        public T Get<T, TId>(String bucketId, TId id, Int32 version) where T : class, IEventSource<TId>
+        public T Get<TId>(String bucketId, TId id, Int32 version)
         {
             Logger.DebugFormat("Retreiving aggregate id {0} version {1} from bucket {2} in store", id, version, bucketId);
 
             ISnapshot snapshot = GetSnapshot(bucketId, id, version);
             IEventStream stream = OpenStream(bucketId, id, version, snapshot);
+
+            if (stream == null && snapshot == null) return (T)null;
 
             // Use a child container to provide the root with a singleton stream and possibly some other future stuff
             using (var container = _container.BuildChildContainer())
@@ -110,7 +113,7 @@ namespace Aggregates.Internal
                 if (snapshot != null)
                     aggregate.RestoreSnapshot(snapshot);
 
-                if (version == 0 || aggregate.Version < version)
+                if (stream != null && (version == 0 || aggregate.Version < version))
                 {
                     // If they GET a currently open root, apply all the uncommitted events too
                     var events = stream.CommittedEvents.Concat(stream.UncommittedEvents);
@@ -123,23 +126,33 @@ namespace Aggregates.Internal
             }
         }
 
-        public T New<T, TId, TEvent>(TId id, Action<TEvent> action) where T : class, IEventSource<TId>
+        public class RepoNewChain : IRepoNewChain<T>
         {
-            return New<T, TId, TEvent>(Bucket.Default, id, action);
+            private readonly IContainer _container;
+            public RepoNewChain(IContainer container) { _container = container; }
+            public T Apply<TEvent>(Action<TEvent> action)
+            {
+                var aggregate = (T)_container.Build(typeof(T));
+
+                aggregate.Apply(action);
+
+                return aggregate;
+            }
         }
 
-        public T New<T, TId, TEvent>(String bucketId, TId id, Action<TEvent> action) where T : class, IEventSource<TId>
+        public IRepoNewChain<T> New<TId>(TId id)
+        {
+            return New<TId>(Bucket.Default, id);
+        }
+
+        public IRepoNewChain<T> New<TId>(String bucketId, TId id)
         {
             // Use a child container to provide the root with a singleton stream and possibly some other future stuff
             using (var container = _container.BuildChildContainer())
             {
                 var stream = PrepareStream(bucketId, id);
                 container.Configure<IEventStream>(() => stream, global::NServiceBus.DependencyLifecycle.SingleInstance);
-                var aggregate = (T)container.Build(typeof(T));
-
-                aggregate.Apply(action);
-
-                return aggregate;
+                return new RepoNewChain(container);
             }
         }
 

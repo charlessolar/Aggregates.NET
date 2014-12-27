@@ -1,4 +1,5 @@
 using Aggregates.Contracts;
+using Aggregates.Internal;
 using NEventStore;
 using NEventStore.Dispatcher;
 using NServiceBus;
@@ -12,10 +13,12 @@ namespace Aggregates.NServiceBus
     {
         public static void UsingAggregates(this BusConfiguration config, IBuilder builder, IStoreEvents eventStore)
         {
-            config.RegisterComponents(c => c.ConfigureComponent<IUnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork));
-
-            config.RegisterComponents(c => c.ConfigureComponent<IStoreEvents>(() => eventStore, DependencyLifecycle.SingleInstance));
-            config.RegisterComponents(c => c.ConfigureComponent<IDispatchCommits>(() => builder.Build<IUnitOfWork>(), DependencyLifecycle.InstancePerCall));
+            config.RegisterComponents(c =>
+            {
+                c.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerCall);
+                c.ConfigureComponent<IStoreEvents>(() => eventStore, DependencyLifecycle.SingleInstance);
+                c.ConfigureComponent<IDispatchCommits>(() => builder.Build<IUnitOfWork>(), DependencyLifecycle.InstancePerCall);
+            });
         }
     }
 }

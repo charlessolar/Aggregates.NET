@@ -10,6 +10,7 @@ using NEventStore;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder.Common;
 using NEventStore.Persistence;
+using NServiceBus.Unicast.Messages;
 
 namespace Aggregates.Internal
 {
@@ -22,17 +23,18 @@ namespace Aggregates.Internal
         private readonly IStoreEvents _eventStore;
         private readonly IBus _bus;
 
-        private IDictionary<String, String> _workHeaders;
+        public IDictionary<String, String> WorkHeaders { get; set; }
 
         private bool _disposed;
         private IDictionary<Type, IRepositoryBase> _repositories;
 
         public UnitOfWork(IContainer container, IStoreEvents eventStore, IBus bus)
         {
-            _container = container;
+            _container = container.BuildChildContainer();
             _eventStore = eventStore;
             _bus = bus;
             _repositories = new Dictionary<Type, IRepositoryBase>();
+            WorkHeaders = new Dictionary<String, String>();
         }
         public void Dispose()
         {
@@ -58,7 +60,7 @@ namespace Aggregates.Internal
             if( _repositories.TryGetValue(type, out repository) )
                 return (IRepository<T>)repository;
 
-            return (IRepository<T>)(_repositories[type] = (IRepositoryBase)_container.Build(typeof(IRepository<>)));
+            return (IRepository<T>)(_repositories[type] = (IRepositoryBase)_container.Build(typeof(IRepository<T>)));
         }
 
         public void Commit()
@@ -69,7 +71,7 @@ namespace Aggregates.Internal
             {
                 try
                 {
-                    var headers = new Dictionary<String, String>(_workHeaders);
+                    var headers = new Dictionary<String, String>(WorkHeaders);
                     headers[AggregateTypeHeader] = repo.Key.FullName;
 
                     repo.Value.Commit(commitId, headers);
@@ -78,37 +80,31 @@ namespace Aggregates.Internal
                 {
                     throw new PersistenceException(e.Message, e);
                 }
-            }            
+            }
         }
 
-        public void Invoke(IncomingContext context, Action next)
+        public void MutateOutgoing(LogicalMessage message, TransportMessage transportMessage)
         {
-            // Take a copy of NServicebus headers for saving to event store
-            var headers = context.PhysicalMessage.Headers;
-            _workHeaders = new Dictionary<String, String>(headers);
-            next();
+            foreach (var header in WorkHeaders)
+                transportMessage.Headers[header.Key] = header.Value;
         }
-        public void Invoke(OutgoingContext context, Action next)
+        public void MutateIncoming(TransportMessage transportMessage)
         {
-            // Mutate all outgoing messages to include the commit headers from Dispatch
-            var headers = context.OutgoingMessage.Headers;
-
-            foreach (var header in _workHeaders)
-                headers[header.Key] = header.Value;
-
-            next();
+            var headers = transportMessage.Headers;
+            foreach (var header in headers)
+                WorkHeaders[header.Key] = header.Value;
         }
 
         public virtual void Dispatch(ICommit commit)
         {
             // After a successful event store commit, we need to publish all the events to NServiceBus
             foreach (var header in commit.Headers)
-                _workHeaders[header.Key] = header.Value.ToString();
+                WorkHeaders[header.Key] = header.Value.ToString();
 
             foreach (var @event in commit.Events)
             {
                 foreach (var header in @event.Headers)
-                    _bus.SetMessageHeader(@event.Body, header.Key, header.Value.ToString());
+                    _bus.OutgoingHeaders[header.Key] = header.Value.ToString();
 
                 _bus.Publish(@event.Body);
             }

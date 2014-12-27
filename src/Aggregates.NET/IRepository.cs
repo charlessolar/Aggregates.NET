@@ -9,18 +9,24 @@ namespace Aggregates
 {
     public interface IRepositoryBase : IDisposable
     {
-        void Commit(Guid commitId, IDictionary<String, String> headers);
+        void Commit(Guid commitId, IDictionary<String, String> headers = null);
     }
 
     public interface IRepository<T> : IRepositoryBase where T : class, IEventSourceBase
     {
-        T Get<T, TId>(TId id) where T : class, IEventSource<TId>;
-        T Get<T, TId>(TId id, Int32 version) where T : class, IEventSource<TId>;
-        T Get<T, TId>(String bucketId, TId id) where T : class, IEventSource<TId>;
-        T Get<T, TId>(String bucketId, TId id, Int32 version) where T : class, IEventSource<TId>;
+        T Get<TId>(TId id);
+        T Get<TId>(TId id, Int32 version);
+        T Get<TId>(String bucketId, TId id);
+        T Get<TId>(String bucketId, TId id, Int32 version);
 
-        T New<T, TId, TEvent>(String bucketId, TId id, Action<TEvent> action) where T : class, IEventSource<TId>;
-        T New<T, TId, TEvent>(TId id, Action<TEvent> action) where T : class, IEventSource<TId>;
+        
+        IRepoNewChain<T> New<TId>(String bucketId, TId id);
+        IRepoNewChain<T> New<TId>(TId id);
 
     }
+    public interface IRepoNewChain<T>
+    {
+        T Apply<TEvent>(Action<TEvent> action);
+    }
+
 }
