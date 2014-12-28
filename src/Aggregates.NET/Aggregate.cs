@@ -94,7 +94,7 @@ namespace Aggregates
 
     }
 
-    public abstract class AggregateWithMemento<TId, TMemento> : Aggregate<TId>, ISnapshottingEventSource<TId> where TMemento : class, IMemento<TId>
+    public abstract class AggregateWithMemento<TId, TMemento> : Aggregate<TId>, ISnapshottingEventSource<TId> where TMemento : class, IMemento
     {
         protected AggregateWithMemento(IContainer container, IEventRouter router = null)
             : base(container, router)
@@ -111,7 +111,6 @@ namespace Aggregates
         ISnapshot ISnapshottingEventSource.TakeSnapshot()
         {
             var memento = TakeSnapshot();
-            memento.Id = this.Id;
             return new Snapshot(this.BucketId, this.StreamId, this.Version, memento);
         }
 

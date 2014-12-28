@@ -52,7 +52,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Aggregate\AggregateTests.cs" />
-    <Compile Include="Aggregate\SnapshottingAggregateTests.cs" />
     <Compile Include="Aggregate\_AggregateStub.cs" />
     <Compile Include="Aggregate\_EventFake.cs" />
     <Compile Include="DefaultRouteResolver\ResolveTests.cs" />

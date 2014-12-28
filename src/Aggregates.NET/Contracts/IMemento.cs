@@ -1,8 +1,7 @@
 ﻿using System;
 namespace Aggregates.Contracts
 {
-    public interface IMemento<TId>
+    public interface IMemento
     {
-        TId Id { get; set; }
     }
 }

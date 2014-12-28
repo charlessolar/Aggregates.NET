@@ -8,28 +8,12 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Unit.Aggregate
 {
-    public class Memento : IMemento<Guid>
+    public class _AggregateStub : Aggregate<Guid>
     {
-        public Guid Id { get; set; }
-        public String Value { get; set; }
-    }
-
-    public class _AggregateStub : AggregateWithMemento<Guid, Memento>
-    {
-        public Boolean SnapshotTaken { get; set; }
         public String Value { get; set; }
 
         public _AggregateStub(IContainer container) : base(container) { }
 
-        protected override void RestoreSnapshot(Memento memento)
-        {
-            Value = memento.Value;
-        }
-
-        protected override Memento TakeSnapshot()
-        {
-            return new Memento { Value = Value };
-        }
 
         public void Handle(CreatedEvent @event)
         {
@@ -47,5 +31,6 @@ namespace Aggregates.Unit.Aggregate
                 e.Value = value;
             });
         }
+
     }
 }
