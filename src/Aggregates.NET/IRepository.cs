@@ -9,7 +9,7 @@ namespace Aggregates
 {
     public interface IRepositoryBase : IDisposable
     {
-        void Commit(Guid commitId, IDictionary<String, String> headers = null);
+        void Commit(Guid commitId, IDictionary<String, String> headers);
     }
 
     public interface IRepository<T> : IRepositoryBase where T : class, IEventSourceBase

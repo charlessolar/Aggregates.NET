@@ -16,41 +16,34 @@ namespace Aggregates
         String IEventSourceBase.BucketId { get { return this.BucketId; } }
         Int32 IEventSourceBase.Version { get { return this.Version; } }
 
-        public String BucketId { get; private set; }
-        public Int32 Version { get; private set; }
+        public String BucketId { get; protected set; }
+        public Int32 Version { get; protected set; }
 
         public virtual IContainer Container { get; set; }
 
         private readonly IEventStream _eventStream;
         private readonly IMessageCreator _eventFactory;
         protected readonly IEventRouter _router;
-        
+
+
         protected Aggregate()
         {
             _router = Container.Build(typeof(IEventRouter)) as IEventRouter;
+            _eventFactory = Container.Build(typeof(IMessageCreator)) as IMessageCreator;
+            _eventStream = Container.Build(typeof(IEventStream)) as IEventStream;
+            _router.Register(this);
+        }
+        protected Aggregate(IContainer container, IEventRouter router = null)
+        {
+            this.Container = container;
+            _router = router ?? Container.Build(typeof(IEventRouter)) as IEventRouter;
             _eventFactory = Container.Build(typeof(IMessageCreator)) as IMessageCreator;
             _eventStream = Container.Build(typeof(IEventStream)) as IEventStream;
 
             _router.Register(this);
         }
 
-
-        void IEventSourceBase.RestoreSnapshot(ISnapshot snapshot)
-        {
-            Version = snapshot.StreamRevision;
-            BucketId = snapshot.BucketId;
-
-            var memento = (IMemento<TId>)snapshot.Payload;
-
-            RestoreSnapshot(memento);
-        }
-
-        ISnapshot IEventSourceBase.TakeSnapshot()
-        {
-            var memento = TakeSnapshot();
-            return new Snapshot(this.BucketId, this.Id.ToString(), this.Version, memento);
-        }
-
+        
         void IEventSourceBase.Hydrate(IEnumerable<object> events)
         {
             foreach (var @event in events)
@@ -77,19 +70,41 @@ namespace Aggregates
             });
         }
 
-        protected virtual void RestoreSnapshot(IMemento<TId> memento)
-        {
-        }
-
-        protected virtual IMemento<TId> TakeSnapshot()
-        {
-            return null;
-        }
 
         private void Raise(object @event)
         {
             _router.Get(@event.GetType())(@event);
         }
 
+    }
+
+    public abstract class AggregateWithMemento<TId, TMemento> : Aggregate<TId>, ISnapshottingEventSource<TId> where TMemento : class, IMemento<TId>
+    {
+        void ISnapshottingEventSourceBase.RestoreSnapshot(ISnapshot snapshot)
+        {
+            Version = snapshot.StreamRevision;
+            BucketId = snapshot.BucketId;
+
+            var memento = (TMemento)snapshot.Payload;
+
+            RestoreSnapshot(memento);
+        }
+
+        ISnapshot ISnapshottingEventSourceBase.TakeSnapshot()
+        {
+            var memento = TakeSnapshot();
+            return new Snapshot(this.BucketId, this.Id.ToString(), this.Version, memento);
+        }
+
+        Boolean ISnapshottingEventSourceBase.ShouldTakeSnapshot(Int32 CurrentVersion, Int32 CommitVersion)
+        {
+            return ShouldTakeSnapshot(CurrentVersion, CommitVersion);
+        }
+
+        protected abstract void RestoreSnapshot(TMemento memento);
+
+        protected abstract TMemento TakeSnapshot();
+
+        protected virtual Boolean ShouldTakeSnapshot(Int32 CurrentVersion, Int32 CommitVersion) { return false; }
     }
 }

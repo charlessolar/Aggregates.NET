@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Aggregates.NET.Unit.Repository
+namespace Aggregates.Unit.Repository
 {
     [TestFixture]
     public class CommitFailTests
@@ -50,7 +50,7 @@ namespace Aggregates.NET.Unit.Repository
             _eventStream.Setup(x => x.CommitChanges(Moq.It.IsAny<Guid>())).Throws(new ConcurrencyException());
 
             var eventSource = _repository.New(Guid.NewGuid()).Apply<CreateFake>(e => { });
-            Assert.Throws<ConflictingCommandException>(() => _repository.Commit(Guid.NewGuid()));
+            Assert.Throws<ConflictingCommandException>(() => _repository.Commit(Guid.NewGuid(), new Dictionary<String, String>()));
         }
 
         [Test]
@@ -59,7 +59,7 @@ namespace Aggregates.NET.Unit.Repository
             _eventStream.Setup(x => x.CommitChanges(Moq.It.IsAny<Guid>())).Throws(new ConcurrencyException());
 
             var eventSource = _repository.New(Guid.NewGuid()).Apply<CreateFake>(e => { });
-            Assert.Throws<ConflictingCommandException>(() => _repository.Commit(Guid.NewGuid()));
+            Assert.Throws<ConflictingCommandException>(() => _repository.Commit(Guid.NewGuid(), new Dictionary<String, String>()));
             _eventStream.Verify(x => x.ClearChanges(), Moq.Times.Once);
         }
 
@@ -69,7 +69,7 @@ namespace Aggregates.NET.Unit.Repository
             _eventStream.Setup(x => x.CommitChanges(Moq.It.IsAny<Guid>())).Throws(new DuplicateCommitException());
 
             var eventSource = _repository.New(Guid.NewGuid()).Apply<CreateFake>(e => { });
-            Assert.DoesNotThrow(() => _repository.Commit(Guid.NewGuid()));
+            Assert.DoesNotThrow(() => _repository.Commit(Guid.NewGuid(), new Dictionary<String, String>()));
             _eventStream.Verify(x => x.ClearChanges(), Moq.Times.Once);
         }
     }

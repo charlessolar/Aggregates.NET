@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Aggregates.NET.Unit.UnitOfWork
+namespace Aggregates.Unit.UnitOfWork
 {
     [TestFixture]
     public class CommitTests

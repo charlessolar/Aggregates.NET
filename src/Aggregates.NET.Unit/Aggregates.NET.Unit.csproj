@@ -7,7 +7,7 @@
     <ProjectGuid>{1A964ACC-3518-4DD6-B5C1-01B130CF4B13}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Aggregates.NET.Unit</RootNamespace>
+    <RootNamespace>Aggregates.Unit</RootNamespace>
     <AssemblyName>Aggregates.NET.Unit</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -51,6 +51,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Aggregate\_AggregateStub.cs" />
+    <Compile Include="DefaultRouteResolver\ResolveTests.cs" />
+    <Compile Include="EventRouter\GetTests.cs" />
+    <Compile Include="EventRouter\RegisterTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Repository\CommitFailTests.cs" />
     <Compile Include="Repository\CommitTests.cs" />
@@ -74,6 +78,7 @@
       <Name>Aggregates.NET</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

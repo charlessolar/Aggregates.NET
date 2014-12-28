@@ -10,14 +10,20 @@ namespace Aggregates.Contracts
         Int32 Version { get; }
 
         void Hydrate(IEnumerable<object> events);
-
-        void RestoreSnapshot(ISnapshot memento);
-        ISnapshot TakeSnapshot();
-
+        
         void Apply<TEvent>(Action<TEvent> action);
+    }
+    public interface ISnapshottingEventSourceBase : IEventSourceBase
+    {
+        void RestoreSnapshot(ISnapshot snapshot);
+        ISnapshot TakeSnapshot();
+        Boolean ShouldTakeSnapshot(Int32 CurrentVersion, Int32 CommitVersion);
     }
     public interface IEventSource<TId> : IEventSourceBase
     {
         TId Id { get; }
+    }
+    public interface ISnapshottingEventSource<TId> : ISnapshottingEventSourceBase, IEventSource<TId>
+    {
     }
 }

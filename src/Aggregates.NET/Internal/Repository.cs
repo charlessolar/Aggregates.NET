@@ -23,7 +23,6 @@ namespace Aggregates.Internal
 
         private readonly ConcurrentDictionary<String, ISnapshot> _snapshots = new ConcurrentDictionary<String, ISnapshot>();
         private readonly ConcurrentDictionary<String, IEventStream> _streams = new ConcurrentDictionary<String, IEventStream>();
-        private bool _disposed;
 
         public Repository(IContainer container, IStoreEvents store)
         {
@@ -31,7 +30,7 @@ namespace Aggregates.Internal
             _store = store;
         }
 
-        public void Commit(Guid commitId, IDictionary<String, String> headers = null)
+        void IRepositoryBase.Commit(Guid commitId, IDictionary<String, String> headers)
         {
             foreach (var stream in _streams)
             {
@@ -76,7 +75,6 @@ namespace Aggregates.Internal
                 _snapshots.Clear();
                 _streams.Clear();
             }
-            _disposed = true;
         }
 
 
@@ -110,8 +108,8 @@ namespace Aggregates.Internal
                 container.Configure<IEventStream>(() => stream, global::NServiceBus.DependencyLifecycle.SingleInstance);
                 var aggregate = (T)container.Build(typeof(T));
 
-                if (snapshot != null)
-                    aggregate.RestoreSnapshot(snapshot);
+                if (snapshot != null && aggregate is ISnapshottingEventSourceBase)
+                    ((ISnapshottingEventSourceBase)aggregate).RestoreSnapshot(snapshot);
 
                 if (stream != null && (version == 0 || aggregate.Version < version))
                 {

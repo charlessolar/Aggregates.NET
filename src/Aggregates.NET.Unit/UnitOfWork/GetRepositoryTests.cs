@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Aggregates.NET.Unit.Repository
+namespace Aggregates.Unit.Repository
 {
     [TestFixture]
     public class GetRepositoryTests

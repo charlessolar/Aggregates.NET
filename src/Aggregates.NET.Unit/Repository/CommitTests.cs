@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Aggregates.NET.Unit.Repository
+namespace Aggregates.Unit.Repository
 {
 
     [TestFixture]
@@ -47,7 +47,7 @@ namespace Aggregates.NET.Unit.Repository
         [Test]
         public void commit_no_streams()
         {
-            Assert.DoesNotThrow(() => _repository.Commit(Guid.NewGuid()));
+            Assert.DoesNotThrow(() => _repository.Commit(Guid.NewGuid(), new Dictionary<String, String>()));
         }
 
         [Test]
@@ -55,7 +55,7 @@ namespace Aggregates.NET.Unit.Repository
         {
             var eventSource = _repository.New(Guid.NewGuid()).Apply<CreateFake>(e => { });
 
-            Assert.DoesNotThrow(() => _repository.Commit(Guid.NewGuid()));
+            Assert.DoesNotThrow(() => _repository.Commit(Guid.NewGuid(), new Dictionary<String, String>()));
             _eventStream.Verify(x => x.CommitChanges(Moq.It.IsAny<Guid>()), Moq.Times.Once);
         }
 
@@ -65,7 +65,7 @@ namespace Aggregates.NET.Unit.Repository
             var eventSource1 = _repository.New(Guid.NewGuid()).Apply<CreateFake>(e => { });
             var eventSource2 = _repository.New(Guid.NewGuid()).Apply<CreateFake>(e => { });
 
-            Assert.DoesNotThrow(() => _repository.Commit(Guid.NewGuid()));
+            Assert.DoesNotThrow(() => _repository.Commit(Guid.NewGuid(), new Dictionary<String, String>()));
             _eventStream.Verify(x => x.CommitChanges(Moq.It.IsAny<Guid>()), Moq.Times.Exactly(2));
         }
 

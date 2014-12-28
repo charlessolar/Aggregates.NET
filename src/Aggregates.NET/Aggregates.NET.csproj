@@ -56,10 +56,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Aggregate.cs" />
+    <Compile Include="Contracts\IRouteResolver.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
     <Compile Include="Exceptions\HandlerNotFoundException.cs" />
     <Compile Include="Exceptions\PersistenceException.cs" />
     <Compile Include="IConflictDetector.cs" />
+    <Compile Include="Internal\DefaultRouteResolver.cs" />
     <Compile Include="Internal\Repository.cs" />
     <Compile Include="IRepository.cs" />
     <Compile Include="Internal\EventRouter.cs" />

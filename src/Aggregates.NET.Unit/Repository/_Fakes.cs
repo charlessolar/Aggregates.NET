@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Aggregates.NET.Unit.Repository
+namespace Aggregates.Unit.Repository
 {
     public interface CreateFake { }
 }
