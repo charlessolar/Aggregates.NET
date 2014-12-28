@@ -51,7 +51,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Aggregate\AggregateTests.cs" />
+    <Compile Include="Aggregate\SnapshottingAggregateTests.cs" />
     <Compile Include="Aggregate\_AggregateStub.cs" />
+    <Compile Include="Aggregate\_EventFake.cs" />
     <Compile Include="DefaultRouteResolver\ResolveTests.cs" />
     <Compile Include="EventRouter\GetTests.cs" />
     <Compile Include="EventRouter\RegisterTests.cs" />

@@ -10,53 +10,69 @@ namespace Aggregates
 
     public abstract class Aggregate<TId> : IEventSource<TId>
     {
-        public TId Id { get; protected set; }
+        public TId Id
+        {
+            get
+            {
+                // Dont use unsupported Ids kids
+                var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(TId));
+                if (converter != null && converter.IsValid(this.StreamId))
+                    return (TId)converter.ConvertFromString(this.StreamId);
+                else
+                    return (TId)Activator.CreateInstance(typeof(TId));
+            }
+        }
+        public String BucketId
+        {
+            get
+            {
+                // IEventStream does not have a bucketid property yet
+                return "";
+            }
+        }
 
-        String IEventSourceBase.StreamId { get { return this.Id.ToString(); } }
-        String IEventSourceBase.BucketId { get { return this.BucketId; } }
-        Int32 IEventSourceBase.Version { get { return this.Version; } }
+        String IEventSource.StreamId { get { return this.StreamId; } }
+        Int32 IEventSource.Version { get { return this.Version; } }
 
-        public String BucketId { get; protected set; }
-        public Int32 Version { get; protected set; }
+        public String StreamId { get { return _eventStream.StreamId; } }
+        public Int32 Version { get { return _eventStream.StreamRevision; } }
 
-        public virtual IContainer Container { get; set; }
-
+        private readonly IContainer _container;
         private readonly IEventStream _eventStream;
         private readonly IMessageCreator _eventFactory;
         protected readonly IEventRouter _router;
 
 
-        protected Aggregate()
-        {
-            _router = Container.Build(typeof(IEventRouter)) as IEventRouter;
-            _eventFactory = Container.Build(typeof(IMessageCreator)) as IMessageCreator;
-            _eventStream = Container.Build(typeof(IEventStream)) as IEventStream;
-            _router.Register(this);
-        }
         protected Aggregate(IContainer container, IEventRouter router = null)
         {
-            this.Container = container;
-            _router = router ?? Container.Build(typeof(IEventRouter)) as IEventRouter;
-            _eventFactory = Container.Build(typeof(IMessageCreator)) as IMessageCreator;
-            _eventStream = Container.Build(typeof(IEventStream)) as IEventStream;
+            _container = container;
+            _router = router ?? _container.Build(typeof(IEventRouter)) as IEventRouter;
+            _eventFactory = _container.Build(typeof(IMessageCreator)) as IMessageCreator;
+            _eventStream = _container.Build(typeof(IEventStream)) as IEventStream;
 
             _router.Register(this);
         }
 
-        
-        void IEventSourceBase.Hydrate(IEnumerable<object> events)
+
+        void IEventSource.Hydrate(IEnumerable<object> events)
         {
             foreach (var @event in events)
             {
                 Raise(@event);
-                Version++;
             }
         }
+        void IEventSource.Apply<TEvent>(Action<TEvent> action)
+        {
+            Apply(action);
+        }
 
-        void IEventSourceBase.Apply<TEvent>(Action<TEvent> action)
+        protected void Apply<TEvent>(Action<TEvent> action)
         {
             var @event = _eventFactory.CreateInstance(action);
-
+            Apply(@event);
+        }
+        protected void Apply<TEvent>(TEvent @event)
+        {
             Raise(@event);
 
             _eventStream.Add(new EventMessage
@@ -80,23 +96,26 @@ namespace Aggregates
 
     public abstract class AggregateWithMemento<TId, TMemento> : Aggregate<TId>, ISnapshottingEventSource<TId> where TMemento : class, IMemento<TId>
     {
-        void ISnapshottingEventSourceBase.RestoreSnapshot(ISnapshot snapshot)
+        protected AggregateWithMemento(IContainer container, IEventRouter router = null)
+            : base(container, router)
         {
-            Version = snapshot.StreamRevision;
-            BucketId = snapshot.BucketId;
+        }
 
+        void ISnapshottingEventSource.RestoreSnapshot(ISnapshot snapshot)
+        {
             var memento = (TMemento)snapshot.Payload;
 
             RestoreSnapshot(memento);
         }
 
-        ISnapshot ISnapshottingEventSourceBase.TakeSnapshot()
+        ISnapshot ISnapshottingEventSource.TakeSnapshot()
         {
             var memento = TakeSnapshot();
-            return new Snapshot(this.BucketId, this.Id.ToString(), this.Version, memento);
+            memento.Id = this.Id;
+            return new Snapshot(this.BucketId, this.StreamId, this.Version, memento);
         }
 
-        Boolean ISnapshottingEventSourceBase.ShouldTakeSnapshot(Int32 CurrentVersion, Int32 CommitVersion)
+        Boolean ISnapshottingEventSource.ShouldTakeSnapshot(Int32 CurrentVersion, Int32 CommitVersion)
         {
             return ShouldTakeSnapshot(CurrentVersion, CommitVersion);
         }

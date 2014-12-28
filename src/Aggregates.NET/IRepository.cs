@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public interface IRepositoryBase : IDisposable
+    public interface IRepository : IDisposable
     {
         void Commit(Guid commitId, IDictionary<String, String> headers);
     }
 
-    public interface IRepository<T> : IRepositoryBase where T : class, IEventSourceBase
+    public interface IRepository<T> : IRepository where T : class, IEventSource
     {
         T Get<TId>(TId id);
         T Get<TId>(TId id, Int32 version);
@@ -22,8 +22,9 @@ namespace Aggregates
         
         IRepoNewChain<T> New<TId>(String bucketId, TId id);
         IRepoNewChain<T> New<TId>(TId id);
-
     }
+
+
     public interface IRepoNewChain<T>
     {
         T Apply<TEvent>(Action<TEvent> action);

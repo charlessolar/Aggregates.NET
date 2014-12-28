@@ -26,14 +26,14 @@ namespace Aggregates.Internal
         public IDictionary<String, String> WorkHeaders { get; set; }
 
         private bool _disposed;
-        private IDictionary<Type, IRepositoryBase> _repositories;
+        private IDictionary<Type, IRepository> _repositories;
 
         public UnitOfWork(IContainer container, IStoreEvents eventStore, IBus bus)
         {
             _container = container.BuildChildContainer();
             _eventStore = eventStore;
             _bus = bus;
-            _repositories = new Dictionary<Type, IRepositoryBase>();
+            _repositories = new Dictionary<Type, IRepository>();
             WorkHeaders = new Dictionary<String, String>();
         }
         public void Dispose()
@@ -51,17 +51,19 @@ namespace Aggregates.Internal
             _disposed = true;
         }
 
-        public IRepository<T> For<T>() where T : class, IEventSourceBase
+        public IRepository<T> For<T>() where T : class, IEventSource
         {
             Logger.DebugFormat("Retreiving repository for type {0}", typeof(T));
             var type = typeof(T);
 
-            IRepositoryBase repository;
+            IRepository repository;
             if( _repositories.TryGetValue(type, out repository) )
                 return (IRepository<T>)repository;
 
-            return (IRepository<T>)(_repositories[type] = (IRepositoryBase)_container.Build(typeof(IRepository<T>)));
+            return (IRepository<T>)(_repositories[type] = (IRepository)_container.Build(typeof(IRepository<T>)));
         }
+
+
 
         public void Commit()
         {

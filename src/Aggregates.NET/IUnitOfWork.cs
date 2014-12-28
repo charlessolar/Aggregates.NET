@@ -9,7 +9,7 @@ namespace Aggregates
     {
         IDictionary<String, String> WorkHeaders { get; }
 
-        IRepository<T> For<T>() where T : class, IEventSourceBase;
+        IRepository<T> For<T>() where T : class, IEventSource;
 
         void Commit();
     }

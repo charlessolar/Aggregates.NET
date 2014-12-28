@@ -34,8 +34,7 @@ namespace Aggregates.Unit.Repository
             _eventStream.Setup(x => x.UncommittedHeaders).Returns(new Dictionary<String, Object>());
             _eventStream.Setup(x => x.ClearChanges()).Verifiable();
             _eventStore.Setup(x => x.CreateStream(Moq.It.IsAny<String>(), Moq.It.IsAny<String>())).Returns(_eventStream.Object);
-            _aggregate = new Moq.Mock<Aggregate<Guid>>();
-            _aggregate.Setup(x => x.Container).Returns(_container.Object);
+            _aggregate = new Moq.Mock<Aggregate<Guid>>(_container.Object, null);
             _container.Setup(x => x.BuildChildContainer()).Returns(_container.Object);
             _container.Setup(x => x.Build(typeof(IEventRouter))).Returns(_eventRouter.Object);
             _container.Setup(x => x.Build(typeof(IMessageCreator))).Returns(_eventFactory.Object);

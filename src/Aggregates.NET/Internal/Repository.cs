@@ -15,7 +15,7 @@ namespace Aggregates.Internal
     // inspired / taken from NEventStore.CommonDomain
     // https://github.com/NEventStore/NEventStore/blob/master/src/NEventStore/CommonDomain/Persistence/EventStore/EventStoreRepository.cs
 
-    public class Repository<T> : IRepository<T> where T : class, IEventSourceBase
+    public class Repository<T> : IRepository<T> where T : class, IEventSource
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Repository<T>));
         private readonly IStoreEvents _store;
@@ -30,7 +30,7 @@ namespace Aggregates.Internal
             _store = store;
         }
 
-        void IRepositoryBase.Commit(Guid commitId, IDictionary<String, String> headers)
+        void IRepository.Commit(Guid commitId, IDictionary<String, String> headers)
         {
             foreach (var stream in _streams)
             {
@@ -108,8 +108,8 @@ namespace Aggregates.Internal
                 container.Configure<IEventStream>(() => stream, global::NServiceBus.DependencyLifecycle.SingleInstance);
                 var aggregate = (T)container.Build(typeof(T));
 
-                if (snapshot != null && aggregate is ISnapshottingEventSourceBase)
-                    ((ISnapshottingEventSourceBase)aggregate).RestoreSnapshot(snapshot);
+                if (snapshot != null && aggregate is ISnapshottingEventSource)
+                    ((ISnapshottingEventSource)aggregate).RestoreSnapshot(snapshot);
 
                 if (stream != null && (version == 0 || aggregate.Version < version))
                 {
@@ -131,7 +131,6 @@ namespace Aggregates.Internal
             public T Apply<TEvent>(Action<TEvent> action)
             {
                 var aggregate = (T)_container.Build(typeof(T));
-
                 aggregate.Apply(action);
 
                 return aggregate;

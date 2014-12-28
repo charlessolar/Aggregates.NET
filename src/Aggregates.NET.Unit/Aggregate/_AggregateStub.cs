@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using NServiceBus.ObjectBuilder.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,6 +19,8 @@ namespace Aggregates.Unit.Aggregate
         public Boolean SnapshotTaken { get; set; }
         public String Value { get; set; }
 
+        public _AggregateStub(IContainer container) : base(container) { }
+
         protected override void RestoreSnapshot(Memento memento)
         {
             Value = memento.Value;
@@ -26,6 +29,23 @@ namespace Aggregates.Unit.Aggregate
         protected override Memento TakeSnapshot()
         {
             return new Memento { Value = Value };
+        }
+
+        public void Handle(CreatedEvent @event)
+        {
+            this.Value = @event.Value;
+        }
+        public void Handle(UpdatedEvent @event)
+        {
+            this.Value = @event.Value;
+        }
+
+        public void ThrowEvent(String value)
+        {
+            Apply<UpdatedEvent>(e =>
+            {
+                e.Value = value;
+            });
         }
     }
 }
