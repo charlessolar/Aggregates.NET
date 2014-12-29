@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 namespace Aggregates.Contracts
 {
-    public interface IEventSource
+    public interface IEventSource : INeedStream
     {
         String StreamId { get; }
         Int32 Version { get; }

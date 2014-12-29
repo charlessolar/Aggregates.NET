@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 namespace Aggregates.Unit.Repository
 {
     [TestFixture]
-    public class GetRepositoryTests
+    public class ForTests
     {
         private Moq.Mock<IContainer> _container;
         private Moq.Mock<IStoreEvents> _eventStore;

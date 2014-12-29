@@ -11,6 +11,7 @@ using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder.Common;
 using NEventStore.Persistence;
 using NServiceBus.Unicast.Messages;
+using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
@@ -19,7 +20,7 @@ namespace Aggregates.Internal
     {
         private const string AggregateTypeHeader = "AggregateType";
         private static readonly ILog Logger = LogManager.GetLogger(typeof(UnitOfWork));
-        private readonly IContainer _container;
+        private readonly IBuilder _builder;
         private readonly IStoreEvents _eventStore;
         private readonly IBus _bus;
 
@@ -28,9 +29,9 @@ namespace Aggregates.Internal
         private bool _disposed;
         private IDictionary<Type, IRepository> _repositories;
 
-        public UnitOfWork(IContainer container, IStoreEvents eventStore, IBus bus)
+        public UnitOfWork(IBuilder builder, IStoreEvents eventStore, IBus bus)
         {
-            _container = container.BuildChildContainer();
+            _builder = builder.CreateChildBuilder();
             _eventStore = eventStore;
             _bus = bus;
             _repositories = new Dictionary<Type, IRepository>();
@@ -44,9 +45,18 @@ namespace Aggregates.Internal
 
         public virtual void Dispose(bool disposing)
         {
-            if (!_disposed && disposing)
+            if (_disposed || !disposing)
+                return;
+
+            _eventStore.Dispose();
+            lock (_repositories)
             {
-                _eventStore.Dispose();
+                foreach (var repo in _repositories)
+                {
+                    repo.Value.Dispose();
+                }
+
+                _repositories.Clear();
             }
             _disposed = true;
         }
@@ -60,7 +70,8 @@ namespace Aggregates.Internal
             if( _repositories.TryGetValue(type, out repository) )
                 return (IRepository<T>)repository;
 
-            return (IRepository<T>)(_repositories[type] = (IRepository)_container.Build(typeof(IRepository<T>)));
+            var repoType = typeof(Repository<>).MakeGenericType(typeof(T));
+            return (IRepository<T>)(_repositories[type] = (IRepository)Activator.CreateInstance(repoType, _builder, _eventStore));
         }
 
 

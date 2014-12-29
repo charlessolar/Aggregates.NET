@@ -33,7 +33,7 @@ namespace Aggregates.Internal
             this._handlers[@eventType] = handler;
         }
 
-        public Action<Object> Get(Type eventType)
+        public Action<Object> RouteFor(Type eventType)
         {
             Action<Object> handler;
             if (!_handlers.TryGetValue(eventType, out handler))

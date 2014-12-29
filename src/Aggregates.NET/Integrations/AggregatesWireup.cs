@@ -7,37 +7,41 @@ using NEventStore.Logging;
 using NEventStore.Persistence;
 using NEventStore.Serialization;
 using NServiceBus.ObjectBuilder;
+using NServiceBus;
+using StructureMap;
 
-namespace Aggregates.NEventStore
+namespace Aggregates
 {
     public class AggregatesWireup : Wireup
     {
         private static readonly ILog Logger = LogFactory.BuildLogger(typeof(AggregatesWireup));
+        private readonly IContainer _container;
 
-        public AggregatesWireup(Wireup wireup, IBuilder builder )
+        public AggregatesWireup(Wireup wireup, IContainer container)
             : base(wireup)
         {
-            Logger.Debug("Configuring the store to dispatch messages synchronously.");
-            
-            wireup.UsingAsynchronousDispatchScheduler();
-            Container.Register<IDispatchCommits>((c) => builder.Build<IDispatchCommits>());
-        }
 
+            _container = container;
+
+            Logger.Debug("Configuring the store to dispatch messages asynchronously.");
+            wireup.UsingAsynchronousDispatchScheduler();
+            
+        }
 
         public override IStoreEvents Build()
         {
-            Logger.Debug("Configuring the store to upconvert events when fetched.");
-
-            var pipelineHooks = Container.Resolve<ICollection<IPipelineHook>>();
-
-            if (pipelineHooks == null)
-            {
-                Container.Register((pipelineHooks = new Collection<IPipelineHook>()));
-            }
-                        
             var store = base.Build();
-            
+            _container.Configure(x => x.For<IStoreEvents>().Use(store));
+
             return store;
+        }
+    }
+
+    public static class Extension {
+
+        public static AggregatesWireup UseAggregates(this Wireup wireup, IContainer container)
+        {
+            return new AggregatesWireup(wireup, container);
         }
     }
     

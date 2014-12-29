@@ -25,7 +25,7 @@ namespace Aggregates.Unit.EventRouter
         [Test]
         public void get_no_routes_no_register()
         {
-            Assert.Throws<HandlerNotFoundException>(() => _router.Get(typeof(String)));
+            Assert.Throws<HandlerNotFoundException>(() => _router.RouteFor(typeof(String)));
         }
 
         [Test]
@@ -33,7 +33,7 @@ namespace Aggregates.Unit.EventRouter
         {
             _resolver.Setup(x => x.Resolve(Moq.It.IsAny<Aggregate<Guid>>())).Returns(new Dictionary<Type, Action<Object>> { { typeof(String), a => { } } });
             _router.Register(Moq.It.IsAny<Aggregate<Guid>>());
-            Assert.DoesNotThrow(() => _router.Get(typeof(String)));
+            Assert.DoesNotThrow(() => _router.RouteFor(typeof(String)));
         }
 
         [Test]
@@ -41,7 +41,7 @@ namespace Aggregates.Unit.EventRouter
         {
             _resolver.Setup(x => x.Resolve(Moq.It.IsAny<Aggregate<Guid>>())).Returns(new Dictionary<Type, Action<Object>> { { typeof(String), a => { } } });
             _router.Register(Moq.It.IsAny<Aggregate<Guid>>());
-            Assert.Throws<HandlerNotFoundException>(() => _router.Get(typeof(Int32)));
+            Assert.Throws<HandlerNotFoundException>(() => _router.RouteFor(typeof(Int32)));
         }
 
         [Test]
@@ -51,8 +51,8 @@ namespace Aggregates.Unit.EventRouter
             _router.Register(Moq.It.IsAny<Aggregate<Guid>>());
             _resolver.Setup(x => x.Resolve(Moq.It.IsAny<Aggregate<Guid>>())).Returns(new Dictionary<Type, Action<Object>> { { typeof(Guid), a => { } } });
             _router.Register(Moq.It.IsAny<Aggregate<Guid>>());
-            Assert.DoesNotThrow(() => _router.Get(typeof(String)));
-            Assert.DoesNotThrow(() => _router.Get(typeof(Guid)));
+            Assert.DoesNotThrow(() => _router.RouteFor(typeof(String)));
+            Assert.DoesNotThrow(() => _router.RouteFor(typeof(Guid)));
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Aggregates.Contracts;
 using NEventStore;
+using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
@@ -7,6 +8,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -17,16 +19,17 @@ namespace Aggregates.Internal
 
     public class Repository<T> : IRepository<T> where T : class, IEventSource
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(Repository<T>));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(Repository<>));
         private readonly IStoreEvents _store;
-        private readonly IContainer _container;
+        private readonly IBuilder _builder;
 
         private readonly ConcurrentDictionary<String, ISnapshot> _snapshots = new ConcurrentDictionary<String, ISnapshot>();
         private readonly ConcurrentDictionary<String, IEventStream> _streams = new ConcurrentDictionary<String, IEventStream>();
+        private Boolean _disposed;
 
-        public Repository(IContainer container, IStoreEvents store)
+        public Repository(IBuilder builder, IStoreEvents store)
         {
-            _container = container;
+            _builder = builder;
             _store = store;
         }
 
@@ -60,10 +63,8 @@ namespace Aggregates.Internal
         }
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposing)
-            {
+            if (_disposed || !disposing)
                 return;
-            }
 
             lock (_streams)
             {
@@ -75,6 +76,7 @@ namespace Aggregates.Internal
                 _snapshots.Clear();
                 _streams.Clear();
             }
+            _disposed = true;
         }
 
 
@@ -103,54 +105,62 @@ namespace Aggregates.Internal
             if (stream == null && snapshot == null) return (T)null;
 
             // Use a child container to provide the root with a singleton stream and possibly some other future stuff
-            using (var container = _container.BuildChildContainer())
+            using (var builder = _builder.CreateChildBuilder())
             {
-                container.Configure<IEventStream>(() => stream, global::NServiceBus.DependencyLifecycle.SingleInstance);
-                var aggregate = (T)container.Build(typeof(T));
+                // Call the 'private' constructor
+                var root = Newup(stream, builder);
 
-                if (snapshot != null && aggregate is ISnapshottingEventSource)
-                    ((ISnapshottingEventSource)aggregate).RestoreSnapshot(snapshot);
+                if (snapshot != null && root is ISnapshottingEventSource)
+                    ((ISnapshottingEventSource)root).RestoreSnapshot(snapshot);
 
-                if (stream != null && (version == 0 || aggregate.Version < version))
+                if (stream != null && (version == 0 || root.Version < version))
                 {
                     // If they GET a currently open root, apply all the uncommitted events too
                     var events = stream.CommittedEvents.Concat(stream.UncommittedEvents);
 
-                    aggregate.Hydrate(events.Take(version - aggregate.Version).Select(e => e.Body));
+                    root.Hydrate(events.Take(version - root.Version).Select(e => e.Body));
 
                 }
 
-                return aggregate;
+                return root;
             }
         }
 
-        public class RepoNewChain : IRepoNewChain<T>
-        {
-            private readonly IContainer _container;
-            public RepoNewChain(IContainer container) { _container = container; }
-            public T Apply<TEvent>(Action<TEvent> action)
-            {
-                var aggregate = (T)_container.Build(typeof(T));
-                aggregate.Apply(action);
-
-                return aggregate;
-            }
-        }
-
-        public IRepoNewChain<T> New<TId>(TId id)
+        public T New<TId>(TId id)
         {
             return New<TId>(Bucket.Default, id);
         }
 
-        public IRepoNewChain<T> New<TId>(String bucketId, TId id)
+        public T New<TId>(String bucketId, TId id)
         {
             // Use a child container to provide the root with a singleton stream and possibly some other future stuff
-            using (var container = _container.BuildChildContainer())
+            using (var builder = _builder.CreateChildBuilder())
             {
                 var stream = PrepareStream(bucketId, id);
-                container.Configure<IEventStream>(() => stream, global::NServiceBus.DependencyLifecycle.SingleInstance);
-                return new RepoNewChain(container);
+                
+
+                return Newup(stream, builder);
             }
+        }
+
+        private T Newup(IEventStream stream, IBuilder builder)
+        {
+            // Call the 'private' constructor
+            var tCtor = typeof(T).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { }, null);
+            var root = (T)tCtor.Invoke(null);
+
+            // Todo: I bet there is a way to make a INeedBuilding<T> type interface
+            //      and loop over each, calling builder.build for each T
+            if (root is INeedStream)
+                (root as INeedStream).Stream = stream;
+            if (root is INeedBuilder)
+                (root as INeedBuilder).Builder = builder;
+            if (root is INeedEventFactory)
+                (root as INeedEventFactory).EventFactory = builder.Build<IMessageCreator>();
+            if (root is INeedRouteResolver)
+                (root as INeedRouteResolver).Resolver = builder.Build<IRouteResolver>();
+
+            return root;
         }
 
 

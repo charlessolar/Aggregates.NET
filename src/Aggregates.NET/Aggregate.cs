@@ -1,6 +1,7 @@
 using Aggregates.Contracts;
 using NEventStore;
 using NServiceBus;
+using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
 using System;
 using System.Collections.Generic;
@@ -8,7 +9,7 @@ using System.Collections.Generic;
 namespace Aggregates
 {
 
-    public abstract class Aggregate<TId> : IEventSource<TId>
+    public abstract class Aggregate<TId> : IEventSource<TId>, IEventRouter, INeedBuilder, INeedEventFactory, INeedRouteResolver
     {
         public TId Id
         {
@@ -37,22 +38,20 @@ namespace Aggregates
         public String StreamId { get { return _eventStream.StreamId; } }
         public Int32 Version { get { return _eventStream.StreamRevision; } }
 
-        private readonly IContainer _container;
-        private readonly IEventStream _eventStream;
-        private readonly IMessageCreator _eventFactory;
-        protected readonly IEventRouter _router;
+        IBuilder INeedBuilder.Builder { get; set; }
+        IEventStream INeedStream.Stream { get; set; }
+        IMessageCreator INeedEventFactory.EventFactory { get; set; }
+        IRouteResolver INeedRouteResolver.Resolver { get; set; }
 
+        // The lengths I must go to to avoid putting services into the constructor
+        protected IBuilder _builder { get { return (this as INeedBuilder).Builder; } }
+        private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
+        private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
+        private IRouteResolver _resolver { get { return (this as INeedRouteResolver).Resolver; } }
 
-        protected Aggregate(IContainer container, IEventRouter router = null)
-        {
-            _container = container;
-            _router = router ?? _container.Build(typeof(IEventRouter)) as IEventRouter;
-            _eventFactory = _container.Build(typeof(IMessageCreator)) as IMessageCreator;
-            _eventStream = _container.Build(typeof(IEventStream)) as IEventStream;
+        private IDictionary<Type, Action<Object>> _handlers;
 
-            _router.Register(this);
-        }
-
+        protected Aggregate() { }        
 
         void IEventSource.Hydrate(IEnumerable<object> events)
         {
@@ -69,12 +68,9 @@ namespace Aggregates
         protected void Apply<TEvent>(Action<TEvent> action)
         {
             var @event = _eventFactory.CreateInstance(action);
-            Apply(@event);
-        }
-        protected void Apply<TEvent>(TEvent @event)
-        {
-            Raise(@event);
 
+            Raise(@event);
+            
             _eventStream.Add(new EventMessage
             {
                 Body = @event,
@@ -89,18 +85,38 @@ namespace Aggregates
 
         private void Raise(object @event)
         {
-            _router.Get(@event.GetType())(@event);
+            // If first time, initialize routes
+            if (this._handlers == null)
+            {
+                this._handlers = new Dictionary<Type, Action<Object>>();
+                foreach (var route in _resolver.Resolve(this))
+                    this._handlers[route.Key] = route.Value;
+            }
+
+            RouteFor(@event.GetType())(@event);
         }
 
+        Action<Object> IEventRouter.RouteFor(Type eventType)
+        {
+            return RouteFor(eventType);
+        }
+
+        protected virtual Action<Object> RouteFor(Type eventType)
+        {
+            Action<Object> handler;
+
+            if (!_handlers.TryGetValue(eventType, out handler))
+            {
+                throw new HandlerNotFoundException(String.Format("No handler for event {0}", eventType.Name));
+            }
+
+            return e => handler(e);
+        }
+    
     }
 
     public abstract class AggregateWithMemento<TId, TMemento> : Aggregate<TId>, ISnapshottingEventSource<TId> where TMemento : class, IMemento
     {
-        protected AggregateWithMemento(IContainer container, IEventRouter router = null)
-            : base(container, router)
-        {
-        }
-
         void ISnapshottingEventSource.RestoreSnapshot(ISnapshot snapshot)
         {
             var memento = (TMemento)snapshot.Payload;

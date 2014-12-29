@@ -20,14 +20,7 @@ namespace Aggregates
         T Get<TId>(String bucketId, TId id, Int32 version);
 
         
-        IRepoNewChain<T> New<TId>(String bucketId, TId id);
-        IRepoNewChain<T> New<TId>(TId id);
+        T New<TId>(String bucketId, TId id);
+        T New<TId>(TId id);
     }
-
-
-    public interface IRepoNewChain<T>
-    {
-        T Apply<TEvent>(Action<TEvent> action);
-    }
-
 }

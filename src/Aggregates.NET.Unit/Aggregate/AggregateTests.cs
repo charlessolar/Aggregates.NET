@@ -49,8 +49,8 @@ namespace Aggregates.Unit.Aggregate
             _eventStore.Setup(x => x.CreateStream(Moq.It.IsAny<String>(), Moq.It.IsAny<String>())).Returns(_eventStream.Object);
             _eventStore.Setup(x => x.OpenStream(Moq.It.IsAny<String>(), _id.ToString(), Moq.It.IsAny<Int32>(), Moq.It.IsAny<Int32>())).Returns(_eventStream.Object);
             _eventStore.Setup(x => x.Advanced.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns((ISnapshot)null);
-            _eventRouter.Setup(x => x.Get(typeof(CreatedEvent))).Returns((Action<Object>)(e => stub.Handle((CreatedEvent)e)));
-            _eventRouter.Setup(x => x.Get(typeof(UpdatedEvent))).Returns((Action<Object>)(e => stub.Handle((UpdatedEvent)e)));
+            _eventRouter.Setup(x => x.RouteFor(typeof(CreatedEvent))).Returns((Action<Object>)(e => stub.Handle((CreatedEvent)e)));
+            _eventRouter.Setup(x => x.RouteFor(typeof(UpdatedEvent))).Returns((Action<Object>)(e => stub.Handle((UpdatedEvent)e)));
             _repository = new Aggregates.Internal.Repository<_AggregateStub>(_container.Object, _eventStore.Object);
 
         }
