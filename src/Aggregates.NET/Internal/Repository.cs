@@ -137,8 +137,6 @@ namespace Aggregates.Internal
             using (var builder = _builder.CreateChildBuilder())
             {
                 var stream = PrepareStream(bucketId, id);
-                
-
                 return Newup(stream, builder);
             }
         }

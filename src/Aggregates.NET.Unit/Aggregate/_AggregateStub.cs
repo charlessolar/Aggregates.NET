@@ -11,9 +11,7 @@ namespace Aggregates.Unit.Aggregate
     public class _AggregateStub : Aggregate<Guid>
     {
         public String Value { get; set; }
-
-        public _AggregateStub(IContainer container) : base(container) { }
-
+        
 
         public void Handle(CreatedEvent @event)
         {
