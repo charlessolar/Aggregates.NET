@@ -18,23 +18,11 @@ namespace Aggregates
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(NServicebus));
 
-        public static void UseAggregates(this BusConfiguration config, Wireup eventstore)
+        public static void UseAggregates(this BusConfiguration config)
         {
             config.RegisterComponents(x => x.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork));
             config.RegisterComponents(x => x.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall));
 
-            config.RegisterComponents(x => x.ConfigureComponent<IStoreEvents>(y =>
-            {
-                Logger.Debug("Configuring the store to dispatch messages synchronously.");
-
-                // Dispatcher is a proxy class which uses IEventPublisher to get the current UnitOfWork for publishing events to the bus
-                eventstore.UsingSynchronousDispatchScheduler(
-                    new Dispatcher(y.Build<IBus>())
-                    );
-
-                return eventstore.Build();
-
-            }, DependencyLifecycle.SingleInstance));
         }
     }
 }
