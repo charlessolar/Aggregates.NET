@@ -2,6 +2,7 @@
 using NEventStore;
 using NEventStore.Persistence;
 using NServiceBus;
+using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
 using NUnit.Framework;
 using System;
@@ -15,7 +16,7 @@ namespace Aggregates.Unit.UnitOfWork
     [TestFixture]
     public class CommitFailTests
     {
-        private Moq.Mock<IContainer> _container;
+        private Moq.Mock<IBuilder> _builder;
         private Moq.Mock<IStoreEvents> _eventStore;
         private Moq.Mock<IBus> _bus;
         private Moq.Mock<IRepository<IEventSource<Guid>>> _guidRepository;
@@ -24,13 +25,13 @@ namespace Aggregates.Unit.UnitOfWork
         [SetUp]
         public void Setup()
         {
-            _container = new Moq.Mock<IContainer>();
+            _builder = new Moq.Mock<IBuilder>();
             _eventStore = new Moq.Mock<IStoreEvents>();
             _bus = new Moq.Mock<IBus>();
             _guidRepository = new Moq.Mock<IRepository<IEventSource<Guid>>>();
-            _container.Setup(x => x.Build(typeof(IRepository<IEventSource<Guid>>))).Returns(_guidRepository.Object);
-            _container.Setup(x => x.BuildChildContainer()).Returns(_container.Object);
-            _uow = new Aggregates.Internal.UnitOfWork(_container.Object, _eventStore.Object, _bus.Object);
+            _builder.Setup(x => x.Build<IRepository<IEventSource<Guid>>>()).Returns(_guidRepository.Object);
+            _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
+            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _eventStore.Object);
         }
 
         [Test]

@@ -2,6 +2,7 @@
 using Aggregates.Internal;
 using NEventStore;
 using NServiceBus;
+using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
 using NUnit.Framework;
 using System;
@@ -15,7 +16,7 @@ namespace Aggregates.Unit.Repository
     [TestFixture]
     public class ForTests
     {
-        private Moq.Mock<IContainer> _container;
+        private Moq.Mock<IBuilder> _builder;
         private Moq.Mock<IStoreEvents> _eventStore;
         private Moq.Mock<IBus> _bus;
         private Moq.Mock<IRepository<IEventSource<Guid>>> _repository;
@@ -24,14 +25,14 @@ namespace Aggregates.Unit.Repository
         [SetUp]
         public void Setup()
         {
-            _container = new Moq.Mock<IContainer>();
+            _builder = new Moq.Mock<IBuilder>();
             _eventStore = new Moq.Mock<IStoreEvents>();
             _bus = new Moq.Mock<IBus>();
             _repository = new Moq.Mock<IRepository<IEventSource<Guid>>>();
-            _container.Setup(x => x.Build(typeof(IRepository<IEventSource<Guid>>))).Returns(_repository.Object);
-            _container.Setup(x => x.BuildChildContainer()).Returns(_container.Object);
+            _builder.Setup(x => x.Build<IRepository<IEventSource<Guid>>>()).Returns(_repository.Object);
+            _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
 
-            _uow = new Aggregates.Internal.UnitOfWork(_container.Object, _eventStore.Object, _bus.Object);
+            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _eventStore.Object);
         }
 
         [Test]

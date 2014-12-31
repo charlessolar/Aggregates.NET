@@ -36,8 +36,8 @@ namespace Aggregates.Internal
                 // Also add the factory type since that is what is really being used
                 var factoryType = _eventFactory.CreateInstance(method.MessageType);
 
-                ret.Add(method.MessageType, m => method.Method.Invoke(aggregate, new[] { m }));
-                ret.Add(factoryType.GetType(), m => method.Method.Invoke(aggregate, new[] { m }));
+                ret[method.MessageType] = m => method.Method.Invoke(aggregate, new[] { m });
+                ret[factoryType.GetType()] = m => method.Method.Invoke(aggregate, new[] { m });
             }
             return ret;
         }

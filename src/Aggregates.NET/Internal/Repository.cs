@@ -145,6 +145,9 @@ namespace Aggregates.Internal
         {
             // Call the 'private' constructor
             var tCtor = typeof(T).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { }, null);
+
+            if (tCtor == null)
+                throw new AggregateException("Aggregate needs a PRIVATE parameterless constructor");
             var root = (T)tCtor.Invoke(null);
 
             // Todo: I bet there is a way to make a INeedBuilding<T> type interface

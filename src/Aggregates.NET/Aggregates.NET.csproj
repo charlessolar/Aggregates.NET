@@ -71,6 +71,7 @@
     <Compile Include="Contracts\INeedRouteResolver.cs" />
     <Compile Include="Contracts\INeedStream.cs" />
     <Compile Include="Contracts\IRouteResolver.cs" />
+    <Compile Include="Exceptions\AggregateException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
     <Compile Include="Exceptions\HandlerNotFoundException.cs" />
     <Compile Include="Exceptions\PersistenceException.cs" />

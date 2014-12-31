@@ -35,7 +35,7 @@ namespace Aggregates
         {
             config.RegisterComponents(x =>
             {
-                x.ConfigureComponent<IStoreEvents>(builder, DependencyLifecycle.SingleInstance);
+                x.ConfigureComponent<IStoreEvents>(y => builder(y), DependencyLifecycle.SingleInstance);
             });
         }
     }

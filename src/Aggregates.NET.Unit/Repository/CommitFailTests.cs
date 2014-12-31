@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using NEventStore;
 using NServiceBus;
+using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
 using NUnit.Framework;
 using System;
@@ -14,7 +15,7 @@ namespace Aggregates.Unit.Repository
     [TestFixture]
     public class CommitFailTests
     {
-        private Moq.Mock<IContainer> _container;
+        private Moq.Mock<IBuilder> _builder;
         private Moq.Mock<IStoreEvents> _eventStore;
         private Moq.Mock<IEventStream> _eventStream;
         private Moq.Mock<IEventRouter> _eventRouter;
@@ -25,7 +26,7 @@ namespace Aggregates.Unit.Repository
         [SetUp]
         public void Setup()
         {
-            _container = new Moq.Mock<IContainer>();
+            _builder = new Moq.Mock<IBuilder>();
             _eventStore = new Moq.Mock<IStoreEvents>();
             _eventStream = new Moq.Mock<IEventStream>();
             _eventRouter = new Moq.Mock<IEventRouter>();
@@ -34,13 +35,13 @@ namespace Aggregates.Unit.Repository
             _eventStream.Setup(x => x.UncommittedHeaders).Returns(new Dictionary<String, Object>());
             _eventStream.Setup(x => x.ClearChanges()).Verifiable();
             _eventStore.Setup(x => x.CreateStream(Moq.It.IsAny<String>(), Moq.It.IsAny<String>())).Returns(_eventStream.Object);
-            _aggregate = new Moq.Mock<Aggregate<Guid>>(_container.Object, null);
-            _container.Setup(x => x.BuildChildContainer()).Returns(_container.Object);
-            _container.Setup(x => x.Build(typeof(IEventRouter))).Returns(_eventRouter.Object);
-            _container.Setup(x => x.Build(typeof(IMessageCreator))).Returns(_eventFactory.Object);
-            _container.Setup(x => x.Build(typeof(Aggregate<Guid>))).Returns(_aggregate.Object);
+            _aggregate = new Moq.Mock<Aggregate<Guid>>();
+            _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
+            _builder.Setup(x => x.Build<IEventRouter>()).Returns(_eventRouter.Object);
+            _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
+            _builder.Setup(x => x.Build<Aggregate<Guid>>()).Returns(_aggregate.Object);
 
-            _repository = new Aggregates.Internal.Repository<Aggregate<Guid>>(_container.Object, _eventStore.Object);
+            _repository = new Aggregates.Internal.Repository<Aggregate<Guid>>(_builder.Object, _eventStore.Object);
         }
 
         [Test]
@@ -48,7 +49,7 @@ namespace Aggregates.Unit.Repository
         {
             _eventStream.Setup(x => x.CommitChanges(Moq.It.IsAny<Guid>())).Throws(new ConcurrencyException());
 
-            var eventSource = _repository.New(Guid.NewGuid()).Apply<CreateFake>(e => { });
+            var eventSource = _repository.New(Guid.NewGuid());
             Assert.Throws<ConflictingCommandException>(() => _repository.Commit(Guid.NewGuid(), new Dictionary<String, String>()));
         }
 
@@ -57,7 +58,7 @@ namespace Aggregates.Unit.Repository
         {
             _eventStream.Setup(x => x.CommitChanges(Moq.It.IsAny<Guid>())).Throws(new ConcurrencyException());
 
-            var eventSource = _repository.New(Guid.NewGuid()).Apply<CreateFake>(e => { });
+            var eventSource = _repository.New(Guid.NewGuid());
             Assert.Throws<ConflictingCommandException>(() => _repository.Commit(Guid.NewGuid(), new Dictionary<String, String>()));
             _eventStream.Verify(x => x.ClearChanges(), Moq.Times.Once);
         }
@@ -67,7 +68,7 @@ namespace Aggregates.Unit.Repository
         {
             _eventStream.Setup(x => x.CommitChanges(Moq.It.IsAny<Guid>())).Throws(new DuplicateCommitException());
 
-            var eventSource = _repository.New(Guid.NewGuid()).Apply<CreateFake>(e => { });
+            var eventSource = _repository.New(Guid.NewGuid());
             Assert.DoesNotThrow(() => _repository.Commit(Guid.NewGuid(), new Dictionary<String, String>()));
             _eventStream.Verify(x => x.ClearChanges(), Moq.Times.Once);
         }

@@ -10,24 +10,25 @@ namespace Aggregates.Unit.Aggregate
 {
     public class _AggregateStub : Aggregate<Guid>
     {
+        private _AggregateStub() { }
         public String Value { get; set; }
-        
 
-        public void Handle(CreatedEvent @event)
+        public void Create(Guid id, String value)
+        {
+            Apply<CreatedEvent>(e => { e.Value = value; });
+        }
+        public void Update(String value)
+        {
+            Apply<UpdatedEvent>(e => { e.Value = value; });
+        }
+
+        private void Handle(CreatedEvent @event)
         {
             this.Value = @event.Value;
         }
-        public void Handle(UpdatedEvent @event)
+        private void Handle(UpdatedEvent @event)
         {
             this.Value = @event.Value;
-        }
-
-        public void ThrowEvent(String value)
-        {
-            Apply<UpdatedEvent>(e =>
-            {
-                e.Value = value;
-            });
         }
 
     }

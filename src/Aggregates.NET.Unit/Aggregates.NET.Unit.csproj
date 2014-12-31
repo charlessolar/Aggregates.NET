@@ -51,7 +51,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Aggregate\AggregateTests.cs" />
+    <Compile Include="Aggregate\ExistingAggregateTests.cs" />
+    <Compile Include="Aggregate\NewAggregateTests.cs" />
     <Compile Include="Aggregate\_AggregateStub.cs" />
     <Compile Include="Aggregate\_EventFake.cs" />
     <Compile Include="DefaultRouteResolver\ResolveTests.cs" />
@@ -68,7 +69,6 @@
     <Compile Include="UnitOfWork\DispatchTests.cs" />
     <Compile Include="UnitOfWork\DisposeTests.cs" />
     <Compile Include="UnitOfWork\ForTests.cs" />
-    <Compile Include="UnitOfWork\MutateIncomingTests.cs" />
     <Compile Include="UnitOfWork\MutateOutgoingTests.cs" />
   </ItemGroup>
   <ItemGroup>

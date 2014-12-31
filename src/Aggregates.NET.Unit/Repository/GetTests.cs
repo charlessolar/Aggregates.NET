@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using NEventStore;
 using NServiceBus;
+using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
 using NUnit.Framework;
 using System;
@@ -14,7 +15,7 @@ namespace Aggregates.Unit.Repository
     [TestFixture]
     public class GetTests
     {
-        private Moq.Mock<IContainer> _container;
+        private Moq.Mock<IBuilder> _builder;
         private Moq.Mock<IStoreEvents> _eventStore;
         private Moq.Mock<IEventStream> _eventStream;
         private Moq.Mock<IEventRouter> _eventRouter;
@@ -27,7 +28,7 @@ namespace Aggregates.Unit.Repository
         public void Setup()
         {
             _id = Guid.NewGuid();
-            _container = new Moq.Mock<IContainer>();
+            _builder = new Moq.Mock<IBuilder>();
             _eventStore = new Moq.Mock<IStoreEvents>();
             _eventStream = new Moq.Mock<IEventStream>();
             _eventRouter = new Moq.Mock<IEventRouter>();
@@ -37,13 +38,13 @@ namespace Aggregates.Unit.Repository
             _eventStream.Setup(x => x.Dispose()).Verifiable();
             _eventStore.Setup(x => x.Advanced.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns((ISnapshot)null);
             _eventStore.Setup(x => x.OpenStream(Moq.It.IsAny<String>(), _id.ToString(), Moq.It.IsAny<Int32>(), Moq.It.IsAny<Int32>())).Returns(_eventStream.Object);
-            _aggregate = new Moq.Mock<Aggregate<Guid>>(_container.Object, null);
-            _container.Setup(x => x.BuildChildContainer()).Returns(_container.Object);
-            _container.Setup(x => x.Build(typeof(IEventRouter))).Returns(_eventRouter.Object);
-            _container.Setup(x => x.Build(typeof(IMessageCreator))).Returns(_eventFactory.Object);
-            _container.Setup(x => x.Build(typeof(Aggregate<Guid>))).Returns(_aggregate.Object);
+            _aggregate = new Moq.Mock<Aggregate<Guid>>();
+            _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
+            _builder.Setup(x => x.Build<IEventRouter>()).Returns(_eventRouter.Object);
+            _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
+            _builder.Setup(x => x.Build<Aggregate<Guid>>()).Returns(_aggregate.Object);
 
-            _repository = new Aggregates.Internal.Repository<Aggregate<Guid>>(_container.Object, _eventStore.Object);
+            _repository = new Aggregates.Internal.Repository<Aggregate<Guid>>(_builder.Object, _eventStore.Object);
         }
 
         [Test]
