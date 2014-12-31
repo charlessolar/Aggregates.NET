@@ -37,11 +37,21 @@
     <SignAssembly>false</SignAssembly>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="NEventStore">
-      <HintPath>..\packages\NEventStore.5.0.0.100\lib\net40\NEventStore.dll</HintPath>
+    <Reference Include="NEventStore, Version=5.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\NEventStore.Persistence.RavenDB\src\NEventStore.Persistence.RavenDB\bin\Debug\NEventStore.dll</HintPath>
+    </Reference>
+    <Reference Include="NEventStore.Persistence.RavenDB">
+      <HintPath>..\..\..\NEventStore.Persistence.RavenDB\src\NEventStore.Persistence.RavenDB\bin\Debug\NEventStore.Persistence.RavenDB.dll</HintPath>
     </Reference>
     <Reference Include="NServiceBus.Core">
       <HintPath>..\packages\NServiceBus.5.1.2\lib\net45\NServiceBus.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Raven.Abstractions">
+      <HintPath>..\packages\RavenDB.Client.2.5.2946\lib\net45\Raven.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Raven.Client.Lightweight">
+      <HintPath>..\packages\RavenDB.Client.2.5.2946\lib\net45\Raven.Client.Lightweight.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.Composition" />
@@ -68,6 +78,7 @@
     <Compile Include="Integrations\Dispatcher.cs" />
     <Compile Include="Integrations\NEventStore.cs" />
     <Compile Include="Integrations\NServicebus.cs" />
+    <Compile Include="Integrations\Serialization.cs" />
     <Compile Include="Internal\DefaultRouteResolver.cs" />
     <Compile Include="Internal\Repository.cs" />
     <Compile Include="IRepository.cs" />

@@ -23,14 +23,7 @@ namespace Aggregates
                     return (TId)Activator.CreateInstance(typeof(TId));
             }
         }
-        public String BucketId
-        {
-            get
-            {
-                // IEventStream does not have a bucketid property yet
-                return "";
-            }
-        }
+        public String BucketId { get { return _eventStream.BucketId; } }
 
         String IEventSource.StreamId { get { return this.StreamId; } }
         Int32 IEventSource.Version { get { return this.Version; } }
@@ -51,7 +44,7 @@ namespace Aggregates
 
         private IDictionary<Type, Action<Object>> _handlers;
 
-        protected Aggregate() { }        
+        protected Aggregate() { }
 
         void IEventSource.Hydrate(IEnumerable<object> events)
         {
@@ -70,12 +63,13 @@ namespace Aggregates
             var @event = _eventFactory.CreateInstance(action);
 
             Raise(@event);
-            
+
             _eventStream.Add(new EventMessage
             {
                 Body = @event,
                 Headers = new Dictionary<string, object>
                 {
+                    { "Event", typeof(TEvent).FullName },
                     { "EventVersion", this.Version }
                     // Todo: Support user headers via method or attributes
                 }
@@ -112,7 +106,7 @@ namespace Aggregates
 
             return e => handler(e);
         }
-    
+
     }
 
     public abstract class AggregateWithMemento<TId, TMemento> : Aggregate<TId>, ISnapshottingEventSource<TId> where TMemento : class, IMemento

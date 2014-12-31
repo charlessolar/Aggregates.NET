@@ -18,7 +18,10 @@ namespace Aggregates.Internal
 
     public class UnitOfWork : IUnitOfWork
     {
-        private const string AggregateTypeHeader = "AggregateType";
+        private const String AggregateTypeHeader = "AggregateType";
+        private const String MessageIdHeader = "Originating.NServiceBus.MessageId";
+        private const String CommitIdHeader = "CommitId";
+
         private static readonly ILog Logger = LogManager.GetLogger(typeof(UnitOfWork));
         private readonly IBuilder _builder;
         private readonly IStoreEvents _eventStore;
@@ -97,6 +100,18 @@ namespace Aggregates.Internal
         public void Commit()
         {
             var commitId = Guid.NewGuid();
+            var messageId = "";
+
+            // Attempt to get MessageId from NServicebus headers
+            // If we maintain a good CommitId convention it should solve the message idempotentcy issue (assuming the storage they choose supports it)
+            if (WorkHeaders.TryGetValue(MessageIdHeader, out messageId))
+                Guid.TryParse(messageId, out commitId);
+
+            // Allow the user to send a CommitId along with his message if he wants
+            if (WorkHeaders.TryGetValue(CommitIdHeader, out messageId))
+                Guid.TryParse(messageId, out commitId);
+            
+
 
             foreach (var repo in _repositories)
             {

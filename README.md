@@ -1,3 +1,5 @@
+[![Build status](https://ci.appveyor.com/api/projects/status/r75p0yn5uo6colgk?svg=true)](https://ci.appveyor.com/project/volak/aggregates-net)
+
 Aggregates.NET
 ==============
 
