@@ -21,13 +21,18 @@ We fill in the gap between NEventStore and NServicebus.  Commands from NServiceb
 Current features include -
 
 - Aggregate root
-- Aggregate defined by **any** type of Id
+- Aggregate defined by **any** type of Id (that can be converted to a string)
 - Type safe Unit of Work and Repository pattern
 - Automatic NServicebus and NEventstore configuration
-- Automatic publishing of domain events
+- Automatic saving and publishing of domain events
+- Message idempotency (depending on your storage choice)
+- RavenDB persistance handlers
+- NO internal IOC container (NServicebus used for resolutions)
+- [Thorough sample](https://github.com/volak/DDD.Enterprise.Example)
 
 Planned future features -
 
+- GetEventStore support
 - Automatic conflict resolution (when possible)
 - Entities with automatic event registration and routing
 - Specifications
@@ -36,7 +41,8 @@ Planned future features -
 Status
 ------
 
-Codebase will compile but there are no tests, over the next few weeks I'll be adding a test project and verifying that Aggregates.NET works as intended.  This process means some features/api might change so consider the project in an Alpha state
+Aggregates.NET will handle retreiving roots from the event store and updating the stream after finishing command processing.  It can take your snapshots for you, and is very extendable.  Support for various nicities such as entities and value objects will be added in the near future.  There is a working example code base available above, which uses RavenDB for persistance.  I am currently waiting on the availability of two pull requests I've submitted to NEventstore to make an official build of Aggregates.NET.
+I am also still designing and testing various features and have yet to put the entire project under test.  This process means some features/api might change so consider the project in an Alpha state
 
 Nuget
 -----
