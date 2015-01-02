@@ -1,21 +1,14 @@
 version: 0.0.1.{build}
 cache:
-  - src/packages
+  - src\packages
 
-# branches to build
 branches:
-  # whitelist
   only:
     - master
 
-# blacklist
-  except:
-    - gh-pages
-
-# enable patching of AssemblyInfo.* files
 assembly_info:
   patch: true
-  file: SharedAssemblyInfo.*
+  file: src\SharedAssemblyInfo.*
   assembly_version: "{version}"
   assembly_file_version: "{version}"
   assembly_informational_version: "{version}"

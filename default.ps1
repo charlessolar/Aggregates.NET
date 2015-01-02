@@ -12,7 +12,7 @@ properties {
 	$ilmerge_path = "$srcDir\packages\ILMerge.2.14.1208\tools\ilmerge.exe"
 }
 
-task default -depends Clean, UpdateVersion, RunTests, CreateNuGetPackages, Packaging
+task default -depends Clean, RunTests, CreateNuGetPackages, Packaging
 
 
 task Clean {
@@ -20,12 +20,6 @@ task Clean {
 	exec { msbuild /nologo /verbosity:quiet $solutionFilePath /t:Clean /p:platform="Any CPU"}
 }
 
-task UpdateVersion {
-	$version = Get-Version $assemblyInfoFilePath
-	$oldVersion = New-Object Version $version
-	$newVersion = New-Object Version ($oldVersion.Major, $oldVersion.Minor, $oldVersion.Build, $buildNumber)
-	Update-Version $newVersion $assemblyInfoFilePath
-}
 
 task Compile {
 	exec { msbuild /nologo /verbosity:quiet $solutionFilePath /p:Configuration=Release /p:platform="Any CPU"}
