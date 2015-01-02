@@ -40,8 +40,6 @@ test:
   assemblies:
     - src\Aggregates.NET.Unit\bin\%CONFIGURATION%\Aggregates.NET.Unit.dll
 
-after_test:
-  - ps: .\nuget\pack.ps1
 
 artifacts:
  - path: Aggregates.NET*.nupkg

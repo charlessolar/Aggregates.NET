@@ -20,7 +20,6 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="Aggregates.NET.RavenDB.props" target="build" />
     <file src="bin\$configuration$\Aggregates.NET.RavenDB.dll" target="tools" />
     <file src="bin\$configuration$\Aggregates.NET.RavenDB.pdb" target="tools" />
   </files>
