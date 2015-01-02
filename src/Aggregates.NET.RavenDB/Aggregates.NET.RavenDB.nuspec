@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<package>
+  <metadata>
+    <id>Aggregates.NET.RavenDB</id>
+    <version>$version$</version>
+    <title>Aggregates.NET.RavenDB</title>
+    <authors>Charles Solar</authors>
+    <owners>Charles Solar</owners>
+    <licenseUrl>http://www.opensource.org/licenses/mit-license.php</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>For integrating Aggregates.NET event sourcing with RavenDB</description>
+    <projectUrl>https://github.com/volak/Aggregates.NET</projectUrl>
+    <developmentDependency>true</developmentDependency>
+    <tags>CQRS NServicebus NEventStore aggregate ddd repository unit of work uow ravendb</tags>
+    <dependencies>
+      <group>
+        <dependency id="NServicebus" version="[5.0.0,6.0.0)" />
+        <dependency id="NEventStore.Persistence.RavenDB" version="[5.0.0,6.0.0)" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="Aggregates.NET.RavenDB.props" target="build" />
+    <file src="bin\$configuration$\Aggregates.NET.RavenDB.dll" target="tools" />
+    <file src="bin\$configuration$\Aggregates.NET.RavenDB.pdb" target="tools" />
+  </files>
+</package>

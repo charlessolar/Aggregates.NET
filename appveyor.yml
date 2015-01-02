@@ -33,9 +33,13 @@ build:
 
 
 after_build:
-  - nuget pack NuGet\Aggregates.NET.nuspec -Properties version=%GitVersion_NuGetVersion%;configuration=%CONFIGURATION%
+  - nuget pack src\Aggregates.NET\Aggregates.NET.nuspec -Properties version=%GitVersion_NuGetVersion%;configuration=%CONFIGURATION%
+  - nuget pack src\Aggregates.NET.RavenDB\Aggregates.NET.RavenDB.nuspec -Properties version=%GitVersion_NuGetVersion%;configuration=%CONFIGURATION%
 
-  
+test:
+  assemblies:
+    - src\Aggregates.NET.Unit\bin\%CONFIGURATION%\Aggregates.NET.Unit.dll
+
 after_test:
   - ps: .\nuget\pack.ps1
 

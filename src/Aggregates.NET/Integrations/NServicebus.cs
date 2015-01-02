@@ -26,8 +26,6 @@ namespace Aggregates
                 x.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
                 x.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
                 x.ConfigureComponent<Dispatcher>(DependencyLifecycle.InstancePerCall);
-                x.ConfigureComponent<EventContractResolver>(DependencyLifecycle.InstancePerCall);
-                x.ConfigureComponent<EventSerializationBinder>(DependencyLifecycle.InstancePerCall);
 
                 x.ConfigureComponent<IStoreEvents>(y => eventStoreBuilder(y), DependencyLifecycle.SingleInstance);
             });

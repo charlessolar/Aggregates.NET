@@ -37,27 +37,17 @@
     <SignAssembly>false</SignAssembly>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="NEventStore, Version=5.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="NEventStore, Version=5.1.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\NEventStore.Persistence.RavenDB\src\NEventStore.Persistence.RavenDB\bin\Debug\NEventStore.dll</HintPath>
-    </Reference>
-    <Reference Include="NEventStore.Persistence.RavenDB">
-      <HintPath>..\..\..\NEventStore.Persistence.RavenDB\src\NEventStore.Persistence.RavenDB\bin\Debug\NEventStore.Persistence.RavenDB.dll</HintPath>
+      <HintPath>..\packages\NEventStore.5.1.0\lib\net40\NEventStore.dll</HintPath>
     </Reference>
     <Reference Include="NServiceBus.Core">
       <HintPath>..\packages\NServiceBus.5.1.2\lib\net45\NServiceBus.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="Raven.Abstractions">
-      <HintPath>..\packages\RavenDB.Client.2.5.2946\lib\net45\Raven.Abstractions.dll</HintPath>
-    </Reference>
-    <Reference Include="Raven.Client.Lightweight">
-      <HintPath>..\packages\RavenDB.Client.2.5.2946\lib\net45\Raven.Client.Lightweight.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Core" />
     <Reference Include="System.Runtime.Serialization" />
-    <Reference Include="System.Transactions" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -65,6 +55,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+  <Compile Include="..\SharedAssemblyInfo.cs">
+      <Link>Properties\SharedAssemblyInfo.cs</Link>
+    </Compile>
     <Compile Include="Aggregate.cs" />
     <Compile Include="Contracts\INeedBuilder.cs" />
     <Compile Include="Contracts\INeedEventFactory.cs" />
@@ -80,7 +73,6 @@
     <Compile Include="Integrations\Dispatcher.cs" />
     <Compile Include="Integrations\NEventStore.cs" />
     <Compile Include="Integrations\NServicebus.cs" />
-    <Compile Include="Integrations\Serialization.cs" />
     <Compile Include="Internal\DefaultRepositoryFactory.cs" />
     <Compile Include="Internal\DefaultRouteResolver.cs" />
     <Compile Include="Internal\Repository.cs" />

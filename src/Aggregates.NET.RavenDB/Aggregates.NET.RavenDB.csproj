@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{1A964ACC-3518-4DD6-B5C1-01B130CF4B13}</ProjectGuid>
+    <ProjectGuid>{917555D0-894D-4944-BF98-622C85C3B0CD}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Aggregates.Unit</RootNamespace>
-    <AssemblyName>Aggregates.NET.Unit</AssemblyName>
+    <RootNamespace>Aggregates.RavenDB</RootNamespace>
+    <AssemblyName>Aggregates.NET.RavenDB</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -30,21 +30,27 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Moq">
-      <HintPath>..\packages\Moq.4.2.1409.1722\lib\net40\Moq.dll</HintPath>
-    </Reference>
     <Reference Include="NEventStore, Version=5.1.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\NEventStore.Persistence.RavenDB\src\NEventStore.Persistence.RavenDB\bin\Debug\NEventStore.dll</HintPath>
+      <HintPath>..\packages\NEventStore.5.1.0\lib\net40\NEventStore.dll</HintPath>
+    </Reference>
+    <Reference Include="NEventStore.Persistence.RavenDB, Version=5.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\NEventStore.Persistence.RavenDB.5.0.0.86\lib\net40\NEventStore.Persistence.RavenDB.dll</HintPath>
     </Reference>
     <Reference Include="NServiceBus.Core">
       <HintPath>..\packages\NServiceBus.5.1.2\lib\net45\NServiceBus.Core.dll</HintPath>
     </Reference>
-    <Reference Include="nunit.framework">
-      <HintPath>..\packages\NUnit.2.6.4\lib\nunit.framework.dll</HintPath>
+    <Reference Include="Raven.Abstractions-4.5">
+      <HintPath>..\packages\RavenDB.Client.2.5.2666\lib\net45\Raven.Abstractions-4.5.dll</HintPath>
+    </Reference>
+    <Reference Include="Raven.Client.Lightweight-4.5">
+      <HintPath>..\packages\RavenDB.Client.2.5.2666\lib\net45\Raven.Client.Lightweight-4.5.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Transactions" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -52,30 +58,16 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\SharedAssemblyInfo.cs">
+  <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
-    <Compile Include="Aggregate\ExistingAggregateTests.cs" />
-    <Compile Include="Aggregate\NewAggregateTests.cs" />
-    <Compile Include="Aggregate\RouteAggregateTests.cs" />
-    <Compile Include="Aggregate\_AggregateStub.cs" />
-    <Compile Include="Aggregate\_EventFake.cs" />
-    <Compile Include="DefaultRouteResolver\ResolveTests.cs" />
+    <Compile Include="NEventStore.cs" />
+    <Compile Include="NServicebus.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Repository\CommitFailTests.cs" />
-    <Compile Include="Repository\CommitTests.cs" />
-    <Compile Include="Repository\DisposeTests.cs" />
-    <Compile Include="Repository\GetTests.cs" />
-    <Compile Include="Repository\_AggregateStub.cs" />
-    <Compile Include="Repository\_Fakes.cs" />
-    <Compile Include="UnitOfWork\CommitFailTests.cs" />
-    <Compile Include="UnitOfWork\CommitTests.cs" />
-    <Compile Include="Dispatcher\DispatchTests.cs" />
-    <Compile Include="UnitOfWork\DisposeTests.cs" />
-    <Compile Include="UnitOfWork\ForTests.cs" />
-    <Compile Include="UnitOfWork\MutateOutgoingTests.cs" />
+    <Compile Include="Serialization.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -84,7 +76,6 @@
       <Name>Aggregates.NET</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

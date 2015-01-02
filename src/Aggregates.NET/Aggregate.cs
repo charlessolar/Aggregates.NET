@@ -23,7 +23,7 @@ namespace Aggregates
                     return (TId)Activator.CreateInstance(typeof(TId));
             }
         }
-        public String BucketId { get { return _eventStream.BucketId; } }
+        public String BucketId { get { return ""; } }// _eventStream.BucketId; } }
 
         String IEventSource.StreamId { get { return this.StreamId; } }
         Int32 IEventSource.Version { get { return this.Version; } }
