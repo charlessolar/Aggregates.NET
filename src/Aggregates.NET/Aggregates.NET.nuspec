@@ -14,13 +14,13 @@
     <tags>CQRS NServicebus NEventStore aggregate ddd repository unit of work uow</tags>
     <dependencies>
       <group>
-        <dependency id="NServicebus" version="[5.0.0,6.0.0)" />
-        <dependency id="NEventStore" version="[5.0.0,6.0.0)" />
+        <dependency id="NServicebus" version="[5,6)" />
+        <dependency id="NEventStore" version="[5,6)" />
       </group>
     </dependencies>
   </metadata>
   <files>
-    <file src="bin\$configuration$\Aggregates.NET.dll" target="tools" />
-    <file src="bin\$configuration$\Aggregates.NET.pdb" target="tools" />
+    <file src="..\..\build\merged\Aggregates.NET.dll" target="lib\net45" />
+    <file src="..\..\build\merged\Aggregates.NET.pdb" target="lib\net45" />
   </files>
 </package>

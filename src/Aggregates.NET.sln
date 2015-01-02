@@ -22,6 +22,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NuGet", "NuGet", "{0A5B9348
 		Aggregates.NET\Aggregates.NET.nuspec = Aggregates.NET\Aggregates.NET.nuspec
 		Aggregates.NET.RavenDB\Aggregates.NET.RavenDB.nuspec = Aggregates.NET.RavenDB\Aggregates.NET.RavenDB.nuspec
 		..\NuGet\NuGet.exe = ..\NuGet\NuGet.exe
+		packages.config = packages.config
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.RavenDB", "Aggregates.NET.RavenDB\Aggregates.NET.RavenDB.csproj", "{917555D0-894D-4944-BF98-622C85C3B0CD}"
