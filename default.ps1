@@ -12,7 +12,8 @@ properties {
 	$ilmerge_path = "$srcDir\packages\ILMerge.2.14.1208\tools\ilmerge.exe"
 }
 
-task default -depends Clean, UpdateVersion, RunTests, CreateNuGetPackages
+task default -depends Clean, UpdateVersion, RunTests, CreateNuGetPackages, Packaging
+
 
 task Clean {
 	Remove-Item $buildOutputDir -Force -Recurse -ErrorAction SilentlyContinue
@@ -31,10 +32,7 @@ task Compile {
 }
 
 task RunTests -depends Compile {
-	New-Item $reportsDir -Type Directory -ErrorAction SilentlyContinue
-
 	$nunitRunner = "$srcDir\packages\nunit.runners.2.6.4\tools\nunit-console.exe"
-
 	.$nunitRunner "$srcDir\Aggregates.NET.Unit\bin\Release\Aggregates.NET.Unit.dll"
 }
 
@@ -56,12 +54,15 @@ task ILMerge -depends Compile {
 	Copy-Item $dllDir\Aggregates.NET.RavenDB.dll $mergedDir\Aggregates.NET.RavenDB.pdb
 }
 
+task Packaging -depends ILMerge {
+	$versionString = Get-Version $assemblyInfoFilePath
+	7z a -tzip $buildOutputDir\Aggregates.NET.Binaries.$versionString.zip $mergedDir\*.dll $mergedDir\*.pdb
+	git archive -o $buildOutputDir\Aggregates.NET.Source.$versionString.zip HEAD
+}
+
 task CreateNuGetPackages -depends ILMerge {
 	$versionString = Get-Version $assemblyInfoFilePath
-	$version = New-Object Version $versionString
-	$packageVersion = $version.Major.ToString() + "." + $version.Minor.ToString() + "." + $version.Build.ToString() + "-build" + $buildNumber.ToString().PadLeft(5,'0')
-	$packageVersion
 	gci $srcDir -Recurse -Include *.nuspec | % {
-		exec { .$rootDir\nuget\nuget.exe pack $_ -o $buildOutputDir -properties "version=$packageVersion;configuration=$configuration" }
+		exec { .$rootDir\nuget\nuget.exe pack $_ -o $buildOutputDir -properties "version=$versionString;configuration=$configuration" }
 	}
 }

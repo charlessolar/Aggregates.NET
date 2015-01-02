@@ -1,6 +1,6 @@
-version: 0.0.1-build{build}
+version: 0.0.1.{build}
 cache:
-  - packages
+  - src/packages
 
 # branches to build
 branches:
@@ -25,7 +25,7 @@ configuration: Release
 
 
 build_script:
-- ps: .\build.ps1
+  - ps: .\build.ps1
 
 test:
   assemblies:
@@ -33,11 +33,16 @@ test:
 
 
 artifacts:
- - path: Aggregates.NET*.nupkg
+ - path: build\Aggregates.NET*.nupkg
    name: NuGet
+ - path: build\Aggregates.NET.Binaries*.zip
+   name: Binaries
+ - path: build\Aggregates.NET.Source*.zip
+   name: Source
+   
 
 deploy:
-  - provider: GitHub
+  - provider: Nuget
     release: v{version}
     auth_token:
       #bsbuild 2014-12-31
