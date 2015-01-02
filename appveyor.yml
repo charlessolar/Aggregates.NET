@@ -9,7 +9,6 @@ branches:
   # whitelist
   only:
     - master
-    - develop
 
 # blacklist
   except:
@@ -32,8 +31,8 @@ build:
 
 
 after_build:
-  - nuget pack Aggregates.NET\Aggregates.NET.nuspec -Properties version=%GitVersion_NuGetVersion%;configuration=%CONFIGURATION%
-  - 7z a -tzip Aggregates.NET.Binaries.%GitVersion_NuGetVersion%.zip .\src\bin\%CONFIGURATION%\Aggregates.NET.dll .\src\bin\%CONFIGURATION%\Aggregates.NET.pdb
+  - nuget pack NuGet\Aggregates.NET.nuspec -Properties version=%GitVersion_NuGetVersion%;configuration=%CONFIGURATION%
+  - 7z a -tzip Aggregates.NET.Binaries.%GitVersion_NuGetVersion%.zip .\src\Aggregates.NET\bin\%CONFIGURATION%\Aggregates.NET.dll .\src\Aggregates.NET\bin\%CONFIGURATION%\Aggregates.NET.pdb
 
   
 after_test:

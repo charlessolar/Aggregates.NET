@@ -11,7 +11,7 @@
     <description>A framework to help developers integrate the excelent NServicebus and NEventStore libraries together and provide basic DDD classes</description>
     <projectUrl>https://github.com/volak/Aggregates.NET</projectUrl>
     <developmentDependency>true</developmentDependency>
-    <tags>CQRS, NServicebus, NEventStore, aggregate, ddd, repository, unit of work</tags>
+    <tags>CQRS NServicebus NEventStore aggregate ddd repository unit of work uow</tags>
     <dependencies>
       <group>
         <dependency id="NServicebus" version="[5.0.0" />
