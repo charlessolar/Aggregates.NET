@@ -42,7 +42,6 @@ namespace Aggregates
         private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
         private IRouteResolver _resolver { get { return (this as INeedRouteResolver).Resolver; } }
 
-        private IDictionary<Type, Action<Object>> _handlers;
 
         protected Aggregate() { }
 
@@ -79,14 +78,6 @@ namespace Aggregates
 
         private void Raise(object @event)
         {
-            // If first time, initialize routes
-            if (this._handlers == null)
-            {
-                this._handlers = new Dictionary<Type, Action<Object>>();
-                foreach (var route in _resolver.Resolve(this))
-                    this._handlers[route.Key] = route.Value;
-            }
-
             RouteFor(@event.GetType())(@event);
         }
 
@@ -97,14 +88,11 @@ namespace Aggregates
 
         protected virtual Action<Object> RouteFor(Type eventType)
         {
-            Action<Object> handler;
-
-            if (!_handlers.TryGetValue(eventType, out handler))
-            {
+            var route = _resolver.Resolve(this, eventType);
+            if( route == null )
                 throw new HandlerNotFoundException(String.Format("No handler for event {0}", eventType.Name));
-            }
 
-            return e => handler(e);
+            return e => route(e);
         }
 
     }

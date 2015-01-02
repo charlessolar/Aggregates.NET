@@ -1,4 +1,5 @@
-﻿using NEventStore;
+﻿using Aggregates.Contracts;
+using NEventStore;
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
@@ -17,15 +18,16 @@ namespace Aggregates.Unit.UnitOfWork
     {
         private Moq.Mock<IBuilder> _builder;
         private Moq.Mock<IStoreEvents> _eventStore;
-        private Moq.Mock<IBus> _bus;
-        private IUnitOfWork _uow;
+        private Moq.Mock<IRepositoryFactory> _repoFactory;
+        private Aggregates.Internal.UnitOfWork _uow;
 
         [SetUp]
         public void Setup()
         {
             _builder = new Moq.Mock<IBuilder>();
             _eventStore = new Moq.Mock<IStoreEvents>();
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _eventStore.Object);
+            _repoFactory = new Moq.Mock<IRepositoryFactory>();
+            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _eventStore.Object, _repoFactory.Object);
 
         }
 
@@ -57,7 +59,7 @@ namespace Aggregates.Unit.UnitOfWork
             Assert.True(transportMessage.Headers.ContainsKey("test"));
             Assert.AreEqual(transportMessage.Headers["test"], "test");
             Assert.True(transportMessage.Headers.ContainsKey("test2"));
-            Assert.AreEqual(transportMessage.Headers["test2"], "test");
+            Assert.AreEqual(transportMessage.Headers["test2"], "test2");
         }
 
         [Test]
@@ -82,7 +84,7 @@ namespace Aggregates.Unit.UnitOfWork
         }
 
         [Test]
-        public void outgoing_carry_over_not_found()
+        public void outgoing_message_id()
         {
             var transMsg = new TransportMessage("test", new Dictionary<string, string> { });
             _uow.MutateIncoming(transMsg);
@@ -90,8 +92,29 @@ namespace Aggregates.Unit.UnitOfWork
             var transportMessage = new TransportMessage();
             _uow.MutateOutgoing(Moq.It.IsAny<LogicalMessage>(), transportMessage);
 
-            Assert.True(transportMessage.Headers.ContainsKey("Originating.NServiceBus.MessageId"));
-            Assert.AreEqual(transportMessage.Headers["Originating.NServiceBus.MessageId"], "<NOT FOUND>");
+            var messageIdHeader = String.Format("{0}.NServiceBus.MessageId", Aggregates.Internal.UnitOfWork.PrefixHeader);
+
+            Assert.True(transportMessage.Headers.ContainsKey(messageIdHeader));
+            Assert.AreEqual(transportMessage.Headers[messageIdHeader], "test");
+        }
+
+        [Test]
+        public void outgoing_carry_over_not_found()
+        {
+            var transMsg = new TransportMessage("", new Dictionary<string, string> { });
+            _uow.MutateIncoming(transMsg);
+
+            var transportMessage = new TransportMessage();
+            _uow.MutateOutgoing(Moq.It.IsAny<LogicalMessage>(), transportMessage);
+
+            foreach (var carryOver in Aggregates.Internal.UnitOfWork.CarryOverHeaders)
+            {
+                var header = String.Format("{0}.{1}", Aggregates.Internal.UnitOfWork.PrefixHeader, carryOver);
+
+                Assert.True(transportMessage.Headers.ContainsKey(header));
+                Assert.AreEqual(transportMessage.Headers[header], Aggregates.Internal.UnitOfWork.NotFound);
+            }
+
         }
 
         [Test]

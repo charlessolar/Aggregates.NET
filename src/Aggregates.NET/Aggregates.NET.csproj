@@ -70,6 +70,7 @@
     <Compile Include="Contracts\INeedEventFactory.cs" />
     <Compile Include="Contracts\INeedRouteResolver.cs" />
     <Compile Include="Contracts\INeedStream.cs" />
+    <Compile Include="Contracts\IRepositoryFactory.cs" />
     <Compile Include="Contracts\IRouteResolver.cs" />
     <Compile Include="Exceptions\AggregateException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
@@ -80,10 +81,10 @@
     <Compile Include="Integrations\NEventStore.cs" />
     <Compile Include="Integrations\NServicebus.cs" />
     <Compile Include="Integrations\Serialization.cs" />
+    <Compile Include="Internal\DefaultRepositoryFactory.cs" />
     <Compile Include="Internal\DefaultRouteResolver.cs" />
     <Compile Include="Internal\Repository.cs" />
     <Compile Include="IRepository.cs" />
-    <Compile Include="Internal\EventRouter.cs" />
     <Compile Include="Contracts\IEventRouter.cs" />
     <Compile Include="Contracts\IEventSource.cs" />
     <Compile Include="Contracts\IMemento.cs" />

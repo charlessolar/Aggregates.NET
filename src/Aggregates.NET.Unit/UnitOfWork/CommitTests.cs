@@ -20,6 +20,7 @@ namespace Aggregates.Unit.UnitOfWork
         private Moq.Mock<IBus> _bus;
         private Moq.Mock<IRepository<IEventSource<Guid>>> _guidRepository;
         private Moq.Mock<IRepository<IEventSource<Int32>>> _intRepository;
+        private Moq.Mock<IRepositoryFactory> _repoFactory;
         private IUnitOfWork _uow;
 
         [SetUp]
@@ -27,15 +28,18 @@ namespace Aggregates.Unit.UnitOfWork
         {
             _builder = new Moq.Mock<IBuilder>();
             _eventStore = new Moq.Mock<IStoreEvents>();
+            _repoFactory = new Moq.Mock<IRepositoryFactory>();
             _bus = new Moq.Mock<IBus>();
             _guidRepository = new Moq.Mock<IRepository<IEventSource<Guid>>>();
             _intRepository = new Moq.Mock<IRepository<IEventSource<Int32>>>();
             _guidRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>())).Verifiable();
             _intRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>())).Verifiable();
-            _builder.Setup(x => x.Build<IRepository<IEventSource<Guid>>>()).Returns(_guidRepository.Object);
-            _builder.Setup(x => x.Build<IRepository<IEventSource<Int32>>>()).Returns(_intRepository.Object);
+
+            _repoFactory.Setup(x => x.Create<IEventSource<Guid>>(Moq.It.IsAny<IBuilder>(), Moq.It.IsAny<IStoreEvents>())).Returns(_guidRepository.Object);
+            _repoFactory.Setup(x => x.Create<IEventSource<Int32>>(Moq.It.IsAny<IBuilder>(), Moq.It.IsAny<IStoreEvents>())).Returns(_intRepository.Object);
+
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _eventStore.Object);
+            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _eventStore.Object, _repoFactory.Object);
         }
 
         [Test]
@@ -60,6 +64,14 @@ namespace Aggregates.Unit.UnitOfWork
             Assert.DoesNotThrow(() => _uow.Commit());
             _guidRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>()), Moq.Times.Once);
             _intRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>()), Moq.Times.Once);
+        }
+
+        [Test]
+        public void end_calls_commit()
+        {
+            var repo = _uow.For<IEventSource<Guid>>();
+            _uow.End();
+            _guidRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>()), Moq.Times.Once);
         }
 
     }

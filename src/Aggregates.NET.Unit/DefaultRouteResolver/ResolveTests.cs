@@ -32,31 +32,29 @@ namespace Aggregates.Unit.DefaultRouteResolver
     [TestFixture]
     public class ResolveTests
     {
-        private Moq.Mock<IBuilder> _builder;
+        private Aggregates.Internal.DefaultRouteResolver _resolver;
+
         [SetUp]
         public void Setup()
         {
-            _builder = new Moq.Mock<IBuilder>();
-            _builder.Setup(x => x.Build<IEventRouter>()).Returns(() => new Moq.Mock<IEventRouter>().Object);
-            _builder.Setup(x => x.Build<IMessageCreator>()).Returns(() => new Moq.Mock<IMessageCreator>().Object);
-            _builder.Setup(x => x.Build<IEventStream>()).Returns(() => new Moq.Mock<IEventStream>().Object);
+            _resolver = new Aggregates.Internal.DefaultRouteResolver();
         }
 
         [Test]
         public void resolve_stub()
         {
             var stub = new AggregateStub();
-            //var result = resolver.Resolve(stub);
-            //Assert.AreEqual(result.Count, 1);
-            //Assert.True(result.ContainsKey(typeof(String)));
+
+            var result = _resolver.Resolve(stub, typeof(String));
+            Assert.NotNull(result);
         }
 
         [Test]
         public void resolve_no_handles()
         {
             var stub = new AggregateStub2();
-            //var result = resolver.Resolve(stub);
-            //Assert.AreEqual(result.Count, 0);
+            var result = _resolver.Resolve(stub, typeof(String));
+            Assert.Null(result);
         }
 
 
@@ -64,8 +62,12 @@ namespace Aggregates.Unit.DefaultRouteResolver
         public void resolve_improper_handles()
         {
             var stub = new AggregateStub3();
-            //var result = resolver.Resolve(stub);
-            //Assert.AreEqual(result.Count, 0);
+            var result = _resolver.Resolve(stub, typeof(String));
+            Assert.Null(result);
+            result = _resolver.Resolve(stub, typeof(Int32));
+            Assert.Null(result);
+            result = _resolver.Resolve(stub, typeof(void));
+            Assert.Null(result);
         }
     }
 }

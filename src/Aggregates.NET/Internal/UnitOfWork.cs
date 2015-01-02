@@ -18,37 +18,40 @@ namespace Aggregates.Internal
 
     public class UnitOfWork : IUnitOfWork
     {
-        private const String AggregateTypeHeader = "AggregateType";
-        private const String PrefixHeader = "Originating";
-        private const String MessageIdHeader = "Originating.NServiceBus.MessageId";
-        private const String CommitIdHeader = "CommitId";
-        private const String NotFound = "<NOT FOUND>";
+        public static String AggregateTypeHeader = "AggregateType";
+        public static String PrefixHeader = "Originating";
+        public static String MessageIdHeader = "Originating.NServiceBus.MessageId";
+        public static String CommitIdHeader = "CommitId";
+        public static String NotFound = "<NOT FOUND>";
+
+        // Header information to take from incoming messages 
+        public static IList<String> CarryOverHeaders = new List<String> {
+                                                                          "NServiceBus.MessageId",
+                                                                          "NServiceBus.CorrelationId",
+                                                                          "NServiceBus.Version",
+                                                                          "NServiceBus.TimeSent",
+                                                                          "NServiceBus.ConversationId",
+                                                                          "CorrId",
+                                                                          "NServiceBus.OriginatingMachine",
+                                                                          "NServiceBus.OriginatingEndpoint"
+                                                                      };
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(UnitOfWork));
         private readonly IBuilder _builder;
         private readonly IStoreEvents _eventStore;
+        private readonly IRepositoryFactory _repoFactory;
 
-        // Header information to take from incoming messages 
-        private readonly String[] _carryOverHeaders = {
-                                                      "NServiceBus.MessageId",
-                                                      "NServiceBus.CorrelationId",
-                                                      "NServiceBus.Version",
-                                                      "NServiceBus.TimeSent",
-                                                      "NServiceBus.ConversationId",
-                                                      "CorrId",
-                                                      "NServiceBus.OriginatingMachine",
-                                                      "NServiceBus.OriginatingEndpoint"
-                                                  };
 
 
         private bool _disposed;
         private IDictionary<String, String> _workHeaders;
         private IDictionary<Type, IRepository> _repositories;
 
-        public UnitOfWork(IBuilder builder, IStoreEvents eventStore)
+        public UnitOfWork(IBuilder builder, IStoreEvents eventStore, IRepositoryFactory repoFactory)
         {
             _builder = builder.CreateChildBuilder();
             _eventStore = eventStore;
+            _repoFactory = repoFactory;
             _repositories = new Dictionary<Type, IRepository>();
             _workHeaders = new Dictionary<String, String>();
         }
@@ -93,8 +96,7 @@ namespace Aggregates.Internal
             if (_repositories.TryGetValue(type, out repository))
                 return (IRepository<T>)repository;
 
-            var repoType = typeof(Repository<>).MakeGenericType(typeof(T));
-            return (IRepository<T>)(_repositories[type] = (IRepository)Activator.CreateInstance(repoType, _builder, _eventStore));
+            return (IRepository<T>)(_repositories[type] = (IRepository)_repoFactory.Create<T>(_builder, _eventStore));
         }
 
         public void Begin() { }
@@ -150,9 +152,12 @@ namespace Aggregates.Internal
             // There are certain headers that we can make note of 
             // These will be committed to the event stream and included in all .Reply or .Publish done via this Unit Of Work
             // Meaning all receivers of events from the command will get information about the command's message, if they care
-            foreach( var header in _carryOverHeaders){
-                var defaultHeader = NotFound;
+            foreach( var header in CarryOverHeaders){
+                var defaultHeader = "";
                 headers.TryGetValue(header, out defaultHeader);
+
+                if (String.IsNullOrEmpty(defaultHeader))
+                    defaultHeader = NotFound;
 
                 var workHeader = String.Format("{0}.{1}", PrefixHeader, header);
                 _workHeaders[workHeader] = defaultHeader;

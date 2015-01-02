@@ -20,8 +20,8 @@ namespace Aggregates.Unit.Repository
         private Moq.Mock<IEventStream> _eventStream;
         private Moq.Mock<IEventRouter> _eventRouter;
         private Moq.Mock<IMessageCreator> _eventFactory;
-        private Moq.Mock<Aggregate<Guid>> _aggregate;
-        private IRepository<Aggregate<Guid>> _repository;
+        private Moq.Mock<_AggregateStub> _aggregate;
+        private IRepository<_AggregateStub> _repository;
 
         [SetUp]
         public void Setup()
@@ -35,13 +35,12 @@ namespace Aggregates.Unit.Repository
             _eventStream.Setup(x => x.UncommittedHeaders).Returns(new Dictionary<String, Object>());
             _eventStream.Setup(x => x.Dispose()).Verifiable();
             _eventStore.Setup(x => x.CreateStream(Moq.It.IsAny<String>(), Moq.It.IsAny<String>())).Returns(_eventStream.Object);
-            _aggregate = new Moq.Mock<Aggregate<Guid>>();
+            _aggregate = new Moq.Mock<_AggregateStub>();
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IEventRouter>()).Returns(_eventRouter.Object);
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
-            _builder.Setup(x => x.Build<Aggregate<Guid>>()).Returns(_aggregate.Object);
 
-            _repository = new Aggregates.Internal.Repository<Aggregate<Guid>>(_builder.Object, _eventStore.Object);
+            _repository = new Aggregates.Internal.Repository<_AggregateStub>(_builder.Object, _eventStore.Object);
         }
 
         [Test]

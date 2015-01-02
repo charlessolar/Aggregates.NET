@@ -31,5 +31,13 @@ namespace Aggregates.Unit.Aggregate
             this.Value = @event.Value;
         }
 
+        public Action<Object> TestRouteFor( Type eventType)
+        {
+            return RouteFor(eventType);
+        }
+        protected override Action<object> RouteFor(Type eventType)
+        {
+            return base.RouteFor(eventType);
+        }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Internal;
 using NEventStore;
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
@@ -37,20 +38,27 @@ namespace Aggregates.Unit.Aggregate
             _eventFactory.Setup(x => x.CreateInstance(typeof(UpdatedEvent))).Returns(new UpdatedEvent());
 
             _store.Setup(x => x.Advanced.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>()));
-            _store.Setup(x => x.OpenStream("default", _id.ToString(), Int32.MinValue, Int32.MaxValue)).Returns(_stream.Object);
+            _store.Setup(x => x.CreateStream(Moq.It.IsAny<String>(), _id.ToString())).Returns(_stream.Object);
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
-            _builder.Setup(x => x.Build<IRouteResolver>()).Returns(new Aggregates.Internal.DefaultRouteResolver(_eventFactory.Object));
+            _builder.Setup(x => x.Build<IRouteResolver>()).Returns(new Aggregates.Internal.DefaultRouteResolver());
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
             _stream.Setup(x => x.StreamId).Returns(String.Format("{0}", _id));
             _stream.Setup(x => x.StreamRevision).Returns(0);
-            _stream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage> { new EventMessage { Body = new CreatedEvent { Value = "Test" } } });
+            _stream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage>());
             _stream.Setup(x => x.UncommittedEvents).Returns(new List<EventMessage>());
 
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _store.Object);
+            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _store.Object, new DefaultRepositoryFactory());
         }
 
         [Test]
-        public void new_aggregate_version_1()
+        public void new_aggregate_stream_version()
+        {
+            var root = _uow.For<_AggregateStub>().New(_id);
+            Assert.AreEqual(root.StreamId, _id.ToString());
+        }
+
+        [Test]
+        public void new_aggregate_version_0()
         {
             var root = _uow.For<_AggregateStub>().New(_id);
             root.Create(_id, "test");
@@ -86,6 +94,7 @@ namespace Aggregates.Unit.Aggregate
         [Test]
         public void new_aggregate_with_bucket()
         {
+            _stream.Setup(x => x.BucketId).Returns("test");
             var root = _uow.For<_AggregateStub>().New("test", _id);
             root.Create(_id, "test");
             

@@ -19,24 +19,19 @@ namespace Aggregates
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(NServicebus));
 
-        public static void UseAggregates(this BusConfiguration config)
+        public static void UseAggregates(this BusConfiguration config, Func<IBuilder, IStoreEvents> eventStoreBuilder)
         {
             config.RegisterComponents(x => {
                 x.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
+                x.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
                 x.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
                 x.ConfigureComponent<Dispatcher>(DependencyLifecycle.InstancePerCall);
                 x.ConfigureComponent<EventContractResolver>(DependencyLifecycle.InstancePerCall);
                 x.ConfigureComponent<EventSerializationBinder>(DependencyLifecycle.InstancePerCall);
+
+                x.ConfigureComponent<IStoreEvents>(y => eventStoreBuilder(y), DependencyLifecycle.SingleInstance);
             });
             
-        }
-
-        public static void ConnectEventStore( this BusConfiguration config, Func<IBuilder, IStoreEvents> builder )
-        {
-            config.RegisterComponents(x =>
-            {
-                x.ConfigureComponent<IStoreEvents>(y => builder(y), DependencyLifecycle.SingleInstance);
-            });
         }
     }
 }

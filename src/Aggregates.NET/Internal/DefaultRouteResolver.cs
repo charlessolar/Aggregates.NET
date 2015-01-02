@@ -12,34 +12,44 @@ namespace Aggregates.Internal
 {
     public class DefaultRouteResolver : IRouteResolver
     {
-        private readonly IMessageCreator _eventFactory;
-        public DefaultRouteResolver(IMessageCreator eventFactory)
-        {
-            _eventFactory = eventFactory;
-        }
         private static readonly ILog Logger = LogManager.GetLogger(typeof(DefaultRouteResolver));
-        public IDictionary<Type, Action<Object>> Resolve<TId>(Aggregate<TId> aggregate)
+
+        private IDictionary<Type, Action<Object>> _cache;
+
+        public DefaultRouteResolver()
         {
+            _cache = new Dictionary<Type, Action<Object>>();
+        }
+
+        public Action<Object> Resolve<TId>(Aggregate<TId> aggregate, Type eventType)
+        {
+            Action<Object> cached = null;
+            if (_cache.TryGetValue(eventType, out cached))
+                return cached;
+
             var name = aggregate.GetType().Name;
 
-            var handleMethods = aggregate.GetType()
+            var handleMethod = aggregate.GetType()
                                  .GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
-                                 .Where(
-                                     m => m.Name == "Handle" && m.GetParameters().Length == 1 && m.ReturnParameter.ParameterType == typeof(void))
-                                 .Select(m => new { Method = m, MessageType = m.GetParameters().Single().ParameterType });
+                                 .SingleOrDefault(
+                                        m => m.Name == "Handle" &&
+                                         m.GetParameters().Length == 1 &&
+                                         m.GetParameters().Single().ParameterType == eventType &&
+                                         m.ReturnParameter.ParameterType == typeof(void));
+                                 //.Select(m => new { Method = m, MessageType = m.GetParameters().Single().ParameterType });
 
-            var ret = new Dictionary<Type, Action<Object>>();
-            foreach (var method in handleMethods)
+            if (handleMethod == null)
             {
-                Logger.DebugFormat("Handle method found on aggregate Type '{0}' for event Type '{1}'", name, method.MessageType);
+                // If eventType is a dynamically created type, we need to map the interface, not the unknown factory type
+                if( eventType.GetInterfaces().Count() == 1)
+                    return Resolve<TId>(aggregate, eventType.GetInterfaces().First());
 
-                // Also add the factory type since that is what is really being used
-                var factoryType = _eventFactory.CreateInstance(method.MessageType);
-
-                ret[method.MessageType] = m => method.Method.Invoke(aggregate, new[] { m });
-                ret[factoryType.GetType()] = m => method.Method.Invoke(aggregate, new[] { m });
+                Logger.WarnFormat("No handle method found on aggregate Type '{0}' for event Type '{1}'", name, eventType);
+                return null;
             }
-            return ret;
+
+            Logger.DebugFormat("Handle method found on aggregate Type '{0}' for event Type '{1}'", name, eventType);
+            return m => handleMethod.Invoke(aggregate, new[] { m });
         }
     }
 }

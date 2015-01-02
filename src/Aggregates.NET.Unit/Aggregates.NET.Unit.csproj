@@ -33,8 +33,9 @@
     <Reference Include="Moq">
       <HintPath>..\packages\Moq.4.2.1409.1722\lib\net40\Moq.dll</HintPath>
     </Reference>
-    <Reference Include="NEventStore">
-      <HintPath>..\packages\NEventStore.5.1.0\lib\net40\NEventStore.dll</HintPath>
+    <Reference Include="NEventStore, Version=5.1.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\NEventStore.Persistence.RavenDB\src\NEventStore.Persistence.RavenDB\bin\Debug\NEventStore.dll</HintPath>
     </Reference>
     <Reference Include="NServiceBus.Core">
       <HintPath>..\packages\NServiceBus.5.1.2\lib\net45\NServiceBus.Core.dll</HintPath>
@@ -53,20 +54,20 @@
   <ItemGroup>
     <Compile Include="Aggregate\ExistingAggregateTests.cs" />
     <Compile Include="Aggregate\NewAggregateTests.cs" />
+    <Compile Include="Aggregate\RouteAggregateTests.cs" />
     <Compile Include="Aggregate\_AggregateStub.cs" />
     <Compile Include="Aggregate\_EventFake.cs" />
     <Compile Include="DefaultRouteResolver\ResolveTests.cs" />
-    <Compile Include="EventRouter\GetTests.cs" />
-    <Compile Include="EventRouter\RegisterTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Repository\CommitFailTests.cs" />
     <Compile Include="Repository\CommitTests.cs" />
     <Compile Include="Repository\DisposeTests.cs" />
     <Compile Include="Repository\GetTests.cs" />
+    <Compile Include="Repository\_AggregateStub.cs" />
     <Compile Include="Repository\_Fakes.cs" />
     <Compile Include="UnitOfWork\CommitFailTests.cs" />
     <Compile Include="UnitOfWork\CommitTests.cs" />
-    <Compile Include="UnitOfWork\DispatchTests.cs" />
+    <Compile Include="Dispatcher\DispatchTests.cs" />
     <Compile Include="UnitOfWork\DisposeTests.cs" />
     <Compile Include="UnitOfWork\ForTests.cs" />
     <Compile Include="UnitOfWork\MutateOutgoingTests.cs" />

@@ -20,8 +20,9 @@ namespace Aggregates.Unit.Repository
         private Moq.Mock<IEventStream> _eventStream;
         private Moq.Mock<IEventRouter> _eventRouter;
         private Moq.Mock<IMessageCreator> _eventFactory;
-        private Moq.Mock<Aggregate<Guid>> _aggregate;
-        private IRepository<Aggregate<Guid>> _repository;
+        private Moq.Mock<_AggregateStub> _aggregate;
+        private Moq.Mock<IRouteResolver> _resolver;
+        private IRepository<_AggregateStub> _repository;
         private Guid _id;
 
         [SetUp]
@@ -33,18 +34,21 @@ namespace Aggregates.Unit.Repository
             _eventStream = new Moq.Mock<IEventStream>();
             _eventRouter = new Moq.Mock<IEventRouter>();
             _eventFactory = new Moq.Mock<IMessageCreator>();
+            _resolver = new Moq.Mock<IRouteResolver>();
+
             _eventStream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage>());
             _eventStream.Setup(x => x.UncommittedEvents).Returns(new List<EventMessage>());
             _eventStream.Setup(x => x.Dispose()).Verifiable();
             _eventStore.Setup(x => x.Advanced.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns((ISnapshot)null);
             _eventStore.Setup(x => x.OpenStream(Moq.It.IsAny<String>(), _id.ToString(), Moq.It.IsAny<Int32>(), Moq.It.IsAny<Int32>())).Returns(_eventStream.Object);
-            _aggregate = new Moq.Mock<Aggregate<Guid>>();
+            _aggregate = new Moq.Mock<_AggregateStub>();
+            _resolver.Setup(x => x.Resolve(Moq.It.IsAny<_AggregateStub>(), typeof(String))).Returns(e => { });
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IEventRouter>()).Returns(_eventRouter.Object);
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
-            _builder.Setup(x => x.Build<Aggregate<Guid>>()).Returns(_aggregate.Object);
+            _builder.Setup(x => x.Build<IRouteResolver>()).Returns(_resolver.Object);
 
-            _repository = new Aggregates.Internal.Repository<Aggregate<Guid>>(_builder.Object, _eventStore.Object);
+            _repository = new Aggregates.Internal.Repository<_AggregateStub>(_builder.Object, _eventStore.Object);
         }
 
         [Test]
@@ -64,7 +68,7 @@ namespace Aggregates.Unit.Repository
         {
             _eventStream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage> { new EventMessage { Body = "Test" } });
             _eventStream.Setup(x => x.UncommittedEvents).Returns(new List<EventMessage> { new EventMessage { Body = "Test" } });
-            Assert.IsInstanceOf<Aggregate<Guid>>(_repository.Get(_id));
+            Assert.IsInstanceOf<_AggregateStub>(_repository.Get(_id));
         }
 
         [Test]
@@ -72,21 +76,21 @@ namespace Aggregates.Unit.Repository
         {
             var snapshot = new Moq.Mock<ISnapshot>();
             _eventStore.Setup(x => x.Advanced.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns(snapshot.Object);
-            Assert.IsInstanceOf<Aggregate<Guid>>(_repository.Get(_id));
+            Assert.IsInstanceOf<_AggregateStub>(_repository.Get(_id));
         }
 
         [Test]
         public void get_specific_version()
         {
             _eventStream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage> { new EventMessage { Body = "Test" }, new EventMessage { Body = "Test" }, new EventMessage { Body = "Test" } });
-            Assert.IsInstanceOf<Aggregate<Guid>>(_repository.Get(_id, 2));
+            Assert.IsInstanceOf<_AggregateStub>(_repository.Get(_id, 2));
         }
 
         [Test]
         public void get_cached_stream()
         {
-            Assert.IsInstanceOf<Aggregate<Guid>>(_repository.Get(_id));
-            Assert.IsInstanceOf<Aggregate<Guid>>(_repository.Get(_id));
+            Assert.IsInstanceOf<_AggregateStub>(_repository.Get(_id));
+            Assert.IsInstanceOf<_AggregateStub>(_repository.Get(_id));
         }
 
         [Test]
@@ -94,8 +98,8 @@ namespace Aggregates.Unit.Repository
         {
             var snapshot = new Moq.Mock<ISnapshot>();
             _eventStore.Setup(x => x.Advanced.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns(snapshot.Object);
-            Assert.IsInstanceOf<Aggregate<Guid>>(_repository.Get(_id));
-            Assert.IsInstanceOf<Aggregate<Guid>>(_repository.Get(_id));
+            Assert.IsInstanceOf<_AggregateStub>(_repository.Get(_id));
+            Assert.IsInstanceOf<_AggregateStub>(_repository.Get(_id));
         }
     }
 }
