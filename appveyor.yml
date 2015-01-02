@@ -1,3 +1,4 @@
+version: 0.0.1-build{build}
 cache:
   - packages
 
@@ -14,27 +15,17 @@ branches:
 # enable patching of AssemblyInfo.* files
 assembly_info:
   patch: true
-  file: AssemblyInfo.*
-  assembly_version: "0.0.{build}"
+  file: SharedAssemblyInfo.*
+  assembly_version: "{version}"
   assembly_file_version: "{version}"
   assembly_informational_version: "{version}"
 
 platform: Any CPU
 configuration: Release
 
-before_build:
-  - git remote set-url origin https://github.com/%APPVEYOR_REPO_NAME%.git
-  - gitversion /b %APPVEYOR_REPO_BRANCH% /output buildserver
-  - nuget restore src\Aggregates.NET.sln
 
-build:
-  parallel: true
-  project: src\Aggregates.NET.sln
-
-
-after_build:
-  - nuget pack src\Aggregates.NET\Aggregates.NET.nuspec -Properties version=%GitVersion_NuGetVersion%;configuration=%CONFIGURATION%
-  - nuget pack src\Aggregates.NET.RavenDB\Aggregates.NET.RavenDB.nuspec -Properties version=%GitVersion_NuGetVersion%;configuration=%CONFIGURATION%
+build_script:
+- ps: .\build.ps1
 
 test:
   assemblies:
@@ -47,7 +38,7 @@ artifacts:
 
 deploy:
   - provider: GitHub
-    release: v$(GitVersion_NuGetVersion)
+    release: v{version}
     auth_token:
       #bsbuild 2014-12-31
       secure: nyYYvfNcljaFo6s6IBdC3lhqwAKOC9HfQjPguKXoHfgs22MwakH+IeXrM2Xn1uc0
