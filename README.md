@@ -41,15 +41,16 @@ Planned future features -
 Status
 ------
 
-Aggregates.NET will handle retreiving roots from the event store and updating the stream after finishing command processing.  It can take your snapshots for you, and is very extendable.  Support for various nicities such as entities and value objects will be added in the near future.  There is a working example code base available above, which uses RavenDB for persistance.  I am currently waiting on the availability of two pull requests I've submitted to NEventstore to make an official build of Aggregates.NET.
-I am also still designing and testing various features and have yet to put the entire project under test.  This process means some features/api might change so consider the project in an Alpha state
+Aggregates.NET packages are starting to get published to the world.  The project is completely under test and can be integrated into NServicebus and NEventstore seemlessly.  Future versions of Aggregates.NET will be automatically published so keep checking back for latest features!
 
 Nuget
 -----
 
-Code will be released on Nuget once the library is fully under test and we can verify everything works as planned.
+Nuget packages are published in a pre-release state.  They are available under the id Aggregates.NET.  There are also binaries and source code releases available via github.
 
 Documentation
 -------------
 
 Coming soon!
+
+[See an aggregate example](https://github.com/volak/DDD.Enterprise.Example/tree/master/Domain/Domain.Inventory/Items)
