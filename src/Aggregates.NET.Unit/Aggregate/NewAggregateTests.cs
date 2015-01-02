@@ -94,7 +94,7 @@ namespace Aggregates.Unit.Aggregate
         [Test]
         public void new_aggregate_with_bucket()
         {
-            _stream.Setup(x => x.BucketId).Returns("test");
+            //_stream.Setup(x => x.BucketId).Returns("test");
             var root = _uow.For<_AggregateStub>().New("test", _id);
             root.Create(_id, "test");
             
