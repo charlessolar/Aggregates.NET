@@ -1,8 +1,5 @@
-before_build:
-  - git remote set-url origin https://github.com/%APPVEYOR_REPO_NAME%.git
-  - gitversion /b %APPVEYOR_REPO_BRANCH% /output buildserver
-  - nuget restore src\Aggregates.NET.sln
-  - 7z a -tzip Aggregates.NET.Source.%GitVersion_NuGetVersion%.zip Aggregates.NET appveyor.yml
+cache:
+  - packages
 
 # branches to build
 branches:
@@ -25,6 +22,11 @@ assembly_info:
 platform: Any CPU
 configuration: Release
 
+before_build:
+  - git remote set-url origin https://github.com/%APPVEYOR_REPO_NAME%.git
+  - gitversion /b %APPVEYOR_REPO_BRANCH% /output buildserver
+  - nuget restore src\Aggregates.NET.sln
+
 build:
   parallel: true
   project: src\Aggregates.NET.sln
@@ -32,7 +34,6 @@ build:
 
 after_build:
   - nuget pack NuGet\Aggregates.NET.nuspec -Properties version=%GitVersion_NuGetVersion%;configuration=%CONFIGURATION%
-  - 7z a -tzip Aggregates.NET.Binaries.%GitVersion_NuGetVersion%.zip .\src\Aggregates.NET\bin\%CONFIGURATION%\Aggregates.NET.dll .\src\Aggregates.NET\bin\%CONFIGURATION%\Aggregates.NET.pdb
 
   
 after_test:
@@ -41,10 +42,6 @@ after_test:
 artifacts:
  - path: Aggregates.NET*.nupkg
    name: NuGet
- - path: Aggregates.NET.Binaries*.zip
-   name: Binaries
- - path: Aggregates.NET.Source*.zip
-   name: Source
 
 deploy:
   - provider: GitHub
@@ -52,7 +49,7 @@ deploy:
     auth_token:
       #bsbuild 2014-12-31
       secure: nyYYvfNcljaFo6s6IBdC3lhqwAKOC9HfQjPguKXoHfgs22MwakH+IeXrM2Xn1uc0
-    artifact: NuGet,Binaries,Source
+    artifact: NuGet
     draft: false
     prerelease: true
     on:
