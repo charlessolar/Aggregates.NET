@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<package>
+  <metadata>
+    <id>Aggregates.NET</id>
+    <version>$version$</version>
+    <title>Aggregates.NET</title>
+    <authors>Charles Solar</authors>
+    <owners>Charles Solar</owners>
+    <licenseUrl>http://www.opensource.org/licenses/mit-license.php</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>A framework to help developers integrate the excelent NServicebus and NEventStore libraries together and provide basic DDD classes</description>
+    <projectUrl>https://github.com/volak/Aggregates.NET</projectUrl>
+    <developmentDependency>true</developmentDependency>
+    <tags>CQRS, NServicebus, NEventStore, aggregate, ddd, repository, unit of work</tags>
+    <dependencies>
+      <group>
+        <dependency id="NServicebus" version="[5.0.0" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="Aggregates.NET.props" target="build" />
+    <file src="bin\$configuration$\Aggregates.NET.dll" target="tools" />
+    <file src="bin\$configuration$\Aggregates.NET.pdb" target="tools" />
+  </files>
+</package>
