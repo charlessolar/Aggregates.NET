@@ -50,5 +50,14 @@ deploy:
     artifact: NuGet
     draft: false
     prerelease: true
-    on:
-      appveyor_repo_tag: true
+	on:
+	  appveyor_repo_tag: true
+  - provider: GitHub
+    release: Aggregates.NET-v{version}
+    auth_token:
+      secure: E3k8jpbA+1HCY5PHHiUlaOTJVBSlJyGNUGdIAUTStkSs9Aw8b5jYJ8bMZv+9/nb+
+    artifact: Binaries, Source
+    draft: false
+    prerelease: false
+	on:
+	  appveyor_repo_tag: true
