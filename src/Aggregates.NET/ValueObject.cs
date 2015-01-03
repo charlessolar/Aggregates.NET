@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Aggregates.Specifications;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -13,6 +14,7 @@ namespace Aggregates
         where T : ValueObject<T>
     {
         private Int32? _cachedHash;
+        protected IList<Specification<T>> _specifications;
 
         public override bool Equals(object obj)
         {

@@ -9,7 +9,7 @@ using System.Collections.Generic;
 namespace Aggregates
 {
 
-    public abstract class Aggregate<TId> : IEventSource<TId>, IEventRouter, INeedBuilder, INeedEventFactory, INeedRouteResolver
+    public abstract class Aggregate<TId> : IEventSource<TId>, IEventRouter, IRegisterEntities, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver
     {
         public TId Id
         {
@@ -42,8 +42,13 @@ namespace Aggregates
         private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
         private IRouteResolver _resolver { get { return (this as INeedRouteResolver).Resolver; } }
 
+        protected IList<IEntity> _entities;
 
-        protected Aggregate() { }
+        protected Aggregate() 
+        {
+            _entities = new List<IEntity>();
+        }
+
 
         void IEventSource.Hydrate(IEnumerable<object> events)
         {
@@ -95,24 +100,32 @@ namespace Aggregates
             return e => route(e);
         }
 
+
+
+
+        void IRegisterEntities.RegisterChild(IEntity entity)
+        {
+            entity.RegisterEventStream(this._eventStream);
+            _entities.Add(entity);
+        }
     }
 
-    public abstract class AggregateWithMemento<TId, TMemento> : Aggregate<TId>, ISnapshottingEventSource<TId> where TMemento : class, IMemento
+    public abstract class AggregateWithMemento<TId, TMemento> : Aggregate<TId>, ISnapshotting where TMemento : class, IMemento
     {
-        void ISnapshottingEventSource.RestoreSnapshot(ISnapshot snapshot)
+        void ISnapshotting.RestoreSnapshot(ISnapshot snapshot)
         {
             var memento = (TMemento)snapshot.Payload;
 
             RestoreSnapshot(memento);
         }
 
-        ISnapshot ISnapshottingEventSource.TakeSnapshot()
+        ISnapshot ISnapshotting.TakeSnapshot()
         {
             var memento = TakeSnapshot();
             return new Snapshot(this.BucketId, this.StreamId, this.Version, memento);
         }
 
-        Boolean ISnapshottingEventSource.ShouldTakeSnapshot(Int32 CurrentVersion, Int32 CommitVersion)
+        Boolean ISnapshotting.ShouldTakeSnapshot(Int32 CurrentVersion, Int32 CommitVersion)
         {
             return ShouldTakeSnapshot(CurrentVersion, CommitVersion);
         }

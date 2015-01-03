@@ -8,6 +8,6 @@ namespace Aggregates.Contracts
 {
     public interface IRegisterEntities
     {
-        void RegisterChild(IRouteResolver childResolver);
+        void RegisterChild(IEntity entity);
     }
 }

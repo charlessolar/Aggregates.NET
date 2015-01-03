@@ -8,6 +8,6 @@ namespace Aggregates.Contracts
 {
     public interface IRouteResolver
     {
-        Action<Object> Resolve<TId>(Aggregate<TId> aggregate, Type eventType);
+        Action<Object> Resolve<TId>(IEventSource<TId> eventsource, Type eventType);
     }
 }

@@ -110,8 +110,8 @@ namespace Aggregates.Internal
                 // Call the 'private' constructor
                 var root = Newup(stream, builder);
 
-                if (snapshot != null && root is ISnapshottingEventSource)
-                    ((ISnapshottingEventSource)root).RestoreSnapshot(snapshot);
+                if (snapshot != null && root is ISnapshotting)
+                    ((ISnapshotting)root).RestoreSnapshot(snapshot);
 
                 if (stream != null && (version == 0 || root.Version < version))
                 {
