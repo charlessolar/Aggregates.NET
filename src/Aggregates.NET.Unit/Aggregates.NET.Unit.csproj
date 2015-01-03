@@ -61,6 +61,7 @@
     <Compile Include="Aggregate\_AggregateStub.cs" />
     <Compile Include="Aggregate\_EventFake.cs" />
     <Compile Include="DefaultRouteResolver\ResolveTests.cs" />
+    <Compile Include="Entity\Entity.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Repository\CommitFailTests.cs" />
     <Compile Include="Repository\CommitTests.cs" />
@@ -68,12 +69,15 @@
     <Compile Include="Repository\GetTests.cs" />
     <Compile Include="Repository\_AggregateStub.cs" />
     <Compile Include="Repository\_Fakes.cs" />
+    <Compile Include="Specifications\ExpressionSerialization.cs" />
+    <Compile Include="Specifications\Specifications.cs" />
     <Compile Include="UnitOfWork\CommitFailTests.cs" />
     <Compile Include="UnitOfWork\CommitTests.cs" />
     <Compile Include="Dispatcher\DispatchTests.cs" />
     <Compile Include="UnitOfWork\DisposeTests.cs" />
     <Compile Include="UnitOfWork\ForTests.cs" />
     <Compile Include="UnitOfWork\MutateOutgoingTests.cs" />
+    <Compile Include="ValueObject\ValueObject.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

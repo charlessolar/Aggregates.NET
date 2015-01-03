@@ -65,6 +65,7 @@
     <Compile Include="Contracts\INeedStream.cs" />
     <Compile Include="Contracts\IRepositoryFactory.cs" />
     <Compile Include="Contracts\IRouteResolver.cs" />
+    <Compile Include="Entity.cs" />
     <Compile Include="Exceptions\AggregateException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
     <Compile Include="Exceptions\HandlerNotFoundException.cs" />
@@ -83,10 +84,24 @@
     <Compile Include="IUnitOfWork.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Internal\UnitOfWork.cs" />
+    <Compile Include="Specifications\AdHocSpecification.cs" />
+    <Compile Include="Specifications\AndSpecification.cs" />
+    <Compile Include="Specifications\Expressions\Combining\ExpressionVisitor.cs" />
+    <Compile Include="Specifications\Expressions\Combining\ParameterRebinder.cs" />
+    <Compile Include="Specifications\Expressions\Combining\Utility.cs" />
+    <Compile Include="Specifications\Expressions\Serialization\ExpressionSerializer.cs" />
+    <Compile Include="Specifications\Expressions\Serialization\ExpressionUtility.cs" />
+    <Compile Include="Specifications\Expressions\Serialization\TypeResolver.cs" />
+    <Compile Include="Specifications\Spec.cs" />
+    <Compile Include="Specifications\NotSpecification.cs" />
+    <Compile Include="Specifications\OrSpecification.cs" />
+    <Compile Include="Specifications\Specification.cs" />
+    <Compile Include="ValueObject.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
