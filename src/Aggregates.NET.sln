@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET", "Aggregate
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.Unit", "Aggregates.NET.Unit\Aggregates.NET.Unit.csproj", "{1A964ACC-3518-4DD6-B5C1-01B130CF4B13}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.Acceptance", "Aggregates.NET.Acceptance\Aggregates.NET.Acceptance.csproj", "{55033EE3-DA4B-4CA3-AEE4-A832F88A9AF6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.Integration", "Aggregates.NET.Acceptance\Aggregates.NET.Integration.csproj", "{55033EE3-DA4B-4CA3-AEE4-A832F88A9AF6}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A82C3E3A-11AA-4C4C-B641-6CB4174606A4}"
 	ProjectSection(SolutionItems) = preProject
