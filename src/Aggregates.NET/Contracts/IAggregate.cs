@@ -6,9 +6,12 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface IHaveEntities
+    public interface IAggregate : IEntity, IHaveEntities
     {
-        IEntityRepository<T> E<T>() where T : class, IEntity;
-        IEntityRepository<T> Entity<T>() where T : class, IEntity;
+    }
+
+    public interface IAggregate<TId> : IAggregate, IEntity<TId>
+    {
+        TId Id { get; }
     }
 }

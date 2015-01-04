@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--This file represents the results of running a test suite-->
+<test-results name="C:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET.Unit\bin\Release\Aggregates.NET.Unit.dll" total="85" errors="7" failures="1" not-run="0" inconclusive="0" ignored="0" skipped="0" invalid="0" date="2015-01-04" time="12:55:43">
+  <environment nunit-version="2.6.4.14350" clr-version="2.0.50727.8009" os-version="Microsoft Windows NT 6.2.9200.0" platform="Win32NT" cwd="C:\Users\Charles\Projects\Aggregates.NET" machine-name="WHITECOMET" user="Charles" user-domain="WHITECOMET" />
+  <culture-info current-culture="en-US" current-uiculture="en-US" />
+  <test-suite type="Assembly" name="C:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET.Unit\bin\Release\Aggregates.NET.Unit.dll" executed="True" result="Failure" success="False" time="1.790" asserts="0">
+    <results>
+      <test-suite type="Namespace" name="Aggregates" executed="True" result="Failure" success="False" time="1.216" asserts="0">
+        <results>
+          <test-suite type="Namespace" name="Unit" executed="True" result="Failure" success="False" time="1.216" asserts="0">
+            <results>
+              <test-suite type="Namespace" name="Aggregate" executed="True" result="Failure" success="False" time="0.802" asserts="0">
+                <results>
+                  <test-suite type="TestFixture" name="ExistingAggregateTests" executed="True" result="Failure" success="False" time="0.688" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.Aggregate.ExistingAggregateTests.get_aggregate_update" executed="True" result="Error" success="False" time="0.664" asserts="0">
+                        <failure>
+                          <message><![CDATA[Aggregates.HandlerNotFoundException : No handler for event CreatedEvent]]></message>
+                          <stack-trace><![CDATA[at Aggregates.Entity`1.RouteFor(Type eventType) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Entity.cs:line 105
+at Aggregates.Entity`1.Aggregates.Contracts.IEventSource.Hydrate(IEnumerable`1 events) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Entity.cs:line 60
+at Aggregates.Internal.Repository`1.Get[TId](String bucketId, TId id, Int32 version) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Internal\Repository.cs:line 121
+at Aggregates.Internal.Repository`1.Get[TId](String bucketId, TId id) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Internal\Repository.cs:line 95
+at Aggregates.Internal.Repository`1.Get[TId](TId id) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Internal\Repository.cs:line 85
+at Aggregates.Unit.Aggregate.ExistingAggregateTests.get_aggregate_update() in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET.Unit\Aggregate\ExistingAggregateTests.cs:line 66
+]]></stack-trace>
+                        </failure>
+                      </test-case>
+                      <test-case name="Aggregates.Unit.Aggregate.ExistingAggregateTests.get_aggregate_with_events" executed="True" result="Error" success="False" time="0.009" asserts="0">
+                        <failure>
+                          <message><![CDATA[Aggregates.HandlerNotFoundException : No handler for event CreatedEvent]]></message>
+                          <stack-trace><![CDATA[at Aggregates.Entity`1.RouteFor(Type eventType) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Entity.cs:line 105
+at Aggregates.Entity`1.Aggregates.Contracts.IEventSource.Hydrate(IEnumerable`1 events) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Entity.cs:line 60
+at Aggregates.Internal.Repository`1.Get[TId](String bucketId, TId id, Int32 version) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Internal\Repository.cs:line 121
+at Aggregates.Internal.Repository`1.Get[TId](String bucketId, TId id) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Internal\Repository.cs:line 95
+at Aggregates.Internal.Repository`1.Get[TId](TId id) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Internal\Repository.cs:line 85
+at Aggregates.Unit.Aggregate.ExistingAggregateTests.get_aggregate_with_events() in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET.Unit\Aggregate\ExistingAggregateTests.cs:line 59
+]]></stack-trace>
+                        </failure>
+                      </test-case>
+                    </results>
+                  </test-suite>
+                  <test-suite type="TestFixture" name="NewAggregateTests" executed="True" result="Failure" success="False" time="0.076" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.Aggregate.NewAggregateTests.new_aggregate_has_value_set" executed="True" result="Error" success="False" time="0.018" asserts="0">
+                        <failure>
+                          <message><![CDATA[Aggregates.HandlerNotFoundException : No handler for event CreatedEvent]]></message>
+                          <stack-trace><![CDATA[at Aggregates.Entity`1.RouteFor(Type eventType) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Entity.cs:line 105
+at Aggregates.Entity`1.Apply[TEvent](Action`1 action) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Entity.cs:line 75
+at Aggregates.Unit.Aggregate.NewAggregateTests.new_aggregate_has_value_set() in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET.Unit\Aggregate\NewAggregateTests.cs:line 75
+]]></stack-trace>
+                        </failure>
+                      </test-case>
+                      <test-case name="Aggregates.Unit.Aggregate.NewAggregateTests.new_aggregate_stream_version" executed="True" result="Success" success="True" time="0.014" asserts="1" />
+                      <test-case name="Aggregates.Unit.Aggregate.NewAggregateTests.new_aggregate_throw_event" executed="True" result="Error" success="False" time="0.008" asserts="0">
+                        <failure>
+                          <message><![CDATA[Aggregates.HandlerNotFoundException : No handler for event CreatedEvent]]></message>
+                          <stack-trace><![CDATA[at Aggregates.Entity`1.RouteFor(Type eventType) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Entity.cs:line 105
+at Aggregates.Entity`1.Apply[TEvent](Action`1 action) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Entity.cs:line 75
+at Aggregates.Unit.Aggregate.NewAggregateTests.new_aggregate_throw_event() in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET.Unit\Aggregate\NewAggregateTests.cs:line 84
+]]></stack-trace>
+                        </failure>
+                      </test-case>
+                      <test-case name="Aggregates.Unit.Aggregate.NewAggregateTests.new_aggregate_throw_event_same_version" executed="True" result="Error" success="False" time="0.008" asserts="0">
+                        <failure>
+                          <message><![CDATA[Aggregates.HandlerNotFoundException : No handler for event CreatedEvent]]></message>
+                          <stack-trace><![CDATA[at Aggregates.Entity`1.RouteFor(Type eventType) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Entity.cs:line 105
+at Aggregates.Entity`1.Apply[TEvent](Action`1 action) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Entity.cs:line 75
+at Aggregates.Unit.Aggregate.NewAggregateTests.new_aggregate_throw_event_same_version() in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET.Unit\Aggregate\NewAggregateTests.cs:line 93
+]]></stack-trace>
+                        </failure>
+                      </test-case>
+                      <test-case name="Aggregates.Unit.Aggregate.NewAggregateTests.new_aggregate_version_0" executed="True" result="Error" success="False" time="0.008" asserts="0">
+                        <failure>
+                          <message><![CDATA[Aggregates.HandlerNotFoundException : No handler for event CreatedEvent]]></message>
+                          <stack-trace><![CDATA[at Aggregates.Entity`1.RouteFor(Type eventType) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Entity.cs:line 105
+at Aggregates.Entity`1.Apply[TEvent](Action`1 action) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Entity.cs:line 75
+at Aggregates.Unit.Aggregate.NewAggregateTests.new_aggregate_version_0() in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET.Unit\Aggregate\NewAggregateTests.cs:line 67
+]]></stack-trace>
+                        </failure>
+                      </test-case>
+                      <test-case name="Aggregates.Unit.Aggregate.NewAggregateTests.new_aggregate_with_bucket" executed="True" result="Error" success="False" time="0.008" asserts="0">
+                        <failure>
+                          <message><![CDATA[Aggregates.HandlerNotFoundException : No handler for event CreatedEvent]]></message>
+                          <stack-trace><![CDATA[at Aggregates.Entity`1.RouteFor(Type eventType) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Entity.cs:line 105
+at Aggregates.Entity`1.Apply[TEvent](Action`1 action) in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET\Entity.cs:line 75
+at Aggregates.Unit.Aggregate.NewAggregateTests.new_aggregate_with_bucket() in c:\Users\Charles\Projects\Aggregates.NET\src\Aggregates.NET.Unit\Aggregate\NewAggregateTests.cs:line 102
+]]></stack-trace>
+                        </failure>
+                      </test-case>
+                      <test-case name="Aggregates.Unit.Aggregate.NewAggregateTests.new_aggregate_with_id" executed="True" result="Success" success="True" time="0.008" asserts="1" />
+                    </results>
+                  </test-suite>
+                  <test-suite type="TestFixture" name="RouteAggregateTests" executed="True" result="Success" success="True" time="0.033" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.Aggregate.RouteAggregateTests.has_route" executed="True" result="Success" success="True" time="0.022" asserts="1" />
+                      <test-case name="Aggregates.Unit.Aggregate.RouteAggregateTests.no_route" executed="True" result="Success" success="True" time="0.009" asserts="1" />
+                    </results>
+                  </test-suite>
+                </results>
+              </test-suite>
+              <test-suite type="Namespace" name="DefaultRouteResolver" executed="True" result="Failure" success="False" time="0.010" asserts="0">
+                <results>
+                  <test-suite type="TestFixture" name="ResolveTests" executed="True" result="Failure" success="False" time="0.009" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.DefaultRouteResolver.ResolveTests.resolve_improper_handles" executed="True" result="Success" success="True" time="0.003" asserts="3" />
+                      <test-case name="Aggregates.Unit.DefaultRouteResolver.ResolveTests.resolve_no_handles" executed="True" result="Success" success="True" time="0.001" asserts="1" />
+                      <test-case name="Aggregates.Unit.DefaultRouteResolver.ResolveTests.resolve_stub" executed="True" result="Failure" success="False" time="0.004" asserts="1">
+                        <failure>
+                          <message><![CDATA[  Expected: not null
+  But was:  null
+]]></message>
+                          <stack-trace><![CDATA[]]></stack-trace>
+                        </failure>
+                      </test-case>
+                    </results>
+                  </test-suite>
+                </results>
+              </test-suite>
+              <test-suite type="Namespace" name="Dispatcher" executed="True" result="Success" success="True" time="0.054" asserts="0">
+                <results>
+                  <test-suite type="TestFixture" name="DispatchTests" executed="True" result="Success" success="True" time="0.054" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.Dispatcher.DispatchTests.dispatch_no_events" executed="True" result="Success" success="True" time="0.042" asserts="1" />
+                      <test-case name="Aggregates.Unit.Dispatcher.DispatchTests.dispatch_one" executed="True" result="Success" success="True" time="0.005" asserts="0" />
+                      <test-case name="Aggregates.Unit.Dispatcher.DispatchTests.dispatch_one_event_header" executed="True" result="Success" success="True" time="0.004" asserts="0" />
+                    </results>
+                  </test-suite>
+                </results>
+              </test-suite>
+              <test-suite type="Namespace" name="Entity" executed="True" result="Inconclusive" success="False" time="0.000" asserts="0">
+                <results>
+                  <test-suite type="TestFixture" name="Entity" executed="True" result="Inconclusive" success="False" time="0.000" asserts="0" />
+                </results>
+              </test-suite>
+              <test-suite type="Namespace" name="EntityRepository" executed="True" result="Success" success="True" time="0.035" asserts="0">
+                <results>
+                  <test-suite type="TestFixture" name="FailTests" executed="True" result="Success" success="True" time="0.005" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.EntityRepository.FailTests.entity_no_private_constructor" executed="True" result="Success" success="True" time="0.004" asserts="1" />
+                      <test-case name="Aggregates.Unit.EntityRepository.FailTests.entity_private_constructor_with_argument" executed="True" result="Success" success="True" time="0.001" asserts="1" />
+                    </results>
+                  </test-suite>
+                  <test-suite type="TestFixture" name="GetTests" executed="True" result="Success" success="True" time="0.020" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.EntityRepository.GetTests.get_doesnt_exist" executed="True" result="Success" success="True" time="0.006" asserts="1" />
+                      <test-case name="Aggregates.Unit.EntityRepository.GetTests.get_exists" executed="True" result="Success" success="True" time="0.005" asserts="1" />
+                      <test-case name="Aggregates.Unit.EntityRepository.GetTests.get_invalid_stream" executed="True" result="Success" success="True" time="0.003" asserts="1" />
+                      <test-case name="Aggregates.Unit.EntityRepository.GetTests.get_valid_and_invalid_stream" executed="True" result="Success" success="True" time="0.003" asserts="1" />
+                      <test-case name="Aggregates.Unit.EntityRepository.GetTests.get_with_other_ids" executed="True" result="Success" success="True" time="0.003" asserts="1" />
+                    </results>
+                  </test-suite>
+                  <test-suite type="TestFixture" name="NewTests" executed="True" result="Success" success="True" time="0.008" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.EntityRepository.NewTests.new_adds_event" executed="True" result="Success" success="True" time="0.006" asserts="0" />
+                      <test-case name="Aggregates.Unit.EntityRepository.NewTests.new_not_null" executed="True" result="Success" success="True" time="0.002" asserts="1" />
+                    </results>
+                  </test-suite>
+                </results>
+              </test-suite>
+              <test-suite type="Namespace" name="Repository" executed="True" result="Success" success="True" time="0.167" asserts="0">
+                <results>
+                  <test-suite type="TestFixture" name="CommitFailTests" executed="True" result="Success" success="True" time="0.027" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.Repository.CommitFailTests.commit_throw_conflicting_command" executed="True" result="Success" success="True" time="0.016" asserts="1" />
+                      <test-case name="Aggregates.Unit.Repository.CommitFailTests.commit_throw_conflicting_command_clear_stream" executed="True" result="Success" success="True" time="0.005" asserts="1" />
+                      <test-case name="Aggregates.Unit.Repository.CommitFailTests.commit_throw_duplicate_commit_clear_stream" executed="True" result="Success" success="True" time="0.005" asserts="1" />
+                    </results>
+                  </test-suite>
+                  <test-suite type="TestFixture" name="CommitTests" executed="True" result="Success" success="True" time="0.026" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.Repository.CommitTests.commit_no_streams" executed="True" result="Success" success="True" time="0.010" asserts="1" />
+                      <test-case name="Aggregates.Unit.Repository.CommitTests.commit_with_headers" executed="True" result="Success" success="True" time="0.005" asserts="2" />
+                      <test-case name="Aggregates.Unit.Repository.CommitTests.commit_with_stream" executed="True" result="Success" success="True" time="0.004" asserts="1" />
+                      <test-case name="Aggregates.Unit.Repository.CommitTests.commit_with_two_streams" executed="True" result="Success" success="True" time="0.005" asserts="1" />
+                    </results>
+                  </test-suite>
+                  <test-suite type="TestFixture" name="DisposeTests" executed="True" result="Success" success="True" time="0.012" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.Repository.DisposeTests.dispose_no_streams" executed="True" result="Success" success="True" time="0.007" asserts="1" />
+                      <test-case name="Aggregates.Unit.Repository.DisposeTests.dispose_stream_disposed" executed="True" result="Success" success="True" time="0.004" asserts="1" />
+                    </results>
+                  </test-suite>
+                  <test-suite type="TestFixture" name="FailTests" executed="True" result="Success" success="True" time="0.003" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.Repository.FailTests.entity_no_private_constructor" executed="True" result="Success" success="True" time="0.001" asserts="1" />
+                      <test-case name="Aggregates.Unit.Repository.FailTests.entity_private_constructor_with_argument" executed="True" result="Success" success="True" time="0.001" asserts="1" />
+                    </results>
+                  </test-suite>
+                  <test-suite type="TestFixture" name="ForTests" executed="True" result="Success" success="True" time="0.030" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.Repository.ForTests.Get_cached_repository" executed="True" result="Success" success="True" time="0.027" asserts="1" />
+                      <test-case name="Aggregates.Unit.Repository.ForTests.Get_repository" executed="True" result="Success" success="True" time="0.002" asserts="1" />
+                    </results>
+                  </test-suite>
+                  <test-suite type="TestFixture" name="GetTests" executed="True" result="Success" success="True" time="0.065" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.Repository.GetTests.get_cached_snapshot" executed="True" result="Success" success="True" time="0.020" asserts="2" />
+                      <test-case name="Aggregates.Unit.Repository.GetTests.get_cached_stream" executed="True" result="Success" success="True" time="0.006" asserts="2" />
+                      <test-case name="Aggregates.Unit.Repository.GetTests.get_existing_no_events" executed="True" result="Success" success="True" time="0.006" asserts="1" />
+                      <test-case name="Aggregates.Unit.Repository.GetTests.get_existing_with_events" executed="True" result="Success" success="True" time="0.007" asserts="1" />
+                      <test-case name="Aggregates.Unit.Repository.GetTests.get_existing_with_snapshot" executed="True" result="Success" success="True" time="0.008" asserts="1" />
+                      <test-case name="Aggregates.Unit.Repository.GetTests.get_non_existing" executed="True" result="Success" success="True" time="0.006" asserts="1" />
+                      <test-case name="Aggregates.Unit.Repository.GetTests.get_specific_version" executed="True" result="Success" success="True" time="0.007" asserts="1" />
+                    </results>
+                  </test-suite>
+                </results>
+              </test-suite>
+              <test-suite type="Namespace" name="Specifications" executed="True" result="Success" success="True" time="0.043" asserts="0">
+                <results>
+                  <test-suite type="TestFixture" name="Specifications" executed="True" result="Success" success="True" time="0.042" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.Specifications.Specifications.and_false" executed="True" result="Success" success="True" time="0.020" asserts="1" />
+                      <test-case name="Aggregates.Unit.Specifications.Specifications.and_true" executed="True" result="Success" success="True" time="0.001" asserts="1" />
+                      <test-case name="Aggregates.Unit.Specifications.Specifications.grouping_test" executed="True" result="Success" success="True" time="0.005" asserts="1" />
+                      <test-case name="Aggregates.Unit.Specifications.Specifications.grouping2_test" executed="True" result="Success" success="True" time="0.003" asserts="1" />
+                      <test-case name="Aggregates.Unit.Specifications.Specifications.not_false" executed="True" result="Success" success="True" time="0.008" asserts="1" />
+                      <test-case name="Aggregates.Unit.Specifications.Specifications.not_true" executed="True" result="Success" success="True" time="0.001" asserts="1" />
+                      <test-case name="Aggregates.Unit.Specifications.Specifications.or_false" executed="True" result="Success" success="True" time="0.001" asserts="1" />
+                      <test-case name="Aggregates.Unit.Specifications.Specifications.or_true" executed="True" result="Success" success="True" time="0.001" asserts="1" />
+                    </results>
+                  </test-suite>
+                </results>
+              </test-suite>
+              <test-suite type="Namespace" name="UnitOfWork" executed="True" result="Success" success="True" time="0.072" asserts="0">
+                <results>
+                  <test-suite type="TestFixture" name="CommitFailTests" executed="True" result="Success" success="True" time="0.019" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.UnitOfWork.CommitFailTests.Commit_persistence_exception" executed="True" result="Success" success="True" time="0.014" asserts="1" />
+                      <test-case name="Aggregates.Unit.UnitOfWork.CommitFailTests.Commit_persistence_exception_unavailable" executed="True" result="Success" success="True" time="0.003" asserts="1" />
+                    </results>
+                  </test-suite>
+                  <test-suite type="TestFixture" name="CommitTests" executed="True" result="Success" success="True" time="0.032" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.UnitOfWork.CommitTests.Commit_multiple_repo" executed="True" result="Success" success="True" time="0.017" asserts="1" />
+                      <test-case name="Aggregates.Unit.UnitOfWork.CommitTests.Commit_no_events" executed="True" result="Success" success="True" time="0.004" asserts="1" />
+                      <test-case name="Aggregates.Unit.UnitOfWork.CommitTests.Commit_one_repo" executed="True" result="Success" success="True" time="0.005" asserts="1" />
+                      <test-case name="Aggregates.Unit.UnitOfWork.CommitTests.end_calls_commit" executed="True" result="Success" success="True" time="0.005" asserts="0" />
+                    </results>
+                  </test-suite>
+                  <test-suite type="TestFixture" name="DisposeTests" executed="True" result="Success" success="True" time="0.005" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.UnitOfWork.DisposeTests.Dispose_repository_is_disposed" executed="True" result="Success" success="True" time="0.005" asserts="0" />
+                    </results>
+                  </test-suite>
+                  <test-suite type="TestFixture" name="MutateOutgoingTests" executed="True" result="Success" success="True" time="0.015" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.UnitOfWork.MutateOutgoingTests.outgoing_carry_over" executed="True" result="Success" success="True" time="0.007" asserts="2" />
+                      <test-case name="Aggregates.Unit.UnitOfWork.MutateOutgoingTests.outgoing_carry_over_not_found" executed="True" result="Success" success="True" time="0.001" asserts="16" />
+                      <test-case name="Aggregates.Unit.UnitOfWork.MutateOutgoingTests.outgoing_filter_headers" executed="True" result="Success" success="True" time="0.001" asserts="4" />
+                      <test-case name="Aggregates.Unit.UnitOfWork.MutateOutgoingTests.outgoing_has_headers" executed="True" result="Success" success="True" time="0.001" asserts="2" />
+                      <test-case name="Aggregates.Unit.UnitOfWork.MutateOutgoingTests.outgoing_message_id" executed="True" result="Success" success="True" time="0.001" asserts="2" />
+                      <test-case name="Aggregates.Unit.UnitOfWork.MutateOutgoingTests.outgoing_multiple_mutates" executed="True" result="Success" success="True" time="0.001" asserts="4" />
+                      <test-case name="Aggregates.Unit.UnitOfWork.MutateOutgoingTests.outgoing_no_headers" executed="True" result="Success" success="True" time="0.000" asserts="1" />
+                    </results>
+                  </test-suite>
+                </results>
+              </test-suite>
+              <test-suite type="Namespace" name="ValueObject" executed="True" result="Success" success="True" time="0.019" asserts="0">
+                <results>
+                  <test-suite type="TestFixture" name="ValueObjectTests" executed="True" result="Success" success="True" time="0.018" asserts="0">
+                    <results>
+                      <test-case name="Aggregates.Unit.ValueObject.ValueObjectTests.AddressEqualsIsReflexive" executed="True" result="Success" success="True" time="0.001" asserts="1" />
+                      <test-case name="Aggregates.Unit.ValueObject.ValueObjectTests.AddressEqualsIsSymmetric" executed="True" result="Success" success="True" time="0.001" asserts="2" />
+                      <test-case name="Aggregates.Unit.ValueObject.ValueObjectTests.AddressEqualsIsTransitive" executed="True" result="Success" success="True" time="0.001" asserts="3" />
+                      <test-case name="Aggregates.Unit.ValueObject.ValueObjectTests.AddressEqualsWorksWithIdenticalAddresses" executed="True" result="Success" success="True" time="0.000" asserts="1" />
+                      <test-case name="Aggregates.Unit.ValueObject.ValueObjectTests.AddressEqualsWorksWithNonIdenticalAddresses" executed="True" result="Success" success="True" time="0.000" asserts="1" />
+                      <test-case name="Aggregates.Unit.ValueObject.ValueObjectTests.AddressEqualsWorksWithNulls" executed="True" result="Success" success="True" time="0.000" asserts="1" />
+                      <test-case name="Aggregates.Unit.ValueObject.ValueObjectTests.AddressEqualsWorksWithNullsOnOtherObject" executed="True" result="Success" success="True" time="0.000" asserts="1" />
+                      <test-case name="Aggregates.Unit.ValueObject.ValueObjectTests.AddressOperatorsWork" executed="True" result="Success" success="True" time="0.001" asserts="2" />
+                      <test-case name="Aggregates.Unit.ValueObject.ValueObjectTests.DerivedTypesBehaveCorrectly" executed="True" result="Success" success="True" time="0.000" asserts="2" />
+                      <test-case name="Aggregates.Unit.ValueObject.ValueObjectTests.DerivedTypesHashCodesBehaveCorrectly" executed="True" result="Success" success="True" time="0.005" asserts="1" />
+                      <test-case name="Aggregates.Unit.ValueObject.ValueObjectTests.EqualValueObjectsHaveSameHashCode" executed="True" result="Success" success="True" time="0.001" asserts="1" />
+                      <test-case name="Aggregates.Unit.ValueObject.ValueObjectTests.TransposedValuesGiveDifferentHashCodes" executed="True" result="Success" success="True" time="0.000" asserts="1" />
+                      <test-case name="Aggregates.Unit.ValueObject.ValueObjectTests.TransposedValuesOfFieldNamesGivesDifferentHashCodes" executed="True" result="Success" success="True" time="0.000" asserts="1" />
+                      <test-case name="Aggregates.Unit.ValueObject.ValueObjectTests.UnequalValueObjectsHaveDifferentHashCodes" executed="True" result="Success" success="True" time="0.000" asserts="1" />
+                    </results>
+                  </test-suite>
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="Namespace" name="LinqSpecs" executed="True" result="Success" success="True" time="0.551" asserts="0">
+        <results>
+          <test-suite type="Namespace" name="Tests" executed="True" result="Success" success="True" time="0.551" asserts="0">
+            <results>
+              <test-suite type="TestFixture" name="ExpressionSerialization" executed="True" result="Success" success="True" time="0.550" asserts="0">
+                <results>
+                  <test-case name="LinqSpecs.Tests.ExpressionSerialization.CombinedSpecificationIsSerializable" executed="True" result="Success" success="True" time="0.124" asserts="2" />
+                  <test-case name="LinqSpecs.Tests.ExpressionSerialization.NeagtedAdHocSpecificationIsSerializable" executed="True" result="Success" success="True" time="0.423" asserts="2" />
+                  <test-case name="LinqSpecs.Tests.ExpressionSerialization.SimpleAdHocSpecificationIsSerializable" executed="True" result="Success" success="True" time="0.002" asserts="2" />
+                </results>
+              </test-suite>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+    </results>
+  </test-suite>
+</test-results>

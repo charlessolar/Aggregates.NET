@@ -2,6 +2,7 @@
 using Aggregates.Specifications;
 using NEventStore;
 using NServiceBus;
+using NServiceBus.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,14 +14,27 @@ namespace Aggregates
     // Implementation from http://stackoverflow.com/a/2326321/223547
     public abstract class Entity<TId> : IEntity<TId>, INeedStream, INeedEventFactory, INeedRouteResolver
     {
-        private readonly TId _id;
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(Entity<>));
+
+        //public TId Id
+        //{
+        //    get
+        //    {
+        //        // Dont use unsupported Ids kids
+        //        var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(TId));
+        //        if (converter != null && converter.IsValid(this.StreamId))
+        //            return (TId)converter.ConvertFromString(this.StreamId);
+        //        else
+        //            return (TId)Activator.CreateInstance(typeof(TId));
+        //    }
+        //}
+
         private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
         private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
         private IRouteResolver _resolver { get { return (this as INeedRouteResolver).Resolver; } }
 
-        protected IList<Specification<Entity<TId>>> _specifications;
-
-        public String BucketId { get { return ""; } }// _eventStream.BucketId; } }
+        public TId Id { get { return (this as IEventSource<TId>).Id; } }
+        public String BucketId { get { return (this as IEventSource<TId>).BucketId; } }
 
         String IEventSource.StreamId { get { return this.StreamId; } }
         Int32 IEventSource.Version { get { return this.Version; } }
@@ -31,67 +45,20 @@ namespace Aggregates
         IEventStream INeedStream.Stream { get; set; }
         IMessageCreator INeedEventFactory.EventFactory { get; set; }
         IRouteResolver INeedRouteResolver.Resolver { get; set; }
-
-        protected Entity(TId id)
-        {
-            if (object.Equals(id, default(TId)))
-                throw new ArgumentException("The ID cannot be the default value.", "id");
-
-            _specifications = new List<Specification<Entity<TId>>>();
-            _id = id;
-        }
-
-        public TId Id
-        {
-            get { return _id; }
-        }
+        TId IEventSource<TId>.Id { get; set; }
+        String IEventSource<TId>.BucketId { get; set; }
 
 
-        protected void AddSpecification(Specification<Entity<TId>> spec)
-        {
-            _specifications.Add(spec);
-        }
-
-        public Boolean IsSatisfied
-        {
-            get
-            {
-                if( _specifications.All(s => s.IsSatisfiedBy(this)))
-                    return true;
-                return false;
-            }
-        }
-
-
-        
         public override int GetHashCode()
         {
             return Id.GetHashCode();
-        }
-
-        /// <inheritdoc />
-        public bool Equals(Entity<TId> other)
-        {
-            if (ReferenceEquals(this, other)) return true;
-            if (ReferenceEquals(null, other)) return false;
-            if (this.GetType() != other.GetType()) return false;
-
-            return Id.Equals(other.Id);
-        }
-
-        /// <inheritdoc />
-        public override bool Equals(object obj)
-        {
-            return Equals(obj as Entity<TId>);
         }
 
 
         void IEventSource.Hydrate(IEnumerable<object> events)
         {
             foreach (var @event in events)
-            {
                 Raise(@event);
-            }
         }
 
         void IEventSource.Apply<TEvent>(Action<TEvent> action)
@@ -110,6 +77,8 @@ namespace Aggregates
                 Body = @event,
                 Headers = new Dictionary<string, object>
                 {
+                    { "Id", this.Id },
+                    { "Entity", this.GetType().FullName },
                     { "Event", typeof(TEvent).FullName },
                     { "EventVersion", this.Version }
                     // Todo: Support user headers via method or attributes
@@ -118,6 +87,8 @@ namespace Aggregates
         }
         private void Raise(object @event)
         {
+            if (@event == null) return;
+
             RouteFor(@event.GetType())(@event);
         }
 
@@ -139,8 +110,6 @@ namespace Aggregates
 
     public abstract class EntityWithMemento<TId, TMemento> : Entity<TId>, ISnapshotting where TMemento : class, IMemento
     {
-        protected EntityWithMemento(TId id) : base(id) { }
-
         void ISnapshotting.RestoreSnapshot(ISnapshot snapshot)
         {
             var memento = (TMemento)snapshot.Payload;

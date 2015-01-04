@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using NEventStore;
 using NServiceBus;
+using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
 using NUnit.Framework;
@@ -32,12 +33,14 @@ namespace Aggregates.Unit.DefaultRouteResolver
     [TestFixture]
     public class ResolveTests
     {
+        private Moq.Mock<IMessageMapper> _mapper;
         private Aggregates.Internal.DefaultRouteResolver _resolver;
 
         [SetUp]
         public void Setup()
         {
-            _resolver = new Aggregates.Internal.DefaultRouteResolver();
+            _mapper = new Moq.Mock<IMessageMapper>();
+            _resolver = new Aggregates.Internal.DefaultRouteResolver(_mapper.Object);
         }
 
         [Test]

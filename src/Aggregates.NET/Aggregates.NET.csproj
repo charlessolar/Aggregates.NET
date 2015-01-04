@@ -59,10 +59,13 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Aggregate.cs" />
+    <Compile Include="Contracts\IAggregate.cs" />
     <Compile Include="Contracts\IEntity.cs" />
+    <Compile Include="Contracts\IEntityRepository.cs" />
     <Compile Include="Contracts\IHaveEntities.cs" />
     <Compile Include="Contracts\INeedBuilder.cs" />
     <Compile Include="Contracts\INeedEventFactory.cs" />
+    <Compile Include="Contracts\INeedRepoFactory.cs" />
     <Compile Include="Contracts\INeedRouteResolver.cs" />
     <Compile Include="Contracts\INeedStream.cs" />
     <Compile Include="Contracts\IRepositoryFactory.cs" />
@@ -79,6 +82,7 @@
     <Compile Include="Integrations\NServicebus.cs" />
     <Compile Include="Internal\DefaultRepositoryFactory.cs" />
     <Compile Include="Internal\DefaultRouteResolver.cs" />
+    <Compile Include="Internal\EntityRepository.cs" />
     <Compile Include="Internal\Repository.cs" />
     <Compile Include="Contracts\IRepository.cs" />
     <Compile Include="Contracts\IEventRouter.cs" />

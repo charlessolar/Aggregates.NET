@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using NServiceBus;
 using NServiceBus.Logging;
+using NServiceBus.MessageInterfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,9 +16,11 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger(typeof(DefaultRouteResolver));
 
         private IDictionary<Type, Action<Object>> _cache;
+        private IMessageMapper _mapper;
 
-        public DefaultRouteResolver()
+        public DefaultRouteResolver(IMessageMapper mapper)
         {
+            _mapper = mapper;
             _cache = new Dictionary<Type, Action<Object>>();
         }
 
@@ -26,27 +29,26 @@ namespace Aggregates.Internal
             Action<Object> cached = null;
             if (_cache.TryGetValue(eventType, out cached))
                 return cached;
+
+
+            var mappedType = _mapper.GetMappedTypeFor(eventType);
             
             var handleMethod = eventsource.GetType()
                                  .GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
                                  .SingleOrDefault(
                                         m => m.Name == "Handle" &&
                                          m.GetParameters().Length == 1 &&
-                                         m.GetParameters().Single().ParameterType == eventType &&
+                                         m.GetParameters().Single().ParameterType == mappedType &&
                                          m.ReturnParameter.ParameterType == typeof(void));
                                  //.Select(m => new { Method = m, MessageType = m.GetParameters().Single().ParameterType });
 
             if (handleMethod == null)
             {
-                // If eventType is a dynamically created type, we need to map the interface, not the unknown factory type
-                if( eventType.GetInterfaces().Count() == 1)
-                    return Resolve<TId>(eventsource, eventType.GetInterfaces().First());
-
-                Logger.WarnFormat("No handle method found on type '{0}' for event Type '{1}'", eventsource.GetType().Name, eventType);
+                Logger.WarnFormat("No handle method found on type '{0}' for event Type '{1}'", eventsource.GetType().Name, eventType.FullName);
                 return null;
             }
 
-            Logger.DebugFormat("Handle method found on type '{0}' for event Type '{1}'", eventsource.GetType().Name, eventType);
+            Logger.DebugFormat("Handle method found on type '{0}' for event Type '{1}'", eventsource.GetType().Name, eventType.FullName);
             return m => handleMethod.Invoke(eventsource, new[] { m });
         }
     }

@@ -7,7 +7,11 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface IEntity<TId> : IEventSource<TId>, IEventRouter
+    public interface IEntity : IEventSource, IEventRouter
+    {
+
+    }
+    public interface IEntity<TId> : IEntity, IEventSource<TId>
     {
     }
 }

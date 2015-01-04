@@ -14,28 +14,6 @@ namespace Aggregates
         where T : ValueObject<T>
     {
         private Int32? _cachedHash;
-        private IList<Specification<T>> _specifications;
-
-        public ValueObject()
-        {
-            _specifications = new List<Specification<T>>();
-        }
-
-        protected void AddSpecification(Specification<T> spec)
-        {
-            _specifications.Add(spec);
-        }
-
-        public Boolean IsSatisfied
-        {
-            get
-            {
-                // T should always be the child class aka ```class Address : ValueObject<Address>```
-                if (_specifications.All(s => s.IsSatisfiedBy((T)this)))
-                    return true;
-                return false;
-            }
-        }
 
         public override bool Equals(object obj)
         {

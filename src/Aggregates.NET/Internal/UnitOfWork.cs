@@ -49,7 +49,7 @@ namespace Aggregates.Internal
 
         public UnitOfWork(IBuilder builder, IStoreEvents eventStore, IRepositoryFactory repoFactory)
         {
-            _builder = builder.CreateChildBuilder();
+            _builder = builder;
             _eventStore = eventStore;
             _repoFactory = repoFactory;
             _repositories = new Dictionary<Type, IRepository>();
@@ -78,16 +78,16 @@ namespace Aggregates.Internal
             _disposed = true;
         }
 
-        public IRepository<T> R<T>() where T : class, IEventSource
+        public IRepository<T> R<T>() where T : class, IAggregate
         {
             return Repository<T>();
         }
-        public IRepository<T> For<T>() where T : class, IEventSource
+        public IRepository<T> For<T>() where T : class, IAggregate
         {
             return Repository<T>();
         }
 
-        public IRepository<T> Repository<T>() where T : class, IEventSource
+        public IRepository<T> Repository<T>() where T : class, IAggregate
         {
             Logger.DebugFormat("Retreiving repository for type {0}", typeof(T));
             var type = typeof(T);
@@ -96,7 +96,7 @@ namespace Aggregates.Internal
             if (_repositories.TryGetValue(type, out repository))
                 return (IRepository<T>)repository;
 
-            return (IRepository<T>)(_repositories[type] = (IRepository)_repoFactory.Create<T>(_builder, _eventStore));
+            return (IRepository<T>)(_repositories[type] = (IRepository)_repoFactory.ForAggregate<T>(_builder, _eventStore));
         }
 
         public void Begin() { }

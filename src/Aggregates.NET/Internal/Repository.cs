@@ -17,7 +17,7 @@ namespace Aggregates.Internal
     // inspired / taken from NEventStore.CommonDomain
     // https://github.com/NEventStore/NEventStore/blob/master/src/NEventStore/CommonDomain/Persistence/EventStore/EventStoreRepository.cs
 
-    public class Repository<T> : IRepository<T> where T : class, IEventSource
+    public class Repository<T> : IRepository<T> where T : class, IAggregate
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Repository<>));
         private readonly IStoreEvents _store;
@@ -104,26 +104,25 @@ namespace Aggregates.Internal
 
             if (stream == null && snapshot == null) return (T)null;
 
-            // Use a child container to provide the root with a singleton stream and possibly some other future stuff
-            using (var builder = _builder.CreateChildBuilder())
+            // Call the 'private' constructor
+            var root = Newup(stream, _builder);
+            (root as IEventSource<TId>).Id = id;
+            (root as IEventSource<TId>).BucketId = bucketId;
+
+            if (snapshot != null && root is ISnapshotting)
+                ((ISnapshotting)root).RestoreSnapshot(snapshot);
+
+            if (stream != null && (version == 0 || root.Version < version))
             {
-                // Call the 'private' constructor
-                var root = Newup(stream, builder);
+                // Only hydrate events with a header which corresponds with the aggregate id
+                // Needed because entities of the aggregate live in the same stream
+                var events = GetAggregateStream(stream, id, version);
 
-                if (snapshot != null && root is ISnapshotting)
-                    ((ISnapshotting)root).RestoreSnapshot(snapshot);
+                root.Hydrate(events.Take(version - root.Version).Select(e => e.Body));
 
-                if (stream != null && (version == 0 || root.Version < version))
-                {
-                    // If they GET a currently open root, apply all the uncommitted events too
-                    var events = stream.CommittedEvents.Concat(stream.UncommittedEvents);
-
-                    root.Hydrate(events.Take(version - root.Version).Select(e => e.Body));
-
-                }
-
-                return root;
             }
+
+            return root;
         }
 
         public T New<TId>(TId id)
@@ -133,12 +132,11 @@ namespace Aggregates.Internal
 
         public T New<TId>(String bucketId, TId id)
         {
-            // Use a child container to provide the root with a singleton stream and possibly some other future stuff
-            using (var builder = _builder.CreateChildBuilder())
-            {
-                var stream = PrepareStream(bucketId, id);
-                return Newup(stream, builder);
-            }
+            var stream = PrepareStream(bucketId, id);
+            var root = Newup(stream, _builder);
+            (root as IEventSource<TId>).Id = id;
+            (root as IEventSource<TId>).BucketId = bucketId;
+            return root;
         }
 
         private T Newup(IEventStream stream, IBuilder builder)
@@ -150,6 +148,7 @@ namespace Aggregates.Internal
                 throw new AggregateException("Aggregate needs a PRIVATE parameterless constructor");
             var root = (T)tCtor.Invoke(null);
 
+            
             // Todo: I bet there is a way to make a INeedBuilding<T> type interface
             //      and loop over each, calling builder.build for each T
             if (root is INeedStream)
@@ -160,6 +159,8 @@ namespace Aggregates.Internal
                 (root as INeedEventFactory).EventFactory = builder.Build<IMessageCreator>();
             if (root is INeedRouteResolver)
                 (root as INeedRouteResolver).Resolver = builder.Build<IRouteResolver>();
+            if (root is INeedRepositoryFactory)
+                (root as INeedRepositoryFactory).RepositoryFactory = builder.Build<IRepositoryFactory>();
 
             return root;
         }
@@ -188,6 +189,18 @@ namespace Aggregates.Internal
                 return _streams[streamId] = _store.OpenStream(bucketId, id.ToString(), Int32.MinValue, version);
             else
                 return _streams[streamId] = _store.OpenStream(snapshot, version);
+        }
+
+        private IEnumerable<EventMessage> GetAggregateStream<TId>(IEventStream stream, TId id, Int32 version)
+        {
+            // The stream is the aggregate's entire stream.  For the entity, we only need the events for our id
+            return (stream.CommittedEvents.Concat(stream.UncommittedEvents)).Where(e =>
+            {
+                Object objId;
+                if (!e.Headers.TryGetValue("Id", out objId))
+                    return false;
+                return id.Equals(objId);
+            }).Take(version);
         }
 
         private IEventStream PrepareStream<TId>(String bucketId, TId id)
