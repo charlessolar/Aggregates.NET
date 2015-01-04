@@ -60,16 +60,15 @@
     </Compile>
     <Compile Include="Aggregate.cs" />
     <Compile Include="Contracts\IEntity.cs" />
+    <Compile Include="Contracts\IHaveEntities.cs" />
     <Compile Include="Contracts\INeedBuilder.cs" />
     <Compile Include="Contracts\INeedEventFactory.cs" />
     <Compile Include="Contracts\INeedRouteResolver.cs" />
     <Compile Include="Contracts\INeedStream.cs" />
-    <Compile Include="Contracts\IRegisterEntities.cs" />
     <Compile Include="Contracts\IRepositoryFactory.cs" />
     <Compile Include="Contracts\IRouteResolver.cs" />
     <Compile Include="Contracts\ISnapshotting.cs" />
     <Compile Include="Entity.cs" />
-    <Compile Include="EntityList.cs" />
     <Compile Include="Exceptions\AggregateException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
     <Compile Include="Exceptions\HandlerNotFoundException.cs" />
@@ -81,7 +80,7 @@
     <Compile Include="Internal\DefaultRepositoryFactory.cs" />
     <Compile Include="Internal\DefaultRouteResolver.cs" />
     <Compile Include="Internal\Repository.cs" />
-    <Compile Include="IRepository.cs" />
+    <Compile Include="Contracts\IRepository.cs" />
     <Compile Include="Contracts\IEventRouter.cs" />
     <Compile Include="Contracts\IEventSource.cs" />
     <Compile Include="Contracts\IMemento.cs" />

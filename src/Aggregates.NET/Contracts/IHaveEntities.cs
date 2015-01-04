@@ -6,8 +6,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface IRegisterEntities
+    public interface IHaveEntities
     {
-        void RegisterChild(IEntity entity);
     }
 }

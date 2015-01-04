@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Specifications;
 using NEventStore;
+using NServiceBus;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,10 +11,13 @@ using System.Threading.Tasks;
 namespace Aggregates
 {
     // Implementation from http://stackoverflow.com/a/2326321/223547
-    public abstract class Entity<TId> : IEntity, IEquatable<Entity<TId>>, IEventSource<TId>, INeedStream
+    public abstract class Entity<TId> : IEntity<TId>, INeedStream, INeedEventFactory, INeedRouteResolver
     {
         private readonly TId _id;
         private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
+        private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
+        private IRouteResolver _resolver { get { return (this as INeedRouteResolver).Resolver; } }
+
         protected IList<Specification<Entity<TId>>> _specifications;
 
         public String BucketId { get { return ""; } }// _eventStream.BucketId; } }
@@ -25,6 +29,8 @@ namespace Aggregates
         public Int32 Version { get { return _eventStream.StreamRevision; } }
 
         IEventStream INeedStream.Stream { get; set; }
+        IMessageCreator INeedEventFactory.EventFactory { get; set; }
+        IRouteResolver INeedRouteResolver.Resolver { get; set; }
 
         protected Entity(TId id)
         {
@@ -40,6 +46,21 @@ namespace Aggregates
             get { return _id; }
         }
 
+
+        protected void AddSpecification(Specification<Entity<TId>> spec)
+        {
+            _specifications.Add(spec);
+        }
+
+        public Boolean IsSatisfied
+        {
+            get
+            {
+                if( _specifications.All(s => s.IsSatisfiedBy(this)))
+                    return true;
+                return false;
+            }
+        }
 
 
         
@@ -67,7 +88,10 @@ namespace Aggregates
 
         void IEventSource.Hydrate(IEnumerable<object> events)
         {
-            throw new NotImplementedException();
+            foreach (var @event in events)
+            {
+                Raise(@event);
+            }
         }
 
         void IEventSource.Apply<TEvent>(Action<TEvent> action)
@@ -92,21 +116,31 @@ namespace Aggregates
                 }
             });
         }
-
-        void IEntity.RegisterEventStream(IEventStream stream)
+        private void Raise(object @event)
         {
-            (this as INeedStream).Stream = stream;
+            RouteFor(@event.GetType())(@event);
         }
 
-        bool IEquatable<IEntity>.Equals(IEntity other)
+        Action<Object> IEventRouter.RouteFor(Type eventType)
         {
-            throw new NotImplementedException();
+            return RouteFor(eventType);
         }
 
+        protected virtual Action<Object> RouteFor(Type eventType)
+        {
+            var route = _resolver.Resolve(this, eventType);
+
+            if (route == null)
+                throw new HandlerNotFoundException(String.Format("No handler for event {0}", eventType.Name));
+
+            return e => route(e);
+        }
     }
 
     public abstract class EntityWithMemento<TId, TMemento> : Entity<TId>, ISnapshotting where TMemento : class, IMemento
     {
+        protected EntityWithMemento(TId id) : base(id) { }
+
         void ISnapshotting.RestoreSnapshot(ISnapshot snapshot)
         {
             var memento = (TMemento)snapshot.Payload;

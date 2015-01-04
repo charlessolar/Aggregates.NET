@@ -9,7 +9,7 @@ using System.Collections.Generic;
 namespace Aggregates
 {
 
-    public abstract class Aggregate<TId> : IEventSource<TId>, IEventRouter, IRegisterEntities, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver
+    public abstract class Aggregate<TId> : IEventSource<TId>, IEventRouter, IHaveEntities, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver
     {
         public TId Id
         {
@@ -42,11 +42,8 @@ namespace Aggregates
         private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
         private IRouteResolver _resolver { get { return (this as INeedRouteResolver).Resolver; } }
 
-        protected IList<IEntity> _entities;
-
         protected Aggregate() 
         {
-            _entities = new List<IEntity>();
         }
 
 
@@ -94,19 +91,11 @@ namespace Aggregates
         protected virtual Action<Object> RouteFor(Type eventType)
         {
             var route = _resolver.Resolve(this, eventType);
+            
             if( route == null )
                 throw new HandlerNotFoundException(String.Format("No handler for event {0}", eventType.Name));
-
+            
             return e => route(e);
-        }
-
-
-
-
-        void IRegisterEntities.RegisterChild(IEntity entity)
-        {
-            entity.RegisterEventStream(this._eventStream);
-            _entities.Add(entity);
         }
     }
 

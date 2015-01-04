@@ -7,8 +7,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface IEntity : IEquatable<IEntity>, IEventSource
+    public interface IEntity<TId> : IEventSource<TId>, IEventRouter
     {
-        void RegisterEventStream(IEventStream stream);
     }
 }

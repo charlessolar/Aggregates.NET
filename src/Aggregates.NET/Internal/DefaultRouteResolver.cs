@@ -26,9 +26,7 @@ namespace Aggregates.Internal
             Action<Object> cached = null;
             if (_cache.TryGetValue(eventType, out cached))
                 return cached;
-
-            var name = eventsource.GetType().Name;
-
+            
             var handleMethod = eventsource.GetType()
                                  .GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
                                  .SingleOrDefault(
@@ -44,11 +42,11 @@ namespace Aggregates.Internal
                 if( eventType.GetInterfaces().Count() == 1)
                     return Resolve<TId>(eventsource, eventType.GetInterfaces().First());
 
-                Logger.WarnFormat("No handle method found on aggregate Type '{0}' for event Type '{1}'", name, eventType);
+                Logger.WarnFormat("No handle method found on type '{0}' for event Type '{1}'", eventsource.GetType().Name, eventType);
                 return null;
             }
 
-            Logger.DebugFormat("Handle method found on aggregate Type '{0}' for event Type '{1}'", name, eventType);
+            Logger.DebugFormat("Handle method found on type '{0}' for event Type '{1}'", eventsource.GetType().Name, eventType);
             return m => handleMethod.Invoke(eventsource, new[] { m });
         }
     }
