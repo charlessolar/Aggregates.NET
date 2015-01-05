@@ -19,6 +19,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NuGet", "NuGet", "{0A5B9348
 	ProjectSection(SolutionItems) = preProject
 		Aggregates.NET\Aggregates.NET.nuspec = Aggregates.NET\Aggregates.NET.nuspec
 		Aggregates.NET.RavenDB\Aggregates.NET.RavenDB.nuspec = Aggregates.NET.RavenDB\Aggregates.NET.RavenDB.nuspec
+		Get-VersionFromGitTag.ps1 = Get-VersionFromGitTag.ps1
 		..\NuGet\NuGet.exe = ..\NuGet\NuGet.exe
 		packages.config = packages.config
 	EndProjectSection
