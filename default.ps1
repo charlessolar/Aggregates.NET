@@ -12,7 +12,7 @@ properties {
 	$ilmerge_path = "$srcDir\packages\ILMerge.2.14.1208\tools\ilmerge.exe"
 }
 
-task default -depends Clean, RunTests, CreateNuGetPackages, Packaging
+task default -depends Clean, CreateNuGetPackages, Packaging
 
 
 task Clean {
@@ -25,10 +25,6 @@ task Compile {
 	exec { msbuild /nologo /verbosity:quiet $solutionFilePath /p:Configuration=Release /p:platform="Any CPU"}
 }
 
-task RunTests -depends Compile {
-	$nunitRunner = "$srcDir\packages\nunit.runners.2.6.4\tools\nunit-console.exe /out:$reportsDir\test-report.txt"
-	.$nunitRunner "$srcDir\Aggregates.NET.Unit\bin\Release\Aggregates.NET.Unit.dll"
-}
 
 task ILMerge -depends Compile {
 	New-Item $mergedDir -Type Directory -ErrorAction SilentlyContinue
