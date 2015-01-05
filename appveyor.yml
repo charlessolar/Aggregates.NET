@@ -31,7 +31,7 @@ artifacts:
    
 
 deploy:
-  - provider: Nuget
+  - provider: NuGet
     release: v{version}
     auth_token:
       #bsbuild 2014-12-31
