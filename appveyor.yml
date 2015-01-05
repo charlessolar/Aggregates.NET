@@ -33,7 +33,7 @@ artifacts:
 
 deploy:
   - provider: NuGet
-    release: v{version}
+    release: "v{version}"
     api_key:
       secure: nyYYvfNcljaFo6s6IBdC3lhqwAKOC9HfQjPguKXoHfgs22MwakH+IeXrM2Xn1uc0
     artifact: NuGet
@@ -42,7 +42,7 @@ deploy:
     on:
       branch: master
   - provider: GitHub
-    release: v{version}
+    release: "v{version}"
     auth_token:
       secure: E3k8jpbA+1HCY5PHHiUlaOTJVBSlJyGNUGdIAUTStkSs9Aw8b5jYJ8bMZv+9/nb+
     artifact: Binaries, Source
