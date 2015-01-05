@@ -34,6 +34,8 @@ namespace Aggregates.Unit.Aggregate
             _eventFactory = new Moq.Mock<IMessageCreator>();
             _mapper = new Moq.Mock<IMessageMapper>();
 
+            _mapper.Setup(x => x.GetMappedTypeFor(typeof(CreatedEvent))).Returns(typeof(CreatedEvent));
+            _mapper.Setup(x => x.GetMappedTypeFor(typeof(UpdatedEvent))).Returns(typeof(UpdatedEvent));
             _eventFactory.Setup(x => x.CreateInstance(Moq.It.IsAny<Action<CreatedEvent>>())).Returns<Action<CreatedEvent>>((e) => { var ev = new CreatedEvent(); e(ev); return ev; });
             _eventFactory.Setup(x => x.CreateInstance(Moq.It.IsAny<Action<UpdatedEvent>>())).Returns<Action<UpdatedEvent>>((e) => { var ev = new UpdatedEvent(); e(ev); return ev; });
             _eventFactory.Setup(x => x.CreateInstance(typeof(CreatedEvent))).Returns(new CreatedEvent());

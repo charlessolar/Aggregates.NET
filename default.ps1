@@ -26,7 +26,7 @@ task Compile {
 }
 
 task RunTests -depends Compile {
-	$nunitRunner = "$srcDir\packages\nunit.runners.2.6.4\tools\nunit-console.exe"
+	$nunitRunner = "$srcDir\packages\nunit.runners.2.6.4\tools\nunit-console.exe /out:$reportsDir\test-report.txt"
 	.$nunitRunner "$srcDir\Aggregates.NET.Unit\bin\Release\Aggregates.NET.Unit.dll"
 }
 
