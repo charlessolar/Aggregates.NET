@@ -20,8 +20,11 @@ We fill in the gap between NEventStore and NServicebus.  Commands from NServiceb
 
 Current features include -
 
-- Aggregate root
-- Aggregate defined by **any** type of Id (that can be converted to a string)
+- Aggregate Roots
+- Entities
+- Value Objects
+- Specifications
+- Support IDs of **any** type (that can be converted to a string)
 - Type safe Unit of Work and Repository pattern
 - Automatic NServicebus and NEventstore configuration
 - Automatic saving and publishing of domain events
@@ -34,9 +37,7 @@ Planned future features -
 
 - GetEventStore support
 - Automatic conflict resolution (when possible)
-- Entities with automatic event registration and routing
-- Specifications
-- Business rules
+- Automatic validation using specifications
 
 Status
 ------
@@ -51,6 +52,5 @@ Nuget packages are published in a pre-release state.  They are available under t
 Documentation
 -------------
 
-Coming soon!
-
-[See an aggregate example](https://github.com/volak/DDD.Enterprise.Example/tree/master/Domain/Domain.Inventory/Items)
+* [Wiki](https://github.com/volak/Aggregates.NET/wiki)
+* [Example](https://github.com/volak/DDD.Enterprise.Example/tree/master/Domain/Domain.Inventory/Items)
