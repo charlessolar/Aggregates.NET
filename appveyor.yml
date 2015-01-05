@@ -49,7 +49,7 @@ artifacts:
 
 deploy:
   - provider: Nuget
-    release: %VERSION%
+    release: "%VERSION%"
     auth_token:
       secure: nyYYvfNcljaFo6s6IBdC3lhqwAKOC9HfQjPguKXoHfgs22MwakH+IeXrM2Xn1uc0
     artifact: NuGet
@@ -59,7 +59,7 @@ deploy:
       PUBLISH_BINARY: true
       branch: master
   - provider: GitHub
-    release: %VERSION%
+    release: "%VERSION%"
     auth_token:
       secure: E3k8jpbA+1HCY5PHHiUlaOTJVBSlJyGNUGdIAUTStkSs9Aw8b5jYJ8bMZv+9/nb+
     artifact: Binaries, Source
