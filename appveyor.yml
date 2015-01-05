@@ -38,7 +38,7 @@ deploy:
     prerelease: true
     on:
       branch: master
-	  appveyor_repo_tag: true
+      appveyor_repo_tag: true
   - provider: GitHub
     release: v$(version)
     auth_token:
@@ -48,4 +48,4 @@ deploy:
     prerelease: true
     on:
       branch: master
-	  appveyor_repo_tag: true
+      appveyor_repo_tag: true
