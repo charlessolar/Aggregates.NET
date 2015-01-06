@@ -38,6 +38,7 @@ Planned future features -
 - GetEventStore support
 - Automatic conflict resolution (when possible)
 - Automatic validation using specifications
+- Projections (NEventStore 6.0)
 
 Status
 ------

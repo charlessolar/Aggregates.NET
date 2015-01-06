@@ -11,23 +11,9 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    // Implementation from http://stackoverflow.com/a/2326321/223547
     public abstract class Entity<TId> : IEntity<TId>, INeedStream, INeedEventFactory, INeedRouteResolver
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Entity<>));
-
-        //public TId Id
-        //{
-        //    get
-        //    {
-        //        // Dont use unsupported Ids kids
-        //        var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(TId));
-        //        if (converter != null && converter.IsValid(this.StreamId))
-        //            return (TId)converter.ConvertFromString(this.StreamId);
-        //        else
-        //            return (TId)Activator.CreateInstance(typeof(TId));
-        //    }
-        //}
 
         private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
         private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
@@ -53,7 +39,6 @@ namespace Aggregates
         {
             return Id.GetHashCode();
         }
-
 
         void IEventSource.Hydrate(IEnumerable<object> events)
         {
