@@ -1,4 +1,4 @@
-version: 0.0.2.{build}
+version: 0.0.4.{build}
 
 cache:
   - src\packages
