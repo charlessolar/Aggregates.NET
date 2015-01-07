@@ -42,6 +42,8 @@ namespace Aggregates.Unit.DefaultRouteResolver
             _mapper = new Moq.Mock<IMessageMapper>();
 
             _mapper.Setup(x => x.GetMappedTypeFor(typeof(String))).Returns(typeof(String));
+            _mapper.Setup(x => x.GetMappedTypeFor(typeof(Int32))).Returns(typeof(Int32));
+            _mapper.Setup(x => x.GetMappedTypeFor(typeof(void))).Returns(typeof(void));
             _resolver = new Aggregates.Internal.DefaultRouteResolver(_mapper.Object);
         }
 

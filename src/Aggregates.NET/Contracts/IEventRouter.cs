@@ -4,6 +4,6 @@ namespace Aggregates.Contracts
 {
     public interface IEventRouter
     {
-        Action<Object> RouteFor(Type @eventType);
+        void RouteFor(Type @eventType, object @event);
     }
 }

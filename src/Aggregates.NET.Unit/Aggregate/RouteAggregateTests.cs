@@ -54,8 +54,9 @@ namespace Aggregates.Unit.Aggregate
         {
             var root = _uow.For<_AggregateStub>().New(_id);
 
-            _resolver.Setup(x => x.Resolve(root, typeof(String))).Returns(e => { });
-            Assert.NotNull(root.TestRouteFor(typeof(String)));
+            _resolver.Setup(x => x.Resolve(root, typeof(String))).Returns(e => { }).Verifiable();
+            root.TestRouteFor(typeof(String), Moq.It.IsAny<Object>());
+            _resolver.Verify(x => x.Resolve(root, typeof(String)), Moq.Times.AtLeastOnce);
         }
         [Test]
         public void no_route()
@@ -63,7 +64,7 @@ namespace Aggregates.Unit.Aggregate
             var root = _uow.For<_AggregateStub>().New(_id);
 
             _resolver.Setup(x => x.Resolve(root, typeof(String))).Returns(e => { });
-            Assert.Throws<HandlerNotFoundException>(() => root.TestRouteFor(typeof(Int32)));
+            Assert.DoesNotThrow(() => root.TestRouteFor(typeof(Int32), Moq.It.IsAny<Object>()));
         }
     }
 }

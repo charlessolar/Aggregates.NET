@@ -21,6 +21,8 @@ namespace Aggregates
 
         public static void UseAggregates(this BusConfiguration config, Func<IBuilder, IStoreEvents> eventStoreBuilder)
         {
+            config.Pipeline.Register<ExceptionFilterRegistration>();
+
             config.RegisterComponents(x => {
                 x.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
                 x.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);

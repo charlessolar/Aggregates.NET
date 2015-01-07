@@ -36,7 +36,7 @@ deploy:
     draft: false
     prerelease: true
     on:
-      appveyor_repo_tag: true
+      branch: master
   - provider: GitHub
     auth_token:
       secure: E3k8jpbA+1HCY5PHHiUlaOTJVBSlJyGNUGdIAUTStkSs9Aw8b5jYJ8bMZv+9/nb+

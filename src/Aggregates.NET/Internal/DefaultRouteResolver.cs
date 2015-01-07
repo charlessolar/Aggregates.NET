@@ -26,12 +26,11 @@ namespace Aggregates.Internal
 
         public Action<Object> Resolve<TId>(IEventSource<TId> eventsource, Type eventType)
         {
-            Action<Object> cached = null;
-            if (_cache.TryGetValue(eventType, out cached))
-                return cached;
-
-
             var mappedType = _mapper.GetMappedTypeFor(eventType);
+
+            Action<Object> cached = null;
+            if (_cache.TryGetValue(mappedType, out cached))
+                return cached;
             
             var handleMethod = eventsource.GetType()
                                  .GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
@@ -42,14 +41,19 @@ namespace Aggregates.Internal
                                          m.ReturnParameter.ParameterType == typeof(void));
                                  //.Select(m => new { Method = m, MessageType = m.GetParameters().Single().ParameterType });
 
+
             if (handleMethod == null)
             {
-                Logger.WarnFormat("No handle method found on type '{0}' for event Type '{1}'", eventsource.GetType().Name, eventType.FullName);
+                Logger.WarnFormat("No handle method found on type '{0}' for event Type '{1}'", eventsource.GetType().Name, mappedType.FullName);
+                _cache.Add(mappedType, null);
                 return null;
             }
 
-            Logger.DebugFormat("Handle method found on type '{0}' for event Type '{1}'", eventsource.GetType().Name, eventType.FullName);
-            return m => handleMethod.Invoke(eventsource, new[] { m });
+            Action<Object> action = m => handleMethod.Invoke(eventsource, new[] { m });
+            _cache.Add(mappedType, action);
+
+            Logger.DebugFormat("Handle method found on type '{0}' for event Type '{1}'", eventsource.GetType().Name, mappedType.FullName);
+            return action;
         }
     }
 }

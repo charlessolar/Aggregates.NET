@@ -59,6 +59,9 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Aggregate.cs" />
+    <Compile Include="Commands\Accept.cs" />
+    <Compile Include="Commands\Extensions.cs" />
+    <Compile Include="Commands\Reject.cs" />
     <Compile Include="Contracts\IAggregate.cs" />
     <Compile Include="Contracts\IEntity.cs" />
     <Compile Include="Contracts\IEntityRepository.cs" />
@@ -73,11 +76,12 @@
     <Compile Include="Contracts\ISnapshotting.cs" />
     <Compile Include="Entity.cs" />
     <Compile Include="Exceptions\AggregateException.cs" />
+    <Compile Include="Exceptions\BusinessException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
-    <Compile Include="Exceptions\HandlerNotFoundException.cs" />
     <Compile Include="Exceptions\PersistenceException.cs" />
     <Compile Include="IConflictDetector.cs" />
     <Compile Include="Integrations\Dispatcher.cs" />
+    <Compile Include="Integrations\ExceptionFilter.cs" />
     <Compile Include="Integrations\NEventStore.cs" />
     <Compile Include="Integrations\NServicebus.cs" />
     <Compile Include="Internal\DefaultRepositoryFactory.cs" />

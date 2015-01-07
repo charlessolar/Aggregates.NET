@@ -74,22 +74,20 @@ namespace Aggregates
         {
             if (@event == null) return;
 
-            RouteFor(@event.GetType())(@event);
+            RouteFor(@event.GetType(), @event);
         }
 
-        Action<Object> IEventRouter.RouteFor(Type eventType)
+        void IEventRouter.RouteFor(Type @eventType, object @event)
         {
-            return RouteFor(eventType);
+            RouteFor(eventType, @event);
         }
 
-        protected virtual Action<Object> RouteFor(Type eventType)
+        protected virtual void RouteFor(Type eventType, object @event)
         {
             var route = _resolver.Resolve(this, eventType);
+            if (route == null) return;
 
-            if (route == null)
-                throw new HandlerNotFoundException(String.Format("No handler for event {0}", eventType.Name));
-
-            return e => route(e);
+            route(@event);
         }
     }
 
