@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Integrations;
 using Aggregates.Internal;
+using Aggregates.Messages;
 using NEventStore;
 using NEventStore.Dispatcher;
 using NServiceBus;
@@ -21,9 +22,9 @@ namespace Aggregates
 
         public static void UseAggregates(this BusConfiguration config, Func<IBuilder, IStoreEvents> eventStoreBuilder)
         {
-            config.Pipeline.Register<ExceptionFilterRegistration>();
 
             config.RegisterComponents(x => {
+                x.ConfigureComponent<ExceptionFilter>(DependencyLifecycle.InstancePerCall);
                 x.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
                 x.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
                 x.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
@@ -31,7 +32,8 @@ namespace Aggregates
 
                 x.ConfigureComponent<IStoreEvents>(y => eventStoreBuilder(y), DependencyLifecycle.SingleInstance);
             });
-            
+
+            config.Pipeline.Register<ExceptionFilterRegistration>();    
         }
     }
 }

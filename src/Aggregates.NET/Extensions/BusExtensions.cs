@@ -1,4 +1,5 @@
-﻿using NServiceBus;
+﻿using Aggregates.Messages;
+using NServiceBus;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,11 +8,11 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Commands
 {
-    public static class Extensions
+    static class BusExtensions
     {
         public static void Accept(this IBus bus)
         {
-            bus.Reply<Accept>(e => { });
+            bus.Reply<Accept>(e => {});
         }
         public static void Reject(this IBus bus, String Message)
         {
