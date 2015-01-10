@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Messages
 {
-    public class Accept : IMessage
+    public interface IAccept : IMessage
     {
     }
 }

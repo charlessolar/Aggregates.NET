@@ -59,9 +59,8 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Aggregate.cs" />
-    <Compile Include="Messages\Accept.cs" />
-    <Compile Include="Extensions\BusExtensions.cs" />
-    <Compile Include="Messages\Reject.cs" />
+    <Compile Include="Messages\IAccept.cs" />
+    <Compile Include="Messages\IReject.cs" />
     <Compile Include="Contracts\IAggregate.cs" />
     <Compile Include="Contracts\IEntity.cs" />
     <Compile Include="Contracts\IEntityRepository.cs" />

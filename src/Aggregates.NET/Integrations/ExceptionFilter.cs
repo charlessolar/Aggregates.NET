@@ -1,5 +1,4 @@
 ﻿using Aggregates.Exceptions;
-using Aggregates.Commands;
 using NServiceBus;
 using NServiceBus.Pipeline;
 using NServiceBus.Pipeline.Contexts;
@@ -8,13 +7,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using NServiceBus.ObjectBuilder;
+using Aggregates.Messages;
 
 namespace Aggregates.Integrations
 {
     class ExceptionFilter : IBehavior<IncomingContext>
     {
         private readonly IBus _bus;
-        public ExceptionFilter(IBus bus) { _bus = bus; }
+        private readonly IBuilder _builder;
+        public ExceptionFilter(IBus bus, IBuilder builder) { 
+            _bus = bus;
+            _builder = builder;
+        }
 
         public void Invoke(IncomingContext context, Action next)
         {
@@ -23,12 +28,14 @@ namespace Aggregates.Integrations
                 next();
 
                 // Tell the sender the command was accepted
-                _bus.Accept();
+                var acceptance = _builder.Build<Func<IAccept>>();
+                _bus.Reply(acceptance());
             }
             catch (BusinessException e)
             {
                 // Tell the sender the command was rejected due to a business exception
-                _bus.Reject(e.Message);
+                var rejection = _builder.Build<Func<String, IReject>>();
+                _bus.Reply(rejection(e.Message));
                 // Don't throw exception to NServicebus because we don't wish to retry this command
             }
         }

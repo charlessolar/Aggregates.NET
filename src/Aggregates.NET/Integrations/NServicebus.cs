@@ -20,8 +20,16 @@ namespace Aggregates
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(NServicebus));
 
-        public static void UseAggregates(this BusConfiguration config, Func<IBuilder, IStoreEvents> eventStoreBuilder)
+        /// <summary>
+        /// Required: Register Aggregates.NET services into NServicebus
+        /// </summary>
+        /// <param name="config">NServicebus configuration</param>
+        /// <param name="eventStoreBuilder">Function to build the event store</param>
+        /// <param name="accept">Optional accept message creator (for accepting commands)</param>
+        /// <param name="reject">Optional reject message creator (for rejecting commands)</param>
+        public static void UseAggregates(this BusConfiguration config, Func<IBuilder, IStoreEvents> eventStoreBuilder, Func<IAccept> accept = null, Func<String, IReject> reject = null)
         {
+
 
             config.RegisterComponents(x => {
                 x.ConfigureComponent<ExceptionFilter>(DependencyLifecycle.InstancePerCall);
@@ -31,6 +39,28 @@ namespace Aggregates
                 x.ConfigureComponent<Dispatcher>(DependencyLifecycle.InstancePerCall);
 
                 x.ConfigureComponent<IStoreEvents>(y => eventStoreBuilder(y), DependencyLifecycle.SingleInstance);
+
+                if (accept == null)
+                {
+                    x.ConfigureComponent<Func<IAccept>>(y =>
+                    {
+                        var eventFactory = y.Build<IMessageCreator>();
+                        return () => { return eventFactory.CreateInstance<IAccept>(); };
+                    }, DependencyLifecycle.InstancePerCall);
+                }
+                else
+                    x.ConfigureComponent<Func<IAccept>>(() => accept, DependencyLifecycle.InstancePerCall);
+
+                if (reject == null)
+                {
+                    x.ConfigureComponent<Func<String, IReject>>(y =>
+                    {
+                        var eventFactory = y.Build<IMessageCreator>();
+                        return (message) => { return eventFactory.CreateInstance<IReject>(e => { e.Message = message; }); };
+                    }, DependencyLifecycle.InstancePerCall);
+                }
+                else
+                    x.ConfigureComponent<Func<String, IReject>>(() => reject, DependencyLifecycle.InstancePerCall);
             });
 
             config.Pipeline.Register<ExceptionFilterRegistration>();    

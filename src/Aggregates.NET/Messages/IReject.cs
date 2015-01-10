@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Messages
 {
-    public class Reject : IMessage
+    public interface IReject : IMessage
     {
-        public String Message { get; set; }
+        String Message { get; set; }
     }
 }
