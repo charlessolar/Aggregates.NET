@@ -1,21 +1,19 @@
-using System;
-using System.Linq;
 using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Internal;
+using NServiceBus;
+using NServiceBus.Logging;
+using NServiceBus.ObjectBuilder;
+using NServiceBus.ObjectBuilder.Common;
+using NServiceBus.Pipeline.Contexts;
+using NServiceBus.Unicast.Messages;
+using System;
 using System.Collections;
 using System.Collections.Generic;
-using NServiceBus.Pipeline.Contexts;
-using NServiceBus;
-using NEventStore;
-using NServiceBus.Logging;
-using NServiceBus.ObjectBuilder.Common;
-using NEventStore.Persistence;
-using NServiceBus.Unicast.Messages;
-using NServiceBus.ObjectBuilder;
+using System.Linq;
 
 namespace Aggregates.Internal
 {
-
     public class UnitOfWork : IUnitOfWork
     {
         public static String AggregateTypeHeader = "AggregateType";
@@ -24,7 +22,7 @@ namespace Aggregates.Internal
         public static String CommitIdHeader = "CommitId";
         public static String NotFound = "<NOT FOUND>";
 
-        // Header information to take from incoming messages 
+        // Header information to take from incoming messages
         public static IList<String> CarryOverHeaders = new List<String> {
                                                                           "NServiceBus.MessageId",
                                                                           "NServiceBus.CorrelationId",
@@ -38,23 +36,20 @@ namespace Aggregates.Internal
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(UnitOfWork));
         private readonly IBuilder _builder;
-        private readonly IStoreEvents _eventStore;
         private readonly IRepositoryFactory _repoFactory;
-
-
 
         private bool _disposed;
         private IDictionary<String, String> _workHeaders;
         private IDictionary<Type, IRepository> _repositories;
 
-        public UnitOfWork(IBuilder builder, IStoreEvents eventStore, IRepositoryFactory repoFactory)
+        public UnitOfWork(IBuilder builder, IRepositoryFactory repoFactory)
         {
             _builder = builder;
-            _eventStore = eventStore;
             _repoFactory = repoFactory;
             _repositories = new Dictionary<Type, IRepository>();
             _workHeaders = new Dictionary<String, String>();
         }
+
         public void Dispose()
         {
             Dispose(true);
@@ -82,6 +77,7 @@ namespace Aggregates.Internal
         {
             return Repository<T>();
         }
+
         public IRepository<T> For<T>() where T : class, IAggregate
         {
             return Repository<T>();
@@ -96,10 +92,13 @@ namespace Aggregates.Internal
             if (_repositories.TryGetValue(type, out repository))
                 return (IRepository<T>)repository;
 
-            return (IRepository<T>)(_repositories[type] = (IRepository)_repoFactory.ForAggregate<T>(_builder, _eventStore));
+            return (IRepository<T>)(_repositories[type] = (IRepository)_repoFactory.ForAggregate<T>(_builder));
         }
 
-        public void Begin() { }
+        public void Begin()
+        {
+        }
+
         public void End(Exception ex)
         {
             if (ex == null)
@@ -119,8 +118,6 @@ namespace Aggregates.Internal
             // Allow the user to send a CommitId along with his message if he wants
             if (_workHeaders.TryGetValue(CommitIdHeader, out messageId))
                 Guid.TryParse(messageId, out commitId);
-            
-
 
             foreach (var repo in _repositories)
             {
@@ -145,14 +142,16 @@ namespace Aggregates.Internal
             foreach (var header in _workHeaders)
                 transportMessage.Headers[header.Key] = header.Value;
         }
+
         public void MutateIncoming(TransportMessage transportMessage)
         {
             var headers = transportMessage.Headers;
 
-            // There are certain headers that we can make note of 
+            // There are certain headers that we can make note of
             // These will be committed to the event stream and included in all .Reply or .Publish done via this Unit Of Work
             // Meaning all receivers of events from the command will get information about the command's message, if they care
-            foreach( var header in CarryOverHeaders){
+            foreach (var header in CarryOverHeaders)
+            {
                 var defaultHeader = "";
                 headers.TryGetValue(header, out defaultHeader);
 
@@ -163,7 +162,6 @@ namespace Aggregates.Internal
                 _workHeaders[workHeader] = defaultHeader;
             }
 
-            
             // Copy any application headers the user might have included
             var userHeaders = headers.Keys.Where(h =>
                             !h.Equals("CorrId", StringComparison.InvariantCultureIgnoreCase) &&
@@ -173,8 +171,6 @@ namespace Aggregates.Internal
 
             foreach (var header in userHeaders)
                 _workHeaders[header] = headers[header];
-                
         }
-
     }
 }

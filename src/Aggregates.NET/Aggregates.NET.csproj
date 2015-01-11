@@ -37,10 +37,6 @@
     <SignAssembly>false</SignAssembly>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="NEventStore, Version=5.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\NEventStore.5.1.0\lib\net40\NEventStore.dll</HintPath>
-    </Reference>
     <Reference Include="NServiceBus.Core">
       <HintPath>..\packages\NServiceBus.5.1.2\lib\net45\NServiceBus.Core.dll</HintPath>
     </Reference>
@@ -59,6 +55,8 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Aggregate.cs" />
+    <Compile Include="Contracts\IEventPublisher.cs" />
+    <Compile Include="Exceptions\StorageException.cs" />
     <Compile Include="Messages\IAccept.cs" />
     <Compile Include="Messages\IReject.cs" />
     <Compile Include="Contracts\IAggregate.cs" />
@@ -81,12 +79,9 @@
     <Compile Include="IConflictDetector.cs" />
     <Compile Include="Integrations\Dispatcher.cs" />
     <Compile Include="Integrations\ExceptionFilter.cs" />
-    <Compile Include="Integrations\NEventStore.cs" />
     <Compile Include="Integrations\NServicebus.cs" />
     <Compile Include="Internal\DefaultRepositoryFactory.cs" />
     <Compile Include="Internal\DefaultRouteResolver.cs" />
-    <Compile Include="Internal\EntityRepository.cs" />
-    <Compile Include="Internal\Repository.cs" />
     <Compile Include="Contracts\IRepository.cs" />
     <Compile Include="Contracts\IEventRouter.cs" />
     <Compile Include="Contracts\IEventSource.cs" />

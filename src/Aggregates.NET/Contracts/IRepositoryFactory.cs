@@ -10,7 +10,8 @@ namespace Aggregates.Contracts
 {
     public interface IRepositoryFactory
     {
-        IRepository<TAggregate> ForAggregate<TAggregate>(IBuilder builder, IStoreEvents store) where TAggregate : class, IAggregate;
-        IEntityRepository<TEntity> ForEntity<TEntity>(IBuilder builder, IEventStream stream) where TEntity : class, IEntity;
+        IRepository<TAggregate> ForAggregate<TAggregate>(IBuilder builder) where TAggregate : class, IAggregate;
+
+        IEntityRepository<TEntity> ForEntity<TEntity>(IBuilder builder) where TEntity : class, IEntity;
     }
 }

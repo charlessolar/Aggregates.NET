@@ -15,12 +15,15 @@ namespace Aggregates.Contracts
     public interface IRepository<T> : IRepository where T : class, IAggregate
     {
         T Get<TId>(TId id);
+
         T Get<TId>(TId id, Int32 version);
+
         T Get<TId>(String bucketId, TId id);
+
         T Get<TId>(String bucketId, TId id, Int32 version);
 
-        
         T New<TId>(String bucketId, TId id);
+
         T New<TId>(TId id);
     }
 }

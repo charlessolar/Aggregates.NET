@@ -4,20 +4,20 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Aggregates
+namespace Aggregates.Exceptions
 {
-    public class PersistenceException : Exception
+    public class StorageException : Exception
     {
-        public PersistenceException()
+        public StorageException()
         {
         }
 
-        public PersistenceException(String message)
+        public StorageException(String message)
             : base(message)
         {
         }
 
-        public PersistenceException(String message, Exception innerException)
+        public StorageException(String message, Exception innerException)
             : base(message, innerException)
         {
         }
