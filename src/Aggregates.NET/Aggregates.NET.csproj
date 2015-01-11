@@ -77,10 +77,8 @@
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
     <Compile Include="Exceptions\PersistenceException.cs" />
     <Compile Include="IConflictDetector.cs" />
-    <Compile Include="Integrations\Dispatcher.cs" />
     <Compile Include="Integrations\ExceptionFilter.cs" />
     <Compile Include="Integrations\NServicebus.cs" />
-    <Compile Include="Internal\DefaultRepositoryFactory.cs" />
     <Compile Include="Internal\DefaultRouteResolver.cs" />
     <Compile Include="Contracts\IRepository.cs" />
     <Compile Include="Contracts\IEventRouter.cs" />
