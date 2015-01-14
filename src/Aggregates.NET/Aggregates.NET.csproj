@@ -59,6 +59,7 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Aggregate.cs" />
+    <Compile Include="Enumeration.cs" />
     <Compile Include="Messages\IAccept.cs" />
     <Compile Include="Messages\IReject.cs" />
     <Compile Include="Contracts\IAggregate.cs" />
