@@ -10,6 +10,7 @@ namespace Aggregates.Unit.Entity
     public class EntityStub : Entity<Guid>
     {
     }
+
     [TestFixture]
     public class Entity
     {

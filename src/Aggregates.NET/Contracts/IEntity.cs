@@ -9,9 +9,10 @@ namespace Aggregates.Contracts
 {
     public interface IEntity : IEventSource, IEventRouter
     {
-
     }
-    public interface IEntity<TId> : IEntity, IEventSource<TId>
+
+    public interface IEntity<TId, TAggregateId> : IEntity, IEventSource<TId>
     {
+        TAggregateId AggregateId { get; set; }
     }
 }

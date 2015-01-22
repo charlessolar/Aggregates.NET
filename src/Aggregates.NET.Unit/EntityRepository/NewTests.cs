@@ -18,7 +18,7 @@ namespace Aggregates.Unit.EntityRepository
         private Moq.Mock<IEventStream> _stream;
         private Moq.Mock<IMessageCreator> _eventFactory;
         private Moq.Mock<IRouteResolver> _router;
-        private Aggregates.Internal.EntityRepository<_EntityStub> _repository;
+        private Aggregates.Internal.EntityRepository<Guid, _EntityStub> _repository;
 
         [SetUp]
         public void Setup()
@@ -33,7 +33,7 @@ namespace Aggregates.Unit.EntityRepository
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
             _builder.Setup(x => x.Build<IRouteResolver>()).Returns(_router.Object);
 
-            _repository = new Internal.EntityRepository<_EntityStub>(_builder.Object, _stream.Object);
+            _repository = new Internal.EntityRepository<Guid, _EntityStub>(Guid.NewGuid(), _builder.Object, _stream.Object);
         }
 
         [Test]

@@ -18,7 +18,7 @@ namespace Aggregates.Unit.EntityRepository
         private Moq.Mock<IEventStream> _stream;
         private Moq.Mock<IMessageCreator> _eventFactory;
         private Moq.Mock<IRouteResolver> _router;
-        private Aggregates.Internal.EntityRepository<_EntityStub> _repository;
+        private Aggregates.Internal.EntityRepository<Guid, _EntityStub> _repository;
 
         [SetUp]
         public void Setup()
@@ -33,7 +33,7 @@ namespace Aggregates.Unit.EntityRepository
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
             _builder.Setup(x => x.Build<IRouteResolver>()).Returns(_router.Object);
 
-            _repository = new Internal.EntityRepository<_EntityStub>(_builder.Object, _stream.Object);
+            _repository = new Internal.EntityRepository<Guid, _EntityStub>(Guid.NewGuid(), _builder.Object, _stream.Object);
         }
 
         [Test]
@@ -65,9 +65,9 @@ namespace Aggregates.Unit.EntityRepository
         public void get_valid_and_invalid_stream()
         {
             var id = Guid.NewGuid();
-            _stream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage> { 
+            _stream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage> {
                 new EventMessage { Headers = new Dictionary<string, object> { { "Id", id } }, Body = null },
-                new EventMessage { Headers = new Dictionary<string, object> { { "test", "test" } }, Body = null } 
+                new EventMessage { Headers = new Dictionary<string, object> { { "test", "test" } }, Body = null }
             });
             var entity = _repository.Get(id);
             Assert.NotNull(entity);
@@ -77,9 +77,9 @@ namespace Aggregates.Unit.EntityRepository
         public void get_with_other_ids()
         {
             var id = Guid.NewGuid();
-            _stream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage> { 
+            _stream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage> {
                 new EventMessage { Headers = new Dictionary<string, object> { { "Id", id } }, Body = null },
-                new EventMessage { Headers = new Dictionary<string, object> { { "Id", Guid.NewGuid() } }, Body = null } 
+                new EventMessage { Headers = new Dictionary<string, object> { { "Id", Guid.NewGuid() } }, Body = null }
             });
             var entity = _repository.Get(id);
             Assert.NotNull(entity);

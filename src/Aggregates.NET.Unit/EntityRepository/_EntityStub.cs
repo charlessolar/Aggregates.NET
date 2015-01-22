@@ -8,6 +8,8 @@ namespace Aggregates.Unit.EntityRepository
 {
     public class _EntityStub : Entity<Guid>
     {
-        private _EntityStub() { }
+        private _EntityStub()
+        {
+        }
     }
 }
