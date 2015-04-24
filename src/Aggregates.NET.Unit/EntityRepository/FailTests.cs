@@ -13,12 +13,16 @@ namespace Aggregates.Unit.EntityRepository
 {
     public class BadEntity1 : Entity<Guid>
     {
-        public BadEntity1() { }
+        public BadEntity1()
+        {
+        }
     }
 
     public class BadEntity2 : Entity<Guid>
     {
-        private BadEntity2(Int32 foo) { }
+        private BadEntity2(Int32 foo)
+        {
+        }
     }
 
     [TestFixture]
@@ -37,13 +41,14 @@ namespace Aggregates.Unit.EntityRepository
         [Test]
         public void entity_no_private_constructor()
         {
-            var repo = new Aggregates.Internal.EntityRepository<BadEntity1>(_builder.Object, _stream.Object);
+            var repo = new Aggregates.Internal.EntityRepository<Guid, BadEntity1>(Guid.NewGuid(), _builder.Object, _stream.Object);
             Assert.Throws<AggregateException>(() => repo.New(Guid.NewGuid()));
         }
+
         [Test]
         public void entity_private_constructor_with_argument()
         {
-            var repo = new Aggregates.Internal.EntityRepository<BadEntity2>(_builder.Object, _stream.Object);
+            var repo = new Aggregates.Internal.EntityRepository<Guid, BadEntity2>(Guid.NewGuid(), _builder.Object, _stream.Object);
             Assert.Throws<AggregateException>(() => repo.New(Guid.NewGuid()));
         }
     }

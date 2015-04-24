@@ -6,9 +6,10 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface IHaveEntities
+    public interface IHaveEntities<TAggregateId>
     {
-        IEntityRepository<T> E<T>() where T : class, IEntity;
-        IEntityRepository<T> Entity<T>() where T : class, IEntity;
+        IEntityRepository<TAggregateId, T> E<T>() where T : class, IEntity;
+
+        IEntityRepository<TAggregateId, T> Entity<T>() where T : class, IEntity;
     }
 }

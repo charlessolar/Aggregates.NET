@@ -9,6 +9,16 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
+    public class SingleValueObject<T> : ValueObject<SingleValueObject<T>>
+    {
+        public readonly T Value;
+
+        public SingleValueObject(T Value)
+        {
+            this.Value = Value;
+        }
+    }
+
     // Implementation from http://grabbagoft.blogspot.com/2007/06/generic-value-object-equality.html
     public abstract class ValueObject<T> : IEquatable<T>
         where T : ValueObject<T>

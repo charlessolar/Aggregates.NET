@@ -17,10 +17,10 @@ namespace Aggregates.NET.NEventStore
             return (IRepository<T>)Activator.CreateInstance(repoType, builder);
         }
 
-        public IEntityRepository<T> ForEntity<T>(IBuilder builder) where T : class, IEntity
+        public IEntityRepository<TAggregateId, T> ForEntity<TAggregateId, T>(TAggregateId AggregateId, IBuilder builder, IEventStream stream) where T : class, IEntity
         {
-            var repoType = typeof(EntityRepository<>).MakeGenericType(typeof(T));
-            return (IEntityRepository<T>)Activator.CreateInstance(repoType, builder);
+            var repoType = typeof(EntityRepository<,>).MakeGenericType(typeof(T));
+            return (IEntityRepository<TAggregateId, T>)Activator.CreateInstance(repoType, AggregateId, builder, stream);
         }
     }
 }

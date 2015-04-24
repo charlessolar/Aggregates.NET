@@ -6,12 +6,11 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface IAggregate : IEntity, IHaveEntities
+    public interface IAggregate : IEntity
     {
     }
 
-    public interface IAggregate<TId> : IAggregate, IEntity<TId>
+    public interface IAggregate<TId> : IAggregate, IEntity<TId, TId>, IHaveEntities<TId>
     {
-        TId Id { get; }
     }
 }

@@ -55,6 +55,7 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Aggregate.cs" />
+    <Compile Include="Enumeration.cs" />
     <Compile Include="Contracts\IEventPublisher.cs" />
     <Compile Include="Exceptions\StorageException.cs" />
     <Compile Include="Messages\IAccept.cs" />

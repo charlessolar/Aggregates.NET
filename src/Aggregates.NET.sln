@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.22310.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET", "Aggregates.NET\Aggregates.NET.csproj", "{EC7040E2-7A13-4447-900D-6ED57328E5DF}"
 EndProject
@@ -26,10 +26,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NuGet", "NuGet", "{0A5B9348
 		packages.config = packages.config
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.NEventStore.RavenDB", "Aggregates.NET.RavenDB\Aggregates.NET.NEventStore.RavenDB.csproj", "{917555D0-894D-4944-BF98-622C85C3B0CD}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.NEventStore", "Aggregates.NET.NEventStore\Aggregates.NET.NEventStore.csproj", "{DCFE5178-BEB5-4183-A924-CF792F3C5A09}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.GetEventStore", "Aggregates.NET.GetEventStore\Aggregates.NET.GetEventStore.csproj", "{7ED8D85C-25EE-415B-86C1-C068FC5B86F5}"
 EndProject
 Global
@@ -46,14 +42,6 @@ Global
 		{1A964ACC-3518-4DD6-B5C1-01B130CF4B13}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1A964ACC-3518-4DD6-B5C1-01B130CF4B13}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1A964ACC-3518-4DD6-B5C1-01B130CF4B13}.Release|Any CPU.Build.0 = Release|Any CPU
-		{917555D0-894D-4944-BF98-622C85C3B0CD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{917555D0-894D-4944-BF98-622C85C3B0CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{917555D0-894D-4944-BF98-622C85C3B0CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{917555D0-894D-4944-BF98-622C85C3B0CD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{DCFE5178-BEB5-4183-A924-CF792F3C5A09}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{DCFE5178-BEB5-4183-A924-CF792F3C5A09}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{DCFE5178-BEB5-4183-A924-CF792F3C5A09}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{DCFE5178-BEB5-4183-A924-CF792F3C5A09}.Release|Any CPU.Build.0 = Release|Any CPU
 		{7ED8D85C-25EE-415B-86C1-C068FC5B86F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{7ED8D85C-25EE-415B-86C1-C068FC5B86F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7ED8D85C-25EE-415B-86C1-C068FC5B86F5}.Release|Any CPU.ActiveCfg = Release|Any CPU

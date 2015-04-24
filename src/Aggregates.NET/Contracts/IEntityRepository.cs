@@ -7,9 +7,11 @@ using System.Threading.Tasks;
 namespace Aggregates.Contracts
 {
     public interface IEntityRepository { }
-    public interface IEntityRepository<T> : IEntityRepository where T : class, IEventSource
+
+    public interface IEntityRepository<TAggregateId, T> : IEntityRepository where T : class, IEventSource
     {
         T Get<TId>(TId id);
+
         T Get<TId>(TId id, Int32 version);
 
         T New<TId>(TId id);

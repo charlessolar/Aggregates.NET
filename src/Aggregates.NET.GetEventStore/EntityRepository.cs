@@ -12,18 +12,19 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public class EntityRepository<T> : IEntityRepository<T> where T : class, IEntity
+    public class EntityRepository<TAggregateId, T> : IEntityRepository<TAggregateId, T> where T : class, IEntity
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(EntityRepository<>));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(EntityRepository<,>));
         private readonly IEventStream _stream;
         private readonly IBuilder _builder;
+        private readonly TAggregateId _aggregateId;
 
-        public EntityRepository(IBuilder builder, IEventStream stream)
+        public EntityRepository(TAggregateId AggregateId, IBuilder builder, IEventStream stream)
         {
+            _aggregateId = AggregateId;
             _builder = builder;
             _stream = stream;
         }
-
 
         public T Get<TId>(TId id)
         {
@@ -41,6 +42,7 @@ namespace Aggregates.Internal
             // Call the 'private' constructor
             var entity = Newup(_builder);
             (entity as IEventSource<TId>).Id = id;
+            (entity as IEntity<TId, TAggregateId>).AggregateId = _aggregateId;
 
             // Todo: support entity snapshots
             //if (snapshot != null && root is ISnapshotting)
@@ -51,6 +53,7 @@ namespace Aggregates.Internal
 
             return entity;
         }
+
         public T New<TId>(TId id)
         {
             PrepareStream(id);
@@ -113,6 +116,5 @@ namespace Aggregates.Internal
                 }
             });
         }
-
     }
 }
