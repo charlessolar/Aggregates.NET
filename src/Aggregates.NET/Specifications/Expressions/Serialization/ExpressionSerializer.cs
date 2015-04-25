@@ -2,18 +2,17 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Xml.Linq;
-using System.Globalization;
 using System.Xml;
+using System.Xml.Linq;
 
 namespace Aggregates.Specifications.Expressions
 {
-
     //
     // This code is taken from the codeplex project Jammer.NET
     // you can find the project under http://jmr.codeplex.com/
@@ -21,10 +20,11 @@ namespace Aggregates.Specifications.Expressions
     //
 
     public class PropValue
-	{
-		public PropertyInfo Property { get; set; }
-		public object Value { get; set; }
-	}
+    {
+        public PropertyInfo Property { get; set; }
+        public object Value { get; set; }
+    }
+
     public class ExpressionSerializer
     {
         private static readonly Type[] attributeTypes = new[] { typeof(string), typeof(int), typeof(bool), typeof(ExpressionType) };
@@ -44,23 +44,22 @@ namespace Aggregates.Specifications.Expressions
             Converters = new List<CustomExpressionXmlConverter>();
         }
 
-        
-        
+
+
         /*
-         * SERIALIZATION 
+         * SERIALIZATION
          */
 
         public XElement Serialize(Expression e)
         {
-					try
-					{
-						return GenerateXmlFromExpressionCore(e);
-					}
-					catch (Exception ex)
-					{
-
-					}
-					return null;
+            try
+            {
+                return GenerateXmlFromExpressionCore(e);
+            }
+            catch
+            {
+            }
+            return null;
         }
 
         private XElement GenerateXmlFromExpressionCore(Expression e)
@@ -70,27 +69,27 @@ namespace Aggregates.Specifications.Expressions
             XElement replace = ApplyCustomConverters(e);
             if (replace != null)
                 return replace;
-						PropertyInfo[] properties = e.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
-						List<PropValue> propList = new List<PropValue>();
-						foreach (var prop in properties)
-						{
-							try
-							{
-								object val = prop.GetValue(e, null);
-								propList.Add(new PropValue { Property = prop, Value = val });
-								//return new XElement(GetNameOfExpression(e), GenerateXmlFromProperty(prop.PropertyType, prop.Name, prop.GetValue(e, null)));
-							}
-							catch (MethodAccessException ex)
-							{
-								propList.Add(new PropValue { Property = prop, Value = e.Type });
-								//return new XElement(GetNameOfExpression(e), GenerateXmlFromProperty(prop.PropertyType, prop.Name, null));
-							}
-						}
+            PropertyInfo[] properties = e.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            List<PropValue> propList = new List<PropValue>();
+            foreach (var prop in properties)
+            {
+                try
+                {
+                    object val = prop.GetValue(e, null);
+                    propList.Add(new PropValue { Property = prop, Value = val });
+                    //return new XElement(GetNameOfExpression(e), GenerateXmlFromProperty(prop.PropertyType, prop.Name, prop.GetValue(e, null)));
+                }
+                catch (MethodAccessException)
+                {
+                    propList.Add(new PropValue { Property = prop, Value = e.Type });
+                    //return new XElement(GetNameOfExpression(e), GenerateXmlFromProperty(prop.PropertyType, prop.Name, null));
+                }
+            }
 
-						return new XElement(
-												GetNameOfExpression(e),
-												from prop in propList
-                        select GenerateXmlFromProperty(prop.Property.PropertyType, prop.Property.Name, prop.Value));
+            return new XElement(
+                                    GetNameOfExpression(e),
+                                    from prop in propList
+                                    select GenerateXmlFromProperty(prop.Property.PropertyType, prop.Property.Name, prop.Value));
         }
 
         private XElement ApplyCustomConverters(Expression e)
@@ -104,12 +103,12 @@ namespace Aggregates.Specifications.Expressions
             return null;
         }
 
-				private string GetNameOfExpression(Expression e)
-				{
-					if (e is LambdaExpression)
-						return "LambdaExpression";
-					return XmlConvert.EncodeName(e.GetType().Name);
-				}
+        private string GetNameOfExpression(Expression e)
+        {
+            if (e is LambdaExpression)
+                return "LambdaExpression";
+            return XmlConvert.EncodeName(e.GetType().Name);
+        }
 
 
         private object GenerateXmlFromProperty(Type propType, string propName, object value)
@@ -250,10 +249,13 @@ namespace Aggregates.Specifications.Expressions
             {
                 case MemberBindingType.Assignment:
                     return GenerateXmlFromAssignment(binding as MemberAssignment);
+
                 case MemberBindingType.ListBinding:
                     return GenerateXmlFromListBinding(binding as MemberListBinding);
+
                 case MemberBindingType.MemberBinding:
                     return GenerateXmlFromMemberBinding(binding as MemberMemberBinding);
+
                 default:
                     throw new NotSupportedException(string.Format("Binding type {0} not supported.", binding.BindingType));
             }
@@ -307,12 +309,11 @@ namespace Aggregates.Specifications.Expressions
                                 new XAttribute("Name", parameter.Name),
                                 GenerateXmlFromTypeCore(parameter.ParameterType))
                     ));
-
-            else        
+            else
             {
-                //vsadov: GetGenericArguments returns args for nongeneric types 
+                //vsadov: GetGenericArguments returns args for nongeneric types
                 //like arrays no need to save them.
-                if (type.IsGenericType)   
+                if (type.IsGenericType)
                 {
                     return new XElement("Type",
                                             new XAttribute("Name", type.GetGenericTypeDefinition().FullName),
@@ -321,9 +322,8 @@ namespace Aggregates.Specifications.Expressions
                 }
                 else
                 {
-                    return new XElement("Type",new XAttribute("Name", type.FullName));
+                    return new XElement("Type", new XAttribute("Name", type.FullName));
                 }
-
             }
         }
 
@@ -388,7 +388,7 @@ namespace Aggregates.Specifications.Expressions
 
 
         /*
-         * DESERIALIZATION 
+         * DESERIALIZATION
          */
 
 
@@ -416,58 +416,71 @@ namespace Aggregates.Specifications.Expressions
 
         private Expression ParseExpressionFromXmlNonNull(XElement xml)
         {
-					Expression expression = ApplyCustomDeserializers(xml);
+            Expression expression = ApplyCustomDeserializers(xml);
 
-					if (expression != null)
-						return expression;
-					switch (xml.Name.LocalName)
-					{
-						case "BinaryExpression":
-						case "SimpleBinaryExpression":
-						case "LogicalBinaryExpression":
-						case "MethodBinaryExpression":
-							return ParseBinaryExpresssionFromXml(xml);
-						case "ConstantExpression":
-						case "TypedConstantExpression":
-							return ParseConstatExpressionFromXml(xml);
-						case "ParameterExpression":
-						case "PrimitiveParameterExpression_x0060_1":
-						case "PrimitiveParameterExpressionx00601":
-						case "TypedParameterExpression":
-							return ParseParameterExpressionFromXml(xml);
-						case "LambdaExpression":
-							return ParseLambdaExpressionFromXml(xml);
-						case "MethodCallExpression":
-						case "MethodCallExpressionN":
-						case "InstanceMethodCallExpressionN":
-							return ParseMethodCallExpressionFromXml(xml);
-						case "UnaryExpression":
-							return ParseUnaryExpressionFromXml(xml);
-						case "MemberExpression":
-						case "PropertyExpression":
-						case "FieldExpression":
-							return ParseMemberExpressionFromXml(xml);
-						case "NewExpression":
-							return ParseNewExpressionFromXml(xml);
-						case "ListInitExpression":
-							return ParseListInitExpressionFromXml(xml);
-						case "MemberInitExpression":
-							return ParseMemberInitExpressionFromXml(xml);
-						case "ConditionalExpression":
-						case "FullConditionalExpression":
-							return ParseConditionalExpressionFromXml(xml);
-						case "NewArrayExpression":
-						case "NewArrayInitExpression":
-						case "NewArrayBoundsExpression":
-							return ParseNewArrayExpressionFromXml(xml);
-						case "TypeBinaryExpression":
-							return ParseTypeBinaryExpressionFromXml(xml);
-						case "InvocationExpression":
-							return ParseInvocationExpressionFromXml(xml);
-						default:
-							throw new NotSupportedException(xml.Name.LocalName);
-					}
+            if (expression != null)
+                return expression;
+            switch (xml.Name.LocalName)
+            {
+                case "BinaryExpression":
+                case "SimpleBinaryExpression":
+                case "LogicalBinaryExpression":
+                case "MethodBinaryExpression":
+                    return ParseBinaryExpresssionFromXml(xml);
 
+                case "ConstantExpression":
+                case "TypedConstantExpression":
+                    return ParseConstatExpressionFromXml(xml);
+
+                case "ParameterExpression":
+                case "PrimitiveParameterExpression_x0060_1":
+                case "PrimitiveParameterExpressionx00601":
+                case "TypedParameterExpression":
+                    return ParseParameterExpressionFromXml(xml);
+
+                case "LambdaExpression":
+                    return ParseLambdaExpressionFromXml(xml);
+
+                case "MethodCallExpression":
+                case "MethodCallExpressionN":
+                case "InstanceMethodCallExpressionN":
+                    return ParseMethodCallExpressionFromXml(xml);
+
+                case "UnaryExpression":
+                    return ParseUnaryExpressionFromXml(xml);
+
+                case "MemberExpression":
+                case "PropertyExpression":
+                case "FieldExpression":
+                    return ParseMemberExpressionFromXml(xml);
+
+                case "NewExpression":
+                    return ParseNewExpressionFromXml(xml);
+
+                case "ListInitExpression":
+                    return ParseListInitExpressionFromXml(xml);
+
+                case "MemberInitExpression":
+                    return ParseMemberInitExpressionFromXml(xml);
+
+                case "ConditionalExpression":
+                case "FullConditionalExpression":
+                    return ParseConditionalExpressionFromXml(xml);
+
+                case "NewArrayExpression":
+                case "NewArrayInitExpression":
+                case "NewArrayBoundsExpression":
+                    return ParseNewArrayExpressionFromXml(xml);
+
+                case "TypeBinaryExpression":
+                    return ParseTypeBinaryExpressionFromXml(xml);
+
+                case "InvocationExpression":
+                    return ParseInvocationExpressionFromXml(xml);
+
+                default:
+                    throw new NotSupportedException(xml.Name.LocalName);
+            }
         }
 
         private Expression ApplyCustomDeserializers(XElement xml)
@@ -475,7 +488,7 @@ namespace Aggregates.Specifications.Expressions
             foreach (var converter in Converters)
             {
                 Expression result = converter.Deserialize(xml);
-                if (result != null) 
+                if (result != null)
                     return result;
             }
             return null;
@@ -506,8 +519,10 @@ namespace Aggregates.Specifications.Expressions
             {
                 case "NewArrayInit":
                     return Expression.NewArrayInit(elemType, expressions);
+
                 case "NewArrayBounds":
                     return Expression.NewArrayBounds(elemType, expressions);
+
                 default:
                     throw new Exception("Expected NewArrayInit or NewArrayBounds");
             }
@@ -562,12 +577,16 @@ namespace Aggregates.Specifications.Expressions
             {
                 case MemberTypes.Field:
                     return ParseFieldInfoFromXml(xml);
+
                 case MemberTypes.Property:
                     return ParsePropertyInfoFromXml(xml);
+
                 case MemberTypes.Method:
                     return ParseMethodInfoFromXml(xml);
+
                 case MemberTypes.Constructor:
                     return ParseConstructorInfoFromXml(xml);
+
                 case MemberTypes.Custom:
                 case MemberTypes.Event:
                 case MemberTypes.NestedType:
@@ -575,7 +594,6 @@ namespace Aggregates.Specifications.Expressions
                 default:
                     throw new NotSupportedException(string.Format("MEmberType {0} not supported", memberType));
             }
-
         }
 
         private MemberInfo ParseFieldInfoFromXml(XElement xml)
@@ -603,7 +621,7 @@ namespace Aggregates.Specifications.Expressions
             var isLiftedToNull = (bool)ParseConstantFromAttribute<bool>(xml, "IsLiftedToNull");
             var expressionType = (ExpressionType)ParseConstantFromAttribute<ExpressionType>(xml, "NodeType");
             var type = ParseTypeFromXml(xml.Element("Type"));
-            // TODO: Why can't we use IsLifted and IsLiftedToNull here?  
+            // TODO: Why can't we use IsLifted and IsLiftedToNull here?
             // May need to special case a nodeType if it needs them.
             return Expression.MakeUnary(expressionType, operand, type, method);
         }
@@ -621,11 +639,10 @@ namespace Aggregates.Specifications.Expressions
             var body = ParseExpressionFromXml(xml.Element("Body"));
             var parameters = ParseExpressionListFromXml<ParameterExpression>(xml, "Parameters");
             var type = ParseTypeFromXml(xml.Element("Type"));
-            // We may need to 
+            // We may need to
             //var lambdaExpressionReturnType = type.GetMethod("Invoke").ReturnType;
             //if (lambdaExpressionReturnType.IsArray)
             //{
-                
             //    type = typeof(IEnumerable<>).MakeGenericType(type.GetElementType());
             //}
             return Expression.Lambda(type, body, parameters);
@@ -654,7 +671,6 @@ namespace Aggregates.Specifications.Expressions
             MethodInfo addMethod = ParseMethodInfoFromXml(xml.Element("AddMethod"));
             var arguments = ParseExpressionListFromXml<Expression>(xml, "Arguments");
             return Expression.ElementInit(addMethod, arguments);
-
         }
 
         private IEnumerable<MemberBinding> ParseBindingListFromXml(XElement xml, string elemName)
@@ -671,9 +687,11 @@ namespace Aggregates.Specifications.Expressions
                 case "MemberAssignment":
                     Expression expression = ParseExpressionFromXml(tXml.Element("Expression"));
                     return Expression.Bind(member, expression);
+
                 case "MemberMemberBinding":
                     var bindings = ParseBindingListFromXml(tXml, "Bindings");
                     return Expression.MemberBind(member, bindings);
+
                 case "MemberListBinding":
                     var initializers = ParseElementInitListFromXml(tXml, "Initializers");
                     return Expression.ListBind(member, initializers);
@@ -711,12 +729,13 @@ namespace Aggregates.Specifications.Expressions
             {
                 case "Type":
                     return ParseNormalTypeFromXmlCore(xml);
+
                 case "AnonymousType":
                     return ParseAnonymousTypeFromXmlCore(xml);
+
                 default:
                     throw new ArgumentException("Expected 'Type' or 'AnonymousType'");
             }
-
         }
 
         private Type ParseNormalTypeFromXmlCore(XElement xml)
@@ -792,7 +811,6 @@ namespace Aggregates.Specifications.Expressions
             string name = (string)ParseConstantFromAttribute<string>(xml, "Name");
             Type type = ParseTypeFromXml(xml.Element("Type"));
             return type;
-
         }
 
         private object ParseConstantFromAttribute<T>(XElement xml, string attrName)
@@ -802,7 +820,7 @@ namespace Aggregates.Specifications.Expressions
                 throw new Exception("We should never be encoding Types in attributes now.");
             if (typeof(Enum).IsAssignableFrom(typeof(T)))
                 return Enum.Parse(typeof(T), objectStringValue, true);
-            return Convert.ChangeType(objectStringValue, typeof(T),CultureInfo.CurrentCulture);
+            return Convert.ChangeType(objectStringValue, typeof(T), CultureInfo.CurrentCulture);
         }
 
         private object ParseConstantFromAttribute(XElement xml, string attrName, Type type)
@@ -812,7 +830,7 @@ namespace Aggregates.Specifications.Expressions
                 throw new Exception("We should never be encoding Types in attributes now.");
             if (typeof(Enum).IsAssignableFrom(type))
                 return Enum.Parse(type, objectStringValue, true);
-						return Convert.ChangeType(objectStringValue, type, CultureInfo.CurrentCulture);
+            return Convert.ChangeType(objectStringValue, type, CultureInfo.CurrentCulture);
         }
 
         private object ParseConstantFromElement(XElement xml, string elemName, Type type)
@@ -821,8 +839,8 @@ namespace Aggregates.Specifications.Expressions
             if (typeof(Type).IsAssignableFrom(type))
                 return ParseTypeFromXml(xml.Element("Value"));
             if (typeof(Enum).IsAssignableFrom(type))
-                return Enum.Parse(type, objectStringValue,true);
-						return Convert.ChangeType(objectStringValue, type, CultureInfo.CurrentCulture);
+                return Enum.Parse(type, objectStringValue, true);
+            return Convert.ChangeType(objectStringValue, type, CultureInfo.CurrentCulture);
         }
     }
 }
