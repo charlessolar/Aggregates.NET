@@ -39,7 +39,7 @@ namespace Aggregates.Internal
         private readonly IRepositoryFactory _repoFactory;
 
         private bool _disposed;
-        private IDictionary<String, String> _workHeaders;
+        private IDictionary<String, Object> _workHeaders;
         private IDictionary<Type, IRepository> _repositories;
 
         public UnitOfWork(IBuilder builder, IRepositoryFactory repoFactory)
@@ -47,7 +47,7 @@ namespace Aggregates.Internal
             _builder = builder;
             _repoFactory = repoFactory;
             _repositories = new Dictionary<Type, IRepository>();
-            _workHeaders = new Dictionary<String, String>();
+            _workHeaders = new Dictionary<String, Object>();
         }
 
         public void Dispose()
@@ -108,23 +108,23 @@ namespace Aggregates.Internal
         public void Commit()
         {
             var commitId = Guid.NewGuid();
-            var messageId = "";
+            Object messageId;
 
             // Attempt to get MessageId from NServicebus headers
             // If we maintain a good CommitId convention it should solve the message idempotentcy issue (assuming the storage they choose supports it)
-            if (_workHeaders.TryGetValue(MessageIdHeader, out messageId))
-                Guid.TryParse(messageId, out commitId);
+            if (_workHeaders.TryGetValue(MessageIdHeader, out messageId) && messageId is Guid)
+                commitId = (Guid)messageId;
 
             // Allow the user to send a CommitId along with his message if he wants
-            if (_workHeaders.TryGetValue(CommitIdHeader, out messageId))
-                Guid.TryParse(messageId, out commitId);
+            if (_workHeaders.TryGetValue(CommitIdHeader, out messageId) && messageId is Guid)
+                commitId = (Guid)messageId;
 
             foreach (var repo in _repositories)
             {
                 try
                 {
                     // Insert all command headers into the commit
-                    var headers = new Dictionary<String, String>(_workHeaders);
+                    var headers = new Dictionary<String, Object>(_workHeaders);
                     headers[AggregateTypeHeader] = repo.Key.FullName;
 
                     repo.Value.Commit(commitId, headers);
@@ -140,7 +140,7 @@ namespace Aggregates.Internal
         {
             // Insert our command headers into all messages sent by bus this unit of work
             foreach (var header in _workHeaders)
-                transportMessage.Headers[header.Key] = header.Value;
+                transportMessage.Headers[header.Key] = header.Value.ToString();
         }
 
         public void MutateIncoming(TransportMessage transportMessage)

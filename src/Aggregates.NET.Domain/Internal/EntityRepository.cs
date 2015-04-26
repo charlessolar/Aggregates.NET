@@ -1,9 +1,10 @@
 ﻿using Aggregates.Contracts;
-using NEventStore;
+using EventStore.ClientAPI.Exceptions;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -12,18 +13,58 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
+    // Todo: Since entities no longer live 'in' the aggregate's stream, we can probably merge EntityRepository and Repository
     public class EntityRepository<TAggregateId, T> : IEntityRepository<TAggregateId, T> where T : class, IEntity
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EntityRepository<,>));
-        private readonly IEventStream _stream;
+        private readonly IStoreEvents _store;
         private readonly IBuilder _builder;
         private readonly TAggregateId _aggregateId;
+        private readonly IEventStream _aggregateStream;
 
-        public EntityRepository(TAggregateId AggregateId, IBuilder builder, IEventStream stream)
+        private readonly ConcurrentDictionary<String, ISnapshot> _snapshots = new ConcurrentDictionary<String, ISnapshot>();
+        private readonly ConcurrentDictionary<String, IEventStream> _streams = new ConcurrentDictionary<String, IEventStream>();
+        private Boolean _disposed;
+
+        public EntityRepository(TAggregateId aggregateId, IEventStream aggregateStream, IBuilder builder)
         {
-            _aggregateId = AggregateId;
+            _aggregateId = aggregateId;
+            _aggregateStream = aggregateStream;
             _builder = builder;
-            _stream = stream;
+            _store = _builder.Build<IStoreEvents>();
+        }
+
+
+        void IRepository.Commit(Guid commitId, IDictionary<String, Object> headers)
+        {
+            foreach (var stream in _streams)
+            {
+                try
+                {
+                    stream.Value.Commit(_store, commitId, headers);
+                }
+                catch (WrongExpectedVersionException e)
+                {
+                    // Send to aggregate ?
+                    stream.Value.ClearChanges();
+                    throw new ConflictingCommandException(e.Message, e);
+                }
+            }
+        }
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed || !disposing)
+                return;
+
+            _snapshots.Clear();
+            _streams.Clear();
+
+            _disposed = true;
         }
 
         public T Get<TId>(TId id)
@@ -33,36 +74,36 @@ namespace Aggregates.Internal
 
         public T Get<TId>(TId id, int version)
         {
-            Logger.DebugFormat("Retreiving entity id {0} version {1} from aggregate {2} in store", id, version, _stream.StreamId);
+            Logger.DebugFormat("Retreiving entity id {0} version {1} from aggregate {2} in store", id, version, _aggregateId);
 
-            var events = GetEntityStream(id, version);
+            ISnapshot snapshot = GetSnapshot(id, version);
+            IEventStream stream = OpenStream(id, version, snapshot);
 
-            if (events.Count() == 0) return (T)null;
+            if (stream == null && snapshot == null) return (T)null;
 
             // Call the 'private' constructor
-            var entity = Newup(_builder);
+            var entity = Newup(stream, _builder);
             (entity as IEventSource<TId>).Id = id;
+            (entity as IEventSource<TId>).BucketId = _aggregateStream.BucketId;
             (entity as IEntity<TId, TAggregateId>).AggregateId = _aggregateId;
 
-            // Todo: support entity snapshots
-            //if (snapshot != null && root is ISnapshotting)
-            //    ((ISnapshotting)root).RestoreSnapshot(snapshot);
+            if (snapshot != null && entity is ISnapshotting)
+                ((ISnapshotting)entity).RestoreSnapshot(snapshot);
 
-            if (version == 0 || entity.Version < version)
-                entity.Hydrate(events.Select(e => e.Body));
+            entity.Hydrate(stream.Events);
 
             return entity;
         }
 
         public T New<TId>(TId id)
         {
-            PrepareStream(id);
-            var entity = Newup(_builder);
+            var stream = PrepareStream(id);
+            var entity = Newup(stream, _builder);
             (entity as IEventSource<TId>).Id = id;
             return entity;
         }
 
-        private T Newup(IBuilder builder)
+        private T Newup(IEventStream stream, IBuilder builder)
         {
             // Call the 'private' constructor
             var tCtor = typeof(T).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { }, null);
@@ -74,7 +115,7 @@ namespace Aggregates.Internal
             // Todo: I bet there is a way to make a INeedBuilding<T> type interface
             //      and loop over each, calling builder.build for each T
             if (entity is INeedStream)
-                (entity as INeedStream).Stream = _stream;
+                (entity as INeedStream).Stream = stream;
             if (entity is INeedBuilder)
                 (entity as INeedBuilder).Builder = builder;
             if (entity is INeedEventFactory)
@@ -87,34 +128,40 @@ namespace Aggregates.Internal
             return entity;
         }
 
-        private IEnumerable<EventMessage> GetEntityStream<TId>(TId id, Int32 version)
+        private ISnapshot GetSnapshot<TId>(TId id, int version)
         {
-            // The stream is the aggregate's entire stream.  For the entity, we only need the events for our id
-            return (_stream.CommittedEvents.Concat(_stream.UncommittedEvents)).Where(e =>
+            ISnapshot snapshot;
+            var snapshotId = String.Format("{0}//{1}::{2}.snapshots", _aggregateStream.StreamId, typeof(T).FullName, id);
+            if (!_snapshots.TryGetValue(snapshotId, out snapshot))
             {
-                Object objId;
-                if (!e.Headers.TryGetValue("Id", out objId))
-                    return false;
-                return id.Equals(objId);
-            }).Take(version);
+                _snapshots[snapshotId] = snapshot = _store.GetSnapshot(snapshotId, version);
+            }
+
+            return snapshot;
         }
 
-        private void PrepareStream<TId>(TId id)
+        private IEventStream OpenStream<TId>(TId id, int version, ISnapshot snapshot)
         {
-            // Insert a blank 'created' event onto aggregate stream
+            IEventStream stream;
+            var streamId = String.Format("{0}//{1}::{2}", _aggregateStream.StreamId, typeof(T).FullName, id);
+            if (_streams.TryGetValue(streamId, out stream))
+                return stream;
 
-            _stream.Add(new EventMessage
-            {
-                Body = null,
-                Headers = new Dictionary<string, object>
-                {
-                    { "Id", id },
-                    { "Entity", typeof(T).FullName },
-                    { "Event", "Entity Creation" },
-                    { "EventVersion", _stream.StreamRevision }
-                    // Todo: Support user headers via method or attributes
-                }
-            });
+            if (snapshot == null)
+                _streams[streamId] = stream = _store.GetStream(streamId);
+            else
+                _streams[streamId] = stream = _store.GetStream(streamId, snapshot.StreamRevision + 1);
+            return stream;
+        }
+
+        private IEventStream PrepareStream<TId>(TId id)
+        {
+            IEventStream stream;
+            var streamId = String.Format("{0}//{1}::{2}", _aggregateStream.StreamId, typeof(T).FullName, id);
+            if (!_streams.TryGetValue(streamId, out stream))
+                _streams[streamId] = stream = new EventStream<T>(_builder, streamId, _aggregateStream.BucketId, -1, null, null);
+
+            return stream;
         }
     }
 }

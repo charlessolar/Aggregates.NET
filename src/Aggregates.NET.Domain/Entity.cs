@@ -15,7 +15,7 @@ namespace Aggregates
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Entity<,>));
 
-        private AllEventsSlice _eventStream { get { return (this as INeedStream).Stream; } }
+        private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
 
         private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
 
@@ -33,9 +33,9 @@ namespace Aggregates
 
         public String StreamId { get { return _eventStream.StreamId; } }
 
-        public Int32 Version { get { return _eventStream.StreamRevision; } }
+        public Int32 Version { get { return _eventStream.StreamVersion; } }
 
-        AllEventsSlice INeedStream.Stream { get; set; }
+        IEventStream INeedStream.Stream { get; set; }
 
         IMessageCreator INeedEventFactory.EventFactory { get; set; }
 
@@ -69,18 +69,9 @@ namespace Aggregates
 
             Raise(@event);
 
-            _eventStream.Add(new EventData
-            {
-                Body = @event,
-                Headers = new Dictionary<string, object>
-                {
-                    { "Id", this.Id },
-                    { "Entity", this.GetType().FullName },
-                    { "Event", typeof(TEvent).FullName },
-                    { "EventVersion", this.Version }
-                    // Todo: Support user headers via method or attributes
-                }
-            });
+            // Todo: Fill with user headers or something
+            var headers = new Dictionary<String, Object>();
+            _eventStream.Add(@event, this.Version, headers);
         }
 
         private void Raise(object @event)

@@ -9,7 +9,6 @@ namespace Aggregates.Contracts
 {
     public interface INeedStream
     {
-        String StreamId { get; set; }
-        Int32 StreamVersion { get; set; }
+        IEventStream Stream { get; set; }
     }
 }

@@ -1,11 +1,10 @@
 ﻿using Aggregates.Contracts;
-using Aggregates.Integrations;
 using Aggregates.Internal;
 using Aggregates.Messages;
-using NEventStore;
-using NEventStore.Dispatcher;
+using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Logging;
+using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using System;
 using System.Collections.Generic;
@@ -15,7 +14,6 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-
     public static class NServicebus
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(NServicebus));
@@ -27,18 +25,25 @@ namespace Aggregates
         /// <param name="eventStoreBuilder">Function to build the event store</param>
         /// <param name="accept">Optional accept message creator (for accepting commands)</param>
         /// <param name="reject">Optional reject message creator (for rejecting commands)</param>
-        public static void UseAggregates(this BusConfiguration config, Func<IBuilder, IStoreEvents> eventStoreBuilder, Func<IAccept> accept = null, Func<String, IReject> reject = null)
+        public static void UseAggregates(this BusConfiguration config, Func<IAccept> accept = null, Func<String, IReject> reject = null)
         {
-
-
-            config.RegisterComponents(x => {
+            config.RegisterComponents(x =>
+            {
                 x.ConfigureComponent<ExceptionFilter>(DependencyLifecycle.InstancePerCall);
                 x.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
                 x.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
                 x.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
-                x.ConfigureComponent<Dispatcher>(DependencyLifecycle.InstancePerCall);
 
-                x.ConfigureComponent<IStoreEvents>(y => eventStoreBuilder(y), DependencyLifecycle.SingleInstance);
+                x.ConfigureComponent<JsonSerializerSettings>(y =>
+                {
+                    return new JsonSerializerSettings
+                    {
+                        Binder = new EventSerializationBinder(y.Build<IMessageMapper>()),
+                        ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
+                    };
+                }, DependencyLifecycle.SingleInstance);
+
+                //x.ConfigureComponent<IStoreEvents>(y => eventStoreBuilder(y), DependencyLifecycle.SingleInstance);
 
                 if (accept == null)
                 {
@@ -63,7 +68,7 @@ namespace Aggregates
                     x.ConfigureComponent<Func<String, IReject>>(() => reject, DependencyLifecycle.InstancePerCall);
             });
 
-            config.Pipeline.Register<ExceptionFilterRegistration>();    
+            config.Pipeline.Register<ExceptionFilterRegistration>();
         }
     }
 }

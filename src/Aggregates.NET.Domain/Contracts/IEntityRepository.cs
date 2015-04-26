@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface IEntityRepository { }
+    public interface IEntityRepository : IRepository { }
 
     public interface IEntityRepository<TAggregateId, T> : IEntityRepository where T : class, IEventSource
     {

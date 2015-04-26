@@ -1,5 +1,6 @@
 ﻿using Aggregates.Contracts;
-using NEventStore;
+using EventStore.ClientAPI;
+using EventStore.ClientAPI.Exceptions;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
@@ -27,31 +28,25 @@ namespace Aggregates.Internal
         private readonly ConcurrentDictionary<String, IEventStream> _streams = new ConcurrentDictionary<String, IEventStream>();
         private Boolean _disposed;
 
-        public Repository(IBuilder builder, IStoreEvents store)
+        public Repository(IBuilder builder)
         {
             _builder = builder;
-            _store = store;
+            _store = _builder.Build<IStoreEvents>();
         }
 
-        void IRepository.Commit(Guid commitId, IDictionary<String, String> headers)
+        void IRepository.Commit(Guid commitId, IDictionary<String, Object> headers)
         {
             foreach (var stream in _streams)
             {
-                if (headers != null)
-                    headers.ToList().ForEach(h => stream.Value.UncommittedHeaders[h.Key] = h.Value);
                 try
                 {
-                    stream.Value.CommitChanges(commitId);
+                    stream.Value.Commit(_store, commitId, headers);
                 }
-                catch (ConcurrencyException e)
+                catch (WrongExpectedVersionException e)
                 {
                     // Send to aggregate ?
                     stream.Value.ClearChanges();
                     throw new ConflictingCommandException(e.Message, e);
-                }
-                catch (DuplicateCommitException)
-                {
-                    stream.Value.ClearChanges();
                 }
             }
         }
@@ -66,16 +61,9 @@ namespace Aggregates.Internal
             if (_disposed || !disposing)
                 return;
 
-            lock (_streams)
-            {
-                foreach (var stream in _streams)
-                {
-                    stream.Value.Dispose();
-                }
+            _snapshots.Clear();
+            _streams.Clear();
 
-                _snapshots.Clear();
-                _streams.Clear();
-            }
             _disposed = true;
         }
 
@@ -92,7 +80,7 @@ namespace Aggregates.Internal
 
         public T Get<TId>(String bucketId, TId id)
         {
-            return Get<TId>(bucketId, id, Int32.MaxValue);
+            return Get<TId>(bucketId, id, StreamPosition.End);
         }
 
         public T Get<TId>(String bucketId, TId id, Int32 version)
@@ -112,14 +100,7 @@ namespace Aggregates.Internal
             if (snapshot != null && root is ISnapshotting)
                 ((ISnapshotting)root).RestoreSnapshot(snapshot);
 
-            if (stream != null && (version == 0 || root.Version < version))
-            {
-                // Only hydrate events with a header which corresponds with the aggregate id
-                // Needed because entities of the aggregate live in the same stream
-                var events = GetAggregateStream(stream, id, version);
-
-                root.Hydrate(events.Take(version - root.Version).Select(e => e.Body));
-            }
+            root.Hydrate(stream.Events);
 
             return root;
         }
@@ -168,10 +149,10 @@ namespace Aggregates.Internal
         private ISnapshot GetSnapshot<TId>(String bucketId, TId id, int version)
         {
             ISnapshot snapshot;
-            var snapshotId = String.Format("{0}/{1}", bucketId, id);
+            var snapshotId = String.Format("{0}::{1}/{2}.snapshots", typeof(T).FullName, bucketId, id);
             if (!_snapshots.TryGetValue(snapshotId, out snapshot))
             {
-                _snapshots[snapshotId] = snapshot = _store.Advanced.GetSnapshot(bucketId, id.ToString(), version);
+                _snapshots[snapshotId] = snapshot = _store.GetSnapshot(snapshotId, version);
             }
 
             return snapshot;
@@ -180,34 +161,23 @@ namespace Aggregates.Internal
         private IEventStream OpenStream<TId>(String bucketId, TId id, int version, ISnapshot snapshot)
         {
             IEventStream stream;
-            var streamId = String.Format("{0}/{1}", bucketId, id);
+            var streamId = String.Format("{0}::{1}/{2}", typeof(T).FullName, bucketId, id);
             if (_streams.TryGetValue(streamId, out stream))
                 return stream;
 
             if (snapshot == null)
-                return _streams[streamId] = _store.OpenStream(bucketId, id.ToString(), Int32.MinValue, version);
+                _streams[streamId] = stream = _store.GetStream(streamId);
             else
-                return _streams[streamId] = _store.OpenStream(snapshot, version);
-        }
-
-        private IEnumerable<EventMessage> GetAggregateStream<TId>(IEventStream stream, TId id, Int32 version)
-        {
-            // The stream is the aggregate's entire stream.  For the entity, we only need the events for our id
-            return (stream.CommittedEvents.Concat(stream.UncommittedEvents)).Where(e =>
-            {
-                Object objId;
-                if (!e.Headers.TryGetValue("Id", out objId))
-                    return false;
-                return id.Equals(objId);
-            }).Take(version);
+                _streams[streamId] = stream = _store.GetStream(streamId, snapshot.StreamRevision + 1);
+            return stream;
         }
 
         private IEventStream PrepareStream<TId>(String bucketId, TId id)
         {
             IEventStream stream;
-            var streamId = String.Format("{0}/{1}", bucketId, id);
+            var streamId = String.Format("{0}::{1}/{2}", typeof(T).FullName, bucketId, id);
             if (!_streams.TryGetValue(streamId, out stream))
-                _streams[streamId] = stream = _store.CreateStream(bucketId, id.ToString());
+                _streams[streamId] = stream = new EventStream<T>(_builder, streamId, bucketId, -1, null, null);
 
             return stream;
         }
