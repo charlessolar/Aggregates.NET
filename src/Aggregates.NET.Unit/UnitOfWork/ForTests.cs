@@ -1,15 +1,7 @@
 ﻿using Aggregates.Contracts;
-using Aggregates.Internal;
-using NEventStore;
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
-using NServiceBus.ObjectBuilder.Common;
 using NUnit.Framework;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Unit.Repository
 {
@@ -33,9 +25,9 @@ namespace Aggregates.Unit.Repository
             _repository = new Moq.Mock<IRepository<_AggregateStub>>();
             _builder.Setup(x => x.Build<IRepository<_AggregateStub>>()).Returns(_repository.Object);
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
-            _repoFactory.Setup(x => x.ForAggregate<_AggregateStub>(Moq.It.IsAny<IBuilder>(), Moq.It.IsAny<IStoreEvents>())).Returns(_repository.Object);
+            _repoFactory.Setup(x => x.ForAggregate<_AggregateStub>(Moq.It.IsAny<IBuilder>())).Returns(_repository.Object);
 
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _eventStore.Object, _repoFactory.Object);
+            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _repoFactory.Object);
         }
 
         [Test]
@@ -52,7 +44,5 @@ namespace Aggregates.Unit.Repository
             var repo2 = _uow.For<_AggregateStub>();
             Assert.AreEqual(repo, repo2);
         }
-
-
     }
 }

@@ -12,7 +12,7 @@ namespace Aggregates.Contracts
 
         String StreamId { get; }
 
-        Int32 StreamRevision { get; }
+        Int32 StreamVersion { get; }
 
         Object Payload { get; }
     }

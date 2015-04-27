@@ -1,14 +1,8 @@
 ﻿using Aggregates.Contracts;
-using NEventStore;
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
-using NServiceBus.ObjectBuilder.Common;
 using NUnit.Framework;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Unit.UnitOfWork
 {
@@ -31,9 +25,9 @@ namespace Aggregates.Unit.UnitOfWork
             _bus = new Moq.Mock<IBus>();
             _repository = new Moq.Mock<IRepository<_AggregateStub<Guid>>>();
             _repository.Setup(x => x.Dispose()).Verifiable();
-            _repoFactory.Setup(x => x.ForAggregate<_AggregateStub<Guid>>(Moq.It.IsAny<IBuilder>(), Moq.It.IsAny<IStoreEvents>())).Returns(_repository.Object);
+            _repoFactory.Setup(x => x.ForAggregate<_AggregateStub<Guid>>(Moq.It.IsAny<IBuilder>())).Returns(_repository.Object);
 
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _eventStore.Object, _repoFactory.Object);
+            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _repoFactory.Object);
         }
 
         [Test]

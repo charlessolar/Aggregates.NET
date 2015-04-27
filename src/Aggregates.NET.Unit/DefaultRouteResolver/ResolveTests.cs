@@ -1,5 +1,4 @@
 ﻿using Aggregates.Contracts;
-using NEventStore;
 using NServiceBus;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
@@ -22,7 +21,6 @@ namespace Aggregates.Unit.DefaultRouteResolver
     }
     public class AggregateStub3 : Aggregate<Guid>
     {
-
         // All invalid handles
         public void Handle(String @event) { }
         private void Handle(String @event, Int32 @event2) { }

@@ -1,9 +1,4 @@
 ﻿using NUnit.Framework;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Unit.ValueObject
 {
@@ -53,7 +48,6 @@ namespace Aggregates.Unit.ValueObject
             {
                 get { return _address2; }
             }
-
         }
 
         [Test]
@@ -187,6 +181,5 @@ namespace Aggregates.Unit.ValueObject
 
             Assert.AreNotEqual(address.GetHashCode(), address2.GetHashCode());
         }
-
     }
 }

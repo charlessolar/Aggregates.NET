@@ -71,7 +71,7 @@ namespace Aggregates
 
             // Todo: Fill with user headers or something
             var headers = new Dictionary<String, Object>();
-            _eventStream.Add(@event, this.Version, headers);
+            _eventStream.Add(@event, headers);
         }
 
         private void Raise(object @event)

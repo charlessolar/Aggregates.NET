@@ -1,13 +1,9 @@
 ﻿using Aggregates.Contracts;
-using NEventStore;
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Unit.EntityRepository
 {
@@ -15,6 +11,7 @@ namespace Aggregates.Unit.EntityRepository
     public class NewTests
     {
         private Moq.Mock<IBuilder> _builder;
+        private Moq.Mock<IStoreEvents> _store;
         private Moq.Mock<IEventStream> _stream;
         private Moq.Mock<IMessageCreator> _eventFactory;
         private Moq.Mock<IRouteResolver> _router;
@@ -24,16 +21,17 @@ namespace Aggregates.Unit.EntityRepository
         public void Setup()
         {
             _builder = new Moq.Mock<IBuilder>();
+            _store = new Moq.Mock<IStoreEvents>();
             _stream = new Moq.Mock<IEventStream>();
             _eventFactory = new Moq.Mock<IMessageCreator>();
             _router = new Moq.Mock<IRouteResolver>();
-            _stream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage>());
-            _stream.Setup(x => x.UncommittedEvents).Returns(new List<EventMessage>());
+            _stream.Setup(x => x.Events).Returns(new List<Object>());
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
             _builder.Setup(x => x.Build<IRouteResolver>()).Returns(_router.Object);
+            _builder.Setup(x => x.Build<IStoreEvents>()).Returns(_store.Object);
 
-            _repository = new Internal.EntityRepository<Guid, _EntityStub>(Guid.NewGuid(), _builder.Object, _stream.Object);
+            _repository = new Internal.EntityRepository<Guid, _EntityStub>(Guid.NewGuid(), _stream.Object, _builder.Object);
         }
 
         [Test]
@@ -41,14 +39,6 @@ namespace Aggregates.Unit.EntityRepository
         {
             var entity = _repository.New(Guid.NewGuid());
             Assert.NotNull(entity);
-        }
-
-        [Test]
-        public void new_adds_event()
-        {
-            _stream.Setup(x => x.Add(Moq.It.IsAny<EventMessage>())).Verifiable();
-            var entity = _repository.New(Guid.NewGuid());
-            _stream.Verify(x => x.Add(Moq.It.IsAny<EventMessage>()), Moq.Times.Once);
         }
     }
 }

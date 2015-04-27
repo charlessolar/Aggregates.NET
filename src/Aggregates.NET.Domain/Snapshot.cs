@@ -18,7 +18,7 @@ namespace Aggregates
         {
             BucketId = bucketId;
             StreamId = streamId;
-            StreamRevision = streamRevision;
+            StreamVersion = streamRevision;
             Payload = payload;
         }
         protected Snapshot()
@@ -26,7 +26,7 @@ namespace Aggregates
 
         public String BucketId { get; private set; }
         public String StreamId { get; private set; }
-        public Int32 StreamRevision { get; private set; }
+        public Int32 StreamVersion { get; private set; }
         public Object Payload { get; private set; }
     }
 }

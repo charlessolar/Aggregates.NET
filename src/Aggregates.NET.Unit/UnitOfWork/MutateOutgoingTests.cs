@@ -1,15 +1,10 @@
 ﻿using Aggregates.Contracts;
-using NEventStore;
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
-using NServiceBus.ObjectBuilder.Common;
 using NServiceBus.Unicast.Messages;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Unit.UnitOfWork
 {
@@ -27,8 +22,7 @@ namespace Aggregates.Unit.UnitOfWork
             _builder = new Moq.Mock<IBuilder>();
             _eventStore = new Moq.Mock<IStoreEvents>();
             _repoFactory = new Moq.Mock<IRepositoryFactory>();
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _eventStore.Object, _repoFactory.Object);
-
+            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _repoFactory.Object);
         }
 
 
@@ -114,7 +108,6 @@ namespace Aggregates.Unit.UnitOfWork
                 Assert.True(transportMessage.Headers.ContainsKey(header));
                 Assert.AreEqual(transportMessage.Headers[header], Aggregates.Internal.UnitOfWork.NotFound);
             }
-
         }
 
         [Test]

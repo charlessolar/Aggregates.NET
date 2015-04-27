@@ -63,11 +63,9 @@ namespace Aggregates.Internal
             });
         }
 
-        public void Add(Object @event, Int32 expectedVersion, IDictionary<String, Object> headers)
+        public void Add(Object @event, IDictionary<String, Object> headers)
         {
-            if ((this.StreamVersion + this._uncommitted.Count) != expectedVersion)
-                throw new VersionException(String.Format("Expected version {0} stream is currently version {1}", expectedVersion, (this.StreamVersion + this._uncommitted.Count)));
-
+            this.StreamVersion++;
             this._uncommitted.Add(new EventData
             {
                 EventId = Guid.NewGuid(),
@@ -76,14 +74,14 @@ namespace Aggregates.Internal
                     EntityType = typeof(T).FullName,
                     EventType = @event.GetType().FullName,
                     Timestamp = DateTime.UtcNow,
-                    Version = expectedVersion,
+                    Version = this.StreamVersion,
                     Headers = headers
                 },
                 Event = @event
             });
         }
 
-        public void Commit(IStoreEvents store, Guid commitId, IDictionary<String, Object> commitHeaders)
+        public void Commit(Guid commitId, IDictionary<String, Object> commitHeaders)
         {
             if (this._uncommitted.Count == 0) return;
 
@@ -102,6 +100,7 @@ namespace Aggregates.Internal
                     );
             });
 
+            var store = _builder.Build<IStoreEvents>();
             store.WriteToStream(this.StreamId, this.StreamVersion, eventData);
         }
 

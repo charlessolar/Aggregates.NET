@@ -30,6 +30,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="EventStore.ClientAPI">
+      <HintPath>..\packages\EventStore.Client.3.0.2\lib\net40\EventStore.ClientAPI.dll</HintPath>
+    </Reference>
     <Reference Include="Moq">
       <HintPath>..\packages\Moq.4.2.1409.1722\lib\net40\Moq.dll</HintPath>
     </Reference>
@@ -74,7 +77,6 @@
     <Compile Include="Specifications\Specifications.cs" />
     <Compile Include="UnitOfWork\CommitFailTests.cs" />
     <Compile Include="UnitOfWork\CommitTests.cs" />
-    <Compile Include="Dispatcher\DispatchTests.cs" />
     <Compile Include="UnitOfWork\DisposeTests.cs" />
     <Compile Include="UnitOfWork\ForTests.cs" />
     <Compile Include="UnitOfWork\MutateOutgoingTests.cs" />
@@ -85,6 +87,14 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Aggregates.NET.Consumer\Aggregates.NET.Consumer.csproj">
+      <Project>{4d1df1d2-39e0-4f9f-9e2a-7a9c57420b9f}</Project>
+      <Name>Aggregates.NET.Consumer</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Aggregates.NET.Domain\Aggregates.NET.Domain.csproj">
+      <Project>{44aba11e-6abd-4bdf-9fb4-02c2852baadf}</Project>
+      <Name>Aggregates.NET.Domain</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj">
       <Project>{ec7040e2-7a13-4447-900d-6ed57328e5df}</Project>
       <Name>Aggregates.NET</Name>

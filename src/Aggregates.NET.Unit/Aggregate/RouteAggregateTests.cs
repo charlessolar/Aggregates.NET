@@ -1,6 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Internal;
-using NEventStore;
+
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
@@ -34,19 +34,18 @@ namespace Aggregates.Unit.Aggregate
             _eventFactory = new Moq.Mock<IMessageCreator>();
             _resolver = new Moq.Mock<IRouteResolver>();
 
-
-            _store.Setup(x => x.Advanced.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>()));
-            _store.Setup(x => x.CreateStream(Moq.It.IsAny<String>(), _id.ToString())).Returns(_stream.Object);
+            _store.Setup(x => x.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>()));
+            _store.Setup(x => x.GetStream(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns(_stream.Object);
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IRouteResolver>()).Returns(_resolver.Object);
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
+            _builder.Setup(x => x.Build<IStoreEvents>()).Returns(_store.Object);
 
             _stream.Setup(x => x.StreamId).Returns(String.Format("{0}", _id));
-            _stream.Setup(x => x.StreamRevision).Returns(0);
-            _stream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage>());
-            _stream.Setup(x => x.UncommittedEvents).Returns(new List<EventMessage>());
+            _stream.Setup(x => x.StreamVersion).Returns(0);
+            _stream.Setup(x => x.Events).Returns(new List<Object>());
 
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _store.Object, new DefaultRepositoryFactory());
+            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, new DefaultRepositoryFactory());
         }
 
         [Test]

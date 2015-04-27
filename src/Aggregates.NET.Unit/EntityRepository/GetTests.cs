@@ -1,5 +1,4 @@
 ﻿using Aggregates.Contracts;
-using NEventStore;
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
 using NUnit.Framework;
@@ -15,6 +14,7 @@ namespace Aggregates.Unit.EntityRepository
     public class GetTests
     {
         private Moq.Mock<IBuilder> _builder;
+        private Moq.Mock<IStoreEvents> _store;
         private Moq.Mock<IEventStream> _stream;
         private Moq.Mock<IMessageCreator> _eventFactory;
         private Moq.Mock<IRouteResolver> _router;
@@ -24,16 +24,20 @@ namespace Aggregates.Unit.EntityRepository
         public void Setup()
         {
             _builder = new Moq.Mock<IBuilder>();
+            _store = new Moq.Mock<IStoreEvents>();
             _stream = new Moq.Mock<IEventStream>();
             _eventFactory = new Moq.Mock<IMessageCreator>();
             _router = new Moq.Mock<IRouteResolver>();
-            _stream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage>());
-            _stream.Setup(x => x.UncommittedEvents).Returns(new List<EventMessage>());
+            _stream.Setup(x => x.Events).Returns(new List<Object>());
+
+            _store.Setup(x => x.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>()));
+
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
             _builder.Setup(x => x.Build<IRouteResolver>()).Returns(_router.Object);
+            _builder.Setup(x => x.Build<IStoreEvents>()).Returns(_store.Object);
 
-            _repository = new Internal.EntityRepository<Guid, _EntityStub>(Guid.NewGuid(), _builder.Object, _stream.Object);
+            _repository = new Internal.EntityRepository<Guid, _EntityStub>(Guid.NewGuid(), _stream.Object, _builder.Object);
         }
 
         [Test]
@@ -47,7 +51,8 @@ namespace Aggregates.Unit.EntityRepository
         public void get_exists()
         {
             var id = Guid.NewGuid();
-            _stream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage> { new EventMessage { Headers = new Dictionary<string, object> { { "Id", id } }, Body = null } });
+            _store.Setup(x => x.GetStream(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns(_stream.Object);
+            _stream.Setup(x => x.Events).Returns(new List<Object> { null });
             var entity = _repository.Get(id);
             Assert.NotNull(entity);
         }
@@ -56,33 +61,9 @@ namespace Aggregates.Unit.EntityRepository
         public void get_invalid_stream()
         {
             var id = Guid.NewGuid();
-            _stream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage> { new EventMessage { Headers = new Dictionary<string, object> { { "Test", "test" } }, Body = null } });
+            _stream.Setup(x => x.Events).Returns(new List<Object>());
             var entity = _repository.Get(id);
             Assert.Null(entity);
-        }
-
-        [Test]
-        public void get_valid_and_invalid_stream()
-        {
-            var id = Guid.NewGuid();
-            _stream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage> {
-                new EventMessage { Headers = new Dictionary<string, object> { { "Id", id } }, Body = null },
-                new EventMessage { Headers = new Dictionary<string, object> { { "test", "test" } }, Body = null }
-            });
-            var entity = _repository.Get(id);
-            Assert.NotNull(entity);
-        }
-
-        [Test]
-        public void get_with_other_ids()
-        {
-            var id = Guid.NewGuid();
-            _stream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage> {
-                new EventMessage { Headers = new Dictionary<string, object> { { "Id", id } }, Body = null },
-                new EventMessage { Headers = new Dictionary<string, object> { { "Id", Guid.NewGuid() } }, Body = null }
-            });
-            var entity = _repository.Get(id);
-            Assert.NotNull(entity);
         }
     }
 }

@@ -17,8 +17,8 @@ namespace Aggregates.Contracts
 
         IEnumerable<Object> Events { get; }
 
-        void Add(Object @event, Int32 expectedVersion, IDictionary<String, Object> headers);
-        void Commit(IStoreEvents store, Guid commitId, IDictionary<String, Object> commitHeaders);
+        void Add(Object @event, IDictionary<String, Object> headers);
+        void Commit(Guid commitId, IDictionary<String, Object> commitHeaders);
 
         void ClearChanges();
     }

@@ -1,16 +1,11 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Internal;
-using NEventStore;
 using NServiceBus;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
-using NServiceBus.ObjectBuilder.Common;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Unit.Aggregate
 {
@@ -42,24 +37,31 @@ namespace Aggregates.Unit.Aggregate
             _eventFactory.Setup(x => x.CreateInstance(typeof(CreatedEvent))).Returns(new CreatedEvent());
             _eventFactory.Setup(x => x.CreateInstance(typeof(UpdatedEvent))).Returns(new UpdatedEvent());
 
-            _store.Setup(x => x.Advanced.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>()));
-            _store.Setup(x => x.CreateStream(Moq.It.IsAny<String>(), _id.ToString())).Returns(_stream.Object);
+            _store.Setup(x => x.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>()));
+            _store.Setup(x => x.GetStream(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns(_stream.Object);
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IRouteResolver>()).Returns(new Aggregates.Internal.DefaultRouteResolver(_mapper.Object));
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
+            _builder.Setup(x => x.Build<IStoreEvents>()).Returns(_store.Object);
             _stream.Setup(x => x.StreamId).Returns(String.Format("{0}", _id));
-            _stream.Setup(x => x.StreamRevision).Returns(0);
-            _stream.Setup(x => x.CommittedEvents).Returns(new List<EventMessage>());
-            _stream.Setup(x => x.UncommittedEvents).Returns(new List<EventMessage>());
+            _stream.Setup(x => x.StreamVersion).Returns(0);
+            _stream.Setup(x => x.Events).Returns(new List<Object>());
 
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _store.Object, new DefaultRepositoryFactory());
+            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, new DefaultRepositoryFactory());
         }
 
         [Test]
-        public void new_aggregate_stream_version()
+        public void new_aggregate_stream_id()
         {
             var root = _uow.For<_AggregateStub>().New(_id);
-            Assert.AreEqual(root.StreamId, _id.ToString());
+            Assert.False(String.IsNullOrEmpty(root.StreamId));
+        }
+
+        [Test]
+        public void new_aggregate_with_id()
+        {
+            var root = _uow.For<_AggregateStub>().New(_id);
+            Assert.AreEqual(root.Id, _id);
         }
 
         [Test]
@@ -87,14 +89,6 @@ namespace Aggregates.Unit.Aggregate
             Assert.AreEqual(root.Value, "Updated");
         }
 
-        [Test]
-        public void new_aggregate_throw_event_same_version()
-        {
-            var root = _uow.For<_AggregateStub>().New(_id);
-            root.Create(_id, "test");
-            root.Update("Updated");
-            Assert.AreEqual(root.Version, 0);
-        }
 
         [Test]
         public void new_aggregate_with_bucket()
@@ -102,17 +96,8 @@ namespace Aggregates.Unit.Aggregate
             //_stream.Setup(x => x.BucketId).Returns("test");
             var root = _uow.For<_AggregateStub>().New("test", _id);
             root.Create(_id, "test");
-            
+
             Assert.AreEqual(root.BucketId, "test");
         }
-
-        [Test]
-        public void new_aggregate_with_id()
-        {
-            var root = _uow.For<_AggregateStub>().New(_id);
-            Assert.AreEqual(root.Id, _id);
-        }
-
-
     }
 }

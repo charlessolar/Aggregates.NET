@@ -4,14 +4,10 @@ using EventStore.ClientAPI.Exceptions;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
-using NServiceBus.ObjectBuilder.Common;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
@@ -40,7 +36,7 @@ namespace Aggregates.Internal
             {
                 try
                 {
-                    stream.Value.Commit(_store, commitId, headers);
+                    stream.Value.Commit(commitId, headers);
                 }
                 catch (WrongExpectedVersionException e)
                 {
@@ -91,6 +87,8 @@ namespace Aggregates.Internal
             IEventStream stream = OpenStream(bucketId, id, version, snapshot);
 
             if (stream == null && snapshot == null) return (T)null;
+            // Get requires the stream exists
+            if (stream.StreamVersion == -1) return (T)null;
 
             // Call the 'private' constructor
             var root = Newup(stream, _builder);
@@ -168,7 +166,7 @@ namespace Aggregates.Internal
             if (snapshot == null)
                 _streams[streamId] = stream = _store.GetStream(streamId);
             else
-                _streams[streamId] = stream = _store.GetStream(streamId, snapshot.StreamRevision + 1);
+                _streams[streamId] = stream = _store.GetStream(streamId, snapshot.StreamVersion + 1);
             return stream;
         }
 
@@ -177,7 +175,7 @@ namespace Aggregates.Internal
             IEventStream stream;
             var streamId = String.Format("{0}::{1}/{2}", typeof(T).FullName, bucketId, id);
             if (!_streams.TryGetValue(streamId, out stream))
-                _streams[streamId] = stream = new EventStream<T>(_builder, streamId, bucketId, -1, null, null);
+                _streams[streamId] = stream = _store.GetStream(streamId);
 
             return stream;
         }

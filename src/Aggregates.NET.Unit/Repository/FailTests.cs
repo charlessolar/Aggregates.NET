@@ -1,5 +1,4 @@
 ﻿using Aggregates.Contracts;
-using NEventStore;
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
 using NUnit.Framework;
@@ -13,12 +12,16 @@ namespace Aggregates.Unit.Repository
 {
     public class BadAggregate1 : Aggregate<Guid>
     {
-        public BadAggregate1() { }
+        public BadAggregate1()
+        {
+        }
     }
 
     public class BadAggregate2 : Aggregate<Guid>
     {
-        private BadAggregate2(Int32 foo) { }
+        private BadAggregate2(Int32 foo)
+        {
+        }
     }
 
     [TestFixture]
@@ -32,18 +35,19 @@ namespace Aggregates.Unit.Repository
         {
             _builder = new Moq.Mock<IBuilder>();
             _store = new Moq.Mock<IStoreEvents>();
+            _builder.Setup(x => x.Build<IStoreEvents>()).Returns(_store.Object);
         }
 
         [Test]
         public void entity_no_private_constructor()
         {
-            var repo = new Aggregates.Internal.Repository<BadAggregate1>(_builder.Object, _store.Object);
+            var repo = new Aggregates.Internal.Repository<BadAggregate1>(_builder.Object);
             Assert.Throws<AggregateException>(() => repo.New(Guid.NewGuid()));
         }
         [Test]
         public void entity_private_constructor_with_argument()
         {
-            var repo = new Aggregates.Internal.Repository<BadAggregate2>(_builder.Object, _store.Object);
+            var repo = new Aggregates.Internal.Repository<BadAggregate2>(_builder.Object);
             Assert.Throws<AggregateException>(() => repo.New(Guid.NewGuid()));
         }
     }

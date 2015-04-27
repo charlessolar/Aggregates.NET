@@ -1,5 +1,5 @@
 ﻿using Aggregates.Contracts;
-using NEventStore;
+using EventStore.ClientAPI.Exceptions;
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
@@ -31,44 +31,34 @@ namespace Aggregates.Unit.Repository
             _eventStream = new Moq.Mock<IEventStream>();
             _eventRouter = new Moq.Mock<IEventRouter>();
             _eventFactory = new Moq.Mock<IMessageCreator>();
-            _eventStream.Setup(x => x.CommitChanges(Moq.It.IsAny<Guid>())).Verifiable();
-            _eventStream.Setup(x => x.UncommittedHeaders).Returns(new Dictionary<String, Object>());
+            _eventStream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, Object>>())).Verifiable();
             _eventStream.Setup(x => x.ClearChanges()).Verifiable();
-            _eventStore.Setup(x => x.CreateStream(Moq.It.IsAny<String>(), Moq.It.IsAny<String>())).Returns(_eventStream.Object);
+            _eventStore.Setup(x => x.GetStream(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns(_eventStream.Object);
             _aggregate = new Moq.Mock<_AggregateStub>();
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IEventRouter>()).Returns(_eventRouter.Object);
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
+            _builder.Setup(x => x.Build<IStoreEvents>()).Returns(_eventStore.Object);
 
-            _repository = new Aggregates.Internal.Repository<_AggregateStub>(_builder.Object, _eventStore.Object);
+            _repository = new Aggregates.Internal.Repository<_AggregateStub>(_builder.Object);
         }
 
         [Test]
         public void commit_throw_conflicting_command()
         {
-            _eventStream.Setup(x => x.CommitChanges(Moq.It.IsAny<Guid>())).Throws(new ConcurrencyException());
+            _eventStream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, Object>>())).Throws(new WrongExpectedVersionException("test"));
 
             var eventSource = _repository.New(Guid.NewGuid());
-            Assert.Throws<ConflictingCommandException>(() => _repository.Commit(Guid.NewGuid(), new Dictionary<String, String>()));
+            Assert.Throws<ConflictingCommandException>(() => _repository.Commit(Guid.NewGuid(), null));
         }
 
         [Test]
         public void commit_throw_conflicting_command_clear_stream()
         {
-            _eventStream.Setup(x => x.CommitChanges(Moq.It.IsAny<Guid>())).Throws(new ConcurrencyException());
+            _eventStream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, Object>>())).Throws(new WrongExpectedVersionException("test"));
 
             var eventSource = _repository.New(Guid.NewGuid());
-            Assert.Throws<ConflictingCommandException>(() => _repository.Commit(Guid.NewGuid(), new Dictionary<String, String>()));
-            _eventStream.Verify(x => x.ClearChanges(), Moq.Times.Once);
-        }
-
-        [Test]
-        public void commit_throw_duplicate_commit_clear_stream()
-        {
-            _eventStream.Setup(x => x.CommitChanges(Moq.It.IsAny<Guid>())).Throws(new DuplicateCommitException());
-
-            var eventSource = _repository.New(Guid.NewGuid());
-            Assert.DoesNotThrow(() => _repository.Commit(Guid.NewGuid(), new Dictionary<String, String>()));
+            Assert.Throws<ConflictingCommandException>(() => _repository.Commit(Guid.NewGuid(), null));
             _eventStream.Verify(x => x.ClearChanges(), Moq.Times.Once);
         }
     }
