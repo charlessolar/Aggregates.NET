@@ -30,6 +30,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.Domain", "Ag
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.Consumer", "Aggregates.NET.Consumer\Aggregates.NET.Consumer.csproj", "{4D1DF1D2-39E0-4F9F-9E2A-7A9C57420B9F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.GetEventStore", "Aggregates.NET.GetEventStore\Aggregates.NET.GetEventStore.csproj", "{CF5BC870-C30B-45DE-B440-2CBD740CE370}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -52,6 +54,10 @@ Global
 		{4D1DF1D2-39E0-4F9F-9E2A-7A9C57420B9F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4D1DF1D2-39E0-4F9F-9E2A-7A9C57420B9F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4D1DF1D2-39E0-4F9F-9E2A-7A9C57420B9F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CF5BC870-C30B-45DE-B440-2CBD740CE370}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CF5BC870-C30B-45DE-B440-2CBD740CE370}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CF5BC870-C30B-45DE-B440-2CBD740CE370}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CF5BC870-C30B-45DE-B440-2CBD740CE370}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

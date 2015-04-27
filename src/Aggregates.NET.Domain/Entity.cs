@@ -1,6 +1,5 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Specifications;
-using EventStore.ClientAPI;
 using NServiceBus;
 using NServiceBus.Logging;
 using System;
@@ -25,8 +24,6 @@ namespace Aggregates
 
         public TAggregateId AggregateId { get { return (this as IEntity<TId, TAggregateId>).AggregateId; } }
 
-        public String BucketId { get { return (this as IEventSource<TId>).BucketId; } }
-
         String IEventSource.StreamId { get { return this.StreamId; } }
 
         Int32 IEventSource.Version { get { return this.Version; } }
@@ -45,7 +42,6 @@ namespace Aggregates
 
         TAggregateId IEntity<TId, TAggregateId>.AggregateId { get; set; }
 
-        String IEventSource<TId>.BucketId { get; set; }
 
         public override int GetHashCode()
         {
@@ -107,7 +103,7 @@ namespace Aggregates
         ISnapshot ISnapshotting.TakeSnapshot()
         {
             var memento = TakeSnapshot();
-            return new Snapshot(this.BucketId, this.StreamId, this.Version, memento);
+            return new Snapshot(this.StreamId, this.Version, memento);
         }
 
         Boolean ISnapshotting.ShouldTakeSnapshot(Int32 CurrentVersion, Int32 CommitVersion)

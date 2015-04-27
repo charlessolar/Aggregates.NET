@@ -37,15 +37,15 @@ namespace Aggregates.Unit.Aggregate
             _eventFactory.Setup(x => x.CreateInstance(typeof(CreatedEvent))).Returns(new CreatedEvent());
             _eventFactory.Setup(x => x.CreateInstance(typeof(UpdatedEvent))).Returns(new UpdatedEvent());
 
-            _store.Setup(x => x.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>()));
-            _store.Setup(x => x.GetStream(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns(_stream.Object);
+            _store.Setup(x => x.GetSnapshot<_AggregateStub>(Moq.It.IsAny<String>()));
+            _store.Setup(x => x.GetStream<_AggregateStub>(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns(_stream.Object);
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IRouteResolver>()).Returns(new Aggregates.Internal.DefaultRouteResolver(_mapper.Object));
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
             _builder.Setup(x => x.Build<IStoreEvents>()).Returns(_store.Object);
             _stream.Setup(x => x.StreamId).Returns(String.Format("{0}", _id));
             _stream.Setup(x => x.StreamVersion).Returns(0);
-            _stream.Setup(x => x.Events).Returns(new List<Object>());
+            _stream.Setup(x => x.Events).Returns(new List<IWritableEvent>());
 
             _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, new DefaultRepositoryFactory());
         }

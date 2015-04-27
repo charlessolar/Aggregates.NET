@@ -25,7 +25,7 @@ namespace Aggregates.Unit.EntityRepository
             _stream = new Moq.Mock<IEventStream>();
             _eventFactory = new Moq.Mock<IMessageCreator>();
             _router = new Moq.Mock<IRouteResolver>();
-            _stream.Setup(x => x.Events).Returns(new List<Object>());
+            _stream.Setup(x => x.Events).Returns(new List<IWritableEvent>());
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
             _builder.Setup(x => x.Build<IRouteResolver>()).Returns(_router.Object);

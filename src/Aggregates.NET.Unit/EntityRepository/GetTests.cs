@@ -28,9 +28,9 @@ namespace Aggregates.Unit.EntityRepository
             _stream = new Moq.Mock<IEventStream>();
             _eventFactory = new Moq.Mock<IMessageCreator>();
             _router = new Moq.Mock<IRouteResolver>();
-            _stream.Setup(x => x.Events).Returns(new List<Object>());
+            _stream.Setup(x => x.Events).Returns(new List<IWritableEvent>());
 
-            _store.Setup(x => x.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>()));
+            _store.Setup(x => x.GetSnapshot<_EntityStub>(Moq.It.IsAny<String>()));
 
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
@@ -51,8 +51,8 @@ namespace Aggregates.Unit.EntityRepository
         public void get_exists()
         {
             var id = Guid.NewGuid();
-            _store.Setup(x => x.GetStream(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns(_stream.Object);
-            _stream.Setup(x => x.Events).Returns(new List<Object> { null });
+            _store.Setup(x => x.GetStream<_EntityStub>(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns(_stream.Object);
+            _stream.Setup(x => x.Events).Returns(new List<IWritableEvent> { null });
             var entity = _repository.Get(id);
             Assert.NotNull(entity);
         }
@@ -61,7 +61,7 @@ namespace Aggregates.Unit.EntityRepository
         public void get_invalid_stream()
         {
             var id = Guid.NewGuid();
-            _stream.Setup(x => x.Events).Returns(new List<Object>());
+            _stream.Setup(x => x.Events).Returns(new List<IWritableEvent>());
             var entity = _repository.Get(id);
             Assert.Null(entity);
         }

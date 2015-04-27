@@ -1,5 +1,4 @@
-﻿using EventStore.ClientAPI;
-using NServiceBus.ObjectBuilder;
+﻿using NServiceBus.ObjectBuilder;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Aggregates.Contracts;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public class EventDescriptor
+    public class EventDescriptor : IEventDescriptor
     {
         public String EntityType { get; set; }
 

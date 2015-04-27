@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface INeedStream
+    public interface IWritableEvent
     {
-        IEventStream Stream { get; set; }
+        Guid EventId { get; set; }
+        Object Event { get; set; }
+        IEventDescriptor Descriptor { get; set; }
     }
 }

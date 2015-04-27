@@ -34,14 +34,6 @@ namespace Aggregates
                 x.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
                 x.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
 
-                x.ConfigureComponent<JsonSerializerSettings>(y =>
-                {
-                    return new JsonSerializerSettings
-                    {
-                        Binder = new EventSerializationBinder(y.Build<IMessageMapper>()),
-                        ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
-                    };
-                }, DependencyLifecycle.SingleInstance);
 
                 //x.ConfigureComponent<IStoreEvents>(y => eventStoreBuilder(y), DependencyLifecycle.SingleInstance);
 

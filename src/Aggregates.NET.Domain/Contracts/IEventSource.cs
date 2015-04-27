@@ -15,6 +15,5 @@ namespace Aggregates.Contracts
     public interface IEventSource<TId> : IEventSource
     {
         TId Id { get; set; }
-        String BucketId { get; set; }
     }
 }

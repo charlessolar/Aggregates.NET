@@ -1,5 +1,4 @@
 using Aggregates.Contracts;
-using EventStore.ClientAPI;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
@@ -26,6 +25,9 @@ namespace Aggregates
         IEventStream INeedStream.Stream { get; set; }
 
         IRepositoryFactory INeedRepositoryFactory.RepositoryFactory { get; set; }
+
+        public String BucketId { get { return (this as IAggregate<TId>).BucketId; } }
+        String IAggregate<TId>.BucketId { get; set; }
 
         public IEntityRepository<TId, TEntity> E<TEntity>() where TEntity : class, IEntity
         {

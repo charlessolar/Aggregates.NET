@@ -12,8 +12,6 @@ namespace Aggregates.Contracts
     {
         T Get<TId>(TId id);
 
-        T Get<TId>(TId id, Int32 version);
-
         T New<TId>(TId id);
     }
 }

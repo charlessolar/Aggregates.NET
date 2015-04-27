@@ -1,5 +1,4 @@
 ﻿using Aggregates.Contracts;
-using EventStore.ClientAPI.Exceptions;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
@@ -35,30 +34,7 @@ namespace Aggregates.Internal
         void IRepository.Commit(Guid commitId, IDictionary<String, Object> headers)
         {
             foreach (var stream in _streams)
-            {
-                try
-                {
-                    stream.Value.Commit(commitId, headers);
-                }
-                catch (WrongExpectedVersionException e)
-                {
-                    // Send to aggregate ?
-                    stream.Value.ClearChanges();
-                    throw new ConflictingCommandException(e.Message, e);
-                }
-                catch (CannotEstablishConnectionException e)
-                {
-                    throw new PersistenceException(e.Message, e);
-                }
-                catch (OperationTimedOutException e)
-                {
-                    throw new PersistenceException(e.Message, e);
-                }
-                catch (EventStoreConnectionException e)
-                {
-                    throw new PersistenceException(e.Message, e);
-                }
-            }
+                stream.Value.Commit(commitId, headers);
         }
         public void Dispose()
         {
@@ -78,15 +54,10 @@ namespace Aggregates.Internal
 
         public T Get<TId>(TId id)
         {
-            return Get(id, Int32.MaxValue);
-        }
+            Logger.DebugFormat("Retreiving entity id {0} from aggregate {2} in store", id, _aggregateId);
 
-        public T Get<TId>(TId id, int version)
-        {
-            Logger.DebugFormat("Retreiving entity id {0} version {1} from aggregate {2} in store", id, version, _aggregateId);
-
-            ISnapshot snapshot = GetSnapshot(id, version);
-            IEventStream stream = OpenStream(id, version, snapshot);
+            var snapshot = GetSnapshot(id);
+            var stream = OpenStream(id, snapshot);
 
             if (stream == null && snapshot == null) return (T)null;
             // Get requires the stream exists
@@ -95,7 +66,6 @@ namespace Aggregates.Internal
             // Call the 'private' constructor
             var entity = Newup(stream, _builder);
             (entity as IEventSource<TId>).Id = id;
-            (entity as IEventSource<TId>).BucketId = _aggregateStream.BucketId;
             (entity as IEntity<TId, TAggregateId>).AggregateId = _aggregateId;
 
             if (snapshot != null && entity is ISnapshotting)
@@ -139,19 +109,19 @@ namespace Aggregates.Internal
             return entity;
         }
 
-        private ISnapshot GetSnapshot<TId>(TId id, int version)
+        private ISnapshot GetSnapshot<TId>(TId id)
         {
             ISnapshot snapshot;
-            var snapshotId = String.Format("{0}//{1}::{2}.snapshots", _aggregateStream.StreamId, typeof(T).FullName, id);
+            var snapshotId = String.Format("{0}//{1}::{2}", _aggregateStream.StreamId, typeof(T).FullName, id);
             if (!_snapshots.TryGetValue(snapshotId, out snapshot))
             {
-                _snapshots[snapshotId] = snapshot = _store.GetSnapshot(snapshotId, version);
+                _snapshots[snapshotId] = snapshot = _store.GetSnapshot<T>(snapshotId);
             }
 
             return snapshot;
         }
 
-        private IEventStream OpenStream<TId>(TId id, int version, ISnapshot snapshot)
+        private IEventStream OpenStream<TId>(TId id, ISnapshot snapshot)
         {
             IEventStream stream;
             var streamId = String.Format("{0}//{1}::{2}", _aggregateStream.StreamId, typeof(T).FullName, id);
@@ -159,9 +129,9 @@ namespace Aggregates.Internal
                 return stream;
 
             if (snapshot == null)
-                _streams[streamId] = stream = _store.GetStream(streamId);
+                _streams[streamId] = stream = _store.GetStream<T>(streamId);
             else
-                _streams[streamId] = stream = _store.GetStream(streamId, snapshot.StreamVersion + 1);
+                _streams[streamId] = stream = _store.GetStream<T>(streamId, snapshot.StreamVersion + 1);
             return stream;
         }
 
@@ -170,7 +140,7 @@ namespace Aggregates.Internal
             IEventStream stream;
             var streamId = String.Format("{0}//{1}::{2}", _aggregateStream.StreamId, typeof(T).FullName, id);
             if (!_streams.TryGetValue(streamId, out stream))
-                _streams[streamId] = stream = _store.GetStream(streamId);
+                _streams[streamId] = stream = _store.GetStream<T>(streamId);
 
             return stream;
         }

@@ -1,5 +1,4 @@
-﻿using EventStore.ClientAPI;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,9 +8,9 @@ namespace Aggregates.Contracts
 {
     public interface IStoreEvents
     {
-        ISnapshot GetSnapshot(String stream, Int32 version = StreamPosition.End);
-        IEventStream GetStream(String stream, Int32 start = StreamPosition.Start);
+        ISnapshot GetSnapshot<T>(String stream) where T : class, IEntity;
+        IEventStream GetStream<T>(String stream, Int32? start = null) where T : class, IEntity;
 
-        void WriteToStream(String stream, Int32 expectedVersion, IEnumerable<EventData> events);
+        void WriteToStream(String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, Object> commitHeaders);
     }
 }
