@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <package>
   <metadata>
-    <id>Aggregates.NET</id>
+    <id>Aggregates.NET.Domain</id>
     <version>$version$</version>
-    <title>Aggregates.NET</title>
+    <title>Aggregates.NET.Domain</title>
     <authors>Charles Solar</authors>
     <owners>Charles Solar</owners>
     <licenseUrl>http://www.opensource.org/licenses/mit-license.php</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>
       A framework to help developers integrate the excelent NServicebus and GetEventStore libraries together and provide basic DDD classes.
-      This package contains useful classes for business use such as Enumeration and Specifications
+      This package contains entities for DDD such as aggregates, entities, repository, value object, etc
     </description>
     <projectUrl>https://github.com/volak/Aggregates.NET</projectUrl>
     <developmentDependency>true</developmentDependency>
@@ -22,7 +22,7 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="..\..\build\merged\Aggregates.NET.dll" target="lib\net45" />
-    <file src="..\..\build\merged\Aggregates.NET.pdb" target="lib\net45" />
+    <file src="..\..\build\merged\Aggregates.NET.Domain.dll" target="lib\net45" />
+    <file src="..\..\build\merged\Aggregates.NET.Domain.pdb" target="lib\net45" />
   </files>
 </package>

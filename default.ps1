@@ -43,6 +43,13 @@ task ILMerge -depends Compile {
 	Copy-Item $dllDir\Aggregates.NET.Consumer.dll $mergedDir\Aggregates.NET.Consumer.dll
 	Copy-Item $dllDir\Aggregates.NET.Consumer.dll $mergedDir\Aggregates.NET.Consumer.pdb
 
+	$dllDir = "$srcDir\Aggregates.NET.Domain\bin\Release"
+	#$inputDlls = "$dllDir\Aggregates.NET.Domain.dll"
+	#@() |% { $inputDlls = "$inputDlls $dllDir\$_.dll" }
+	#Invoke-Expression "$ilmerge_path /targetplatform:v4.0 /internalize /allowDup /target:library /log /out:$mergedDir\Aggregates.NET.Domain.dll $inputDlls"
+	Copy-Item $dllDir\Aggregates.NET.Domain.dll $mergedDir\Aggregates.NET.Domain.dll
+	Copy-Item $dllDir\Aggregates.NET.Domain.dll $mergedDir\Aggregates.NET.Domain.pdb
+
 	$dllDir = "$srcDir\Aggregates.NET.GetEventStore\bin\Release"
 	#$inputDlls = "$dllDir\Aggregates.NET.GetEventStore.dll"
 	#@() |% { $inputDlls = "$inputDlls $dllDir\$_.dll" }
