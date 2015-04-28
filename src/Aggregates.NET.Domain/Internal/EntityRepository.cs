@@ -5,6 +5,7 @@ using NServiceBus.ObjectBuilder;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace Aggregates.Internal
@@ -54,7 +55,7 @@ namespace Aggregates.Internal
 
         public T Get<TId>(TId id)
         {
-            Logger.DebugFormat("Retreiving entity id {0} from aggregate {2} in store", id, _aggregateId);
+            Logger.DebugFormat("Retreiving entity id {0} from aggregate {1} in store", id, _aggregateId);
 
             var snapshot = GetSnapshot(id);
             var stream = OpenStream(id, snapshot);
@@ -71,7 +72,7 @@ namespace Aggregates.Internal
             if (snapshot != null && entity is ISnapshotting)
                 ((ISnapshotting)entity).RestoreSnapshot(snapshot);
 
-            entity.Hydrate(stream.Events);
+            entity.Hydrate(stream.Events.Select(e => e.Event));
 
             return entity;
         }

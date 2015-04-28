@@ -51,8 +51,8 @@ namespace Aggregates.Unit.EntityRepository
         public void get_exists()
         {
             var id = Guid.NewGuid();
-            _store.Setup(x => x.GetStream<_EntityStub>(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns(_stream.Object);
-            _stream.Setup(x => x.Events).Returns(new List<IWritableEvent> { null });
+            _store.Setup(x => x.GetStream<_EntityStub>(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32?>())).Returns(_stream.Object);
+            _stream.Setup(x => x.Events).Returns(new List<IWritableEvent>());
             var entity = _repository.Get(id);
             Assert.NotNull(entity);
         }

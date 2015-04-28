@@ -33,7 +33,7 @@ namespace Aggregates.Unit.Repository
 
             _eventStream.Setup(x => x.Events).Returns(new List<IWritableEvent>());
             _store.Setup(x => x.GetSnapshot<_AggregateStub>(Moq.It.IsAny<String>())).Returns((ISnapshot)null);
-            _store.Setup(x => x.GetStream<_AggregateStub>(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns(_eventStream.Object);
+            _store.Setup(x => x.GetStream<_AggregateStub>(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32?>())).Returns(_eventStream.Object);
             _aggregate = new Moq.Mock<_AggregateStub>();
             _resolver.Setup(x => x.Resolve(Moq.It.IsAny<_AggregateStub>(), typeof(String))).Returns(e => { });
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
@@ -61,7 +61,7 @@ namespace Aggregates.Unit.Repository
         [Test]
         public void get_existing_with_events()
         {
-            _eventStream.Setup(x => x.Events).Returns(new List<IWritableEvent> { "Test" });
+            _eventStream.Setup(x => x.Events).Returns(new List<IWritableEvent> { new _EventStub { Event = "Test" } });
             Assert.IsInstanceOf<_AggregateStub>(_repository.Get(_id));
         }
 

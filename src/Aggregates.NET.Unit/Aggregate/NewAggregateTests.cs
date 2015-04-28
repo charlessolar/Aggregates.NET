@@ -16,7 +16,7 @@ namespace Aggregates.Unit.Aggregate
         private Moq.Mock<IStoreEvents> _store;
         private Moq.Mock<IEventStream> _stream;
         private Moq.Mock<IMessageCreator> _eventFactory;
-        private Moq.Mock<IMessageMapper> _mapper;
+        private Moq.Mock<IRouteResolver> _resolver;
         private IUnitOfWork _uow;
         private Guid _id;
 
@@ -28,19 +28,20 @@ namespace Aggregates.Unit.Aggregate
             _store = new Moq.Mock<IStoreEvents>();
             _stream = new Moq.Mock<IEventStream>();
             _eventFactory = new Moq.Mock<IMessageCreator>();
-            _mapper = new Moq.Mock<IMessageMapper>();
+            _resolver = new Moq.Mock<IRouteResolver>();
 
-            _mapper.Setup(x => x.GetMappedTypeFor(typeof(CreatedEvent))).Returns(typeof(CreatedEvent));
-            _mapper.Setup(x => x.GetMappedTypeFor(typeof(UpdatedEvent))).Returns(typeof(UpdatedEvent));
             _eventFactory.Setup(x => x.CreateInstance(Moq.It.IsAny<Action<CreatedEvent>>())).Returns<Action<CreatedEvent>>((e) => { var ev = new CreatedEvent(); e(ev); return ev; });
             _eventFactory.Setup(x => x.CreateInstance(Moq.It.IsAny<Action<UpdatedEvent>>())).Returns<Action<UpdatedEvent>>((e) => { var ev = new UpdatedEvent(); e(ev); return ev; });
             _eventFactory.Setup(x => x.CreateInstance(typeof(CreatedEvent))).Returns(new CreatedEvent());
             _eventFactory.Setup(x => x.CreateInstance(typeof(UpdatedEvent))).Returns(new UpdatedEvent());
 
+            _resolver.Setup(x => x.Resolve(Moq.It.IsAny<_AggregateStub>(), typeof(CreatedEvent))).Returns<_AggregateStub, Type>((agg, type) => (@event) => (agg as _AggregateStub).Handle(@event as CreatedEvent));
+            _resolver.Setup(x => x.Resolve(Moq.It.IsAny<_AggregateStub>(), typeof(UpdatedEvent))).Returns<_AggregateStub, Type>((agg, type) => (@event) => (agg as _AggregateStub).Handle(@event as UpdatedEvent));
+
             _store.Setup(x => x.GetSnapshot<_AggregateStub>(Moq.It.IsAny<String>()));
-            _store.Setup(x => x.GetStream<_AggregateStub>(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32>())).Returns(_stream.Object);
+            _store.Setup(x => x.GetStream<_AggregateStub>(Moq.It.IsAny<String>(), Moq.It.IsAny<Int32?>())).Returns(_stream.Object);
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
-            _builder.Setup(x => x.Build<IRouteResolver>()).Returns(new Aggregates.Internal.DefaultRouteResolver(_mapper.Object));
+            _builder.Setup(x => x.Build<IRouteResolver>()).Returns(_resolver.Object);
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
             _builder.Setup(x => x.Build<IStoreEvents>()).Returns(_store.Object);
             _stream.Setup(x => x.StreamId).Returns(String.Format("{0}", _id));
@@ -77,7 +78,7 @@ namespace Aggregates.Unit.Aggregate
         {
             var root = _uow.For<_AggregateStub>().New(_id);
             root.Create(_id, "test");
-            Assert.AreEqual(root.Value, "test");
+            Assert.AreEqual("test", root.Value);
         }
 
         [Test]
@@ -86,7 +87,7 @@ namespace Aggregates.Unit.Aggregate
             var root = _uow.For<_AggregateStub>().New(_id);
             root.Create(_id, "test");
             root.Update("Updated");
-            Assert.AreEqual(root.Value, "Updated");
+            Assert.AreEqual("Updated", root.Value);
         }
 
 

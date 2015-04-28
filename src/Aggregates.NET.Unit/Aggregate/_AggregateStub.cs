@@ -22,16 +22,16 @@ namespace Aggregates.Unit.Aggregate
             Apply<UpdatedEvent>(e => { e.Value = value; });
         }
 
-        private void Handle(CreatedEvent @event)
+        public void Handle(CreatedEvent @event)
         {
             this.Value = @event.Value;
         }
-        private void Handle(UpdatedEvent @event)
+        public void Handle(UpdatedEvent @event)
         {
             this.Value = @event.Value;
         }
 
-        public void TestRouteFor( Type eventType, Object @event)
+        public void TestRouteFor(Type eventType, Object @event)
         {
             base.RouteFor(eventType, @event);
         }
