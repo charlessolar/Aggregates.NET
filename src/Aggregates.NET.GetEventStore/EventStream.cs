@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
+using EventStore.ClientAPI;
 using EventStore.ClientAPI.Exceptions;
 using Newtonsoft.Json;
 using System;
@@ -14,7 +15,7 @@ namespace Aggregates.Internal
     public class EventStream<T> : IEventStream where T : class, IEntity
     {
         public String StreamId { get; private set; }
-        public Int32 StreamVersion { get; private set; }
+        public Int32 StreamVersion { get { return this._streamVersion + this._uncommitted.Count; } }
 
         public IEnumerable<IWritableEvent> Events
         {
@@ -25,6 +26,7 @@ namespace Aggregates.Internal
         }
 
         private readonly IStoreEvents _store;
+        private readonly Int32 _streamVersion;
         private IEnumerable<WritableEvent> _committed;
         private IList<WritableEvent> _uncommitted;
 
@@ -32,7 +34,7 @@ namespace Aggregates.Internal
         {
             this._store = store;
             this.StreamId = streamId;
-            this.StreamVersion = streamVersion;
+            this._streamVersion = streamVersion;
             this._committed = events.ToList();
             this._uncommitted = new List<WritableEvent>();
 
@@ -41,18 +43,17 @@ namespace Aggregates.Internal
 
         public void Add(Object @event, IDictionary<String, Object> headers)
         {
-            this.StreamVersion++;
             this._uncommitted.Add(new WritableEvent
             {
                 Descriptor = new EventDescriptor
                 {
                     EntityType = typeof(T).FullName,
-                    EventType = @event.GetType().FullName,
                     Timestamp = DateTime.UtcNow,
                     Version = this.StreamVersion,
                     Headers = headers
                 },
-                Event = @event
+                Event = @event,
+                EventId = Guid.NewGuid()
             });
         }
 
@@ -67,7 +68,7 @@ namespace Aggregates.Internal
 
             try
             {
-                _store.WriteToStream(this.StreamId, this.StreamVersion, _uncommitted, commitHeaders);
+                _store.WriteToStream(this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
                 ClearChanges();
             }
             catch (WrongExpectedVersionException e)

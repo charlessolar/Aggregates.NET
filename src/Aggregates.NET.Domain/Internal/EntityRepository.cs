@@ -55,7 +55,7 @@ namespace Aggregates.Internal
 
         public T Get<TId>(TId id)
         {
-            Logger.DebugFormat("Retreiving entity id {0} from aggregate {1} in store", id, _aggregateId);
+            Logger.DebugFormat("Retreiving entity id '{0}' from aggregate '{1}' in store", id, _aggregateId);
 
             var snapshot = GetSnapshot(id);
             var stream = OpenStream(id, snapshot);
@@ -113,7 +113,7 @@ namespace Aggregates.Internal
         private ISnapshot GetSnapshot<TId>(TId id)
         {
             ISnapshot snapshot;
-            var snapshotId = String.Format("{0}//{1}::{2}", _aggregateStream.StreamId, typeof(T).FullName, id);
+            var snapshotId = String.Format("{0}-{1}-{2}", _aggregateStream.StreamId, typeof(T).FullName, id);
             if (!_snapshots.TryGetValue(snapshotId, out snapshot))
             {
                 _snapshots[snapshotId] = snapshot = _store.GetSnapshot<T>(snapshotId);
@@ -125,7 +125,7 @@ namespace Aggregates.Internal
         private IEventStream OpenStream<TId>(TId id, ISnapshot snapshot)
         {
             IEventStream stream;
-            var streamId = String.Format("{0}//{1}::{2}", _aggregateStream.StreamId, typeof(T).FullName, id);
+            var streamId = String.Format("{0}-{1}-{2}", _aggregateStream.StreamId, typeof(T).FullName, id);
             if (_streams.TryGetValue(streamId, out stream))
                 return stream;
 
@@ -139,7 +139,7 @@ namespace Aggregates.Internal
         private IEventStream PrepareStream<TId>(TId id)
         {
             IEventStream stream;
-            var streamId = String.Format("{0}//{1}::{2}", _aggregateStream.StreamId, typeof(T).FullName, id);
+            var streamId = String.Format("{0}-{1}-{2}", _aggregateStream.StreamId, typeof(T).FullName, id);
             if (!_streams.TryGetValue(streamId, out stream))
                 _streams[streamId] = stream = _store.GetStream<T>(streamId);
 

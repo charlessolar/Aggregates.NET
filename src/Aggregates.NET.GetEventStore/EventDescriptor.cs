@@ -13,7 +13,6 @@ namespace Aggregates.Internal
 
         public Int32 Version { get; set; }
         public DateTime Timestamp { get; set; }
-        public String EventType { get; set; }
 
         public IDictionary<String, Object> Headers { get; set; }
     }

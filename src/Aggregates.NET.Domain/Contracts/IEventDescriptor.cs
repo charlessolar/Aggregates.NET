@@ -12,7 +12,6 @@ namespace Aggregates.Contracts
 
         Int32 Version { get; }
         DateTime Timestamp { get; }
-        String EventType { get; }
 
         IDictionary<String, Object> Headers { get; }
     }

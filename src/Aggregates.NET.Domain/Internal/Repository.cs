@@ -59,7 +59,7 @@ namespace Aggregates.Internal
 
         public T Get<TId>(String bucketId, TId id)
         {
-            Logger.DebugFormat("Retreiving aggregate id {0} from bucket {1} in store", id, bucketId);
+            Logger.DebugFormat("Retreiving aggregate id '{0}' from bucket '{1}' in store", id, bucketId);
 
             var snapshot = GetSnapshot(bucketId, id);
             var stream = OpenStream(bucketId, id, snapshot);
@@ -125,7 +125,7 @@ namespace Aggregates.Internal
         private ISnapshot GetSnapshot<TId>(String bucketId, TId id)
         {
             ISnapshot snapshot;
-            var snapshotId = String.Format("{0}::{1}/{2}", typeof(T).FullName, bucketId, id);
+            var snapshotId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucketId, id);
             if (!_snapshots.TryGetValue(snapshotId, out snapshot))
             {
                 _snapshots[snapshotId] = snapshot = _store.GetSnapshot<T>(snapshotId);
@@ -137,7 +137,7 @@ namespace Aggregates.Internal
         private IEventStream OpenStream<TId>(String bucketId, TId id, ISnapshot snapshot)
         {
             IEventStream stream;
-            var streamId = String.Format("{0}::{1}/{2}", typeof(T).FullName, bucketId, id);
+            var streamId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucketId, id);
             if (_streams.TryGetValue(streamId, out stream))
                 return stream;
 
@@ -151,7 +151,7 @@ namespace Aggregates.Internal
         private IEventStream PrepareStream<TId>(String bucketId, TId id)
         {
             IEventStream stream;
-            var streamId = String.Format("{0}::{1}/{2}", typeof(T).FullName, bucketId, id);
+            var streamId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucketId, id);
             if (!_streams.TryGetValue(streamId, out stream))
                 _streams[streamId] = stream = _store.GetStream<T>(streamId);
 

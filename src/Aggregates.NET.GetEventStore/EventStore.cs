@@ -2,6 +2,7 @@
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
 using Newtonsoft.Json;
+using NServiceBus.MessageInterfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,11 +14,13 @@ namespace Aggregates
     public class EventStore : IStoreEvents
     {
         private readonly IEventStoreConnection _client;
+        private readonly IMessageMapper _mapper;
         private readonly JsonSerializerSettings _settings;
 
-        public EventStore(IEventStoreConnection client, JsonSerializerSettings settings)
+        public EventStore(IEventStoreConnection client, IMessageMapper mapper, JsonSerializerSettings settings)
         {
             _client = client;
+            _mapper = mapper;
             _settings = settings;
         }
 
@@ -49,7 +52,7 @@ namespace Aggregates
             var translatedEvents = events.Select(e =>
             {
                 var descriptor = e.Event.Metadata.Deserialize(_settings);
-                var data = e.Event.Data.Deserialize(descriptor.EventType, _settings);
+                var data = e.Event.Data.Deserialize(e.Event.EventType, _settings);
 
                 return new Internal.WritableEvent
                 {
@@ -70,7 +73,7 @@ namespace Aggregates
                 e.Descriptor.Headers.Merge(commitHeaders);
                 return new EventData(
                     e.EventId,
-                    e.Descriptor.EventType.toLowerCamelCase(),
+                    _mapper.GetMappedTypeFor(e.Event.GetType()).AssemblyQualifiedName,
                     true,
                     e.Event.Serialize(_settings).AsByteArray(),
                     e.Descriptor.Serialize(_settings).AsByteArray()

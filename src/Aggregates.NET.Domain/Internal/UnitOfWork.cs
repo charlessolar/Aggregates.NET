@@ -16,7 +16,6 @@ namespace Aggregates.Internal
 {
     public class UnitOfWork : IUnitOfWork
     {
-        public static String AggregateTypeHeader = "AggregateType";
         public static String PrefixHeader = "Originating";
         public static String MessageIdHeader = "Originating.NServiceBus.MessageId";
         public static String CommitIdHeader = "CommitId";
@@ -125,7 +124,6 @@ namespace Aggregates.Internal
                 {
                     // Insert all command headers into the commit
                     var headers = new Dictionary<String, Object>(_workHeaders);
-                    headers[AggregateTypeHeader] = repo.Key.FullName;
 
                     repo.Value.Commit(commitId, headers);
                 }
