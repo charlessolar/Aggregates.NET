@@ -3,20 +3,22 @@
 Aggregates.NET
 ==============
 
-Aggregates.NET is a framework to help developers integrate the excelent [NServicebus](https://github.com/Particular/NServiceBus) and [NEventStore](https://github.com/NEventStore/NEventStore) libraries together.
+Aggregates.NET is a framework to help developers integrate the excellent [NServicebus](https://github.com/Particular/NServiceBus) and [EventStore](https://github.com/EventStore/EventStore) libraries together.
 
-Other libraries with similar goals:
+This library contains code to help create and manage domain driven design objects such as Aggregates, Entities, Value Objects, etc.  This framework is by far not the only option, other libraries include:
 
 - [NES](https://github.com/elliotritchie/NES)
 - [CommonDomain](https://github.com/NEventStore/NEventStore/tree/master/src/NEventStore/CommonDomain)
 - [DDD-CQRS-ES-Example](https://github.com/dcomartin/DDD-CQRS-ES-Example)
+- [Eventful](https://github.com/adbrowne/Eventful)
+- [SimpleDomain](https://github.com/froko/SimpleDomain)
 
 This project was originally inspired by and still uses many ideas from NES and CommonDomain.  
 
 What will Aggregates.NET do for you?
 ------------------------------------
 
-We fill in the gap between NEventStore and NServicebus.  Commands from NServicebus are applied to aggregate objects via message handlers and events generated via the aggregates are saved to the event stream and published to the bus.
+We fill in the gap between EventStore and NServicebus.  Commands from NServicebus are applied to aggregate objects via message handlers and events generated via the aggregates are saved to the event stream and published to the bus.
 
 Current features include -
 
@@ -26,24 +28,21 @@ Current features include -
 - Specifications
 - Support IDs of **any** type (that can be converted to a string)
 - Type safe Unit of Work and Repository pattern
-- Automatic NServicebus and NEventstore configuration
 - Automatic saving and publishing of domain events
-- Message idempotency (depending on your storage choice)
-- RavenDB persistance handlers
+- Message idempotency
 - NO internal IOC container (NServicebus used for resolutions)
 - [Thorough sample](https://github.com/volak/DDD.Enterprise.Example)
 
 Planned future features -
 
-- GetEventStore support
 - Automatic conflict resolution (when possible)
 - Automatic validation using specifications
-- Projections (NEventStore 6.0)
+- Projections configuration
 
 Status
 ------
 
-Aggregates.NET packages are starting to get published to the world.  The project is completely under test and can be integrated into NServicebus and NEventstore seemlessly.  Future versions of Aggregates.NET will be automatically published so keep checking back for latest features!
+Aggregates.NET packages are starting to get published to the world.  The project is completely under test and can be integrated into NServicebus and Eventstore seemlessly.  Future versions of Aggregates.NET will be automatically published so keep checking back for latest features!
 
 Nuget
 -----
@@ -54,4 +53,4 @@ Documentation
 -------------
 
 * [Wiki](https://github.com/volak/Aggregates.NET/wiki)
-* [Example](https://github.com/volak/DDD.Enterprise.Example/tree/master/Domain/Domain.Inventory/Items)
+* [Example](https://github.com/volak/DDD.Enterprise.Example/)
