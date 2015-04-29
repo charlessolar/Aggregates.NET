@@ -51,6 +51,7 @@
     <Compile Include="Aggregate.cs" />
     <Compile Include="Bucket.cs" />
     <Compile Include="Contracts\IAggregate.cs" />
+    <Compile Include="Contracts\IDispatcher.cs" />
     <Compile Include="Contracts\IEntity.cs" />
     <Compile Include="Contracts\IEntityRepository.cs" />
     <Compile Include="Contracts\IEventDescriptor.cs" />
@@ -80,6 +81,7 @@
     <Compile Include="Exceptions\PersistenceException.cs" />
     <Compile Include="Exceptions\StorageException.cs" />
     <Compile Include="Exceptions\VersionException.cs" />
+    <Compile Include="Extensions\DescriptorExtensions.cs" />
     <Compile Include="Extensions\DictionaryExtensions.cs" />
     <Compile Include="Internal\DefaultRepositoryFactory.cs" />
     <Compile Include="Internal\DefaultRouteResolver.cs" />

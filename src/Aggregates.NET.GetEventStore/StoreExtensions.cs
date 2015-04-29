@@ -1,4 +1,6 @@
-﻿using Aggregates.Internal;
+﻿using Aggregates.Contracts;
+using Aggregates.Internal;
+using EventStore.ClientAPI;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -52,6 +54,26 @@ namespace Aggregates.Extensions
         {
             task.Wait();
             return task.Result;
+        }
+
+        public static void DispatchEvents(this IEventStoreConnection client, IDispatcher dispatcher, JsonSerializerSettings settings)
+        {
+            // Idea is to subscribe to stream updates from event store in order to publish the events via NSB
+            // Servers not needing a persistent stream can subscribe to these events (things like email notifications)
+            client.SubscribeToAllFrom(Position.End, false, (s, e) =>
+            {
+                var descriptor = e.Event.Metadata.Deserialize(settings);
+                var data = e.Event.Data.Deserialize(e.Event.EventType, settings);
+
+                var @event = new Internal.WritableEvent
+                {
+                    Descriptor = descriptor,
+                    Event = data,
+                    EventId = e.Event.EventId
+                };
+
+                dispatcher.Dispatch(@event);
+            });
         }
     }
 }

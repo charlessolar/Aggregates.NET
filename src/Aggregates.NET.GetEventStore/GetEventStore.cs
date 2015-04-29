@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Extensions;
 using EventStore.ClientAPI;
 using Newtonsoft.Json;
 using NServiceBus;
@@ -19,7 +20,12 @@ namespace Aggregates
         {
             config.RegisterComponents(x =>
             {
-                x.ConfigureComponent<IEventStoreConnection>(() => client, DependencyLifecycle.SingleInstance);
+                x.ConfigureComponent<IEventStoreConnection>((y) =>
+                {
+                    // Setup the persistant store subscription to send events out NSB
+                    client.DispatchEvents(y.Build<IDispatcher>(), y.Build<JsonSerializerSettings>());
+                    return client;
+                }, DependencyLifecycle.SingleInstance);
                 x.ConfigureComponent<EventStore>(DependencyLifecycle.InstancePerUnitOfWork);
 
                 x.ConfigureComponent<JsonSerializerSettings>(y =>

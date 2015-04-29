@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Extensions;
 using Aggregates.Internal;
 using Aggregates.Messages;
 using Newtonsoft.Json;
@@ -33,9 +34,7 @@ namespace Aggregates
                 x.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
                 x.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
                 x.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
-
-
-                //x.ConfigureComponent<IStoreEvents>(y => eventStoreBuilder(y), DependencyLifecycle.SingleInstance);
+                x.ConfigureComponent<Dispatcher>(DependencyLifecycle.InstancePerCall);
 
                 if (accept == null)
                 {
@@ -61,6 +60,22 @@ namespace Aggregates
             });
 
             config.Pipeline.Register<ExceptionFilterRegistration>();
+        }
+    }
+
+    public class Dispatcher : IDispatcher
+    {
+        protected readonly IBus _bus;
+
+        public Dispatcher(IBus bus)
+        {
+            _bus = bus;
+        }
+
+        public virtual void Dispatch(IWritableEvent @event)
+        {
+            _bus.OutgoingHeaders.Merge(@event.Descriptor.ToDictionary());
+            _bus.Publish(@event.Event);
         }
     }
 }
