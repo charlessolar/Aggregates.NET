@@ -1,12 +1,12 @@
-﻿using Aggregates.Contracts;
-using Aggregates.Internal;
-using EventStore.ClientAPI;
-using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Aggregates.Contracts;
+using Aggregates.Internal;
+using EventStore.ClientAPI;
+using Newtonsoft.Json;
 
 namespace Aggregates.Extensions
 {
@@ -32,11 +32,13 @@ namespace Aggregates.Extensions
             var json = Encoding.UTF8.GetString(bytes);
             return JsonConvert.DeserializeObject(json, Type.GetType(type), settings);
         }
+
         public static EventDescriptor Deserialize(this byte[] bytes, JsonSerializerSettings settings)
         {
             var json = Encoding.UTF8.GetString(bytes);
             return JsonConvert.DeserializeObject<EventDescriptor>(json, settings);
         }
+
         public static T Deserialize<T>(this byte[] bytes, JsonSerializerSettings settings)
         {
             var json = Encoding.UTF8.GetString(bytes);
