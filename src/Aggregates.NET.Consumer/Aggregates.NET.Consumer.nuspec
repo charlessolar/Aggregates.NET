@@ -21,6 +21,7 @@
         <dependency id="EventStore.Client" version="[3,4)" />
         <dependency id="Newtonsoft.Json" version="[6,7)" />
         <dependency id="Aggregates.NET" version="[0.1,0.2)" />
+        <dependency id="Aggregates.NET.Domain" version="[0.1,0.2)" />
         <dependency id="Aggregates.NET.GetEventStore" version="[0.1,0.2)" />
       </group>
     </dependencies>
