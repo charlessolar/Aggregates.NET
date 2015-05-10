@@ -7,11 +7,11 @@ using NServiceBus;
 
 namespace Aggregates
 {
-    public class NServicebusDispatcher : IDispatcher
+    public class NServiceBusDispatcher : IDispatcher
     {
         private readonly IBus _bus;
 
-        public NServicebusDispatcher(IBus bus)
+        public NServiceBusDispatcher(IBus bus)
         {
             _bus = bus;
         }

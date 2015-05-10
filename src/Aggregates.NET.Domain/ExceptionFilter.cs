@@ -1,14 +1,14 @@
-﻿using Aggregates.Exceptions;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Aggregates.Exceptions;
 using Aggregates.Messages;
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
 using NServiceBus.Pipeline.Contexts;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates
 {
@@ -16,6 +16,7 @@ namespace Aggregates
     {
         private readonly IBus _bus;
         private readonly IBuilder _builder;
+
         public ExceptionFilter(IBus bus, IBuilder builder)
         {
             _bus = bus;
@@ -29,13 +30,13 @@ namespace Aggregates
                 next();
 
                 // Tell the sender the command was accepted
-                var acceptance = _builder.Build<Func<IAccept>>();
+                var acceptance = _builder.Build<Func<Accept>>();
                 _bus.Reply(acceptance());
             }
             catch (BusinessException e)
             {
                 // Tell the sender the command was rejected due to a business exception
-                var rejection = _builder.Build<Func<String, IReject>>();
+                var rejection = _builder.Build<Func<String, Reject>>();
                 _bus.Reply(rejection(e.Message));
                 // Don't throw exception to NServicebus because we don't wish to retry this command
             }

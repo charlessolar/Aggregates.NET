@@ -53,11 +53,12 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="Consumer.cs" />
     <Compile Include="DurableSubscriber.cs" />
     <Compile Include="IDispatcher.cs" />
     <Compile Include="IEventSubscriber.cs" />
     <Compile Include="IPersistCheckpoints.cs" />
-    <Compile Include="NServicebusDispatcher.cs" />
+    <Compile Include="NServiceBusDispatcher.cs" />
     <Compile Include="VolatileSubscriber.cs" />
   </ItemGroup>
   <ItemGroup>

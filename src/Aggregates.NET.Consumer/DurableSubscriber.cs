@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
 using Newtonsoft.Json;
+using NServiceBus;
 
 namespace Aggregates
 {

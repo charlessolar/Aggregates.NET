@@ -53,9 +53,9 @@
     </Compile>
     <Compile Include="EventContractResolver.cs" />
     <Compile Include="EventDescriptor.cs" />
-    <Compile Include="EventStore.cs" />
-    <Compile Include="EventStream.cs" />
     <Compile Include="GetEventStore.cs" />
+    <Compile Include="EventStream.cs" />
+    <Compile Include="EventStore.cs" />
     <Compile Include="StoreExtensions.cs" />
     <Compile Include="WritableEvent.cs" />
   </ItemGroup>

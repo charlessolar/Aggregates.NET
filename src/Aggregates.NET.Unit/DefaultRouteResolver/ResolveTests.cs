@@ -1,31 +1,48 @@
-﻿using Aggregates.Contracts;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Aggregates.Contracts;
 using NServiceBus;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
 using NUnit.Framework;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Unit.DefaultRouteResolver
 {
     public class AggregateStub : Aggregate<Guid>
     {
-        void Handle(String @event) { }
+        private void Handle(String @event)
+
+        {
+        }
     }
+
     public class AggregateStub2 : Aggregate<Guid>
     {
     }
+
     public class AggregateStub3 : Aggregate<Guid>
     {
         // All invalid handles
-        public void Handle(String @event) { }
-        private void Handle(String @event, Int32 @event2) { }
-        private void Handle() { }
-        private Boolean Handle(Int32 @event) { return false; }
+        public void Handle(String @event)
+        {
+        }
+
+        private void Handle(String @event, Int32 @event2)
+        {
+        }
+
+        private void Handle()
+        {
+        }
+
+        private Boolean Handle(Int32 @event)
+        {
+            return false;
+        }
     }
 
     [TestFixture]
@@ -61,7 +78,6 @@ namespace Aggregates.Unit.DefaultRouteResolver
             var result = _resolver.Resolve(stub, typeof(String));
             Assert.Null(result);
         }
-
 
         [Test]
         public void resolve_improper_handles()

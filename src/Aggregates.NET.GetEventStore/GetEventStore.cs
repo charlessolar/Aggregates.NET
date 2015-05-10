@@ -1,42 +1,85 @@
-﻿using Aggregates.Contracts;
-using Aggregates.Extensions;
-using EventStore.ClientAPI;
-using Newtonsoft.Json;
-using NServiceBus;
-using NServiceBus.Logging;
-using NServiceBus.MessageInterfaces;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Aggregates.Contracts;
+using Aggregates.Extensions;
+using EventStore.ClientAPI;
+using Newtonsoft.Json;
+using NServiceBus.MessageInterfaces;
 
 namespace Aggregates
 {
-    public static class GetEventStore
+    public class GetEventStore : IStoreEvents
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(GetEventStore));
-        public static void UseGetEventStore(this BusConfiguration config, IEventStoreConnection client)
-        {
-            config.RegisterComponents(x =>
-            {
-                x.ConfigureComponent<IEventStoreConnection>((y) =>
-                {
-                    // Setup the persistant store subscription to send events out NSB
-                    client.DispatchEvents(y.Build<IDispatcher>(), y.Build<JsonSerializerSettings>());
-                    return client;
-                }, DependencyLifecycle.SingleInstance);
-                x.ConfigureComponent<EventStore>(DependencyLifecycle.InstancePerUnitOfWork);
+        private readonly IEventStoreConnection _client;
+        private readonly IMessageMapper _mapper;
+        private readonly JsonSerializerSettings _settings;
 
-                x.ConfigureComponent<JsonSerializerSettings>(y =>
+        public GetEventStore(IEventStoreConnection client, IMessageMapper mapper, JsonSerializerSettings settings)
+        {
+            _client = client;
+            _mapper = mapper;
+            _settings = settings;
+        }
+
+        public ISnapshot GetSnapshot<T>(String stream) where T : class, IEntity
+        {
+            var read = _client.ReadEventAsync(stream + ".snapshots", StreamPosition.End, false).WaitForResult();
+            if (read.Status != EventReadStatus.Success)
+                return null;
+
+            var snapshot = read.Event.Value.Event.Data.Deserialize<ISnapshot>(_settings);
+
+            return snapshot;
+        }
+
+        public IEventStream GetStream<T>(String stream, Int32? start = null) where T : class, IEntity
+        {
+            var events = new List<ResolvedEvent>();
+
+            StreamEventsSlice current;
+            var sliceStart = start ?? StreamPosition.Start;
+            do
+            {
+                current = _client.ReadStreamEventsForwardAsync(stream, sliceStart, 200, false).WaitForResult();
+
+                events.AddRange(current.Events);
+                sliceStart = current.NextEventNumber;
+            } while (!current.IsEndOfStream);
+
+            var translatedEvents = events.Select(e =>
+            {
+                var descriptor = e.Event.Metadata.Deserialize(_settings);
+                var data = e.Event.Data.Deserialize(e.Event.EventType, _settings);
+
+                return new Internal.WritableEvent
                 {
-                    return new JsonSerializerSettings
-                    {
-                        Binder = new EventSerializationBinder(y.Build<IMessageMapper>()),
-                        ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
-                    };
-                }, DependencyLifecycle.SingleInstance);
+                    Descriptor = descriptor,
+                    Event = data,
+                    EventId = e.Event.EventId
+                };
             });
+
+            return new Internal.EventStream<T>(this, stream, current.LastEventNumber, translatedEvents);
+        }
+
+        public void WriteToStream(String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, Object> commitHeaders)
+        {
+            var translatedEvents = events.Select(e =>
+            {
+                e.Descriptor.Headers.Merge(commitHeaders);
+                return new EventData(
+                    e.EventId,
+                    _mapper.GetMappedTypeFor(e.Event.GetType()).AssemblyQualifiedName,
+                    true,
+                    e.Event.Serialize(_settings).AsByteArray(),
+                    e.Descriptor.Serialize(_settings).AsByteArray()
+                    );
+            });
+
+            _client.AppendToStreamAsync(stream, expectedVersion, translatedEvents).Wait();
         }
     }
 }
