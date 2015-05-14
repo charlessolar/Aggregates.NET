@@ -18,6 +18,7 @@ namespace Aggregates
 
         public void Dispatch(Object @event)
         {
+            if (!(@event is IMessage)) return;
             _bus.SendLocal(@event);
         }
     }
