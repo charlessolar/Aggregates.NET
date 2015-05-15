@@ -9,11 +9,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using NServiceBus.Logging;
 
 namespace Aggregates.Internal
 {
     public class EventStream<T> : IEventStream where T : class, IEntity
     {
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(EventStream<T>));
         public String StreamId { get; private set; }
         public Int32 StreamVersion { get { return this._streamVersion + this._uncommitted.Count; } }
 

@@ -7,12 +7,14 @@ using Aggregates.Contracts;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
 using Newtonsoft.Json;
+using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 
 namespace Aggregates
 {
     public class GetEventStore : IStoreEvents
     {
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(GetEventStore));
         private readonly IEventStoreConnection _client;
         private readonly IMessageMapper _mapper;
         private readonly JsonSerializerSettings _settings;
@@ -26,6 +28,7 @@ namespace Aggregates
 
         public ISnapshot GetSnapshot<T>(String stream) where T : class, IEntity
         {
+            Logger.DebugFormat("Getting snapshot for stream id '{0}'", stream);
             var read = _client.ReadEventAsync(stream + ".snapshots", StreamPosition.End, false).WaitForResult();
             if (read.Status != EventReadStatus.Success)
                 return null;
@@ -37,6 +40,7 @@ namespace Aggregates
 
         public IEventStream GetStream<T>(String stream, Int32? start = null) where T : class, IEntity
         {
+            Logger.DebugFormat("Getting stream for stream id '{0}'", stream);
             var events = new List<ResolvedEvent>();
 
             StreamEventsSlice current;
@@ -67,6 +71,7 @@ namespace Aggregates
 
         public void WriteToStream(String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, Object> commitHeaders)
         {
+            Logger.DebugFormat("Writing {0} events to stream id '{1}'.  Expected version: {2}", events.Count(), stream, expectedVersion);
             var translatedEvents = events.Select(e =>
             {
                 e.Descriptor.Headers.Merge(commitHeaders);

@@ -7,6 +7,7 @@ using EventStore.ClientAPI;
 using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Features;
+using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
@@ -45,6 +46,7 @@ namespace Aggregates
 
     internal class ConsumerRunner : FeatureStartupTask
     {
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(ConsumerRunner));
         private readonly IBuilder _builder;
         private readonly ReadOnlySettings _settings;
         private readonly Configure _configure;
@@ -58,6 +60,7 @@ namespace Aggregates
 
         protected override void OnStart()
         {
+            Logger.Debug("Starting event consumer");
             _builder.Build<IEventSubscriber>().SubscribeToAll(_settings.EndpointName(), _builder.Build<IDispatcher>());
         }
     }

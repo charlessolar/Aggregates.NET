@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using NServiceBus;
 
 namespace Aggregates
@@ -18,8 +19,9 @@ namespace Aggregates
 
         public void Dispatch(Object @event)
         {
-            if (!(@event is IMessage)) return;
-            _bus.SendLocal(@event);
+            // We can't publish unstructured POCOs
+            if (@event is JObject) return;
+            _bus.Publish(@event);
         }
     }
 }
