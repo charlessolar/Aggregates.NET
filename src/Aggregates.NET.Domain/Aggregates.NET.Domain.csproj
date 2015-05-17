@@ -42,6 +42,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\SharedAssemblyInfo.cs">
+      <Link>Properties\SharedAssemblyInfo.cs</Link>
+    </Compile>
     <Compile Include="Aggregate.cs" />
     <Compile Include="Bucket.cs" />
     <Compile Include="Contracts\IAggregate.cs" />
@@ -86,7 +89,6 @@
     <Compile Include="Messages\Accept.cs" />
     <Compile Include="Messages\Reject.cs" />
     <Compile Include="AggregatesNet.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Snapshot.cs" />
     <Compile Include="ValueObject.cs" />
   </ItemGroup>
