@@ -42,7 +42,16 @@ namespace Aggregates
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
                 if (data == null) return;
 
-                dispatcher.Dispatch(data);
+                try
+                {
+                    dispatcher.Dispatch(data);
+                }
+                catch (Exception ex)
+                {
+                    Logger.ErrorFormat("Error processing events, stopping consumer.  Exception: {0}", ex);
+                    _.Stop();
+                }
+
 
                 if (e.OriginalPosition.HasValue)
                     _store.Save(endpoint, e.OriginalPosition.Value);
