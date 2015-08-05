@@ -1,5 +1,5 @@
 ﻿using System;
-namespace Aggregates.Contracts
+namespace Aggregates
 {
     public interface IMemento
     {

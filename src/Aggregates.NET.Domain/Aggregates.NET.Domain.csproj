@@ -57,7 +57,7 @@
     <Compile Include="Contracts\IEventSource.cs" />
     <Compile Include="Contracts\IEventStream.cs" />
     <Compile Include="Contracts\IHaveEntities.cs" />
-    <Compile Include="Contracts\IMemento.cs" />
+    <Compile Include="IMemento.cs" />
     <Compile Include="Contracts\INeedBuilder.cs" />
     <Compile Include="Contracts\INeedEventFactory.cs" />
     <Compile Include="Contracts\INeedRepoFactory.cs" />
