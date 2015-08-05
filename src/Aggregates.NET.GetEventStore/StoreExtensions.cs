@@ -17,6 +17,10 @@ namespace Aggregates.Extensions
             return Encoding.UTF8.GetBytes(json);
         }
 
+        public static String Serialize(this ISnapshot snapshot, JsonSerializerSettings settings)
+        {
+            return JsonConvert.SerializeObject(snapshot, settings);
+        }
         public static String Serialize(this Object @event, JsonSerializerSettings settings)
         {
             return JsonConvert.SerializeObject(@event, settings);

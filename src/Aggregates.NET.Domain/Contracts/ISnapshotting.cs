@@ -10,6 +10,6 @@ namespace Aggregates.Contracts
     {
         void RestoreSnapshot(ISnapshot snapshot);
         ISnapshot TakeSnapshot();
-        Boolean ShouldTakeSnapshot(Int32 CurrentVersion, Int32 CommitVersion);
+        Boolean ShouldTakeSnapshot();
     }
 }

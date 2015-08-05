@@ -32,7 +32,9 @@ namespace Aggregates.Internal
         void IRepository.Commit(Guid commitId, IDictionary<String, Object> headers)
         {
             foreach (var stream in _streams)
+            {
                 stream.Value.Commit(commitId, headers);
+            }
         }
 
         public void Dispose()

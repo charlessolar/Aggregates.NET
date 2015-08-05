@@ -14,7 +14,7 @@ namespace Aggregates
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Entity<,>));
 
-        private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
+        internal IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
 
         private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
 
@@ -31,6 +31,8 @@ namespace Aggregates
         public String StreamId { get { return _eventStream.StreamId; } }
 
         public Int32 Version { get { return _eventStream.StreamVersion; } }
+
+        public Int32 CommitVersion { get { return _eventStream.CommitVersion; } }
 
         IEventStream INeedStream.Stream { get; set; }
 
@@ -59,7 +61,7 @@ namespace Aggregates
             Apply(action);
         }
 
-        protected void Apply<TEvent>(Action<TEvent> action)
+        protected virtual void Apply<TEvent>(Action<TEvent> action)
         {
             var @event = _eventFactory.CreateInstance(action);
 
@@ -106,18 +108,27 @@ namespace Aggregates
             return new Snapshot(this.StreamId, this.Version, memento);
         }
 
-        Boolean ISnapshotting.ShouldTakeSnapshot(Int32 CurrentVersion, Int32 CommitVersion)
+        Boolean ISnapshotting.ShouldTakeSnapshot()
         {
-            return ShouldTakeSnapshot(CurrentVersion, CommitVersion);
+            return ShouldTakeSnapshot();
         }
 
         protected abstract void RestoreSnapshot(TMemento memento);
 
         protected abstract TMemento TakeSnapshot();
 
-        protected virtual Boolean ShouldTakeSnapshot(Int32 CurrentVersion, Int32 CommitVersion)
+        protected virtual Boolean ShouldTakeSnapshot()
         {
             return false;
+        }
+
+
+        protected override void Apply<TEvent>(Action<TEvent> action)
+        {
+            base.Apply(action);
+
+            if (this.ShouldTakeSnapshot())
+                _eventStream.Add(this.TakeSnapshot(), new Dictionary<string, object> { { "StreamVersion", this.Version }, { "CommitVersion", this.CommitVersion } });
         }
     }
 

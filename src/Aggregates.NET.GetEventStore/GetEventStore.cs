@@ -68,8 +68,27 @@ namespace Aggregates
 
             return new Internal.EventStream<T>(this, stream, current.LastEventNumber, translatedEvents);
         }
+        public void WriteSnapshots(String stream, IEnumerable<IWritableEvent> snapshots, IDictionary<String, Object> commitHeaders)
+        {
+            Logger.DebugFormat("Writing {0} snapshots to stream id '{1}'", snapshots.Count(), stream);
 
-        public void WriteToStream(String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, Object> commitHeaders)
+            var translatedEvents = snapshots.Select(e =>
+            {
+                e.Descriptor.Headers.Merge(commitHeaders);
+                return new EventData(
+                    e.EventId,
+                    e.Event.GetType().AssemblyQualifiedName,
+                    true,
+                    e.Event.Serialize(_settings).AsByteArray(),
+                    e.Descriptor.Serialize(_settings).AsByteArray()
+                    );
+            });
+
+            _client.AppendToStreamAsync(stream + ".snapshots", ExpectedVersion.Any, translatedEvents).Wait();
+            
+        }
+
+        public void WriteEvents(String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, Object> commitHeaders)
         {
             Logger.DebugFormat("Writing {0} events to stream id '{1}'.  Expected version: {2}", events.Count(), stream, expectedVersion);
             var translatedEvents = events.Select(e =>

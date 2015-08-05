@@ -41,10 +41,10 @@ namespace Aggregates
         private static readonly Lazy<TEnumeration[]> Enumerations = new Lazy<TEnumeration[]>(GetEnumerations);
 
         [DataMember(Order = 1)]
-        readonly string _displayName;
+        private readonly string _displayName;
 
         [DataMember(Order = 0)]
-        readonly TValue _value;
+        private readonly TValue _value;
 
         protected Enumeration(TValue value, string displayName)
         {
@@ -118,6 +118,16 @@ namespace Aggregates
             return !Equals(left, right);
         }
 
+        public static Boolean HasValue(TValue value)
+        {
+            return GetAll().Any(x => x.Value.Equals(value));
+        }
+
+        public static Boolean HasDisplayName(string displayName)
+        {
+            return GetAll().Any(x => x.DisplayName == displayName);
+        }
+
         public static TEnumeration FromValue(TValue value)
         {
             return Parse(value, "value", item => item.Value.Equals(value));
@@ -128,7 +138,7 @@ namespace Aggregates
             return Parse(displayName, "display name", item => item.DisplayName == displayName);
         }
 
-        static bool TryParse(Func<TEnumeration, bool> predicate, out TEnumeration result)
+        private static bool TryParse(Func<TEnumeration, bool> predicate, out TEnumeration result)
         {
             result = GetAll().FirstOrDefault(predicate);
             return result != null;
@@ -162,5 +172,4 @@ namespace Aggregates
             return Value.Equals(value);
         }
     }
-
 }

@@ -46,4 +46,34 @@ namespace Aggregates
             return (IEntityRepository<TId, TEntity>)(_repositories[type] = (IEntityRepository)_repoFactory.ForEntity<TId, TEntity>(Id, _builder));
         }
     }
+
+    public abstract class AggregateWithMemento<TId, TMemento> : Aggregate<TId>, ISnapshotting where TMemento : class, IMemento
+    {
+        void ISnapshotting.RestoreSnapshot(ISnapshot snapshot)
+        {
+            var memento = (TMemento)snapshot.Payload;
+
+            RestoreSnapshot(memento);
+        }
+
+        ISnapshot ISnapshotting.TakeSnapshot()
+        {
+            var memento = TakeSnapshot();
+            return new Snapshot(this.StreamId, this.Version, memento);
+        }
+
+        Boolean ISnapshotting.ShouldTakeSnapshot()
+        {
+            return ShouldTakeSnapshot();
+        }
+
+        protected abstract void RestoreSnapshot(TMemento memento);
+
+        protected abstract TMemento TakeSnapshot();
+
+        protected virtual Boolean ShouldTakeSnapshot()
+        {
+            return false;
+        }
+    }
 }
