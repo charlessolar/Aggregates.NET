@@ -30,12 +30,15 @@ namespace Aggregates
         {
             Logger.DebugFormat("Getting snapshot for stream id '{0}'", stream);
             var read = _client.ReadEventAsync(stream + ".snapshots", StreamPosition.End, false).WaitForResult();
-            if (read.Status != EventReadStatus.Success)
+            if (read.Status != EventReadStatus.Success || !read.Event.HasValue)
                 return null;
 
-            var snapshot = read.Event.Value.Event.Data.Deserialize<ISnapshot>(_settings);
+            var @event = read.Event.Value.Event;
 
-            return snapshot;
+            var descriptor = @event.Metadata.Deserialize(_settings);
+            var data = @event.Data.Deserialize(@event.EventType, _settings) as ISnapshot;
+
+            return data;
         }
 
         public IEventStream GetStream<T>(String stream, Int32? start = null) where T : class, IEntity
