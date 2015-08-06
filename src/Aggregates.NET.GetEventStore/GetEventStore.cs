@@ -39,7 +39,7 @@ namespace Aggregates
             var @event = read.Event.Value.Event;
 
             var descriptor = @event.Metadata.Deserialize(_settings);
-            var data = @event.Data.Deserialize(@event.EventType, _settings) as ISnapshot;
+            var data = @event.Data.Deserialize<Internal.Snapshot>(_settings);
 
             return data;
         }
