@@ -70,7 +70,7 @@ namespace Aggregates
         }
         public void WriteSnapshots(String stream, IEnumerable<IWritableEvent> snapshots, IDictionary<String, Object> commitHeaders)
         {
-            stream = stream + "-snapshots";
+            stream = stream + ".snapshots";
             Logger.DebugFormat("Writing {0} snapshots to stream id '{1}'", snapshots.Count(), stream);
 
             var translatedEvents = snapshots.Select(e =>

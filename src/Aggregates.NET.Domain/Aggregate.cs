@@ -80,7 +80,7 @@ namespace Aggregates
             base.Apply(action);
 
             if (this.ShouldTakeSnapshot())
-                _eventStream.Add(this.TakeSnapshot(), new Dictionary<string, object> { { "StreamVersion", this.Version }, { "CommitVersion", this.CommitVersion } });
+                _eventStream.Add((this as ISnapshotting).TakeSnapshot(), new Dictionary<string, object> { { "StreamVersion", this.Version }, { "CommitVersion", this.CommitVersion } });
         }
     }
 }
