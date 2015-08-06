@@ -49,6 +49,8 @@ namespace Aggregates
 
     public abstract class AggregateWithMemento<TId, TMemento> : Aggregate<TId>, ISnapshotting where TMemento : class, IMemento
     {
+        private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
+
         void ISnapshotting.RestoreSnapshot(ISnapshot snapshot)
         {
             var memento = (TMemento)snapshot.Payload;
@@ -71,10 +73,7 @@ namespace Aggregates
 
         protected abstract TMemento TakeSnapshot();
 
-        protected virtual Boolean ShouldTakeSnapshot()
-        {
-            return false;
-        }
+        protected abstract Boolean ShouldTakeSnapshot();
 
         protected override void Apply<TEvent>(Action<TEvent> action)
         {

@@ -14,7 +14,7 @@ namespace Aggregates
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Entity<,>));
 
-        internal IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
+        private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
 
         private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
 
@@ -95,6 +95,8 @@ namespace Aggregates
 
     public abstract class EntityWithMemento<TId, TAggregateId, TMemento> : Entity<TId, TAggregateId>, ISnapshotting where TMemento : class, IMemento
     {
+        private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
+
         void ISnapshotting.RestoreSnapshot(ISnapshot snapshot)
         {
             var memento = (TMemento)snapshot.Payload;
@@ -117,10 +119,7 @@ namespace Aggregates
 
         protected abstract TMemento TakeSnapshot();
 
-        protected virtual Boolean ShouldTakeSnapshot()
-        {
-            return false;
-        }
+        protected abstract Boolean ShouldTakeSnapshot();
 
 
         protected override void Apply<TEvent>(Action<TEvent> action)
