@@ -12,6 +12,5 @@ namespace Aggregates.Contracts
 
     public interface IAggregate<TId> : IAggregate, IEntity<TId, TId>, IHaveEntities<TId>
     {
-        String BucketId { get; set; }
     }
 }

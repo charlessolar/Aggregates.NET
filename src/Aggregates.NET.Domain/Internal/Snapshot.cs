@@ -4,19 +4,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Aggregates;
 
-namespace Aggregates
+namespace Aggregates.Internal
 {
     public class Snapshot : ISnapshot
     {
         public Snapshot(string streamId, int streamRevision, object payload)
-               : this(Bucket.Default, streamId, streamRevision, payload)
-        { }
+            : this(Aggregates.Bucket.Default, streamId, streamRevision, payload)
+        {}
 
-        public Snapshot(string bucketId, string streamId, int streamRevision, object payload)
+        public Snapshot(string bucket, string streamId, int streamRevision, object payload)
             : this()
         {
-            BucketId = bucketId;
+            Bucket = bucket;
             StreamId = streamId;
             StreamVersion = streamRevision;
             Payload = payload;
@@ -24,7 +25,7 @@ namespace Aggregates
         protected Snapshot()
         { }
 
-        public String BucketId { get; private set; }
+        public String Bucket { get; private set; }
         public String StreamId { get; private set; }
         public Int32 StreamVersion { get; private set; }
         public Object Payload { get; private set; }

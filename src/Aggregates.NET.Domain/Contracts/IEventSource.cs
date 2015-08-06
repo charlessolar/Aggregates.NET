@@ -5,6 +5,7 @@ namespace Aggregates.Contracts
 {
     public interface IEventSource
     {
+        String Bucket { get; }
         String StreamId { get; }
         Int32 Version { get; }
 

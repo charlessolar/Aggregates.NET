@@ -26,9 +26,6 @@ namespace Aggregates
 
         IRepositoryFactory INeedRepositoryFactory.RepositoryFactory { get; set; }
 
-        public String BucketId { get { return (this as IAggregate<TId>).BucketId; } }
-        String IAggregate<TId>.BucketId { get; set; }
-
         public IEntityRepository<TId, TEntity> E<TEntity>() where TEntity : class, IEntity
         {
             return Entity<TEntity>();
@@ -61,7 +58,7 @@ namespace Aggregates
         ISnapshot ISnapshotting.TakeSnapshot()
         {
             var memento = TakeSnapshot();
-            return new Snapshot(this.StreamId, this.Version, memento);
+            return new Internal.Snapshot(this.Bucket, this.StreamId, this.Version, memento);
         }
 
         Boolean ISnapshotting.ShouldTakeSnapshot()

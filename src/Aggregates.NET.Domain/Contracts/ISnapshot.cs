@@ -8,7 +8,7 @@ namespace Aggregates.Contracts
 {
     public interface ISnapshot
     {
-        String BucketId { get; }
+        String Bucket { get; }
 
         String StreamId { get; }
 

@@ -89,7 +89,7 @@
     <Compile Include="Messages\Accept.cs" />
     <Compile Include="Messages\Reject.cs" />
     <Compile Include="AggregatesNet.cs" />
-    <Compile Include="Snapshot.cs" />
+    <Compile Include="Internal\Snapshot.cs" />
     <Compile Include="ValueObject.cs" />
   </ItemGroup>
   <ItemGroup>

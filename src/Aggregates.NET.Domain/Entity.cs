@@ -24,10 +24,12 @@ namespace Aggregates
 
         public TAggregateId AggregateId { get { return (this as IEntity<TId, TAggregateId>).AggregateId; } }
 
+        String IEventSource.Bucket { get { return this.Bucket; } }
         String IEventSource.StreamId { get { return this.StreamId; } }
 
         Int32 IEventSource.Version { get { return this.Version; } }
 
+        public String Bucket { get { return _eventStream.Bucket; } }
         public String StreamId { get { return _eventStream.StreamId; } }
 
         public Int32 Version { get { return _eventStream.StreamVersion; } }
@@ -107,7 +109,7 @@ namespace Aggregates
         ISnapshot ISnapshotting.TakeSnapshot()
         {
             var memento = TakeSnapshot();
-            return new Snapshot(this.StreamId, this.Version, memento);
+            return new Internal.Snapshot(this.Bucket, this.StreamId, this.Version, memento);
         }
 
         Boolean ISnapshotting.ShouldTakeSnapshot()

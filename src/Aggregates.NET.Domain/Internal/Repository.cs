@@ -59,12 +59,12 @@ namespace Aggregates.Internal
             return Get<TId>(Bucket.Default, id);
         }
 
-        public T Get<TId>(String bucketId, TId id)
+        public T Get<TId>(String bucket, TId id)
         {
-            Logger.DebugFormat("Retreiving aggregate id '{0}' from bucket '{1}' in store", id, bucketId);
+            Logger.DebugFormat("Retreiving aggregate id '{0}' from bucket '{1}' in store", id, bucket);
 
-            var snapshot = GetSnapshot(bucketId, id);
-            var stream = OpenStream(bucketId, id, snapshot);
+            var snapshot = GetSnapshot(bucket, id);
+            var stream = OpenStream(bucket, id, snapshot);
 
             if (stream == null && snapshot == null) return (T)null;
             // Get requires the stream exists
@@ -73,7 +73,6 @@ namespace Aggregates.Internal
             // Call the 'private' constructor
             var root = Newup(stream, _builder);
             (root as IEventSource<TId>).Id = id;
-            (root as IAggregate<TId>).BucketId = bucketId;
 
             if (snapshot != null && root is ISnapshotting)
                 ((ISnapshotting)root).RestoreSnapshot(snapshot);
@@ -88,12 +87,12 @@ namespace Aggregates.Internal
             return New<TId>(Bucket.Default, id);
         }
 
-        public T New<TId>(String bucketId, TId id)
+        public T New<TId>(String bucket, TId id)
         {
-            var stream = PrepareStream(bucketId, id);
+            var stream = PrepareStream(bucket, id);
             var root = Newup(stream, _builder);
             (root as IEventSource<TId>).Id = id;
-            (root as IAggregate<TId>).BucketId = bucketId;
+
             return root;
         }
 
@@ -124,38 +123,38 @@ namespace Aggregates.Internal
         }
 
 
-        private ISnapshot GetSnapshot<TId>(String bucketId, TId id)
+        private ISnapshot GetSnapshot<TId>(String bucket, TId id)
         {
             ISnapshot snapshot;
-            var snapshotId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucketId, id);
+            var snapshotId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucket, id);
             if (!_snapshots.TryGetValue(snapshotId, out snapshot))
             {
-                _snapshots[snapshotId] = snapshot = _store.GetSnapshot<T>(snapshotId);
+                _snapshots[snapshotId] = snapshot = _store.GetSnapshot<T>(bucket, id.ToString());
             }
 
             return snapshot;
         }
 
-        private IEventStream OpenStream<TId>(String bucketId, TId id, ISnapshot snapshot)
+        private IEventStream OpenStream<TId>(String bucket, TId id, ISnapshot snapshot)
         {
             IEventStream stream;
-            var streamId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucketId, id);
+            var streamId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucket, id);
             if (_streams.TryGetValue(streamId, out stream))
                 return stream;
 
             if (snapshot == null)
-                _streams[streamId] = stream = _store.GetStream<T>(streamId);
+                _streams[streamId] = stream = _store.GetStream<T>(bucket, id.ToString());
             else
-                _streams[streamId] = stream = _store.GetStream<T>(streamId, snapshot.StreamVersion + 1);
+                _streams[streamId] = stream = _store.GetStream<T>(bucket, id.ToString(), snapshot.StreamVersion + 1);
             return stream;
         }
 
-        private IEventStream PrepareStream<TId>(String bucketId, TId id)
+        private IEventStream PrepareStream<TId>(String bucket, TId id)
         {
             IEventStream stream;
-            var streamId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucketId, id);
+            var streamId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucket, id);
             if (!_streams.TryGetValue(streamId, out stream))
-                _streams[streamId] = stream = _store.GetStream<T>(streamId);
+                _streams[streamId] = stream = _store.GetStream<T>(bucket, id.ToString());
 
             return stream;
         }

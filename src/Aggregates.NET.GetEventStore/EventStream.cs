@@ -16,6 +16,7 @@ namespace Aggregates.Internal
     public class EventStream<T> : IEventStream where T : class, IEntity
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventStream<T>));
+        public String Bucket { get; private set; }
         public String StreamId { get; private set; }
         public Int32 StreamVersion { get { return this._streamVersion + this._uncommitted.Count; } }
         public Int32 CommitVersion { get { return this._streamVersion; } }
@@ -34,9 +35,10 @@ namespace Aggregates.Internal
         private IList<WritableEvent> _uncommitted;
         private IList<WritableEvent> _pendingShots;
 
-        public EventStream(IStoreEvents store, String streamId, Int32 streamVersion, IEnumerable<WritableEvent> events)
+        public EventStream(IStoreEvents store, String bucket, String streamId, Int32 streamVersion, IEnumerable<WritableEvent> events)
         {
             this._store = store;
+            this.Bucket = bucket;
             this.StreamId = streamId;
             this._streamVersion = streamVersion;
             this._committed = events.ToList();
@@ -88,9 +90,9 @@ namespace Aggregates.Internal
 
             try
             {
-                _store.WriteEvents(this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
+                _store.WriteEvents(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
 
-                _store.WriteSnapshots(this.StreamId, _pendingShots, commitHeaders);
+                _store.WriteSnapshots(this.Bucket, this.StreamId, _pendingShots, commitHeaders);
 
                 ClearChanges();
             }

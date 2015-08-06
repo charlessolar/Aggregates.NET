@@ -8,6 +8,7 @@ namespace Aggregates.Contracts
 {
     public interface IEventStream
     {
+        String Bucket { get; }
         String StreamId { get; }
         Int32 StreamVersion { get; }
         Int32 CommitVersion { get; }

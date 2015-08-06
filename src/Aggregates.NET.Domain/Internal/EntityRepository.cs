@@ -116,7 +116,7 @@ namespace Aggregates.Internal
             var snapshotId = String.Format("{0}-{1}-{2}", _aggregateStream.StreamId, typeof(T).FullName, id);
             if (!_snapshots.TryGetValue(snapshotId, out snapshot))
             {
-                _snapshots[snapshotId] = snapshot = _store.GetSnapshot<T>(snapshotId);
+                _snapshots[snapshotId] = snapshot = _store.GetSnapshot<T>(_aggregateStream.Bucket, id.ToString());
             }
 
             return snapshot;
@@ -130,9 +130,9 @@ namespace Aggregates.Internal
                 return stream;
 
             if (snapshot == null)
-                _streams[streamId] = stream = _store.GetStream<T>(streamId);
+                _streams[streamId] = stream = _store.GetStream<T>(_aggregateStream.Bucket, id.ToString());
             else
-                _streams[streamId] = stream = _store.GetStream<T>(streamId, snapshot.StreamVersion + 1);
+                _streams[streamId] = stream = _store.GetStream<T>(_aggregateStream.Bucket, id.ToString(), snapshot.StreamVersion + 1);
             return stream;
         }
 
@@ -141,7 +141,7 @@ namespace Aggregates.Internal
             IEventStream stream;
             var streamId = String.Format("{0}-{1}-{2}", _aggregateStream.StreamId, typeof(T).FullName, id);
             if (!_streams.TryGetValue(streamId, out stream))
-                _streams[streamId] = stream = _store.GetStream<T>(streamId);
+                _streams[streamId] = stream = _store.GetStream<T>(_aggregateStream.Bucket, id.ToString());
 
             return stream;
         }
