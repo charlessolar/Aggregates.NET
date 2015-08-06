@@ -75,5 +75,13 @@ namespace Aggregates
         {
             return false;
         }
+
+        protected override void Apply<TEvent>(Action<TEvent> action)
+        {
+            base.Apply(action);
+
+            if (this.ShouldTakeSnapshot())
+                _eventStream.Add(this.TakeSnapshot(), new Dictionary<string, object> { { "StreamVersion", this.Version }, { "CommitVersion", this.CommitVersion } });
+        }
     }
 }
