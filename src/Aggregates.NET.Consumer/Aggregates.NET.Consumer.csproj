@@ -66,10 +66,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Aggregates.NET.Domain\Aggregates.NET.Domain.csproj">
-      <Project>{44aba11e-6abd-4bdf-9fb4-02c2852baadf}</Project>
-      <Name>Aggregates.NET.Domain</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Aggregates.NET.GetEventStore\Aggregates.NET.GetEventStore.csproj">
       <Project>{cf5bc870-c30b-45de-b440-2cbd740ce370}</Project>
       <Name>Aggregates.NET.GetEventStore</Name>

@@ -80,7 +80,7 @@ namespace Aggregates
         {
             Logger.DebugFormat("Writing {0} snapshots to stream id '{1}'", snapshots.Count(), stream);
             var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
-
+            
             var translatedEvents = snapshots.Select(e =>
             {
                 e.Descriptor.Headers.Merge(commitHeaders);
