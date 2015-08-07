@@ -39,9 +39,9 @@ namespace Aggregates
             var @event = read.Event.Value.Event;
 
             var descriptor = @event.Metadata.Deserialize(_settings);
-            var data = @event.Data.Deserialize<Internal.Snapshot>(_settings);
+            var data = @event.Data.Deserialize(@event.EventType, _settings);
 
-            return data;
+            return new Internal.Snapshot { Version = descriptor.Version, Payload = data };
         }
 
         public IEventStream GetStream<T>(String bucket, String stream, Int32? start = null) where T : class, IEntity

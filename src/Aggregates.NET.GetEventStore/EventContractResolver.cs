@@ -25,7 +25,7 @@ namespace Aggregates
 
         protected override JsonObjectContract CreateObjectContract(Type objectType)
         {
-            if (objectType.IsInterface)
+            if (objectType.IsInterface && objectType.GetInterfaces().Contains(typeof(IEvent)))
             {
                 var mappedType = _mapper.GetMappedTypeFor(objectType);
                 var objectContract = base.CreateObjectContract(mappedType);

@@ -8,8 +8,8 @@ namespace Aggregates.Contracts
 {
     public interface ISnapshotting
     {
-        void RestoreSnapshot(ISnapshot snapshot);
-        ISnapshot TakeSnapshot();
+        void RestoreSnapshot(Object snapshot);
+        Object TakeSnapshot();
         Boolean ShouldTakeSnapshot();
     }
 }

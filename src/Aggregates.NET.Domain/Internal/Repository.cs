@@ -75,7 +75,7 @@ namespace Aggregates.Internal
             (root as IEventSource<TId>).Id = id;
 
             if (snapshot != null && root is ISnapshotting)
-                ((ISnapshotting)root).RestoreSnapshot(snapshot);
+                ((ISnapshotting)root).RestoreSnapshot(snapshot.Payload);
 
             root.Hydrate(stream.Events.Select(e => e.Event));
 
@@ -145,7 +145,7 @@ namespace Aggregates.Internal
             if (snapshot == null)
                 _streams[streamId] = stream = _store.GetStream<T>(bucket, id.ToString());
             else
-                _streams[streamId] = stream = _store.GetStream<T>(bucket, id.ToString(), snapshot.StreamVersion + 1);
+                _streams[streamId] = stream = _store.GetStream<T>(bucket, id.ToString(), snapshot.Version + 1);
             return stream;
         }
 

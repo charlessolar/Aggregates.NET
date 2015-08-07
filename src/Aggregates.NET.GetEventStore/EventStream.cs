@@ -63,7 +63,7 @@ namespace Aggregates.Internal
                 EventId = Guid.NewGuid()
             });
         }
-        public void Add(ISnapshot snapshot, IDictionary<String, Object> headers)
+        public void AddSnapshot(Object snapshot, IDictionary<String, Object> headers)
         {
             this._pendingShots.Add(new WritableEvent
             {

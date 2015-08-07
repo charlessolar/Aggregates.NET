@@ -70,7 +70,7 @@ namespace Aggregates.Internal
             (entity as IEntity<TId, TAggregateId>).AggregateId = _aggregateId;
 
             if (snapshot != null && entity is ISnapshotting)
-                ((ISnapshotting)entity).RestoreSnapshot(snapshot);
+                ((ISnapshotting)entity).RestoreSnapshot(snapshot.Payload);
 
             entity.Hydrate(stream.Events.Select(e => e.Event));
 
@@ -132,7 +132,7 @@ namespace Aggregates.Internal
             if (snapshot == null)
                 _streams[streamId] = stream = _store.GetStream<T>(_aggregateStream.Bucket, id.ToString());
             else
-                _streams[streamId] = stream = _store.GetStream<T>(_aggregateStream.Bucket, id.ToString(), snapshot.StreamVersion + 1);
+                _streams[streamId] = stream = _store.GetStream<T>(_aggregateStream.Bucket, id.ToString(), snapshot.Version + 1);
             return stream;
         }
 

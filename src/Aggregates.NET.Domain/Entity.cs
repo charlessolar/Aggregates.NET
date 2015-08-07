@@ -99,17 +99,14 @@ namespace Aggregates
     {
         private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
 
-        void ISnapshotting.RestoreSnapshot(ISnapshot snapshot)
+        void ISnapshotting.RestoreSnapshot(Object snapshot)
         {
-            var memento = (TMemento)snapshot.Payload;
-
-            RestoreSnapshot(memento);
+            RestoreSnapshot(snapshot as TMemento);
         }
 
-        ISnapshot ISnapshotting.TakeSnapshot()
+        Object ISnapshotting.TakeSnapshot()
         {
-            var memento = TakeSnapshot();
-            return new Internal.Snapshot(this.Bucket, this.StreamId, this.Version, memento);
+            return TakeSnapshot();
         }
 
         Boolean ISnapshotting.ShouldTakeSnapshot()
@@ -123,13 +120,12 @@ namespace Aggregates
 
         protected abstract Boolean ShouldTakeSnapshot();
 
-
         protected override void Apply<TEvent>(Action<TEvent> action)
         {
             base.Apply(action);
 
             if (this.ShouldTakeSnapshot())
-                _eventStream.Add(this.TakeSnapshot(), new Dictionary<string, object> { { "StreamVersion", this.Version }, { "CommitVersion", this.CommitVersion } });
+                _eventStream.AddSnapshot((this as ISnapshotting).TakeSnapshot(), new Dictionary<string, object> { });
         }
     }
 
