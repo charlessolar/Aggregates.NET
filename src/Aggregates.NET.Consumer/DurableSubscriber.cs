@@ -39,7 +39,7 @@ namespace Aggregates
                 var descriptor = e.Event.Metadata.Deserialize(_settings);
                 var data = e.Event.Data.Deserialize(e.Event.EventType, _settings);
 
-                // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
+                // Data is null for certain irrelevant eventstore messages (and we don't need to store position or snapshots)
                 if (data == null) return;
 
                 try

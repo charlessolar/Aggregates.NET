@@ -34,7 +34,10 @@ namespace Aggregates.Extensions
         public static Object Deserialize(this byte[] bytes, string type, JsonSerializerSettings settings)
         {
             var json = Encoding.UTF8.GetString(bytes);
-            return JsonConvert.DeserializeObject(json, Type.GetType(type), settings);
+            var resolved = Type.GetType(type, false);
+            if (resolved == null) return null;
+
+            return JsonConvert.DeserializeObject(json, resolved, settings);
         }
 
         public static EventDescriptor Deserialize(this byte[] bytes, JsonSerializerSettings settings)
