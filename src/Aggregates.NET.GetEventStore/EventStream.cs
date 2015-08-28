@@ -84,6 +84,9 @@ namespace Aggregates.Internal
 
         public void Commit(Guid commitId, IDictionary<String, Object> commitHeaders)
         {
+            foreach (var child in this._children)
+                child.Commit(commitId, commitHeaders);
+
             if (this._uncommitted.Count == 0) return;
 
             if (commitHeaders == null)
@@ -96,9 +99,6 @@ namespace Aggregates.Internal
                 _store.WriteEvents(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
 
                 _store.WriteSnapshots(this.Bucket, this.StreamId, _pendingShots, commitHeaders);
-
-                foreach (var child in _children)
-                    child.Commit(commitId, commitHeaders);
 
                 ClearChanges();
             }
