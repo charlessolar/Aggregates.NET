@@ -11,6 +11,6 @@ namespace Aggregates.Contracts
     {
         IRepository<TAggregate> ForAggregate<TAggregate>(IBuilder builder) where TAggregate : class, IAggregate;
 
-        IEntityRepository<TAggregateId, TEntity> ForEntity<TAggregateId, TEntity>(TAggregateId aggregateId, IBuilder builder) where TEntity : class, IEntity;
+        IEntityRepository<TAggregateId, TEntity> ForEntity<TAggregateId, TEntity>(TAggregateId aggregateId, IEventStream aggregateStream, IBuilder builder) where TEntity : class, IEntity;
     }
 }

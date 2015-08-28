@@ -40,7 +40,7 @@ namespace Aggregates
             if (_repositories.TryGetValue(type, out repository))
                 return (IEntityRepository<TId, TEntity>)repository;
 
-            return (IEntityRepository<TId, TEntity>)(_repositories[type] = (IEntityRepository)_repoFactory.ForEntity<TId, TEntity>(Id, _builder));
+            return (IEntityRepository<TId, TEntity>)(_repositories[type] = (IEntityRepository)_repoFactory.ForEntity<TId, TEntity>(Id, _eventStream, _builder));
         }
     }
 
@@ -74,7 +74,7 @@ namespace Aggregates
             base.Apply(action);
 
             if (this.ShouldTakeSnapshot())
-                _eventStream.AddSnapshot((this as ISnapshotting).TakeSnapshot(), new Dictionary<string, object> {  });
+                _eventStream.AddSnapshot((this as ISnapshotting).TakeSnapshot(), new Dictionary<string, object> { });
         }
     }
 }
