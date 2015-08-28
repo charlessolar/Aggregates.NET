@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 namespace Aggregates
 {
     // From https://github.com/HeadspringLabs/Enumeration/blob/master/Enumeration.cs
-    [Serializable]
     [DebuggerDisplay("{DisplayName} - {Value}")]
     public abstract class Enumeration<TEnumeration> : Enumeration<TEnumeration, int>
         where TEnumeration : Enumeration<TEnumeration>
@@ -31,20 +30,15 @@ namespace Aggregates
         }
     }
 
-    [Serializable]
     [DebuggerDisplay("{DisplayName} - {Value}")]
-    [DataContract(Namespace = "http://github.com/HeadspringLabs/Enumeration/5/13")]
     public abstract class Enumeration<TEnumeration, TValue> : IComparable<TEnumeration>, IEquatable<TEnumeration>
         where TEnumeration : Enumeration<TEnumeration, TValue>
         where TValue : IComparable
     {
         private static readonly Lazy<TEnumeration[]> Enumerations = new Lazy<TEnumeration[]>(GetEnumerations);
 
-        [DataMember(Order = 1)]
-        private readonly string _displayName;
-
-        [DataMember(Order = 0)]
-        private readonly TValue _value;
+        public string DisplayName { get; private set; }
+        public TValue Value { get; private set; }
 
         protected Enumeration(TValue value, string displayName)
         {
@@ -53,18 +47,8 @@ namespace Aggregates
                 throw new ArgumentNullException();
             }
 
-            _value = value;
-            _displayName = displayName;
-        }
-
-        public TValue Value
-        {
-            get { return _value; }
-        }
-
-        public string DisplayName
-        {
-            get { return _displayName; }
+            this.Value = value;
+            this.DisplayName = displayName;
         }
 
         public int CompareTo(TEnumeration other)
