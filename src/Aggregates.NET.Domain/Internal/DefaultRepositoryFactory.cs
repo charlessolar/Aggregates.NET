@@ -18,7 +18,7 @@ namespace Aggregates.Internal
 
         public IEntityRepository<TAggregateId, T> ForEntity<TAggregateId, T>(TAggregateId AggregateId, IBuilder builder) where T : class, IEntity
         {
-            var repoType = typeof(EntityRepository<,>).MakeGenericType(typeof(T));
+            var repoType = typeof(EntityRepository<,>).MakeGenericType(typeof(TAggregateId), typeof(T));
             return (IEntityRepository<TAggregateId, T>)Activator.CreateInstance(repoType, AggregateId, builder);
         }
     }
