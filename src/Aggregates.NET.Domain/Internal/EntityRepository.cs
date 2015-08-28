@@ -31,17 +31,18 @@ namespace Aggregates.Internal
             _store = _builder.Build<IStoreEvents>();
         }
 
-
         void IRepository.Commit(Guid commitId, IDictionary<String, Object> headers)
         {
             foreach (var stream in _streams)
                 stream.Value.Commit(commitId, headers);
         }
+
         public void Dispose()
         {
             Dispose(true);
             GC.SuppressFinalize(this);
         }
+
         protected virtual void Dispose(bool disposing)
         {
             if (_disposed || !disposing)
@@ -74,6 +75,7 @@ namespace Aggregates.Internal
 
             entity.Hydrate(stream.Events.Select(e => e.Event));
 
+            this._aggregateStream.AddChild(stream);
             return entity;
         }
 
@@ -82,6 +84,8 @@ namespace Aggregates.Internal
             var stream = PrepareStream(id);
             var entity = Newup(stream, _builder);
             (entity as IEventSource<TId>).Id = id;
+
+            this._aggregateStream.AddChild(stream);
             return entity;
         }
 

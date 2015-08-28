@@ -4,12 +4,12 @@ using Aggregates.Extensions;
 using EventStore.ClientAPI;
 using EventStore.ClientAPI.Exceptions;
 using Newtonsoft.Json;
+using NServiceBus.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using NServiceBus.Logging;
 
 namespace Aggregates.Internal
 {
@@ -34,6 +34,7 @@ namespace Aggregates.Internal
         private IEnumerable<WritableEvent> _committed;
         private IList<WritableEvent> _uncommitted;
         private IList<WritableEvent> _pendingShots;
+        private IList<IEventStream> _children;
 
         public EventStream(IStoreEvents store, String bucket, String streamId, Int32 streamVersion, IEnumerable<WritableEvent> events)
         {
@@ -44,6 +45,7 @@ namespace Aggregates.Internal
             this._committed = events.ToList();
             this._uncommitted = new List<WritableEvent>();
             this._pendingShots = new List<WritableEvent>();
+            this._children = new List<IEventStream>();
 
             if (events == null || events.Count() == 0) return;
         }
@@ -63,6 +65,7 @@ namespace Aggregates.Internal
                 EventId = Guid.NewGuid()
             });
         }
+
         public void AddSnapshot(Object snapshot, IDictionary<String, Object> headers)
         {
             this._pendingShots.Add(new WritableEvent
@@ -94,6 +97,9 @@ namespace Aggregates.Internal
 
                 _store.WriteSnapshots(this.Bucket, this.StreamId, _pendingShots, commitHeaders);
 
+                foreach (var child in _children)
+                    child.Commit(commitId, commitHeaders);
+
                 ClearChanges();
             }
             catch (WrongExpectedVersionException e)
@@ -114,6 +120,11 @@ namespace Aggregates.Internal
             {
                 throw new PersistenceException(e.Message, e);
             }
+        }
+
+        public void AddChild(IEventStream stream)
+        {
+            this._children.Add(stream);
         }
 
         public void ClearChanges()

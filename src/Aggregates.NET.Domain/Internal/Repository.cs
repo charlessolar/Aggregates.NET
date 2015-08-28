@@ -32,9 +32,7 @@ namespace Aggregates.Internal
         void IRepository.Commit(Guid commitId, IDictionary<String, Object> headers)
         {
             foreach (var stream in _streams)
-            {
                 stream.Value.Commit(commitId, headers);
-            }
         }
 
         public void Dispose()
@@ -42,6 +40,7 @@ namespace Aggregates.Internal
             Dispose(true);
             GC.SuppressFinalize(this);
         }
+
         protected virtual void Dispose(bool disposing)
         {
             if (_disposed || !disposing)
@@ -52,7 +51,6 @@ namespace Aggregates.Internal
 
             _disposed = true;
         }
-
 
         public T Get<TId>(TId id)
         {
@@ -105,7 +103,6 @@ namespace Aggregates.Internal
                 throw new AggregateException("Aggregate needs a PRIVATE parameterless constructor");
             var root = (T)tCtor.Invoke(null);
 
-
             // Todo: I bet there is a way to make a INeedBuilding<T> type interface
             //      and loop over each, calling builder.build for each T
             if (root is INeedStream)
@@ -121,7 +118,6 @@ namespace Aggregates.Internal
 
             return root;
         }
-
 
         private ISnapshot GetSnapshot<TId>(String bucket, TId id)
         {
