@@ -1,14 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Aggregates.Contracts;
+﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Aggregates
 {
@@ -76,11 +76,12 @@ namespace Aggregates
 
             return new Internal.EventStream<T>(this, bucket, stream, current.LastEventNumber, translatedEvents);
         }
+
         public void WriteSnapshots(String bucket, String stream, IEnumerable<IWritableEvent> snapshots, IDictionary<String, Object> commitHeaders)
         {
             Logger.DebugFormat("Writing {0} snapshots to stream id '{1}'", snapshots.Count(), stream);
             var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
-            
+
             var translatedEvents = snapshots.Select(e =>
             {
                 e.Descriptor.Headers.Merge(commitHeaders);
@@ -94,7 +95,6 @@ namespace Aggregates
             });
 
             _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvents).Wait();
-            
         }
 
         public void WriteEvents(String bucket, String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, Object> commitHeaders)

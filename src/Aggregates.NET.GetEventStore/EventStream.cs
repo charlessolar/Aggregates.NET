@@ -31,6 +31,7 @@ namespace Aggregates.Internal
 
         private readonly IStoreEvents _store;
         private readonly Int32 _streamVersion;
+        private Int32 _version;
         private IEnumerable<WritableEvent> _committed;
         private IList<WritableEvent> _uncommitted;
         private IList<WritableEvent> _pendingShots;
@@ -42,6 +43,7 @@ namespace Aggregates.Internal
             this.Bucket = bucket;
             this.StreamId = streamId;
             this._streamVersion = streamVersion;
+            this._version = streamVersion;
             this._committed = events.ToList();
             this._uncommitted = new List<WritableEvent>();
             this._pendingShots = new List<WritableEvent>();
@@ -58,7 +60,7 @@ namespace Aggregates.Internal
                 {
                     EntityType = typeof(T).FullName,
                     Timestamp = DateTime.UtcNow,
-                    Version = this.StreamVersion,
+                    Version = this._version++,
                     Headers = headers
                 },
                 Event = @event,
@@ -74,7 +76,7 @@ namespace Aggregates.Internal
                 {
                     EntityType = typeof(T).FullName,
                     Timestamp = DateTime.UtcNow,
-                    Version = this.StreamVersion,
+                    Version = this._version++,
                     Headers = headers
                 },
                 Event = snapshot,
