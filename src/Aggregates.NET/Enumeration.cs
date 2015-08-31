@@ -40,6 +40,10 @@ namespace Aggregates
         public string DisplayName { get; private set; }
         public TValue Value { get; private set; }
 
+        private Enumeration()
+        {
+        }
+
         protected Enumeration(TValue value, string displayName)
         {
             if (value == null)
