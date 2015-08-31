@@ -1,13 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Aggregates.Extensions;
+﻿using Aggregates.Extensions;
 using EventStore.ClientAPI;
 using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Aggregates
 {
@@ -52,15 +52,14 @@ namespace Aggregates
                     _.Stop();
                 }
 
-
                 if (e.OriginalPosition.HasValue)
                     _store.Save(endpoint, e.OriginalPosition.Value);
             }, liveProcessingStarted: (_) =>
             {
-                Logger.Debug("Live processing started");
+                Logger.Info("Live processing started");
             }, subscriptionDropped: (_, reason, e) =>
             {
-                Logger.DebugFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e.Message);
+                Logger.InfoFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e.Message);
             });
         }
     }

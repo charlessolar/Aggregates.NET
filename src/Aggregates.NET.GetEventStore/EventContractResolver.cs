@@ -25,7 +25,7 @@ namespace Aggregates
 
         protected override JsonObjectContract CreateObjectContract(Type objectType)
         {
-            if (objectType.IsInterface && objectType.GetInterfaces().Contains(typeof(IEvent)))
+            if (objectType.IsInterface)
             {
                 var mappedType = _mapper.GetMappedTypeFor(objectType);
                 var objectContract = base.CreateObjectContract(mappedType);
@@ -44,6 +44,7 @@ namespace Aggregates
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventSerializationBinder));
 
         private readonly IMessageMapper _mapper;
+
         public EventSerializationBinder(IMessageMapper mapper)
         {
             _mapper = mapper;
