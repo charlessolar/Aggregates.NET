@@ -28,6 +28,7 @@ namespace Aggregates
 
         public override String ToString()
         {
+            if (!this.HasValue) return "";
             return this.Value.ToString();
         }
     }
