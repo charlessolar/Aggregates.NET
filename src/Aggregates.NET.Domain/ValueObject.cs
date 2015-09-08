@@ -17,6 +17,19 @@ namespace Aggregates
         {
             this.Value = Value;
         }
+
+        public Boolean HasValue
+        {
+            get
+            {
+                return this.Value != null;
+            }
+        }
+
+        public override String ToString()
+        {
+            return this.Value.ToString();
+        }
     }
 
     // Implementation from http://grabbagoft.blogspot.com/2007/06/generic-value-object-equality.html
