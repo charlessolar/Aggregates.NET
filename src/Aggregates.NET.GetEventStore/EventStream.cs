@@ -76,7 +76,7 @@ namespace Aggregates.Internal
                 {
                     EntityType = typeof(T).FullName,
                     Timestamp = DateTime.UtcNow,
-                    Version = ++this._version,
+                    Version = this._version,
                     Headers = headers
                 },
                 Event = snapshot,
