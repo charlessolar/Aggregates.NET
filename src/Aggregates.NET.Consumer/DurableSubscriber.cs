@@ -49,7 +49,7 @@ namespace Aggregates
                 catch (Exception ex)
                 {
                     Logger.ErrorFormat("Error processing events, stopping consumer.  Exception: {0}", ex);
-                    _.Stop();
+                    throw;
                 }
 
                 if (e.OriginalPosition.HasValue)
