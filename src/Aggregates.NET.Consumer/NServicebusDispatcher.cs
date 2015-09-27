@@ -7,11 +7,14 @@ using Newtonsoft.Json.Linq;
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Unicast;
+using NServiceBus.Settings;
+using NServiceBus.Logging;
 
 namespace Aggregates
 {
     public class NServiceBusDispatcher : IDispatcher
     {
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(NServiceBusDispatcher));
         private readonly IBus _bus;
         private readonly IMessageHandlerRegistry _handlerRegistry;
         private readonly IBuilder _builder;
@@ -34,8 +37,11 @@ namespace Aggregates
 
             foreach (var handlerType in handlersToInvoke)
             {
+                var start = DateTime.UtcNow;
                 var handler = _builder.Build(handlerType);
                 _handlerRegistry.InvokeHandle(handler, @event);
+                var duration = (DateTime.Now - start).TotalMilliseconds;
+                Logger.DebugFormat("Dispatching event {0} to handler {1} took {2} milliseconds", @event.GetType(), handlerType, duration);
             }
                 //_bus.Publish(@event);
         }
