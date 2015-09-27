@@ -40,7 +40,7 @@ namespace Aggregates
                 var start = DateTime.UtcNow;
                 var handler = _builder.Build(handlerType);
                 _handlerRegistry.InvokeHandle(handler, @event);
-                var duration = (DateTime.Now - start).TotalMilliseconds;
+                var duration = (DateTime.UtcNow - start).TotalMilliseconds;
                 Logger.DebugFormat("Dispatching event {0} to handler {1} took {2} milliseconds", @event.GetType(), handlerType, duration);
             }
                 //_bus.Publish(@event);
