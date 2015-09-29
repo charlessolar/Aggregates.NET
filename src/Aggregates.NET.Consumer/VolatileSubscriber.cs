@@ -7,17 +7,20 @@ using Aggregates.Extensions;
 using EventStore.ClientAPI;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
+using NServiceBus.ObjectBuilder;
 
 namespace Aggregates
 {
     public class VolatileSubscriber : IEventSubscriber
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(VolatileSubscriber));
+        private readonly IBuilder _builder;
         private readonly IEventStoreConnection _client;
         private readonly JsonSerializerSettings _settings;
 
-        public VolatileSubscriber(IEventStoreConnection client, JsonSerializerSettings settings)
+        public VolatileSubscriber(IBuilder builder, IEventStoreConnection client, JsonSerializerSettings settings)
         {
+            _builder = builder;
             _client = client;
             _settings = settings;
         }
@@ -35,13 +38,18 @@ namespace Aggregates
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
                 if (data == null) return;
 
+                var uow = _builder.Build<IConsumeUnitOfWork>();
+                
                 try
                 {
+                    uow.Start();
                     dispatcher.Dispatch(data);
+                    uow.End();
                 }
                 catch (Exception ex)
                 {
                     Logger.ErrorFormat("Error processing events.  Exception: {0}", ex);
+                    uow.End(ex);
                 }
 
             }, liveProcessingStarted: (_) =>
