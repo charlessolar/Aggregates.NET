@@ -10,7 +10,7 @@ using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
 using NServiceBus.Pipeline.Contexts;
 
-namespace Aggregates
+namespace Aggregates.Internal
 {
     internal class ExceptionFilter : IBehavior<IncomingContext>
     {

@@ -8,6 +8,6 @@ namespace Aggregates
 {
     public static class Bucket
     {
-        public const String Default = "default";
+        public static String Default = "default";
     }
 }
