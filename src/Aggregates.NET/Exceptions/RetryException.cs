@@ -10,5 +10,7 @@ namespace Aggregates.Exceptions
     // Used in case a handler depends on another handler
     public class RetryException : Exception
     {
+        public RetryException() { }
+        public RetryException(String message) : base(message) { }
     }
 }

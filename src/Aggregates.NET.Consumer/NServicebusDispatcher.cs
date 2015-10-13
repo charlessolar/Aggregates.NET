@@ -47,12 +47,18 @@ namespace Aggregates
                     var duration = (DateTime.UtcNow - start).TotalMilliseconds;
                     Logger.DebugFormat("Dispatching event {0} to handler {1} took {2} milliseconds", @event.GetType(), handlerType, duration);
                 }
-                catch (RetryException)
+                catch (RetryException e)
                 {
                     // Retry the handler up to 3 times
                     var count = handlersToInvoke.Count(x => x == handlerType);
-                    if( count < 3)
+                    if (count < 3)
                         handlersToInvoke.Add(handlerType);
+                    else
+                        throw new DispatchException(String.Format("Too many retries while dispatching event {0}.  See inner exception", @event.GetType()), e);
+                }
+                catch (Exception e)
+                {
+                    throw new DispatchException(String.Format("Failure dispatching event {0}.  See inner exception", @event.GetType()), e);
                 }
             }
             //_bus.Publish(@event);
