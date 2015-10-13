@@ -35,15 +35,26 @@ namespace Aggregates
             // This will prevent the event from being queued on MSMQ
             var handlersToInvoke = _handlerRegistry.GetHandlerTypes(@event.GetType()).ToList();
 
-            foreach (var handlerType in handlersToInvoke)
+            for( var i = 0; i < handlersToInvoke.Count; i++)
             {
-                var start = DateTime.UtcNow;
-                var handler = _builder.Build(handlerType);
-                _handlerRegistry.InvokeHandle(handler, @event);
-                var duration = (DateTime.UtcNow - start).TotalMilliseconds;
-                Logger.DebugFormat("Dispatching event {0} to handler {1} took {2} milliseconds", @event.GetType(), handlerType, duration);
+                var handlerType = handlersToInvoke.ElementAt(i);
+                try
+                {
+                    var start = DateTime.UtcNow;
+                    var handler = _builder.Build(handlerType);
+                    _handlerRegistry.InvokeHandle(handler, @event);
+                    var duration = (DateTime.UtcNow - start).TotalMilliseconds;
+                    Logger.DebugFormat("Dispatching event {0} to handler {1} took {2} milliseconds", @event.GetType(), handlerType, duration);
+                }
+                catch (RetryException)
+                {
+                    // Retry the handler up to 3 times
+                    var count = handlersToInvoke.Count(x => x == handlerType);
+                    if( count < 3)
+                        handlersToInvoke.Add(handlerType);
+                }
             }
-                //_bus.Publish(@event);
+            //_bus.Publish(@event);
         }
     }
 }

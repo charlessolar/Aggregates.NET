@@ -60,6 +60,7 @@
     <Compile Include="IPersistCheckpoints.cs" />
     <Compile Include="IConsumeUnitOfWork.cs" />
     <Compile Include="NServiceBusDispatcher.cs" />
+    <Compile Include="RetryException.cs" />
     <Compile Include="VolatileSubscriber.cs" />
   </ItemGroup>
   <ItemGroup>
