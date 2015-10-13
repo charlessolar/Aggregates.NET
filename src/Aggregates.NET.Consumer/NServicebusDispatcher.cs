@@ -9,6 +9,7 @@ using NServiceBus.ObjectBuilder;
 using NServiceBus.Unicast;
 using NServiceBus.Settings;
 using NServiceBus.Logging;
+using Aggregates.Exceptions;
 
 namespace Aggregates
 {
