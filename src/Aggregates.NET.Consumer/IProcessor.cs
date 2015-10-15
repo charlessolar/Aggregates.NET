@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using NServiceBus;
 
 namespace Aggregates
 {
-    public interface IEventSubscriber
+    public interface IProcessor
     {
-        void SubscribeToAll(String endpoint);
+        void Push(Object @event);
+        void Push<TEvent>(Action<TEvent> action);
     }
 }

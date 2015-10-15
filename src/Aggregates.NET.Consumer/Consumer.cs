@@ -11,6 +11,7 @@ using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
+using Aggregates.Internal;
 
 namespace Aggregates
 {
@@ -24,6 +25,7 @@ namespace Aggregates
 
         protected override void Setup(FeatureConfigurationContext context)
         {
+            context.Container.ConfigureComponent<DataFlowProcessor>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DurableSubscriber>(DependencyLifecycle.SingleInstance);
         }
@@ -39,6 +41,7 @@ namespace Aggregates
 
         protected override void Setup(FeatureConfigurationContext context)
         {
+            context.Container.ConfigureComponent<DataFlowProcessor>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<VolatileSubscriber>(DependencyLifecycle.SingleInstance);
         }
@@ -61,7 +64,7 @@ namespace Aggregates
         protected override void OnStart()
         {
             Logger.Debug("Starting event consumer");
-            _builder.Build<IEventSubscriber>().SubscribeToAll(_settings.EndpointName(), _builder.Build<IDispatcher>());
+            _builder.Build<IEventSubscriber>().SubscribeToAll(_settings.EndpointName());
         }
     }
 }

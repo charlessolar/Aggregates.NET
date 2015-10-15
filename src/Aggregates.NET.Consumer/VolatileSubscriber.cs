@@ -16,16 +16,18 @@ namespace Aggregates
         private static readonly ILog Logger = LogManager.GetLogger(typeof(VolatileSubscriber));
         private readonly IBuilder _builder;
         private readonly IEventStoreConnection _client;
+        private readonly IProcessor _processor;
         private readonly JsonSerializerSettings _settings;
 
-        public VolatileSubscriber(IBuilder builder, IEventStoreConnection client, JsonSerializerSettings settings)
+        public VolatileSubscriber(IBuilder builder, IEventStoreConnection client, IProcessor processor, JsonSerializerSettings settings)
         {
             _builder = builder;
             _client = client;
+            _processor = processor;
             _settings = settings;
         }
 
-        public void SubscribeToAll(String endpoint, IDispatcher dispatcher)
+        public void SubscribeToAll(String endpoint)
         {
             _client.SubscribeToAllFrom(Position.End, false, (_, e) =>
             {
@@ -38,19 +40,7 @@ namespace Aggregates
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
                 if (data == null) return;
 
-                var uow = _builder.Build<IConsumeUnitOfWork>();
-                
-                try
-                {
-                    uow.Start();
-                    dispatcher.Dispatch(data);
-                    uow.End();
-                }
-                catch (Exception ex)
-                {
-                    Logger.ErrorFormat("Error processing events.  Exception: {0}", ex);
-                    uow.End(ex);
-                }
+                _processor.Push(data);
 
             }, liveProcessingStarted: (_) =>
             {

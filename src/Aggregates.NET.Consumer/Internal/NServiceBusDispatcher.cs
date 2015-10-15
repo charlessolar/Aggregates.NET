@@ -11,7 +11,7 @@ using NServiceBus.Settings;
 using NServiceBus.Logging;
 using Aggregates.Exceptions;
 
-namespace Aggregates
+namespace Aggregates.Internal
 {
     public class NServiceBusDispatcher : IDispatcher
     {
@@ -49,6 +49,7 @@ namespace Aggregates
                 }
                 catch (RetryException e)
                 {
+                    Logger.InfoFormat("Received retry signal while dispatching event {0}.  Message: {1}", @event.GetType(), e.Message);
                     // Retry the handler up to 3 times
                     var count = handlersToInvoke.Count(x => x == handlerType);
                     if (count < 3)
