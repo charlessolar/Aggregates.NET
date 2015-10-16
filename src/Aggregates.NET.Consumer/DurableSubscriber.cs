@@ -18,15 +18,15 @@ namespace Aggregates
         private readonly IBuilder _builder;
         private readonly IEventStoreConnection _client;
         private readonly IPersistCheckpoints _store;
-        private readonly IProcessor _processor;
+        private readonly IDispatcher _dispatcher;
         private readonly JsonSerializerSettings _settings;
 
-        public DurableSubscriber(IBuilder builder, IEventStoreConnection client, IPersistCheckpoints store, IProcessor processor, JsonSerializerSettings settings)
+        public DurableSubscriber(IBuilder builder, IEventStoreConnection client, IPersistCheckpoints store, IDispatcher dispatcher, JsonSerializerSettings settings)
         {
             _builder = builder;
             _client = client;
             _store = store;
-            _processor = processor;
+            _dispatcher = dispatcher;
             _settings = settings;
         }
 
@@ -47,7 +47,7 @@ namespace Aggregates
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position or snapshots)
                 if (data == null) return;
 
-                _processor.Push(data);
+                _dispatcher.Dispatch(data);
 
                 // Todo: Shouldn't save position here, event is actually processed yet
                 if (e.OriginalPosition.HasValue)

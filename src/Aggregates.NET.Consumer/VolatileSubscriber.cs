@@ -16,14 +16,14 @@ namespace Aggregates
         private static readonly ILog Logger = LogManager.GetLogger(typeof(VolatileSubscriber));
         private readonly IBuilder _builder;
         private readonly IEventStoreConnection _client;
-        private readonly IProcessor _processor;
+        private readonly IDispatcher _dispatcher;
         private readonly JsonSerializerSettings _settings;
 
-        public VolatileSubscriber(IBuilder builder, IEventStoreConnection client, IProcessor processor, JsonSerializerSettings settings)
+        public VolatileSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, JsonSerializerSettings settings)
         {
             _builder = builder;
             _client = client;
-            _processor = processor;
+            _dispatcher = dispatcher;
             _settings = settings;
         }
 
@@ -40,7 +40,7 @@ namespace Aggregates
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
                 if (data == null) return;
 
-                _processor.Push(data);
+                _dispatcher.Dispatch(data);
 
             }, liveProcessingStarted: (_) =>
             {

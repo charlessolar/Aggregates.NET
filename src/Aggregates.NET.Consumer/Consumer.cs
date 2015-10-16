@@ -25,8 +25,7 @@ namespace Aggregates
 
         protected override void Setup(FeatureConfigurationContext context)
         {
-            context.Container.ConfigureComponent<DataFlowProcessor>(DependencyLifecycle.SingleInstance);
-            context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<DurableSubscriber>(DependencyLifecycle.SingleInstance);
         }
     }
@@ -41,8 +40,7 @@ namespace Aggregates
 
         protected override void Setup(FeatureConfigurationContext context)
         {
-            context.Container.ConfigureComponent<DataFlowProcessor>(DependencyLifecycle.SingleInstance);
-            context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<VolatileSubscriber>(DependencyLifecycle.SingleInstance);
         }
     }

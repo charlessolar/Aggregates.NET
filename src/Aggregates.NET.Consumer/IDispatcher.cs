@@ -9,5 +9,6 @@ namespace Aggregates
     public interface IDispatcher
     {
         void Dispatch(Object @event);
+        void Dispatch<TEvent>(Action<TEvent> action);
     }
 }

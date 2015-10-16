@@ -70,9 +70,7 @@
     <Compile Include="IEventSubscriber.cs" />
     <Compile Include="IPersistCheckpoints.cs" />
     <Compile Include="IConsumeUnitOfWork.cs" />
-    <Compile Include="IProcessor.cs" />
     <Compile Include="Internal\NServiceBusDispatcher.cs" />
-    <Compile Include="Internal\DataFlowProcessor.cs" />
     <Compile Include="VolatileSubscriber.cs" />
   </ItemGroup>
   <ItemGroup>
