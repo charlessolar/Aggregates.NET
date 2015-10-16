@@ -26,7 +26,7 @@ Current features include -
 - Entities
 - Value Objects
 - Specifications
-- Support IDs of **any** type (that can be converted to a string)
+- Multithreaded event dispatching (NEW)
 - Type safe Unit of Work and Repository pattern
 - Automatic saving and publishing of domain events
 - Message idempotency
