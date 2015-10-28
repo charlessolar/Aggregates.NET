@@ -12,6 +12,8 @@ using NServiceBus.Logging;
 using Aggregates.Exceptions;
 using System.Threading.Tasks.Dataflow;
 using Microsoft.Practices.TransientFaultHandling;
+using Aggregates.Attributes;
+using NServiceBus.MessageInterfaces;
 
 namespace Aggregates.Internal
 {
@@ -28,50 +30,55 @@ namespace Aggregates.Internal
         private readonly IBus _bus;
         private readonly IBuilder _builder;
         private readonly IMessageCreator _eventFactory;
+        private readonly IMessageMapper _mapper;
         private readonly IMessageHandlerRegistry _handlerRegistry;
+        private readonly RetryPolicy _retry;
+        private readonly Dictionary<Type, Dictionary<Type, Boolean>> _parallelCache;
 
         public NServiceBusDispatcher(IBus bus, IBuilder builder, ExecutionDataflowBlockOptions options = null)
         {
             _bus = bus;
             _builder = builder;
             _eventFactory = builder.Build<IMessageCreator>();
+            _mapper = builder.Build<IMessageMapper>();
             _handlerRegistry = builder.Build<IMessageHandlerRegistry>();
-            options = options ?? new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 4 };
+            options = options ?? new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 8 };
+            _retry = new RetryPolicy(ErrorDetectionStrategy.On<Exception>(), 3, TimeSpan.FromMilliseconds(250));
+            _parallelCache = new Dictionary<Type, Dictionary<Type, bool>>();
+            
+            _queue = new ActionBlock<Job>((job) => ExecuteJob(job), options);
+        }
 
-            var retry = new RetryPolicy(ErrorDetectionStrategy.On<Exception>(), 3, TimeSpan.FromMilliseconds(250));
-
-            _queue = new ActionBlock<Job>(x =>
+        private void ExecuteJob(Job job)
+        {
+            _retry.ExecuteAction(() =>
             {
+
                 var uow = _builder.Build<IConsumeUnitOfWork>();
-
-                retry.ExecuteAction(() =>
+                try
                 {
-                    try
-                    {
-                        var start = DateTime.UtcNow;
+                    var start = DateTime.UtcNow;
 
-                        uow.Start();
-                        var handler = _builder.Build(x.HandlerType);
-                        _handlerRegistry.InvokeHandle(handler, x.Event);
-                        uow.End();
+                    uow.Start();
+                    var handler = childBuild.Build(job.HandlerType);
+                    _handlerRegistry.InvokeHandle(handler, job.Event);
+                    uow.End();
 
-                        var duration = (DateTime.UtcNow - start).TotalMilliseconds;
-                        Logger.DebugFormat("Dispatching event {0} to handler {1} took {2} milliseconds", x.Event.GetType(), x.HandlerType, duration);
-                    }
-                    catch (RetryException e)
-                    {
-                        Logger.InfoFormat("Received retry signal while dispatching event {0}.  Message: {1}", x.Event.GetType(), e.Message);
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.ErrorFormat("Error processing event {0}.  Exception: {1}", x.GetType(), ex);
-                        uow.End(ex);
-                        throw;
-                    }
-                });
-
-            }, options);
+                    var duration = (DateTime.UtcNow - start).TotalMilliseconds;
+                    Logger.DebugFormat("Dispatching event {0} to handler {1} took {2} milliseconds", job.Event.GetType(), job.HandlerType, duration);
+                }
+                catch (RetryException e)
+                {
+                    Logger.InfoFormat("Received retry signal while dispatching event {0}.  Message: {1}", job.Event.GetType(), e.Message);
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    Logger.ErrorFormat("Error processing event {0}.  Exception: {1}", job.Event.GetType(), ex);
+                    uow.End(ex);
+                    throw;
+                }
+            });
         }
 
         public void Dispatch(Object @event)
@@ -81,11 +88,37 @@ namespace Aggregates.Internal
             var handlersToInvoke = _handlerRegistry.GetHandlerTypes(@event.GetType()).ToList();
             foreach( var handler in handlersToInvoke)
             {
-                _queue.Post(new Job
+                var eventType = _mapper.GetMappedTypeFor(@event.GetType());
+                var job = new Job
                 {
                     HandlerType = handler,
                     Event = @event
-                });
+                };
+
+                Dictionary<Type, Boolean> cached;
+                Boolean parallel;
+                if (!_parallelCache.TryGetValue(handler, out cached)) {
+                    cached = new Dictionary<Type, bool>();
+                    _parallelCache[handler] = cached;
+                }
+                if(!cached.TryGetValue(eventType, out parallel)) { 
+
+                    var interfaceType = typeof(IHandleMessages<>).MakeGenericType(eventType);
+
+                    if (!interfaceType.IsAssignableFrom(handler))
+                        continue;
+                    var methodInfo = handler.GetInterfaceMap(interfaceType).TargetMethods.FirstOrDefault();
+                    if (methodInfo == null)
+                        continue;
+
+                    parallel = handler.GetCustomAttributes(typeof(ParallelAttribute), false).Any() || methodInfo.GetCustomAttributes(typeof(ParallelAttribute), false).Any();
+                    _parallelCache[handler][eventType] = parallel;
+                }
+
+                if (parallel)
+                    _queue.Post(job);
+                else
+                    ExecuteJob(job);
             }
             
         }
