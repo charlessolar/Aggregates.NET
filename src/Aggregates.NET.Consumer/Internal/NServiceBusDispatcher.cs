@@ -60,7 +60,7 @@ namespace Aggregates.Internal
                     var start = DateTime.UtcNow;
 
                     uow.Start();
-                    var handler = childBuild.Build(job.HandlerType);
+                    var handler = _builder.Build(job.HandlerType);
                     _handlerRegistry.InvokeHandle(handler, job.Event);
                     uow.End();
 
