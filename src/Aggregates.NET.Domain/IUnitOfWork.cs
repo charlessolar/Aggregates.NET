@@ -12,5 +12,7 @@ namespace Aggregates
         IRepository<T> Repository<T>() where T : class, IAggregate;
 
         void Commit();
+
+        Object CurrentMessage { get; }
     }
 }
