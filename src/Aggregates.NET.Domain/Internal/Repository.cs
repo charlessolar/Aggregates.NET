@@ -115,6 +115,8 @@ namespace Aggregates.Internal
                 (root as INeedRouteResolver).Resolver = builder.Build<IRouteResolver>();
             if (root is INeedRepositoryFactory)
                 (root as INeedRepositoryFactory).RepositoryFactory = builder.Build<IRepositoryFactory>();
+            if (root is INeedMutator)
+                (root as INeedMutator).Mutator = builder.Build<IEventMutator>();
 
             return root;
         }

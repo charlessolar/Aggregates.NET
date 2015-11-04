@@ -170,5 +170,17 @@ namespace Aggregates.Internal
             foreach (var header in userHeaders)
                 _workHeaders[header] = headers[header];
         }
+
+        public Object MutateOutgoing(Object message)
+        {
+            return message;
+        }
+        public Object MutateIncoming(Object message)
+        {
+            this.CurrentMessage = message;
+            return message;
+        }
+
+        public Object CurrentMessage { get; private set; }
     }
 }

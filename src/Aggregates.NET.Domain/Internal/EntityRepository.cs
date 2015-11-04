@@ -110,6 +110,8 @@ namespace Aggregates.Internal
                 (entity as INeedRouteResolver).Resolver = builder.Build<IRouteResolver>();
             if (entity is INeedRepositoryFactory)
                 (entity as INeedRepositoryFactory).RepositoryFactory = builder.Build<IRepositoryFactory>();
+            if (entity is INeedMutator)
+                (entity as INeedMutator).Mutator = builder.Build<IEventMutator>();
 
             return entity;
         }
