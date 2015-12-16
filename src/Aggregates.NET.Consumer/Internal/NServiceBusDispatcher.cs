@@ -14,6 +14,7 @@ using System.Threading.Tasks.Dataflow;
 using Microsoft.Practices.TransientFaultHandling;
 using Aggregates.Attributes;
 using NServiceBus.MessageInterfaces;
+using System.Threading;
 
 namespace Aggregates.Internal
 {
@@ -32,7 +33,6 @@ namespace Aggregates.Internal
         private readonly IMessageCreator _eventFactory;
         private readonly IMessageMapper _mapper;
         private readonly IMessageHandlerRegistry _handlerRegistry;
-        private readonly RetryPolicy _retry;
         private readonly Dictionary<Type, Dictionary<Type, Boolean>> _parallelCache;
 
         public NServiceBusDispatcher(IBus bus, IBuilder builder, ExecutionDataflowBlockOptions options = null)
@@ -47,7 +47,6 @@ namespace Aggregates.Internal
                 MaxDegreeOfParallelism = Environment.ProcessorCount,
                 BoundedCapacity = 200,
             };
-            _retry = new RetryPolicy(ErrorDetectionStrategy.On<Exception>(), 3, TimeSpan.FromMilliseconds(250));
             _parallelCache = new Dictionary<Type, Dictionary<Type, bool>>();
 
             _queue = new ActionBlock<Job>((job) => ExecuteJob(job), options);
@@ -55,9 +54,10 @@ namespace Aggregates.Internal
 
         private void ExecuteJob(Job job)
         {
-            _retry.ExecuteAction(() =>
+            var retries = 0;
+            bool success = false;
+            while (!success && retries < 3)
             {
-
                 var uow = _builder.Build<IConsumeUnitOfWork>();
                 try
                 {
@@ -70,19 +70,22 @@ namespace Aggregates.Internal
 
                     var duration = (DateTime.UtcNow - start).TotalMilliseconds;
                     Logger.DebugFormat("Dispatching event {0} to handler {1} took {2} milliseconds", job.Event.GetType(), job.HandlerType, duration);
+                    success = true;
                 }
                 catch (RetryException e)
                 {
                     Logger.InfoFormat("Received retry signal while dispatching event {0}.  Message: {1}", job.Event.GetType(), e.Message);
-                    throw;
+                    retries++;
+                    Thread.Sleep(250);
                 }
                 catch (Exception ex)
                 {
                     Logger.ErrorFormat("Error processing event {0}.  Exception: {1}", job.Event.GetType(), ex);
                     uow.End(ex);
-                    throw;
+                    retries++;
+                    Thread.Sleep(250);
                 }
-            });
+            };
         }
 
         public void Dispatch(Object @event)
