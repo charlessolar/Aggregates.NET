@@ -35,14 +35,14 @@ namespace Aggregates.Internal
         private readonly IMessageHandlerRegistry _handlerRegistry;
         private readonly Dictionary<Type, Dictionary<Type, Boolean>> _parallelCache;
 
-        public NServiceBusDispatcher(IBus bus, IBuilder builder, ExecutionDataflowBlockOptions options = null)
+        public NServiceBusDispatcher(IBus bus, IBuilder builder)
         {
             _bus = bus;
             _builder = builder;
             _eventFactory = builder.Build<IMessageCreator>();
             _mapper = builder.Build<IMessageMapper>();
             _handlerRegistry = builder.Build<IMessageHandlerRegistry>();
-            options = options ?? new ExecutionDataflowBlockOptions
+            var options = new ExecutionDataflowBlockOptions
             {
                 MaxDegreeOfParallelism = Environment.ProcessorCount,
                 BoundedCapacity = 200,
