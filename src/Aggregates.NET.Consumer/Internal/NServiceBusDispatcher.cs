@@ -42,10 +42,14 @@ namespace Aggregates.Internal
             _eventFactory = builder.Build<IMessageCreator>();
             _mapper = builder.Build<IMessageMapper>();
             _handlerRegistry = builder.Build<IMessageHandlerRegistry>();
-            options = options ?? new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 8 };
+            options = options ?? new ExecutionDataflowBlockOptions
+            {
+                MaxDegreeOfParallelism = Environment.ProcessorCount,
+                BoundedCapacity = 200,
+            };
             _retry = new RetryPolicy(ErrorDetectionStrategy.On<Exception>(), 3, TimeSpan.FromMilliseconds(250));
             _parallelCache = new Dictionary<Type, Dictionary<Type, bool>>();
-            
+
             _queue = new ActionBlock<Job>((job) => ExecuteJob(job), options);
         }
 
@@ -86,7 +90,7 @@ namespace Aggregates.Internal
             // Use NSB internal handler registry to directly call Handle(@event)
             // This will prevent the event from being queued on MSMQ
             var handlersToInvoke = _handlerRegistry.GetHandlerTypes(@event.GetType()).ToList();
-            foreach( var handler in handlersToInvoke)
+            foreach (var handler in handlersToInvoke)
             {
                 var eventType = _mapper.GetMappedTypeFor(@event.GetType());
                 var job = new Job
@@ -97,11 +101,13 @@ namespace Aggregates.Internal
 
                 Dictionary<Type, Boolean> cached;
                 Boolean parallel;
-                if (!_parallelCache.TryGetValue(handler, out cached)) {
+                if (!_parallelCache.TryGetValue(handler, out cached))
+                {
                     cached = new Dictionary<Type, bool>();
                     _parallelCache[handler] = cached;
                 }
-                if(!cached.TryGetValue(eventType, out parallel)) { 
+                if (!cached.TryGetValue(eventType, out parallel))
+                {
 
                     var interfaceType = typeof(IHandleMessages<>).MakeGenericType(eventType);
 
@@ -115,12 +121,14 @@ namespace Aggregates.Internal
                     _parallelCache[handler][eventType] = parallel;
                 }
 
+                // If parallel - put on the threaded execution queue
+                // Post returns false if its full - so keep retrying until it gets in
                 if (parallel)
-                    _queue.Post(job);
+                    while (!_queue.Post(job)) ;
                 else
                     ExecuteJob(job);
             }
-            
+
         }
 
         public void Dispatch<TEvent>(Action<TEvent> action)
