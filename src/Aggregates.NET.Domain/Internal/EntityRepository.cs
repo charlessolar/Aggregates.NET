@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
@@ -61,9 +62,11 @@ namespace Aggregates.Internal
             var snapshot = GetSnapshot(id);
             var stream = OpenStream(id, snapshot);
 
-            if (stream == null && snapshot == null) return (T)null;
+            if (stream == null && snapshot == null)
+                throw new NotFoundException("Entity snapshot not found");
             // Get requires the stream exists
-            if (stream.StreamVersion == -1) return (T)null;
+            if (stream.StreamVersion == -1)
+                throw new NotFoundException("Entity stream not found");
 
             // Call the 'private' constructor
             var entity = Newup(stream, _builder);

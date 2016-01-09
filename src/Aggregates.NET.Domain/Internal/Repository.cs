@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
@@ -64,9 +65,12 @@ namespace Aggregates.Internal
             var snapshot = GetSnapshot(bucket, id);
             var stream = OpenStream(bucket, id, snapshot);
 
-            if (stream == null && snapshot == null) return (T)null;
+            if (stream == null && snapshot == null)
+                throw new NotFoundException("Aggregate snapshot not found");
+
             // Get requires the stream exists
-            if (stream.StreamVersion == -1) return (T)null;
+            if (stream.StreamVersion == -1)
+                throw new NotFoundException("Aggregate stream not found");
 
             // Call the 'private' constructor
             var root = Newup(stream, _builder);

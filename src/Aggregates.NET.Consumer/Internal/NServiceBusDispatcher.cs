@@ -75,7 +75,7 @@ namespace Aggregates.Internal
                 catch (RetryException e)
                 {
                     Logger.InfoFormat("Received retry signal while dispatching event {0}.  Message: {1}", job.Event.GetType(), e.Message);
-                    retries++;
+                    uow.End(e);
                     Thread.Sleep(250);
                 }
                 catch (Exception ex)
