@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
 using NUnit.Framework;
@@ -55,7 +56,8 @@ namespace Aggregates.Unit.Repository
         public void get_non_existing()
         {
             _eventStream.Setup(x => x.StreamVersion).Returns(-1);
-            Assert.IsNull(_repository.Get(Guid.NewGuid()));
+
+            Assert.Throws<NotFoundException>(() => _repository.Get(Guid.NewGuid()));
         }
 
         [Test]

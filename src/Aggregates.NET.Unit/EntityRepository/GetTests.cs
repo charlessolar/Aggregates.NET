@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
 using NUnit.Framework;
@@ -43,8 +44,7 @@ namespace Aggregates.Unit.EntityRepository
         [Test]
         public void get_doesnt_exist()
         {
-            var entity = _repository.Get(Guid.NewGuid());
-            Assert.IsNull(entity);
+            Assert.Throws<NotFoundException>(() => _repository.Get(Guid.NewGuid()));
         }
 
         [Test]
@@ -62,8 +62,8 @@ namespace Aggregates.Unit.EntityRepository
         {
             var id = Guid.NewGuid();
             _stream.Setup(x => x.Events).Returns(new List<IWritableEvent>());
-            var entity = _repository.Get(id);
-            Assert.Null(entity);
+
+            Assert.Throws<NotFoundException>(() => _repository.Get(id));
         }
     }
 }
