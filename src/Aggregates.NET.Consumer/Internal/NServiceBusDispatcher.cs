@@ -127,7 +127,7 @@ namespace Aggregates.Internal
                 // If parallel - put on the threaded execution queue
                 // Post returns false if its full - so keep retrying until it gets in
                 if (parallel)
-                    while (!_queue.Post(job)) ;
+                    _queue.SendAsync(job).Wait();
                 else
                     ExecuteJob(job);
             }
