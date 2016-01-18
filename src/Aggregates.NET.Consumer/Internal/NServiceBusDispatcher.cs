@@ -15,6 +15,7 @@ using Microsoft.Practices.TransientFaultHandling;
 using Aggregates.Attributes;
 using NServiceBus.MessageInterfaces;
 using System.Threading;
+using System.Collections.Concurrent;
 
 namespace Aggregates.Internal
 {
@@ -33,7 +34,7 @@ namespace Aggregates.Internal
         private readonly IMessageCreator _eventFactory;
         private readonly IMessageMapper _mapper;
         private readonly IMessageHandlerRegistry _handlerRegistry;
-        private readonly Dictionary<Type, Dictionary<Type, Boolean>> _parallelCache;
+        private readonly IDictionary<Type, IDictionary<Type, Boolean>> _parallelCache;
 
         public NServiceBusDispatcher(IBus bus, IBuilder builder)
         {
@@ -45,9 +46,11 @@ namespace Aggregates.Internal
             var options = new ExecutionDataflowBlockOptions
             {
                 MaxDegreeOfParallelism = Environment.ProcessorCount,
-                BoundedCapacity = 200,
+                BoundedCapacity = 2048,
+                SingleProducerConstrained = true,
+                TaskScheduler = new LowPriorityTaskScheduler()
             };
-            _parallelCache = new Dictionary<Type, Dictionary<Type, bool>>();
+            _parallelCache = new ConcurrentDictionary<Type, IDictionary<Type, bool>>();
 
             _queue = new ActionBlock<Job>((job) => ExecuteJob(job), options);
         }
@@ -102,11 +105,11 @@ namespace Aggregates.Internal
                     Event = @event
                 };
 
-                Dictionary<Type, Boolean> cached;
+                IDictionary<Type, Boolean> cached;
                 Boolean parallel;
                 if (!_parallelCache.TryGetValue(handler, out cached))
                 {
-                    cached = new Dictionary<Type, bool>();
+                    cached = new ConcurrentDictionary<Type, bool>();
                     _parallelCache[handler] = cached;
                 }
                 if (!cached.TryGetValue(eventType, out parallel))
