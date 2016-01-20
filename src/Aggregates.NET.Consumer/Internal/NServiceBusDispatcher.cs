@@ -45,10 +45,9 @@ namespace Aggregates.Internal
             _handlerRegistry = builder.Build<IMessageHandlerRegistry>();
             var options = new ExecutionDataflowBlockOptions
             {
-                MaxDegreeOfParallelism = Environment.ProcessorCount,
+                MaxDegreeOfParallelism = 3,
                 BoundedCapacity = 2048,
-                SingleProducerConstrained = true,
-                TaskScheduler = new LowPriorityTaskScheduler()
+                SingleProducerConstrained = true
             };
             _parallelCache = new ConcurrentDictionary<Type, IDictionary<Type, bool>>();
 
