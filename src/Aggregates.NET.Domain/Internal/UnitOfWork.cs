@@ -1,6 +1,7 @@
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Internal;
+using Metrics;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
@@ -40,6 +41,13 @@ namespace Aggregates.Internal
         private bool _disposed;
         private IDictionary<String, Object> _workHeaders;
         private IDictionary<Type, IRepository> _repositories;
+
+        private Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
+        private Timer _commandsTimer = Metric.Timer("CommandsDuration", Unit.Commands);
+        private Counter _commandsConcurrent = Metric.Counter("ConcurrentCommands", Unit.Commands);
+        private TimerContext _timerContext;
+
+        private Meter _errorsMeter = Metric.Meter("Errors", Unit.Errors);
 
         public UnitOfWork(IBuilder builder, IRepositoryFactory repoFactory)
         {
@@ -96,12 +104,19 @@ namespace Aggregates.Internal
 
         public void Begin()
         {
+            _commandsMeter.Mark();
+            _commandsConcurrent.Increment();
+            _timerContext = _commandsTimer.NewContext();
         }
 
         public void End(Exception ex)
         {
+            _commandsConcurrent.Decrement();
             if (ex == null)
                 Commit();
+            else
+                _errorsMeter.Mark();
+            _timerContext.Dispose();
         }
 
         public void Commit()

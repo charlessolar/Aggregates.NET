@@ -18,6 +18,7 @@
     <dependencies>
       <group>
         <dependency id="NServicebus" version="[5,6)" />
+        <dependency id="Metrics.NET" version="[0.2,1)" />
         <dependency id="Aggregates.NET" version="[0.1,0.2)" />
       </group>
     </dependencies>

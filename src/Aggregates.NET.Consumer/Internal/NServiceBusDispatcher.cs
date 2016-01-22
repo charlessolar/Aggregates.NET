@@ -14,8 +14,8 @@ using System.Threading.Tasks.Dataflow;
 using Microsoft.Practices.TransientFaultHandling;
 using Aggregates.Attributes;
 using NServiceBus.MessageInterfaces;
-using System.Threading;
 using System.Collections.Concurrent;
+using Metrics;
 
 namespace Aggregates.Internal
 {
@@ -36,6 +36,13 @@ namespace Aggregates.Internal
         private readonly IMessageHandlerRegistry _handlerRegistry;
         private readonly IDictionary<Type, IDictionary<Type, Boolean>> _parallelCache;
 
+        private Meter _eventsMeter = Metric.Meter("Events", Unit.Events);
+        private Timer _eventsTimer = Metric.Timer("EventDuration", Unit.Events);
+        private Counter _eventsConcurrent = Metric.Counter("ConcurrentEvents", Unit.Events);
+        private Counter _queueSize = Metric.Counter("QueueSize", Unit.Events);
+
+        private Meter _errorsMeter = Metric.Meter("Errors", Unit.Errors);
+
         public NServiceBusDispatcher(IBus bus, IBuilder builder)
         {
             _bus = bus;
@@ -51,43 +58,54 @@ namespace Aggregates.Internal
             };
             _parallelCache = new ConcurrentDictionary<Type, IDictionary<Type, bool>>();
 
-            _queue = new ActionBlock<Job>((job) => ExecuteJob(job), options);
+            _queue = new ActionBlock<Job>((job) => ExecuteJob(job, true), options);
         }
 
-        private void ExecuteJob(Job job)
+        private void ExecuteJob(Job job, Boolean queued = false)
         {
+            _eventsMeter.Mark();
+            _eventsConcurrent.Increment();
             var retries = 0;
             bool success = false;
             while (!success && retries < 3)
             {
-                var uow = _builder.Build<IConsumeUnitOfWork>();
-                try
+                using (_eventsTimer.NewContext())
                 {
-                    var start = DateTime.UtcNow;
+                    var uow = _builder.Build<IConsumeUnitOfWork>();
+                    try
+                    {
+                        var start = DateTime.UtcNow;
 
-                    uow.Start();
-                    var handler = _builder.Build(job.HandlerType);
-                    _handlerRegistry.InvokeHandle(handler, job.Event);
-                    uow.End();
+                        uow.Start();
+                        var handler = _builder.Build(job.HandlerType);
+                        _handlerRegistry.InvokeHandle(handler, job.Event);
+                        uow.End();
 
-                    var duration = (DateTime.UtcNow - start).TotalMilliseconds;
-                    Logger.DebugFormat("Dispatching event {0} to handler {1} took {2} milliseconds", job.Event.GetType(), job.HandlerType, duration);
-                    success = true;
-                }
-                catch (RetryException e)
-                {
-                    Logger.InfoFormat("Received retry signal while dispatching event {0}.  Message: {1}", job.Event.GetType(), e.Message);
-                    uow.End(e);
-                    Thread.Sleep(250);
-                }
-                catch (Exception ex)
-                {
-                    Logger.ErrorFormat("Error processing event {0}.  Exception: {1}", job.Event.GetType(), ex);
-                    uow.End(ex);
-                    retries++;
-                    Thread.Sleep(250);
+                        var duration = (DateTime.UtcNow - start).TotalMilliseconds;
+                        Logger.DebugFormat("Dispatching event {0} to handler {1} took {2} milliseconds", job.Event.GetType(), job.HandlerType, duration);
+                        success = true;
+                    }
+                    catch (RetryException e)
+                    {
+                        Logger.InfoFormat("Received retry signal while dispatching event {0}.  Message: {1}", job.Event.GetType(), e.Message);
+                        uow.End(e);
+                        System.Threading.Thread.Sleep(250);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.ErrorFormat("Error processing event {0}.  Exception: {1}", job.Event.GetType(), ex);
+                        uow.End(ex);
+                        retries++;
+                        System.Threading.Thread.Sleep(250);
+                    }
                 }
             };
+            if (!success)
+                _errorsMeter.Mark();
+            if (queued)
+                _queueSize.Decrement();
+
+            _eventsConcurrent.Decrement();
         }
 
         public void Dispatch(Object @event)
@@ -129,7 +147,10 @@ namespace Aggregates.Internal
                 // If parallel - put on the threaded execution queue
                 // Post returns false if its full - so keep retrying until it gets in
                 if (parallel)
+                {
+                    _queueSize.Increment();
                     _queue.SendAsync(job).Wait();
+                }
                 else
                     ExecuteJob(job);
             }
