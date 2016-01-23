@@ -53,7 +53,7 @@ namespace Aggregates.Internal
             var options = new ExecutionDataflowBlockOptions
             {
                 MaxDegreeOfParallelism = 3,
-                BoundedCapacity = 2048,
+                BoundedCapacity = 128,
                 SingleProducerConstrained = true
             };
             _parallelCache = new ConcurrentDictionary<Type, IDictionary<Type, bool>>();
@@ -89,14 +89,13 @@ namespace Aggregates.Internal
                     {
                         Logger.InfoFormat("Received retry signal while dispatching event {0}.  Message: {1}", job.Event.GetType(), e.Message);
                         uow.End(e);
-                        System.Threading.Thread.Sleep(250);
                     }
                     catch (Exception ex)
                     {
                         Logger.ErrorFormat("Error processing event {0}.  Exception: {1}", job.Event.GetType(), ex);
                         uow.End(ex);
                         retries++;
-                        System.Threading.Thread.Sleep(250);
+                        System.Threading.Thread.Sleep(50);
                     }
                 }
             };
