@@ -69,6 +69,7 @@
     </Compile>
     <Compile Include="Attributes\ParallelAttribute.cs" />
     <Compile Include="Consumer.cs" />
+    <Compile Include="ConsumerConfiguration.cs" />
     <Compile Include="Exceptions\DispatchException.cs" />
     <Compile Include="DurableSubscriber.cs" />
     <Compile Include="Internal\ErrorDetectionStrategy.cs" />

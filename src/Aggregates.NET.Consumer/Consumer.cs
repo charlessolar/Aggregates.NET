@@ -21,10 +21,17 @@ namespace Aggregates
         {
             RegisterStartupTask<ConsumerRunner>();
             DependsOn<EventStore>();
+
+            Defaults(s =>
+            {
+                s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
+                s.SetDefault("SetEventStoreCapacity", new Tuple<int, int>(1024, 1024));
+            });
         }
 
         protected override void Setup(FeatureConfigurationContext context)
         {
+            
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<DurableSubscriber>(DependencyLifecycle.SingleInstance);
         }
@@ -36,6 +43,12 @@ namespace Aggregates
         {
             RegisterStartupTask<ConsumerRunner>();
             DependsOn<EventStore>();
+
+            Defaults(s =>
+            {
+                s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
+                s.SetDefault("SetEventStoreCapacity", new Tuple<int, int>(64, 64));
+            });
         }
 
         protected override void Setup(FeatureConfigurationContext context)
