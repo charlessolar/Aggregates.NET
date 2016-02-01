@@ -32,7 +32,6 @@ namespace Aggregates.Internal
         }
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(NServiceBusDispatcher));
-        private readonly ITargetBlock<ParellelJob> _parallelQueue;
         private readonly ITargetBlock<Job> _processingQueue;
         private readonly IBus _bus;
         private readonly IBuilder _builder;
@@ -42,12 +41,11 @@ namespace Aggregates.Internal
 
         private readonly IDictionary<Type, IDictionary<Type, Boolean>> _parallelCache;
         private readonly IDictionary<String, Object> _handlerCache;
-        private readonly IDictionary<String, IList<Type>> _invokeCache;
+        private readonly ConcurrentDictionary<String, IList<Type>> _invokeCache;
+        private readonly ExecutionDataflowBlockOptions _parallelOptions;
 
         private Meter _eventsMeter = Metric.Meter("Events", Unit.Events);
         private Timer _eventsTimer = Metric.Timer("EventDuration", Unit.Events);
-        private Counter _eventsConcurrent = Metric.Counter("ConcurrentEvents", Unit.Events);
-        private Counter _parellelQueueSize = Metric.Counter("ParellelQueueSize", Unit.Events);
         private Counter _processingQueueSize = Metric.Counter("ProcessingQueueSize", Unit.Events);
 
         private Meter _errorsMeter = Metric.Meter("Errors", Unit.Errors);
@@ -67,13 +65,13 @@ namespace Aggregates.Internal
             var parallelism = settings.Get<Int32?>("SetEventStoreMaxDegreeOfParallelism") ?? Environment.ProcessorCount;
             var capacity = settings.Get<Tuple<Int32, Int32>>("SetEventStoreCapacity") ?? new Tuple<int, int>(1024, 1024);
 
-            _parallelQueue = new ActionBlock<ParellelJob>((job) => ExecuteJob(job, true), 
-                new ExecutionDataflowBlockOptions
-                {
-                    MaxDegreeOfParallelism = parallelism,
-                    BoundedCapacity = capacity.Item2,
-                    SingleProducerConstrained = true
-                });
+            _parallelOptions = new ExecutionDataflowBlockOptions
+            {
+                MaxDegreeOfParallelism = parallelism,
+                BoundedCapacity = capacity.Item2,
+                SingleProducerConstrained = true
+            };
+
             _processingQueue = new ActionBlock<Job>((job) => Process(job),
                 new ExecutionDataflowBlockOptions
                 {
@@ -85,13 +83,15 @@ namespace Aggregates.Internal
         private void Process(Job job)
         {
             _eventsMeter.Mark();
-
+            
             // Use NSB internal handler registry to directly call Handle(@event)
             // This will prevent the event from being queued on MSMQ
 
-            IList<Type> handlersToInvoke = null;
-            if (!_invokeCache.TryGetValue(job.Event.GetType().FullName, out handlersToInvoke))
-                _invokeCache[job.Event.GetType().FullName] = handlersToInvoke = _handlerRegistry.GetHandlerTypes(job.Event.GetType()).ToList();
+
+            var parallelQueue = new ActionBlock<ParellelJob>((x) => ExecuteJob(x), _parallelOptions);
+
+            var handlersToInvoke = _invokeCache.GetOrAdd(job.Event.GetType().FullName, 
+                (key) => _handlerRegistry.GetHandlerTypes(job.Event.GetType()).ToList());
 
             foreach (var handler in handlersToInvoke)
             {
@@ -127,20 +127,20 @@ namespace Aggregates.Internal
                 // If parallel - put on the threaded execution queue
                 // Post returns false if its full - so keep retrying until it gets in
                 if (parallel)
-                {
-                    _parellelQueueSize.Increment();
-                    _parallelQueue.SendAsync(parellelJob).Wait();
-                }
+                    parallelQueue.SendAsync(parellelJob).Wait();
                 else
                     ExecuteJob(parellelJob);
             }
+
+            parallelQueue.Complete();
+            parallelQueue.Completion.Wait();
+
             _processingQueueSize.Decrement();
 
         }
 
-        private void ExecuteJob(ParellelJob job, Boolean queued = false)
+        private void ExecuteJob(ParellelJob job)
         {
-            _eventsConcurrent.Increment();
             var retries = 0;
             bool success = false;
             do
@@ -178,10 +178,6 @@ namespace Aggregates.Internal
             } while (!success && retries < 3);
             if (!success)
                 _errorsMeter.Mark();
-            if (queued)
-                _parellelQueueSize.Decrement();
-
-            _eventsConcurrent.Decrement();
         }
 
         public void Dispatch(Object @event)
