@@ -9,7 +9,7 @@ namespace Aggregates.Attributes
     /// <summary>
     /// Marks a class or method as able to be executed in parallel with other tasks
     /// </summary>
-    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class)]
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Interface)]
     public class ParallelAttribute : Attribute
     {
     }

@@ -67,7 +67,6 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
-    <Compile Include="Attributes\ParallelAttribute.cs" />
     <Compile Include="Consumer.cs" />
     <Compile Include="ConsumerConfiguration.cs" />
     <Compile Include="Exceptions\DispatchException.cs" />

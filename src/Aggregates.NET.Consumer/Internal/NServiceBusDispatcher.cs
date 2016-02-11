@@ -40,15 +40,16 @@ namespace Aggregates.Internal
         private readonly IMessageHandlerRegistry _handlerRegistry;
 
         private readonly IDictionary<Type, IDictionary<Type, Boolean>> _parallelCache;
+        private readonly IDictionary<Type, Boolean> _eventParallelCache;
         private readonly IDictionary<String, Object> _handlerCache;
         private readonly ConcurrentDictionary<String, IList<Type>> _invokeCache;
         private readonly ExecutionDataflowBlockOptions _parallelOptions;
 
         private Meter _eventsMeter = Metric.Meter("Events", Unit.Events);
-        private Timer _eventsTimer = Metric.Timer("EventDuration", Unit.Events);
-        private Counter _processingQueueSize = Metric.Counter("ProcessingQueueSize", Unit.Events);
+        private Timer _eventsTimer = Metric.Timer("Event Duration", Unit.Events);
+        private Counter _processingQueueSize = Metric.Counter("Processing Queue Size", Unit.Events);
 
-        private Meter _errorsMeter = Metric.Meter("Errors", Unit.Errors);
+        private Meter _errorsMeter = Metric.Meter("Event Errors", Unit.Errors);
 
         public NServiceBusDispatcher(IBus bus, IBuilder builder, ReadOnlySettings settings)
         {
@@ -58,7 +59,8 @@ namespace Aggregates.Internal
             _mapper = builder.Build<IMessageMapper>();
             _handlerRegistry = builder.Build<IMessageHandlerRegistry>();
             
-            _parallelCache = new Dictionary<Type, IDictionary<Type, bool>>();
+            _parallelCache = new Dictionary<Type, IDictionary<Type, Boolean>>();
+            _eventParallelCache = new Dictionary<Type, Boolean>();
             _handlerCache = new ConcurrentDictionary<String, Object>();
             _invokeCache = new ConcurrentDictionary<String, IList<Type>>();
 
@@ -69,7 +71,6 @@ namespace Aggregates.Internal
             {
                 MaxDegreeOfParallelism = parallelism,
                 BoundedCapacity = capacity.Item2,
-                SingleProducerConstrained = true
             };
 
             _processingQueue = new ActionBlock<Job>((job) => Process(job),
@@ -83,11 +84,12 @@ namespace Aggregates.Internal
         private void Process(Job job)
         {
             _eventsMeter.Mark();
-            
+
             // Use NSB internal handler registry to directly call Handle(@event)
             // This will prevent the event from being queued on MSMQ
 
 
+            Logger.DebugFormat("Processing event {0}", job.Event.GetType().FullName);
             var parallelQueue = new ActionBlock<ParellelJob>((x) => ExecuteJob(x), _parallelOptions);
 
             var handlersToInvoke = _invokeCache.GetOrAdd(job.Event.GetType().FullName, 
@@ -133,14 +135,23 @@ namespace Aggregates.Internal
             }
 
             parallelQueue.Complete();
-            parallelQueue.Completion.Wait();
 
-            _processingQueueSize.Decrement();
+            parallelQueue.Completion.ContinueWith((_) =>
+            {
+                _processingQueueSize.Decrement();
+            });
 
+            Boolean wait = false;
+            if(!_eventParallelCache.TryGetValue(job.Event.GetType(), out wait))
+                _eventParallelCache[job.Event.GetType()] = wait = job.Event.GetType().GetCustomAttributes(typeof(ParallelAttribute), false).Any();
+            
+            if(wait)
+                parallelQueue.Completion.Wait();
         }
 
         private void ExecuteJob(ParellelJob job)
         {
+            Logger.DebugFormat("Executing event {0} on handler {1}", job.Event.GetType().FullName, job.HandlerType.FullName);
             var retries = 0;
             bool success = false;
             do
@@ -178,10 +189,12 @@ namespace Aggregates.Internal
             } while (!success && retries < 3);
             if (!success)
                 _errorsMeter.Mark();
+            Logger.DebugFormat("Finished executing event {0} on handler {1}", job.Event.GetType().FullName, job.HandlerType.FullName);
         }
 
         public void Dispatch(Object @event)
         {
+            Logger.DebugFormat("Queueing event {0} for processing", @event.GetType().FullName);
             _processingQueueSize.Increment();
             _processingQueue.SendAsync(new Job { Event = @event }).Wait();
         }
