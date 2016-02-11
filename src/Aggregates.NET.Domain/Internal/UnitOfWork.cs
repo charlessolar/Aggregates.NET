@@ -41,20 +41,26 @@ namespace Aggregates.Internal
         private bool _disposed;
         private IDictionary<String, Object> _workHeaders;
         private IDictionary<Type, IRepository> _repositories;
+        private IDictionary<Type, IService> _services;
 
         private Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
-        private Timer _commandsTimer = Metric.Timer("CommandsDuration", Unit.Commands);
-        private Counter _commandsConcurrent = Metric.Counter("ConcurrentCommands", Unit.Commands);
+        private Timer _commandsTimer = Metric.Timer("Commands Duration", Unit.Commands);
+        private Counter _commandsConcurrent = Metric.Counter("Concurrent Commands", Unit.Commands);
         private TimerContext _timerContext;
 
-        private Meter _errorsMeter = Metric.Meter("Errors", Unit.Errors);
+        private Meter _errorsMeter = Metric.Meter("Command Errors", Unit.Errors);
 
         public UnitOfWork(IBuilder builder, IRepositoryFactory repoFactory)
         {
             _builder = builder;
             _repoFactory = repoFactory;
             _repositories = new Dictionary<Type, IRepository>();
+            _services = new Dictionary<Type, IService>();
             _workHeaders = new Dictionary<String, Object>();
+        }
+        ~UnitOfWork()
+        {
+            Dispose(false);
         }
 
         public void Dispose()
@@ -77,29 +83,45 @@ namespace Aggregates.Internal
 
                 _repositories.Clear();
             }
+            lock (_services)
+            {
+                foreach (var serv in _services)
+                {
+                    serv.Value.Dispose();
+                }
+
+                _services.Clear();
+            }
             _disposed = true;
         }
-
-        public IRepository<T> R<T>() where T : class, IAggregate
-        {
-            return Repository<T>();
-        }
-
+        
         public IRepository<T> For<T>() where T : class, IAggregate
-        {
-            return Repository<T>();
-        }
-
-        public IRepository<T> Repository<T>() where T : class, IAggregate
         {
             Logger.DebugFormat("Retreiving repository for type {0}", typeof(T));
             var type = typeof(T);
 
             IRepository repository;
-            if (_repositories.TryGetValue(type, out repository))
-                return (IRepository<T>)repository;
+            if (!_repositories.TryGetValue(type, out repository))
+                _repositories[type] = repository = (IRepository)_repoFactory.ForAggregate<T>(_builder);
 
-            return (IRepository<T>)(_repositories[type] = (IRepository)_repoFactory.ForAggregate<T>(_builder));
+            return (IRepository<T>)repository;
+        }
+
+        public IService Service<T>() where T : IService
+        {
+            Logger.DebugFormat("Retreiving service for type {0}", typeof(T));
+            var type = typeof(T);
+
+            IService service;
+            if (!_services.TryGetValue(type, out service))
+                _services[type] = service = _builder.Build<T>();
+
+            if (service == null)
+                throw new ArgumentException(String.Format("Unknown service type {0}", type.FullName));
+
+            service.Begin();
+
+            return service;
         }
 
         public void Begin()
@@ -116,6 +138,11 @@ namespace Aggregates.Internal
                 Commit();
             else
                 _errorsMeter.Mark();
+
+
+            foreach (var serv in _services)
+                serv.Value.End(ex);
+
             _timerContext.Dispose();
         }
 

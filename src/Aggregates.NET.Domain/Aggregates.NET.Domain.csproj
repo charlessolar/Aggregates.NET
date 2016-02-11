@@ -65,6 +65,8 @@
     <Compile Include="Contracts\IHaveEntities.cs" />
     <Compile Include="Contracts\IEventMutator.cs" />
     <Compile Include="Contracts\INeedMutator.cs" />
+    <Compile Include="Contracts\IService.cs" />
+    <Compile Include="Contracts\IServiceProvider.cs" />
     <Compile Include="Exceptions\NotFoundException.cs" />
     <Compile Include="IMemento.cs" />
     <Compile Include="Contracts\INeedBuilder.cs" />
