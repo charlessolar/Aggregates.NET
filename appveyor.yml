@@ -1,4 +1,4 @@
-version: 0.2.0.{build}-alpha
+version: 0.2.0.{build}
 
 cache:
   - src\packages
@@ -8,7 +8,7 @@ assembly_info:
   file: src\SharedAssemblyInfo.*
   assembly_version: "{version}"
   assembly_file_version: "{version}"
-  assembly_informational_version: "{version}"
+  assembly_informational_version: "{version}-alpha"
 
 platform: Any CPU
 configuration: Release
