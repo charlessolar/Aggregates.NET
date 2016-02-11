@@ -2,6 +2,7 @@
 using Aggregates.Specifications;
 using NServiceBus;
 using NServiceBus.Logging;
+using NServiceBus.ObjectBuilder;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,11 +11,14 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public abstract class Entity<TId, TAggregateId> : IEntity<TId, TAggregateId>, INeedStream, INeedEventFactory, INeedRouteResolver, INeedMutator
+    public abstract class Entity<TId, TAggregateId> : IEntity<TId, TAggregateId>, IHaveEntities<TId>, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver, INeedMutator, INeedRepositoryFactory
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(Entity<,>));
+        protected static readonly ILog Logger = LogManager.GetLogger(typeof(Entity<,>));
+        private IDictionary<Type, IEntityRepository> _repositories = new Dictionary<Type, IEntityRepository>();
 
+        private IBuilder _builder { get { return (this as INeedBuilder).Builder; } }
         private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
+        private IRepositoryFactory _repoFactory { get { return (this as INeedRepositoryFactory).RepositoryFactory; } }
 
         private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
 
@@ -38,16 +42,30 @@ namespace Aggregates
         public Int32 CommitVersion { get { return _eventStream.CommitVersion; } }
 
         IEventStream INeedStream.Stream { get; set; }
+        IRepositoryFactory INeedRepositoryFactory.RepositoryFactory { get; set; }
 
         IMessageCreator INeedEventFactory.EventFactory { get; set; }
 
         IRouteResolver INeedRouteResolver.Resolver { get; set; }
         IEventMutator INeedMutator.Mutator { get; set; }
+        IBuilder INeedBuilder.Builder { get; set; }
 
         TId IEventSource<TId>.Id { get; set; }
 
         TAggregateId IEntity<TId, TAggregateId>.AggregateId { get; set; }
 
+        
+        public IEntityRepository<TId, TEntity> For<TEntity>() where TEntity : class, IEntity
+        {
+            Logger.DebugFormat("Retreiving entity repository for type {0}", typeof(TEntity));
+            var type = typeof(TEntity);
+
+            IEntityRepository repository;
+            if (_repositories.TryGetValue(type, out repository))
+                return (IEntityRepository<TId, TEntity>)repository;
+
+            return (IEntityRepository<TId, TEntity>)(_repositories[type] = (IEntityRepository)_repoFactory.ForEntity<TId, TEntity>(Id, _eventStream, _builder));
+        }
 
         public override int GetHashCode()
         {
@@ -106,6 +124,7 @@ namespace Aggregates
 
         void ISnapshotting.RestoreSnapshot(Object snapshot)
         {
+            Logger.DebugFormat("Restoring snapshot to {0} id {1} version {2}", this.GetType().FullName, this.Id, this.Version);
             RestoreSnapshot(snapshot as TMemento);
         }
 
@@ -130,7 +149,10 @@ namespace Aggregates
             base.Apply(action);
 
             if (this.ShouldTakeSnapshot())
+            {
+                Logger.DebugFormat("Taking snapshot of {0} id {1} version {2}", this.GetType().FullName, this.Id, this.Version);
                 _eventStream.AddSnapshot((this as ISnapshotting).TakeSnapshot(), new Dictionary<string, object> { });
+            }
         }
     }
 

@@ -10,7 +10,9 @@ namespace Aggregates.Contracts
     {
     }
 
-    public interface IEntity<TId, TAggregateId> : IEntity, IEventSource<TId>
+    public interface IEntity<TId> : IEntity, IEventSource<TId>, IHaveEntities<TId> { }
+
+    public interface IEntity<TId, TAggregateId> : IEntity<TId>
     {
         TAggregateId AggregateId { get; set; }
     }

@@ -12,7 +12,7 @@ namespace Aggregates.Contracts
         void Commit(Guid commitId, IDictionary<String, Object> headers);
     }
 
-    public interface IRepository<T> : IRepository where T : class, IAggregate
+    public interface IRepository<T> : IRepository where T : class, IEntity
     {
         T Get<TId>(TId id);
 

@@ -141,12 +141,14 @@ namespace Aggregates.Internal
                 _processingQueueSize.Decrement();
             });
 
-            Boolean wait = false;
-            if(!_eventParallelCache.TryGetValue(job.Event.GetType(), out wait))
-                _eventParallelCache[job.Event.GetType()] = wait = job.Event.GetType().GetCustomAttributes(typeof(ParallelAttribute), false).Any();
-            
-            if(wait)
-                parallelQueue.Completion.Wait();
+            Boolean dontWait = false;
+            if(!_eventParallelCache.TryGetValue(job.Event.GetType(), out dontWait))
+                _eventParallelCache[job.Event.GetType()] = dontWait = job.Event.GetType().GetCustomAttributes(typeof(ParallelAttribute), false).Any();
+
+            if (dontWait)
+                return;
+
+            parallelQueue.Completion.Wait();
         }
 
         private void ExecuteJob(ParellelJob job)

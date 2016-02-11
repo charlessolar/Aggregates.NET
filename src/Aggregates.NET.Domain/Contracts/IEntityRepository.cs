@@ -8,7 +8,7 @@ namespace Aggregates.Contracts
 {
     public interface IEntityRepository : IRepository { }
 
-    public interface IEntityRepository<TAggregateId, T> : IEntityRepository where T : class, IEventSource
+    public interface IEntityRepository<TAggregateId, T> : IEntityRepository where T : class, IEntity
     {
         T Get<TId>(TId id);
 

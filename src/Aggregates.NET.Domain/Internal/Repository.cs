@@ -14,7 +14,7 @@ namespace Aggregates.Internal
     // inspired / taken from NEventStore.CommonDomain
     // https://github.com/NEventStore/NEventStore/blob/master/src/NEventStore/CommonDomain/Persistence/EventStore/EventStoreRepository.cs
 
-    public class Repository<T> : IRepository<T> where T : class, IAggregate
+    public class Repository<T> : IRepository<T> where T : class, IEntity
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Repository<>));
         private readonly IStoreEvents _store;
@@ -28,6 +28,10 @@ namespace Aggregates.Internal
         {
             _builder = builder;
             _store = _builder.Build<IStoreEvents>();
+        }
+        ~Repository()
+        {
+            Dispose(false);
         }
 
         void IRepository.Commit(Guid commitId, IDictionary<String, Object> headers)
@@ -53,7 +57,7 @@ namespace Aggregates.Internal
             _disposed = true;
         }
 
-        public T Get<TId>(TId id)
+        public virtual T Get<TId>(TId id)
         {
             return Get<TId>(Bucket.Default, id);
         }
@@ -84,7 +88,7 @@ namespace Aggregates.Internal
             return root;
         }
 
-        public T New<TId>(TId id)
+        public virtual T New<TId>(TId id)
         {
             return New<TId>(Bucket.Default, id);
         }
@@ -98,7 +102,7 @@ namespace Aggregates.Internal
             return root;
         }
 
-        private T Newup(IEventStream stream, IBuilder builder)
+        protected T Newup(IEventStream stream, IBuilder builder)
         {
             // Call the 'private' constructor
             var tCtor = typeof(T).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { }, null);
