@@ -10,7 +10,12 @@ namespace Aggregates.Internal
 {
     public class Snapshot : ISnapshot
     {
+        public String Bucket { get; set; }
+        public String Stream { get; set; }
         public Int32 Version { get; set; }
         public Object Payload { get; set; }
+
+        public String EntityType { get; set; }
+        public DateTime Timestamp { get; set; }
     }
 }

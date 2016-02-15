@@ -53,6 +53,7 @@
     </Compile>
     <Compile Include="Aggregate.cs" />
     <Compile Include="Bucket.cs" />
+    <Compile Include="ConfigExtensions.cs" />
     <Compile Include="Contracts\IAggregate.cs" />
     <Compile Include="Contracts\IDispatcher.cs" />
     <Compile Include="Contracts\IEntity.cs" />
@@ -67,6 +68,7 @@
     <Compile Include="Contracts\INeedMutator.cs" />
     <Compile Include="Contracts\IService.cs" />
     <Compile Include="Contracts\IServiceProvider.cs" />
+    <Compile Include="Contracts\IStoreSnapshots.cs" />
     <Compile Include="Exceptions\NotFoundException.cs" />
     <Compile Include="IMemento.cs" />
     <Compile Include="Contracts\INeedBuilder.cs" />
@@ -99,7 +101,7 @@
     <Compile Include="IUnitOfWork.cs" />
     <Compile Include="Messages\Accept.cs" />
     <Compile Include="Messages\Reject.cs" />
-    <Compile Include="AggregatesNet.cs" />
+    <Compile Include="Feature.cs" />
     <Compile Include="Internal\Snapshot.cs" />
     <Compile Include="ValueObject.cs" />
   </ItemGroup>

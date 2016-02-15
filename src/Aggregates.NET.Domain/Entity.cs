@@ -118,7 +118,7 @@ namespace Aggregates
         }
     }
 
-    public abstract class EntityWithMemento<TId, TAggregateId, TMemento> : Entity<TId, TAggregateId>, ISnapshotting where TMemento : class, IMemento
+    public abstract class EntityWithMemento<TId, TAggregateId, TMemento> : Entity<TId, TAggregateId>, ISnapshotting where TMemento : class, IMemento<TId>
     {
         private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
 
@@ -151,12 +151,12 @@ namespace Aggregates
             if (this.ShouldTakeSnapshot())
             {
                 Logger.DebugFormat("Taking snapshot of {0} id {1} version {2}", this.GetType().FullName, this.Id, this.Version);
-                _eventStream.AddSnapshot((this as ISnapshotting).TakeSnapshot(), new Dictionary<string, object> { });
+                _eventStream.AddSnapshot(Id, (this as ISnapshotting).TakeSnapshot(), new Dictionary<string, object> { });
             }
         }
     }
 
     public abstract class Entity<TId> : Entity<TId, TId> { }
 
-    public abstract class EntityWithMemento<TId, TMemento> : EntityWithMemento<TId, TId, TMemento> where TMemento : class, IMemento { }
+    public abstract class EntityWithMemento<TId, TMemento> : EntityWithMemento<TId, TId, TMemento> where TMemento : class, IMemento<TId> { }
 }

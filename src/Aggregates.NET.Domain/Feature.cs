@@ -16,7 +16,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates
 {
-    public class AggregatesNet : Feature
+    public class Feature : NServiceBus.Features.Feature
     {
         protected override void Setup(FeatureConfigurationContext context)
         {

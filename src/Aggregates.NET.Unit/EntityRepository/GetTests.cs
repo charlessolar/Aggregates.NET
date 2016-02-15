@@ -16,6 +16,7 @@ namespace Aggregates.Unit.EntityRepository
     {
         private Moq.Mock<IBuilder> _builder;
         private Moq.Mock<IStoreEvents> _store;
+        private Moq.Mock<IStoreSnapshots> _snaps;
         private Moq.Mock<IEventStream> _stream;
         private Moq.Mock<IMessageCreator> _eventFactory;
         private Moq.Mock<IRouteResolver> _router;
@@ -27,16 +28,18 @@ namespace Aggregates.Unit.EntityRepository
             _builder = new Moq.Mock<IBuilder>();
             _store = new Moq.Mock<IStoreEvents>();
             _stream = new Moq.Mock<IEventStream>();
+            _snaps = new Moq.Mock<IStoreSnapshots>();
             _eventFactory = new Moq.Mock<IMessageCreator>();
             _router = new Moq.Mock<IRouteResolver>();
             _stream.Setup(x => x.Events).Returns(new List<IWritableEvent>());
 
-            _store.Setup(x => x.GetSnapshot<_EntityStub>(Moq.It.IsAny<String>(), Moq.It.IsAny<String>()));
+            _snaps.Setup(x => x.GetSnapshot<_EntityStub>(Moq.It.IsAny<String>(), Moq.It.IsAny<String>()));
 
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
             _builder.Setup(x => x.Build<IRouteResolver>()).Returns(_router.Object);
             _builder.Setup(x => x.Build<IStoreEvents>()).Returns(_store.Object);
+            _builder.Setup(x => x.Build<IStoreSnapshots>()).Returns(_snaps.Object);
 
             _repository = new Internal.EntityRepository<Guid, _EntityStub>(Guid.NewGuid(), _stream.Object, _builder.Object);
         }

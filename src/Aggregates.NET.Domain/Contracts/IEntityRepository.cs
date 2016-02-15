@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -13,5 +14,7 @@ namespace Aggregates.Contracts
         T Get<TId>(TId id);
 
         T New<TId>(TId id);
+
+        IEnumerable<T> Query<TSnapshot, TId>(Expression<Func<TSnapshot, Boolean>> predicate) where TSnapshot : class, IMemento<TId>;
     }
 }

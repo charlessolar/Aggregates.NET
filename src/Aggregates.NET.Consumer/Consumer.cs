@@ -15,12 +15,12 @@ using Aggregates.Internal;
 
 namespace Aggregates
 {
-    public class DurableConsumer : Feature
+    public class DurableConsumer : NServiceBus.Features.Feature
     {
         public DurableConsumer()
         {
             RegisterStartupTask<ConsumerRunner>();
-            DependsOn<EventStore>();
+            DependsOn<NServiceBus.Features.Feature>();
 
             Defaults(s =>
             {
@@ -37,12 +37,12 @@ namespace Aggregates
         }
     }
 
-    public class VolatileConsumer : Feature
+    public class VolatileConsumer : NServiceBus.Features.Feature
     {
         public VolatileConsumer()
         {
             RegisterStartupTask<ConsumerRunner>();
-            DependsOn<EventStore>();
+            DependsOn<NServiceBus.Features.Feature>();
 
             Defaults(s =>
             {

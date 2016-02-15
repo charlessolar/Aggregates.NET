@@ -7,6 +7,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 
 namespace Aggregates.Internal
@@ -18,6 +19,7 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Repository<>));
         private readonly IStoreEvents _store;
+        private readonly IStoreSnapshots _snapStore;
         private readonly IBuilder _builder;
 
         private readonly ConcurrentDictionary<String, ISnapshot> _snapshots = new ConcurrentDictionary<String, ISnapshot>();
@@ -28,6 +30,7 @@ namespace Aggregates.Internal
         {
             _builder = builder;
             _store = _builder.Build<IStoreEvents>();
+            _snapStore = builder.Build<IStoreSnapshots>();
         }
         ~Repository()
         {
@@ -129,13 +132,38 @@ namespace Aggregates.Internal
             return root;
         }
 
+        public virtual IEnumerable<T> Query<TSnapshot, TId>(Expression<Func<TSnapshot, Boolean>> predicate) where TSnapshot : class, IMemento<TId>
+        {
+            return Query<TSnapshot, TId>(Bucket.Default, predicate);
+        }
+        public IEnumerable<T> Query<TSnapshot, TId>(String bucket, Expression<Func<TSnapshot, Boolean>> predicate) where TSnapshot : class, IMemento<TId>
+        {
+            // Queries the snapshot store for the user's predicate and returns matching entities
+            return _snapStore.Query<T, TId, TSnapshot>(bucket, predicate).Select(x =>
+            {
+                var stream = OpenStream(bucket, x.Stream, x);
+
+                var memento = (x.Payload as IMemento<TId>);
+
+                // Call the 'private' constructor
+                var entity = Newup(stream, _builder);
+                (entity as IEventSource<TId>).Id = memento.Id;
+
+                ((ISnapshotting)entity).RestoreSnapshot(x.Payload);
+
+                entity.Hydrate(stream.Events.Select(e => e.Event));
+
+                return entity;
+            });
+        }
+
         private ISnapshot GetSnapshot<TId>(String bucket, TId id)
         {
             ISnapshot snapshot;
             var snapshotId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucket, id);
             if (!_snapshots.TryGetValue(snapshotId, out snapshot))
             {
-                _snapshots[snapshotId] = snapshot = _store.GetSnapshot<T>(bucket, id.ToString());
+                _snapshots[snapshotId] = snapshot = _snapStore.GetSnapshot<T>(bucket, id.ToString());
             }
 
             return snapshot;
@@ -143,24 +171,28 @@ namespace Aggregates.Internal
 
         private IEventStream OpenStream<TId>(String bucket, TId id, ISnapshot snapshot)
         {
+            return OpenStream(bucket, id.ToString(), snapshot);
+        }
+        private IEventStream OpenStream(String bucket, String streamId, ISnapshot snapshot)
+        {
+            var cacheId = String.Format("{0}-{1}", bucket, streamId);
             IEventStream stream;
-            var streamId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucket, id);
-            if (_streams.TryGetValue(streamId, out stream))
+            if (_streams.TryGetValue(cacheId, out stream))
                 return stream;
 
             if (snapshot == null)
-                _streams[streamId] = stream = _store.GetStream<T>(bucket, id.ToString());
+                _streams[cacheId] = stream = _store.GetStream<T>(bucket, streamId);
             else
-                _streams[streamId] = stream = _store.GetStream<T>(bucket, id.ToString(), snapshot.Version + 1);
+                _streams[cacheId] = stream = _store.GetStream<T>(bucket, streamId, snapshot.Version + 1);
             return stream;
         }
 
         private IEventStream PrepareStream<TId>(String bucket, TId id)
         {
             IEventStream stream;
-            var streamId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucket, id);
-            if (!_streams.TryGetValue(streamId, out stream))
-                _streams[streamId] = stream = _store.GetStream<T>(bucket, id.ToString());
+            var cacheId = String.Format("{0}-{1}", bucket, id);
+            if (!_streams.TryGetValue(cacheId, out stream))
+                _streams[cacheId] = stream = _store.GetStream<T>(bucket, id.ToString());
 
             return stream;
         }

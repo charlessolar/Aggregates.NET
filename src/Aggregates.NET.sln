@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.23107.0
+VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET", "Aggregates.NET\Aggregates.NET.csproj", "{EC7040E2-7A13-4447-900D-6ED57328E5DF}"
 EndProject
@@ -30,6 +30,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.Consumer", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.GetEventStore", "Aggregates.NET.GetEventStore\Aggregates.NET.GetEventStore.csproj", "{CF5BC870-C30B-45DE-B440-2CBD740CE370}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.Raven", "Aggregates.NET.Raven\Aggregates.NET.Raven.csproj", "{0AACDAD9-376B-4B28-8CD0-8B8F5A9676C4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -56,6 +58,10 @@ Global
 		{CF5BC870-C30B-45DE-B440-2CBD740CE370}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CF5BC870-C30B-45DE-B440-2CBD740CE370}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CF5BC870-C30B-45DE-B440-2CBD740CE370}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0AACDAD9-376B-4B28-8CD0-8B8F5A9676C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0AACDAD9-376B-4B28-8CD0-8B8F5A9676C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0AACDAD9-376B-4B28-8CD0-8B8F5A9676C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0AACDAD9-376B-4B28-8CD0-8B8F5A9676C4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

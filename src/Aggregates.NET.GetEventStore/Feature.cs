@@ -14,18 +14,20 @@ using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
 
-namespace Aggregates
+namespace Aggregates.GetEventStore
 {
-    public class EventStore : Feature
+    public class Feature : NServiceBus.Features.Feature
     {
-        public EventStore()
+        public Feature()
         {
-            RegisterStartupTask<EventStoreRunner>();
+            RegisterStartupTask<Runner>();
         }
 
         protected override void Setup(FeatureConfigurationContext context)
         {
-            context.Container.ConfigureComponent<GetEventStore>(DependencyLifecycle.InstancePerUnitOfWork);
+            
+            context.Container.ConfigureComponent<StoreEvents>(DependencyLifecycle.InstancePerUnitOfWork);
+            context.Container.ConfigureComponent<StoreSnapshots>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<JsonSerializerSettings>(y =>
                 {
                     return new JsonSerializerSettings
@@ -36,13 +38,13 @@ namespace Aggregates
                 }, DependencyLifecycle.SingleInstance);
         }
 
-        private class EventStoreRunner : FeatureStartupTask
+        private class Runner : FeatureStartupTask
         {
             private readonly IBuilder _builder;
             private readonly ReadOnlySettings _settings;
             private readonly Configure _configure;
 
-            public EventStoreRunner(IBuilder builder, ReadOnlySettings settings, Configure configure)
+            public Runner(IBuilder builder, ReadOnlySettings settings, Configure configure)
             {
                 _builder = builder;
                 _settings = settings;

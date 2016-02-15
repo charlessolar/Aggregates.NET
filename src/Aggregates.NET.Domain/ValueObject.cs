@@ -13,7 +13,7 @@ namespace Aggregates
     {
         public readonly T Value;
 
-        public SingleValueObject(T Value)
+        public SingleValueObject(T Value = default(T))
         {
             this.Value = Value;
         }

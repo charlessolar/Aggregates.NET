@@ -12,37 +12,22 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public class GetEventStore : IStoreEvents
+    public class StoreEvents : IStoreEvents
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(GetEventStore));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreEvents));
         private readonly IEventStoreConnection _client;
         private readonly IMessageMapper _mapper;
+        private readonly IStoreSnapshots _snapshots;
         private readonly JsonSerializerSettings _settings;
 
-        public GetEventStore(IEventStoreConnection client, IMessageMapper mapper, JsonSerializerSettings settings)
+        public StoreEvents(IEventStoreConnection client, IMessageMapper mapper, IStoreSnapshots snapshots, JsonSerializerSettings settings)
         {
             _client = client;
             _mapper = mapper;
+            _snapshots = snapshots;
             _settings = settings;
         }
 
-        public ISnapshot GetSnapshot<T>(String bucket, String stream) where T : class, IEntity
-        {
-            Logger.DebugFormat("Getting snapshot for stream '{0}' in bucket '{1}'", stream, bucket);
-
-            var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
-
-            var read = _client.ReadEventAsync(streamId, StreamPosition.End, false).WaitForResult();
-            if (read.Status != EventReadStatus.Success || !read.Event.HasValue)
-                return null;
-
-            var @event = read.Event.Value.Event;
-
-            var descriptor = @event.Metadata.Deserialize(_settings);
-            var data = @event.Data.Deserialize(@event.EventType, _settings);
-
-            return new Internal.Snapshot { Version = descriptor.Version, Payload = data };
-        }
 
         public IEventStream GetStream<T>(String bucket, String stream, Int32? start = null) where T : class, IEntity
         {
@@ -74,27 +59,7 @@ namespace Aggregates
                 };
             });
 
-            return new Internal.EventStream<T>(this, bucket, stream, current.LastEventNumber, translatedEvents);
-        }
-
-        public void WriteSnapshots(String bucket, String stream, IEnumerable<IWritableEvent> snapshots, IDictionary<String, Object> commitHeaders)
-        {
-            Logger.DebugFormat("Writing {0} snapshots to stream id '{1}'", snapshots.Count(), stream);
-            var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
-
-            var translatedEvents = snapshots.Select(e =>
-            {
-                e.Descriptor.Headers.Merge(commitHeaders);
-                return new EventData(
-                    e.EventId,
-                    e.Event.GetType().AssemblyQualifiedName,
-                    true,
-                    e.Event.Serialize(_settings).AsByteArray(),
-                    e.Descriptor.Serialize(_settings).AsByteArray()
-                    );
-            });
-
-            _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvents).Wait();
+            return new Internal.EventStream<T>(this, _snapshots, bucket, stream, current.LastEventNumber, translatedEvents);
         }
 
         public void WriteEvents(String bucket, String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, Object> commitHeaders)

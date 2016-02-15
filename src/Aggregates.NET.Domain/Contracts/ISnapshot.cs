@@ -8,9 +8,12 @@ namespace Aggregates.Contracts
 {
     public interface ISnapshot
     {
-
+        String Bucket { get; set; }
+        String Stream { get; }
         Int32 Version { get; }
 
         Object Payload { get; }
+        String EntityType { get; }
+        DateTime Timestamp { get; }
     }
 }
