@@ -1,9 +1,12 @@
-﻿using Newtonsoft.Json;
+﻿using Aggregates.Contracts;
+using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Features;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
+using Raven.Client;
+using Raven.Client.Document;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,7 +24,7 @@ namespace Aggregates.NET.Raven
 
         protected override void Setup(FeatureConfigurationContext context)
         {
-            context.Container.ConfigureComponent<StoreSnapshots>(DependencyLifecycle.InstancePerUnitOfWork);
+            context.Container.ConfigureComponent<StoreSnapshots>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<JsonSerializerSettings>(y =>
             {
                 return new JsonSerializerSettings

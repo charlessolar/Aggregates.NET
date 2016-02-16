@@ -16,7 +16,7 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EntityRepository<,>));
         private readonly IStoreEvents _store;
-        private readonly IStoreSnapshots _snapStore;
+        private readonly IStoreSnapshots _snapstore;
         private readonly IBuilder _builder;
         private readonly TAggregateId _aggregateId;
         private readonly IEventStream _parentStream;
@@ -31,7 +31,7 @@ namespace Aggregates.Internal
             _parentStream = parentStream;
             _builder = builder;
             _store = _builder.Build<IStoreEvents>();
-            _snapStore = builder.Build<IStoreSnapshots>();
+            _snapstore = _builder.Build<IStoreSnapshots>();
         }
         ~EntityRepository()
         {
@@ -76,26 +76,26 @@ namespace Aggregates.Internal
             return entity;
         }
 
-        public override IEnumerable<T> Query<TSnapshot, TId>(Expression<Func<TSnapshot, Boolean>> predicate)
+        public override IEnumerable<T> Query<TMemento, TId>(Expression<Func<TMemento, Boolean>> predicate)
         {
             // Queries the snapshot store for the user's predicate and returns matching entities
-            return _snapStore.Query<T, TId, TSnapshot>(_parentStream.Bucket, predicate).Select(x =>
+            return _snapstore.Query<T, TId, TMemento>(_parentStream.Bucket, predicate).Select(x =>
             {
+                var memento = x.Payload as TMemento;
+
                 var stream = OpenStream(x.Stream, x);
-
-                var memento = (x.Payload as IMemento<TId>);
-
+                
                 // Call the 'private' constructor
                 var entity = Newup(stream, _builder);
-                (entity as IEventSource<TId>).Id = memento.Id;
+                (entity as IEventSource<TId>).Id = memento.EntityId;
                 (entity as IEntity<TId, TAggregateId>).AggregateId = _aggregateId;
 
-                ((ISnapshotting)entity).RestoreSnapshot(x.Payload);
+                ((ISnapshotting)entity).RestoreSnapshot(memento);
 
                 entity.Hydrate(stream.Events.Select(e => e.Event));
 
                 return entity;
-            });
+            }).ToList();
         }
 
 
@@ -105,7 +105,7 @@ namespace Aggregates.Internal
             var snapshotId = String.Format("{0}-{1}", _parentStream.StreamId, id);
             if (!_snapshots.TryGetValue(snapshotId, out snapshot))
             {
-                _snapshots[snapshotId] = snapshot = _snapStore.GetSnapshot<T>(_parentStream.Bucket, snapshotId);
+                _snapshots[snapshotId] = snapshot = _snapstore.GetSnapshot(_parentStream.Bucket, snapshotId);
             }
 
             return snapshot;
@@ -119,26 +119,29 @@ namespace Aggregates.Internal
         private IEventStream OpenStream(String streamId, ISnapshot snapshot)
         {
             var cacheId = String.Format("{0}-{1}", _parentStream.Bucket, streamId);
-            IEventStream stream;
-            if (_streams.TryGetValue(cacheId, out stream))
-                return stream;
-
+            IEventStream cached;
+            if (_streams.TryGetValue(cacheId, out cached))
+                return cached;
+            
             if (snapshot == null)
-                _streams[cacheId] = stream = _store.GetStream<T>(_parentStream.Bucket, streamId);
+                _streams[cacheId] = cached = _store.GetStream<T>(_parentStream.Bucket, streamId);
             else
-                _streams[cacheId] = stream = _store.GetStream<T>(_parentStream.Bucket, streamId, snapshot.Version + 1);
-            return stream;
+                _streams[cacheId] = cached = _store.GetStream<T>(_parentStream.Bucket, streamId, snapshot.Version + 1);
+            return cached;
         }
 
         private IEventStream PrepareStream<TId>(TId id)
         {
-            var streamId = String.Format("{0}-{1}", _parentStream.StreamId, id);
-            IEventStream stream;
             var cacheId = String.Format("{0}-{1}-{2}", _parentStream.Bucket, _parentStream.StreamId, id);
-            if (!_streams.TryGetValue(cacheId, out stream))
-                _streams[cacheId] = stream = _store.GetStream<T>(_parentStream.Bucket, streamId);
 
-            return stream;
+            IEventStream cached;
+            if (_streams.TryGetValue(cacheId, out cached))
+                return cached;
+
+            var streamId = String.Format("{0}-{1}", _parentStream.StreamId, id);
+            _streams[cacheId] = cached = _store.GetStream<T>(_parentStream.Bucket, streamId);
+
+            return cached;
         }
     }
 }

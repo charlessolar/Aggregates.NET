@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
+
     public class EventStream<T> : IEventStream where T : class, IEntity
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventStream<>));
@@ -70,15 +71,15 @@ namespace Aggregates.Internal
             });
         }
 
-        public void AddSnapshot<TId>(TId id, Object snapshot, IDictionary<String, Object> headers)
+        public void AddSnapshot(Object memento, IDictionary<String, Object> headers)
         {
             this._pendingShots.Add(new Snapshot
             {
                 Bucket = this.Bucket,
                 Stream = this.StreamId,
-                Payload = snapshot,
-                Version = this._version,
-                EntityType = snapshot.GetType().AssemblyQualifiedName,
+                Payload = memento,
+                Version = this.StreamVersion,
+                EntityType = memento.GetType().AssemblyQualifiedName,
                 Timestamp = DateTime.UtcNow,
             });
         }

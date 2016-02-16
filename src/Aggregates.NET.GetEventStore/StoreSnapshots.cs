@@ -26,7 +26,7 @@ namespace Aggregates
             _settings = settings;
         }
 
-        public ISnapshot GetSnapshot<T>(String bucket, String stream) where T : class, IEntity
+        public ISnapshot GetSnapshot(String bucket, String stream)
         {
             Logger.DebugFormat("Getting snapshot for stream '{0}' in bucket '{1}'", stream, bucket);
 
@@ -68,7 +68,7 @@ namespace Aggregates
                 };
                 return new EventData(
                     Guid.NewGuid(),
-                    e.Payload.GetType().AssemblyQualifiedName,
+                    e.EntityType,
                     true,
                     e.Payload.Serialize(_settings).AsByteArray(),
                     descriptor.Serialize(_settings).AsByteArray()
@@ -78,7 +78,7 @@ namespace Aggregates
             _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvents).Wait();
         }
 
-        public IEnumerable<ISnapshot> Query<T, TId, TSnapshot>(String bucket, Expression<Func<TSnapshot, Boolean>> predicate) where T : class, IEntity where TSnapshot : class, IMemento<TId>
+        public IEnumerable<ISnapshot> Query<T, TId, TMemento>(String bucket, Expression<Func<TMemento, Boolean>> predicate) where T : class, IEntity where TMemento : class, IMemento<TId>
         {
             throw new NotImplementedException("GES snapshot store does not support querying snapshots");
         }

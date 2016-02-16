@@ -3,6 +3,6 @@ namespace Aggregates
 {
     public interface IMemento<TId>
     {
-        TId Id { get; }
+        TId EntityId { get; }
     }
 }

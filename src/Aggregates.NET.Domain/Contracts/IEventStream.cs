@@ -16,9 +16,7 @@ namespace Aggregates.Contracts
         IEnumerable<IWritableEvent> Events { get; }
 
         void Add(Object @event, IDictionary<String, Object> headers);
-
-        void AddSnapshot<TId>(TId Id, Object snapshot, IDictionary<String, Object> headers);
-
+        void AddSnapshot(Object memento, IDictionary<String, Object> headers);
         void Commit(Guid commitId, IDictionary<String, Object> commitHeaders);
 
         void AddChild(IEventStream stream);

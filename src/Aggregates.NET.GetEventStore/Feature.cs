@@ -25,9 +25,8 @@ namespace Aggregates.GetEventStore
 
         protected override void Setup(FeatureConfigurationContext context)
         {
-            
-            context.Container.ConfigureComponent<StoreEvents>(DependencyLifecycle.InstancePerUnitOfWork);
-            context.Container.ConfigureComponent<StoreSnapshots>(DependencyLifecycle.InstancePerUnitOfWork);
+            context.Container.ConfigureComponent<StoreEvents>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<StoreSnapshots>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<JsonSerializerSettings>(y =>
                 {
                     return new JsonSerializerSettings
