@@ -50,7 +50,7 @@ namespace Aggregates
             _bus = bus;
         }
 
-        public virtual void Dispatch(IWritableEvent @event)
+        public void Dispatch(IWritableEvent @event)
         {
             _bus.OutgoingHeaders.Merge(@event.Descriptor.ToDictionary());
             _bus.Publish(@event.Event);

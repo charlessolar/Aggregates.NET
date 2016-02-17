@@ -69,6 +69,10 @@
       <Project>{44aba11e-6abd-4bdf-9fb4-02c2852baadf}</Project>
       <Name>Aggregates.NET.Domain</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj">
+      <Project>{ec7040e2-7a13-4447-900d-6ed57328e5df}</Project>
+      <Name>Aggregates.NET</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="Aggregates.NET.GetEventStore.nuspec" />

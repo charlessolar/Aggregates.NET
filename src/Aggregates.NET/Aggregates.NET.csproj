@@ -56,6 +56,8 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Attributes\ParallelAttribute.cs" />
+    <Compile Include="Contracts\IEventDescriptor.cs" />
+    <Compile Include="Contracts\IWritableEvent.cs" />
     <Compile Include="Enumeration.cs" />
     <Compile Include="Exceptions\RetryException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -76,9 +78,7 @@
     <None Include="Aggregates.NET.nuspec" />
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Contracts\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

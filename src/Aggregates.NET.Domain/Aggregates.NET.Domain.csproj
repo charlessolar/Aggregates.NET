@@ -57,7 +57,6 @@
     <Compile Include="Contracts\IDispatcher.cs" />
     <Compile Include="Contracts\IEntity.cs" />
     <Compile Include="Contracts\IEntityRepository.cs" />
-    <Compile Include="Contracts\IEventDescriptor.cs" />
     <Compile Include="Contracts\IEventPublisher.cs" />
     <Compile Include="Contracts\IEventRouter.cs" />
     <Compile Include="Contracts\IEventSource.cs" />
@@ -86,7 +85,6 @@
     <Compile Include="Contracts\ISnapshot.cs" />
     <Compile Include="Contracts\ISnapshotting.cs" />
     <Compile Include="Contracts\IStoreEvents.cs" />
-    <Compile Include="Contracts\IWritableEvent.cs" />
     <Compile Include="Entity.cs" />
     <Compile Include="Exceptions\AggregateException.cs" />
     <Compile Include="Exceptions\BusinessException.cs" />
