@@ -85,13 +85,13 @@ namespace Aggregates
             return Id.GetHashCode();
         }
 
-        void IEventSource.Hydrate(IEnumerable<object> events)
+        void IEventSource<TId>.Hydrate(IEnumerable<object> events)
         {
             foreach (var @event in events)
                 Raise(@event);
         }
 
-        void IEventSource.Apply<TEvent>(Action<TEvent> action)
+        void IEventSource<TId>.Apply<TEvent>(Action<TEvent> action)
         {
             Apply(action);
         }

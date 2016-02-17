@@ -60,7 +60,7 @@ namespace Aggregates.Internal
             if (snapshot != null && entity is ISnapshotting)
                 ((ISnapshotting)entity).RestoreSnapshot(snapshot.Payload);
 
-            entity.Hydrate(stream.Events.Select(e => e.Event));
+            (entity as IEventSource<TId>).Hydrate(stream.Events.Select(e => e.Event));
 
             this._parentStream.AddChild(stream);
             return entity;

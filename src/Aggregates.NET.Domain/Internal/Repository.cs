@@ -86,7 +86,7 @@ namespace Aggregates.Internal
             if (snapshot != null && root is ISnapshotting)
                 ((ISnapshotting)root).RestoreSnapshot(snapshot.Payload);
 
-            root.Hydrate(stream.Events.Select(e => e.Event));
+            (root as IEventSource<TId>).Hydrate(stream.Events.Select(e => e.Event));
 
             return root;
         }

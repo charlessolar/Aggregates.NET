@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public interface IBase<TId> : IEntity<TId>, IQueryResponse
+    public interface IBase<TId> : IEventSource<TId>, IQueryResponse
     {
     }
 }
