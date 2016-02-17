@@ -25,7 +25,7 @@ namespace Aggregates.Internal
 
             dynamic handler = _builder.Build(handlerType);
 
-            return handler.Handle(query);
+            return handler.Handle((dynamic)query);
         }
     }
 }

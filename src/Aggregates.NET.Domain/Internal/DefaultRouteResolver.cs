@@ -44,7 +44,7 @@ namespace Aggregates.Internal
 
             if (handleMethod == null)
             {
-                Logger.DebugFormat("No handle method found on type '{0}' for event Type '{1}'", eventsource.GetType().Name, mappedType.FullName);
+                Logger.DebugFormat("No handle method found on type '{0}' for event Type '{1}'", eventsource.GetType().FullName, mappedType.FullName);
                 _cache.Add(mappedType, null);
                 return null;
             }
@@ -52,7 +52,7 @@ namespace Aggregates.Internal
             Action<Object> action = m => handleMethod.Invoke(eventsource, new[] { m });
             _cache.Add(mappedType, action);
 
-            Logger.DebugFormat("Handle method found on type '{0}' for event Type '{1}'", eventsource.GetType().Name, mappedType.FullName);
+            Logger.DebugFormat("Handle method found on type '{0}' for event Type '{1}'", eventsource.GetType().FullName, mappedType.FullName);
             return action;
         }
     }

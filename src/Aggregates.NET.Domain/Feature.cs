@@ -32,20 +32,19 @@ namespace Aggregates
             {
                 var eventFactory = y.Build<IMessageCreator>();
                 return () => { return eventFactory.CreateInstance<Accept>(); };
-            }, DependencyLifecycle.InstancePerCall);
+            }, DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<Func<String, Reject>>(y =>
             {
                 var eventFactory = y.Build<IMessageCreator>();
                 return (message) => { return eventFactory.CreateInstance<Reject>(e => { e.Message = message; }); };
-            }, DependencyLifecycle.InstancePerCall);
+            }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register<ExceptionFilterRegistration>();
 
             // Register all query handlers in the container
             foreach (var handler in context.Settings.GetAvailableTypes().Where(IsQueryHandler))
-            {
                 context.Container.ConfigureComponent(handler, DependencyLifecycle.InstancePerCall);
-            }
+            
         }
         public static bool IsQueryHandler(Type type)
         {

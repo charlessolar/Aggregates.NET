@@ -25,21 +25,28 @@ namespace Aggregates.Internal
 
         public void Invoke(IncomingContext context, Action next)
         {
-            try
+            if (context.IncomingLogicalMessage.Instance is ICommand)
             {
-                next();
+                try
+                {
+                    next();
 
-                // Tell the sender the command was accepted
-                var acceptance = _builder.Build<Func<Accept>>();
-                _bus.Reply(acceptance());
+                    // Tell the sender the command was accepted
+                    var acceptance = _builder.Build<Func<Accept>>();
+                    _bus.Reply(acceptance());
+
+                }
+                catch (BusinessException e)
+                {
+                    // Tell the sender the command was rejected due to a business exception
+                    var rejection = _builder.Build<Func<String, Reject>>();
+                    _bus.Reply(rejection(e.Message));
+                    // Don't throw exception to NServicebus because we don't wish to retry this command
+
+                }
             }
-            catch (BusinessException e)
-            {
-                // Tell the sender the command was rejected due to a business exception
-                var rejection = _builder.Build<Func<String, Reject>>();
-                _bus.Reply(rejection(e.Message));
-                // Don't throw exception to NServicebus because we don't wish to retry this command
-            }
+            else
+                next();
         }
     }
 
@@ -49,6 +56,7 @@ namespace Aggregates.Internal
             : base("ExceptionFilter", typeof(ExceptionFilter), "Filters [BusinessException] from processing failures")
         {
             InsertBefore(WellKnownStep.InvokeHandlers);
+
         }
     }
 }
