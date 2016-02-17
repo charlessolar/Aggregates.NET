@@ -87,7 +87,7 @@ namespace Aggregates.Internal
             }
             _disposed = true;
         }
-        
+
         public IRepository<T> For<T>() where T : class, IAggregate
         {
             Logger.DebugFormat("Retreiving repository for type {0}", typeof(T));
@@ -124,7 +124,7 @@ namespace Aggregates.Internal
                 Commit();
             else
                 _errorsMeter.Mark();
-            
+
             _timerContext.Dispose();
         }
 
@@ -194,7 +194,7 @@ namespace Aggregates.Internal
             foreach (var header in userHeaders)
                 _workHeaders[header] = headers[header];
 
-            _workHeaders.Add(DomainHeader, Domain.Current);
+            _workHeaders[DomainHeader] = Domain.Current;
         }
 
         public Object MutateOutgoing(Object message)
