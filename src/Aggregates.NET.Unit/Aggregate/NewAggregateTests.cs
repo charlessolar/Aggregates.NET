@@ -18,6 +18,7 @@ namespace Aggregates.Unit.Aggregate
         private Moq.Mock<IEventStream> _stream;
         private Moq.Mock<IMessageCreator> _eventFactory;
         private Moq.Mock<IRouteResolver> _resolver;
+        private Moq.Mock<IQueryProcessor> _processor;
         private IUnitOfWork _uow;
         private Guid _id;
 
@@ -31,6 +32,7 @@ namespace Aggregates.Unit.Aggregate
             _stream = new Moq.Mock<IEventStream>();
             _eventFactory = new Moq.Mock<IMessageCreator>();
             _resolver = new Moq.Mock<IRouteResolver>();
+            _processor = new Moq.Mock<IQueryProcessor>();
 
             _eventFactory.Setup(x => x.CreateInstance(Moq.It.IsAny<Action<CreatedEvent>>())).Returns<Action<CreatedEvent>>((e) => { var ev = new CreatedEvent(); e(ev); return ev; });
             _eventFactory.Setup(x => x.CreateInstance(Moq.It.IsAny<Action<UpdatedEvent>>())).Returns<Action<UpdatedEvent>>((e) => { var ev = new UpdatedEvent(); e(ev); return ev; });
@@ -40,7 +42,7 @@ namespace Aggregates.Unit.Aggregate
             _resolver.Setup(x => x.Resolve(Moq.It.IsAny<_AggregateStub>(), typeof(CreatedEvent))).Returns<_AggregateStub, Type>((agg, type) => (@event) => (agg as _AggregateStub).Handle(@event as CreatedEvent));
             _resolver.Setup(x => x.Resolve(Moq.It.IsAny<_AggregateStub>(), typeof(UpdatedEvent))).Returns<_AggregateStub, Type>((agg, type) => (@event) => (agg as _AggregateStub).Handle(@event as UpdatedEvent));
 
-            _snaps.Setup(x => x.GetSnapshot<_AggregateStub>(Moq.It.IsAny<String>(), Moq.It.IsAny<String>()));
+            _snaps.Setup(x => x.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<String>()));
             _store.Setup(x => x.GetStream<_AggregateStub>(Moq.It.IsAny<String>(), Moq.It.IsAny<String>(), Moq.It.IsAny<Int32?>())).Returns(_stream.Object);
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IRouteResolver>()).Returns(_resolver.Object);
@@ -51,7 +53,7 @@ namespace Aggregates.Unit.Aggregate
             _stream.Setup(x => x.StreamVersion).Returns(0);
             _stream.Setup(x => x.Events).Returns(new List<IWritableEvent>());
 
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, new DefaultRepositoryFactory());
+            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, new DefaultRepositoryFactory(), _processor.Object);
         }
 
         [Test]

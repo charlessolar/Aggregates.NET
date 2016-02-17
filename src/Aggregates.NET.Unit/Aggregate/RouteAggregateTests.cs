@@ -21,6 +21,7 @@ namespace Aggregates.Unit.Aggregate
         private Moq.Mock<IEventStream> _stream;
         private Moq.Mock<IMessageCreator> _eventFactory;
         private Moq.Mock<IRouteResolver> _resolver;
+        private Moq.Mock<IQueryProcessor> _processor;
         private IUnitOfWork _uow;
         private Guid _id;
 
@@ -33,6 +34,7 @@ namespace Aggregates.Unit.Aggregate
             _stream = new Moq.Mock<IEventStream>();
             _eventFactory = new Moq.Mock<IMessageCreator>();
             _resolver = new Moq.Mock<IRouteResolver>();
+            _processor = new Moq.Mock<IQueryProcessor>();
 
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IRouteResolver>()).Returns(_resolver.Object);
@@ -43,7 +45,7 @@ namespace Aggregates.Unit.Aggregate
             _stream.Setup(x => x.StreamVersion).Returns(0);
             _stream.Setup(x => x.Events).Returns(new List<IWritableEvent>());
 
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, new DefaultRepositoryFactory());
+            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, new DefaultRepositoryFactory(), _processor.Object);
         }
 
         [Test]

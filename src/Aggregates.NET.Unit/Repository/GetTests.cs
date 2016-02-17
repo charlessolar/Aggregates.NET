@@ -35,7 +35,7 @@ namespace Aggregates.Unit.Repository
             _resolver = new Moq.Mock<IRouteResolver>();
 
             _eventStream.Setup(x => x.Events).Returns(new List<IWritableEvent>());
-            _snaps.Setup(x => x.GetSnapshot<_AggregateStub>(Moq.It.IsAny<String>(),Moq.It.IsAny<String>())).Returns((ISnapshot)null);
+            _snaps.Setup(x => x.GetSnapshot(Moq.It.IsAny<String>(),Moq.It.IsAny<String>())).Returns((ISnapshot)null);
             _store.Setup(x => x.GetStream<_AggregateStub>(Moq.It.IsAny<String>(),Moq.It.IsAny<String>(), Moq.It.IsAny<Int32?>())).Returns(_eventStream.Object);
             _aggregate = new Moq.Mock<_AggregateStub>();
             _resolver.Setup(x => x.Resolve(Moq.It.IsAny<_AggregateStub>(), typeof(String))).Returns(e => { });
@@ -74,7 +74,7 @@ namespace Aggregates.Unit.Repository
         public void get_existing_with_snapshot()
         {
             var snapshot = new Moq.Mock<ISnapshot>();
-            _snaps.Setup(x => x.GetSnapshot<_AggregateStub>(Moq.It.IsAny<String>(),Moq.It.IsAny<String>())).Returns(snapshot.Object);
+            _snaps.Setup(x => x.GetSnapshot(Moq.It.IsAny<String>(),Moq.It.IsAny<String>())).Returns(snapshot.Object);
             Assert.IsInstanceOf<_AggregateStub>(_repository.Get(_id));
         }
 
@@ -90,7 +90,7 @@ namespace Aggregates.Unit.Repository
         public void get_cached_snapshot()
         {
             var snapshot = new Moq.Mock<ISnapshot>();
-            _snaps.Setup(x => x.GetSnapshot<_AggregateStub>(Moq.It.IsAny<String>(),Moq.It.IsAny<String>())).Returns(snapshot.Object);
+            _snaps.Setup(x => x.GetSnapshot(Moq.It.IsAny<String>(),Moq.It.IsAny<String>())).Returns(snapshot.Object);
             Assert.IsInstanceOf<_AggregateStub>(_repository.Get(_id));
             Assert.IsInstanceOf<_AggregateStub>(_repository.Get(_id));
         }

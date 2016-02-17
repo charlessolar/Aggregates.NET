@@ -33,7 +33,7 @@ namespace Aggregates.Unit.EntityRepository
             _router = new Moq.Mock<IRouteResolver>();
             _stream.Setup(x => x.Events).Returns(new List<IWritableEvent>());
 
-            _snaps.Setup(x => x.GetSnapshot<_EntityStub>(Moq.It.IsAny<String>(), Moq.It.IsAny<String>()));
+            _snaps.Setup(x => x.GetSnapshot(Moq.It.IsAny<String>(), Moq.It.IsAny<String>()));
 
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
