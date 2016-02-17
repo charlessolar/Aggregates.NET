@@ -13,6 +13,7 @@ using NServiceBus.Features;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
+using NServiceBus.Settings;
 
 namespace Aggregates
 {
@@ -39,6 +40,24 @@ namespace Aggregates
             }, DependencyLifecycle.InstancePerCall);
 
             context.Pipeline.Register<ExceptionFilterRegistration>();
+
+            // Register all query handlers in the container
+            foreach (var handler in context.Settings.GetAvailableTypes().Where(IsQueryHandler))
+            {
+                context.Container.ConfigureComponent(handler, DependencyLifecycle.InstancePerCall);
+            }
+        }
+        public static bool IsQueryHandler(Type type)
+        {
+            if (type.IsAbstract || type.IsGenericTypeDefinition)
+            {
+                return false;
+            }
+
+            return type.GetInterfaces()
+                .Where(@interface => @interface.IsGenericType)
+                .Select(@interface => @interface.GetGenericTypeDefinition())
+                .Any(genericTypeDef => genericTypeDef == typeof(IHandleQueries<,>));
         }
     }
 }
