@@ -131,31 +131,7 @@ namespace Aggregates.Internal
 
             return root;
         }
-
-        public virtual IEnumerable<T> Query<TMemento, TId>(Expression<Func<TMemento, Boolean>> predicate) where TMemento : class, IMemento<TId>
-        {
-            return Query<TMemento, TId>(Bucket.Default, predicate);
-        }
-        public IEnumerable<T> Query<TMemento, TId>(String bucket, Expression<Func<TMemento, Boolean>> predicate) where TMemento : class, IMemento<TId>
-        {
-            // Queries the snapshot store for the user's predicate and returns matching entities
-            return _snapstore.Query<T, TId, TMemento>(bucket, predicate).Select(x =>
-            {
-                var memento = x.Payload as TMemento;
-                var stream = OpenStream(bucket, x.Stream, x);
-                
-                // Call the 'private' constructor
-                var entity = Newup(stream, _builder);
-                (entity as IEventSource<TId>).Id = memento.EntityId;
-
-                ((ISnapshotting)entity).RestoreSnapshot(memento);
-
-                entity.Hydrate(stream.Events.Select(e => e.Event));
-
-                return entity;
-            }).ToList();
-        }
-
+        
         private ISnapshot GetSnapshot<TId>(String bucket, TId id)
         {
             ISnapshot snapshot;

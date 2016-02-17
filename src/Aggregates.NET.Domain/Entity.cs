@@ -6,12 +6,13 @@ using NServiceBus.ObjectBuilder;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public abstract class Entity<TId, TAggregateId> : IEntity<TId, TAggregateId>, IHaveEntities<TId>, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver, INeedMutator, INeedRepositoryFactory
+    public abstract class Entity<TId, TAggregateId> : IEntity<TId, TAggregateId>, IHaveEntities<TId>, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver, INeedMutator, INeedRepositoryFactory, INeedQueries
     {
         protected static readonly ILog Logger = LogManager.GetLogger(typeof(Entity<,>));
         private IDictionary<Type, IEntityRepository> _repositories = new Dictionary<Type, IEntityRepository>();
@@ -20,6 +21,7 @@ namespace Aggregates
         private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
         private IRepositoryFactory _repoFactory { get { return (this as INeedRepositoryFactory).RepositoryFactory; } }
 
+        private IQueryProcessor _queries { get { return (this as INeedQueries).Queries; } }
         private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
 
         private IRouteResolver _resolver { get { return (this as INeedRouteResolver).Resolver; } }
@@ -44,6 +46,7 @@ namespace Aggregates
         IEventStream INeedStream.Stream { get; set; }
         IRepositoryFactory INeedRepositoryFactory.RepositoryFactory { get; set; }
 
+        IQueryProcessor INeedQueries.Queries { get; set; }
         IMessageCreator INeedEventFactory.EventFactory { get; set; }
 
         IRouteResolver INeedRouteResolver.Resolver { get; set; }
@@ -65,6 +68,16 @@ namespace Aggregates
                 return (IEntityRepository<TId, TEntity>)repository;
 
             return (IEntityRepository<TId, TEntity>)(_repositories[type] = (IEntityRepository)_repoFactory.ForEntity<TId, TEntity>(Id, _eventStream, _builder));
+        }
+        public IEnumerable<TResponse> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
+        {
+            return _queries.Process<TResponse, TQuery>(query);
+        }
+        public IEnumerable<TResponse> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
+        {
+            var result = (TQuery)FormatterServices.GetUninitializedObject(typeof(TQuery));
+            query?.Invoke(result);
+            return _queries.Process<TResponse, TQuery>(result);
         }
 
         public override int GetHashCode()

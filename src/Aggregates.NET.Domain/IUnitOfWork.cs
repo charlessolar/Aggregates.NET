@@ -5,9 +5,12 @@ using System;
 using System.Collections.Generic;
 namespace Aggregates
 {
-    public interface IUnitOfWork : IDisposable, Contracts.IServiceProvider, IManageUnitsOfWork, IMutateTransportMessages, IMessageMutator
+    public interface IUnitOfWork : IDisposable, IManageUnitsOfWork, IMutateTransportMessages, IMessageMutator
     {
         IRepository<T> For<T>() where T : class, IAggregate;
+
+        IEnumerable<TResponse> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>;
+        IEnumerable<TResponse> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>;
 
         void Commit();
 

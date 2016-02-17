@@ -12,6 +12,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 
 namespace Aggregates.Internal
 {
@@ -37,11 +38,11 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger(typeof(UnitOfWork));
         private readonly IBuilder _builder;
         private readonly IRepositoryFactory _repoFactory;
+        private readonly IQueryProcessor _queries;
 
         private bool _disposed;
         private IDictionary<String, Object> _workHeaders;
         private IDictionary<Type, IRepository> _repositories;
-        private IDictionary<Type, IService> _services;
 
         private Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
         private Timer _commandsTimer = Metric.Timer("Commands Duration", Unit.Commands);
@@ -50,12 +51,12 @@ namespace Aggregates.Internal
 
         private Meter _errorsMeter = Metric.Meter("Command Errors", Unit.Errors);
 
-        public UnitOfWork(IBuilder builder, IRepositoryFactory repoFactory)
+        public UnitOfWork(IBuilder builder, IRepositoryFactory repoFactory, IQueryProcessor queries)
         {
             _builder = builder;
             _repoFactory = repoFactory;
+            _queries = queries;
             _repositories = new Dictionary<Type, IRepository>();
-            _services = new Dictionary<Type, IService>();
             _workHeaders = new Dictionary<String, Object>();
         }
         ~UnitOfWork()
@@ -83,15 +84,6 @@ namespace Aggregates.Internal
 
                 _repositories.Clear();
             }
-            lock (_services)
-            {
-                foreach (var serv in _services)
-                {
-                    serv.Value.Dispose();
-                }
-
-                _services.Clear();
-            }
             _disposed = true;
         }
         
@@ -106,22 +98,15 @@ namespace Aggregates.Internal
 
             return (IRepository<T>)repository;
         }
-
-        public IService Service<T>() where T : IService
+        public IEnumerable<TResponse> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
-            Logger.DebugFormat("Retreiving service for type {0}", typeof(T));
-            var type = typeof(T);
-
-            IService service;
-            if (!_services.TryGetValue(type, out service))
-                _services[type] = service = _builder.Build<T>();
-
-            if (service == null)
-                throw new ArgumentException(String.Format("Unknown service type {0}", type.FullName));
-
-            service.Begin();
-
-            return service;
+            return _queries.Process<TResponse, TQuery>(query);
+        }
+        public IEnumerable<TResponse> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
+        {
+            var result = (TQuery)FormatterServices.GetUninitializedObject(typeof(TQuery));
+            query?.Invoke(result);
+            return _queries.Process<TResponse, TQuery>(result);
         }
 
         public void Begin()
@@ -138,11 +123,7 @@ namespace Aggregates.Internal
                 Commit();
             else
                 _errorsMeter.Mark();
-
-
-            foreach (var serv in _services)
-                serv.Value.End(ex);
-
+            
             _timerContext.Dispose();
         }
 

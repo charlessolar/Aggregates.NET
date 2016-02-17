@@ -22,8 +22,5 @@ namespace Aggregates.Contracts
         T New<TId>(String bucketId, TId id);
 
         T New<TId>(TId id);
-
-        IEnumerable<T> Query<TSnapshot, TId>(Expression<Func<TSnapshot, Boolean>> predicate) where TSnapshot : class, IMemento<TId>;
-        IEnumerable<T> Query<TSnapshot, TId>(String Bucket, Expression<Func<TSnapshot, Boolean>> predicate) where TSnapshot : class, IMemento<TId>;
     }
 }

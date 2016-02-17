@@ -14,7 +14,5 @@ namespace Aggregates.Contracts
         T Get<TId>(TId id);
 
         T New<TId>(TId id);
-
-        IEnumerable<T> Query<TSnapshot, TId>(Expression<Func<TSnapshot, Boolean>> predicate) where TSnapshot : class, IMemento<TId>;
     }
 }

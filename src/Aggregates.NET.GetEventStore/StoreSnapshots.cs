@@ -77,10 +77,6 @@ namespace Aggregates
 
             _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvents).Wait();
         }
-
-        public IEnumerable<ISnapshot> Query<T, TId, TMemento>(String bucket, Expression<Func<TMemento, Boolean>> predicate) where T : class, IEntity where TMemento : class, IMemento<TId>
-        {
-            throw new NotImplementedException("GES snapshot store does not support querying snapshots");
-        }
+        
     }
 }

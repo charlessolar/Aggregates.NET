@@ -75,29 +75,7 @@ namespace Aggregates.Internal
             this._parentStream.AddChild(stream);
             return entity;
         }
-
-        public override IEnumerable<T> Query<TMemento, TId>(Expression<Func<TMemento, Boolean>> predicate)
-        {
-            // Queries the snapshot store for the user's predicate and returns matching entities
-            return _snapstore.Query<T, TId, TMemento>(_parentStream.Bucket, predicate).Select(x =>
-            {
-                var memento = x.Payload as TMemento;
-
-                var stream = OpenStream(x.Stream, x);
-                
-                // Call the 'private' constructor
-                var entity = Newup(stream, _builder);
-                (entity as IEventSource<TId>).Id = memento.EntityId;
-                (entity as IEntity<TId, TAggregateId>).AggregateId = _aggregateId;
-
-                ((ISnapshotting)entity).RestoreSnapshot(memento);
-
-                entity.Hydrate(stream.Events.Select(e => e.Event));
-
-                return entity;
-            }).ToList();
-        }
-
+        
 
         private ISnapshot GetSnapshot<TId>(TId id)
         {

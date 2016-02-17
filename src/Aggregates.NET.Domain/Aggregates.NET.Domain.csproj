@@ -53,7 +53,6 @@
     </Compile>
     <Compile Include="Aggregate.cs" />
     <Compile Include="Bucket.cs" />
-    <Compile Include="ConfigExtensions.cs" />
     <Compile Include="Contracts\IAggregate.cs" />
     <Compile Include="Contracts\IDispatcher.cs" />
     <Compile Include="Contracts\IEntity.cs" />
@@ -66,10 +65,15 @@
     <Compile Include="Contracts\IHaveEntities.cs" />
     <Compile Include="Contracts\IEventMutator.cs" />
     <Compile Include="Contracts\INeedMutator.cs" />
-    <Compile Include="Contracts\IService.cs" />
-    <Compile Include="Contracts\IServiceProvider.cs" />
+    <Compile Include="Contracts\INeedQueries.cs" />
+    <Compile Include="Contracts\IQueryResponse.cs" />
+    <Compile Include="IBase.cs" />
+    <Compile Include="Internal\QueryProcessor.cs" />
+    <Compile Include="IQuery.cs" />
+    <Compile Include="Contracts\IQueryProcessor.cs" />
     <Compile Include="Contracts\IStoreSnapshots.cs" />
     <Compile Include="Exceptions\NotFoundException.cs" />
+    <Compile Include="IHandleQueries.cs" />
     <Compile Include="IMemento.cs" />
     <Compile Include="Contracts\INeedBuilder.cs" />
     <Compile Include="Contracts\INeedEventFactory.cs" />
