@@ -105,7 +105,7 @@ namespace Aggregates.Internal
         public IEnumerable<TResponse> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
             var result = (TQuery)FormatterServices.GetUninitializedObject(typeof(TQuery));
-            query?.Invoke(result);
+            query.Invoke(result);
             return _queries.Process<TResponse, TQuery>(result);
         }
 
