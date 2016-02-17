@@ -25,6 +25,7 @@ namespace Aggregates
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<QueryProcessor>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<Dispatcher>(DependencyLifecycle.InstancePerCall);
 
             context.Container.ConfigureComponent<Func<Accept>>(y =>
             {
@@ -38,22 +39,6 @@ namespace Aggregates
             }, DependencyLifecycle.InstancePerCall);
 
             context.Pipeline.Register<ExceptionFilterRegistration>();
-        }
-    }
-
-    public class Dispatcher : IDispatcher
-    {
-        protected readonly IBus _bus;
-
-        public Dispatcher(IBus bus)
-        {
-            _bus = bus;
-        }
-
-        public void Dispatch(IWritableEvent @event)
-        {
-            _bus.OutgoingHeaders.Merge(@event.Descriptor.ToDictionary());
-            _bus.Publish(@event.Event);
         }
     }
 }

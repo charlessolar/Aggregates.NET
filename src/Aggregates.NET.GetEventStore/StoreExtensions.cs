@@ -72,6 +72,13 @@ namespace Aggregates.Extensions
             client.SubscribeToAllFrom(Position.End, false, (s, e) =>
             {
                 var descriptor = e.Event.Metadata.Deserialize(settings);
+
+                // Check if the event was written by this domain handler
+                // We don't need to publish events saved by other domain instances
+                Object domain = null;
+                if (!descriptor.Headers.TryGetValue(UnitOfWork.DomainHeader, out domain) || ((Guid)domain) != Domain.Current)
+                    return;
+
                 var data = e.Event.Data.Deserialize(e.Event.EventType, settings);
 
                 var @event = new Internal.WritableEvent

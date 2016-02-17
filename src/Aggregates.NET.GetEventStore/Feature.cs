@@ -52,6 +52,7 @@ namespace Aggregates.GetEventStore
 
             protected override void OnStart()
             {
+                _builder.Build<IEventStoreConnection>().DispatchEvents(_builder.Build<IDispatcher>(), _builder.Build<JsonSerializerSettings>());
             }
         }
     }

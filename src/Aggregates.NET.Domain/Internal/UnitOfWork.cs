@@ -21,6 +21,7 @@ namespace Aggregates.Internal
         public static String PrefixHeader = "Originating";
         public static String MessageIdHeader = "Originating.NServiceBus.MessageId";
         public static String CommitIdHeader = "CommitId";
+        public static String DomainHeader = "Domain";
         public static String NotFound = "<NOT FOUND>";
 
         // Header information to take from incoming messages
@@ -192,6 +193,8 @@ namespace Aggregates.Internal
 
             foreach (var header in userHeaders)
                 _workHeaders[header] = headers[header];
+
+            _workHeaders.Add(DomainHeader, Domain.Current);
         }
 
         public Object MutateOutgoing(Object message)
