@@ -128,6 +128,8 @@ namespace Aggregates.Internal
                 (root as INeedRepositoryFactory).RepositoryFactory = builder.Build<IRepositoryFactory>();
             if (root is INeedMutator)
                 (root as INeedMutator).Mutator = builder.Build<IEventMutator>();
+            if (root is INeedQueries)
+                (root as INeedQueries).Queries = builder.Build<IQueryProcessor>();
 
             return root;
         }
