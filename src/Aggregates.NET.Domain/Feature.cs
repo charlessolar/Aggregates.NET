@@ -25,7 +25,7 @@ namespace Aggregates
             context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<QueryProcessor>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<Processor>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<Dispatcher>(DependencyLifecycle.InstancePerCall);
 
             context.Container.ConfigureComponent<Func<Accept>>(y =>

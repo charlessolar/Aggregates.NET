@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public abstract class Entity<TId, TAggregateId> : IEntity<TId, TAggregateId>, IHaveEntities<TId>, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver, INeedMutator, INeedRepositoryFactory, INeedQueries
+    public abstract class Entity<TId, TAggregateId> : IEntity<TId, TAggregateId>, IHaveEntities<TId>, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver, INeedMutator, INeedRepositoryFactory, INeedProcessor
     {
         protected static readonly ILog Logger = LogManager.GetLogger(typeof(Entity<,>));
         private IDictionary<Type, IEntityRepository> _repositories = new Dictionary<Type, IEntityRepository>();
@@ -21,7 +21,7 @@ namespace Aggregates
         private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
         private IRepositoryFactory _repoFactory { get { return (this as INeedRepositoryFactory).RepositoryFactory; } }
 
-        private IQueryProcessor _queries { get { return (this as INeedQueries).Queries; } }
+        private IProcessor _processor { get { return (this as INeedProcessor).Processor; } }
         private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
 
         private IRouteResolver _resolver { get { return (this as INeedRouteResolver).Resolver; } }
@@ -46,7 +46,7 @@ namespace Aggregates
         IEventStream INeedStream.Stream { get; set; }
         IRepositoryFactory INeedRepositoryFactory.RepositoryFactory { get; set; }
 
-        IQueryProcessor INeedQueries.Queries { get; set; }
+        IProcessor INeedProcessor.Processor { get; set; }
         IMessageCreator INeedEventFactory.EventFactory { get; set; }
 
         IRouteResolver INeedRouteResolver.Resolver { get; set; }
@@ -71,14 +71,26 @@ namespace Aggregates
         }
         public IEnumerable<TResponse> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
-            return _queries.Process<TResponse, TQuery>(query);
+            return _processor.Process<TResponse, TQuery>(query);
         }
         public IEnumerable<TResponse> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
             var result = (TQuery)FormatterServices.GetUninitializedObject(typeof(TQuery));
             query.Invoke(result);
-            return _queries.Process<TResponse, TQuery>(result);
+            return _processor.Process<TResponse, TQuery>(result);
         }
+
+        public TResponse Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>
+        {
+            return _processor.Compute<TResponse, TComputed>(computed);
+        }
+        public TResponse Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>
+        {
+            var result = (TComputed)FormatterServices.GetUninitializedObject(typeof(TComputed));
+            computed.Invoke(result);
+            return Compute<TComputed, TResponse>(result);
+        }
+        
 
         public override int GetHashCode()
         {

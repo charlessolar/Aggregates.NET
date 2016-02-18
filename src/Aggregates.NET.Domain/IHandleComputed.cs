@@ -1,5 +1,4 @@
-﻿using Aggregates.Contracts;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public interface IQuery<TResponse> where TResponse : IQueryResponse
+    public interface IHandleComputed<TCompute, TResponse> where TResponse : struct where TCompute : IComputed<TResponse>
     {
     }
 }

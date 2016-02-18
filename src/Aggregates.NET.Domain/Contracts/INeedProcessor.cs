@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface IQueryResponse
+    public interface INeedProcessor
     {
+        IProcessor Processor { get; set; }
     }
 }

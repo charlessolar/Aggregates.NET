@@ -9,11 +9,11 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public class QueryProcessor :IQueryProcessor
+    public class Processor : IProcessor
     {
         private readonly IBuilder _builder;
 
-        public QueryProcessor(IBuilder builder)
+        public Processor(IBuilder builder)
         {
             _builder = builder;
         }
@@ -26,6 +26,15 @@ namespace Aggregates.Internal
             dynamic handler = _builder.Build(handlerType);
 
             return handler.Handle((dynamic)query);
+        }
+        [DebuggerStepThrough]
+        public TResponse Compute<TResponse, TComputed>(TComputed compute) where TComputed : IComputed<TResponse>
+        {
+            var handlerType = typeof(IHandleComputed<,>).MakeGenericType(compute.GetType(), typeof(TResponse));
+
+            dynamic handler = _builder.Build(handlerType);
+
+            return handler.Handle((dynamic)compute);
         }
     }
 }

@@ -14,7 +14,7 @@ namespace Aggregates.Unit.UnitOfWork
         private Moq.Mock<IBuilder> _builder;
         private Moq.Mock<IStoreEvents> _eventStore;
         private Moq.Mock<IRepositoryFactory> _repoFactory;
-        private Moq.Mock<IQueryProcessor> _processor;
+        private Moq.Mock<IProcessor> _processor;
         private Aggregates.Internal.UnitOfWork _uow;
 
         [SetUp]
@@ -23,7 +23,7 @@ namespace Aggregates.Unit.UnitOfWork
             _builder = new Moq.Mock<IBuilder>();
             _eventStore = new Moq.Mock<IStoreEvents>();
             _repoFactory = new Moq.Mock<IRepositoryFactory>();
-            _processor = new Moq.Mock<IQueryProcessor>();
+            _processor = new Moq.Mock<IProcessor>();
             _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _repoFactory.Object, _processor.Object);
         }
 

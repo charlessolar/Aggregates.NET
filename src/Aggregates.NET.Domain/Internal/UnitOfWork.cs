@@ -39,7 +39,7 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger(typeof(UnitOfWork));
         private readonly IBuilder _builder;
         private readonly IRepositoryFactory _repoFactory;
-        private readonly IQueryProcessor _queries;
+        private readonly IProcessor _processor;
 
         private bool _disposed;
         private IDictionary<String, Object> _workHeaders;
@@ -52,11 +52,11 @@ namespace Aggregates.Internal
 
         private Meter _errorsMeter = Metric.Meter("Command Errors", Unit.Errors);
 
-        public UnitOfWork(IBuilder builder, IRepositoryFactory repoFactory, IQueryProcessor queries)
+        public UnitOfWork(IBuilder builder, IRepositoryFactory repoFactory, IProcessor processor)
         {
             _builder = builder;
             _repoFactory = repoFactory;
-            _queries = queries;
+            _processor = processor;
             _repositories = new Dictionary<Type, IRepository>();
             _workHeaders = new Dictionary<String, Object>();
         }
@@ -101,13 +101,23 @@ namespace Aggregates.Internal
         }
         public IEnumerable<TResponse> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
-            return _queries.Process<TResponse, TQuery>(query);
+            return _processor.Process<TResponse, TQuery>(query);
         }
         public IEnumerable<TResponse> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
             var result = (TQuery)FormatterServices.GetUninitializedObject(typeof(TQuery));
             query.Invoke(result);
-            return _queries.Process<TResponse, TQuery>(result);
+            return Query<TQuery, TResponse>(result);
+        }
+        public TResponse Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>
+        {
+            return _processor.Compute<TResponse, TComputed>(computed);
+        }
+        public TResponse Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>
+        {
+            var result = (TComputed)FormatterServices.GetUninitializedObject(typeof(TComputed));
+            computed.Invoke(result);
+            return Compute<TComputed, TResponse>(result);
         }
 
         public void Begin()

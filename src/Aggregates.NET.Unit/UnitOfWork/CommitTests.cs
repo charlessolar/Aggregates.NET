@@ -16,7 +16,7 @@ namespace Aggregates.Unit.UnitOfWork
         private Moq.Mock<IRepository<_AggregateStub<Guid>>> _guidRepository;
         private Moq.Mock<IRepository<_AggregateStub<Int32>>> _intRepository;
         private Moq.Mock<IRepositoryFactory> _repoFactory;
-        private Moq.Mock<IQueryProcessor> _processor;
+        private Moq.Mock<IProcessor> _processor;
         private IUnitOfWork _uow;
 
         [SetUp]
@@ -25,7 +25,7 @@ namespace Aggregates.Unit.UnitOfWork
             _builder = new Moq.Mock<IBuilder>();
             _eventStore = new Moq.Mock<IStoreEvents>();
             _repoFactory = new Moq.Mock<IRepositoryFactory>();
-            _processor = new Moq.Mock<IQueryProcessor>();
+            _processor = new Moq.Mock<IProcessor>();
             _bus = new Moq.Mock<IBus>();
             _guidRepository = new Moq.Mock<IRepository<_AggregateStub<Guid>>>();
             _intRepository = new Moq.Mock<IRepository<_AggregateStub<Int32>>>();

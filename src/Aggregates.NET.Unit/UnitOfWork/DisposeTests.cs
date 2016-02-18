@@ -12,7 +12,7 @@ namespace Aggregates.Unit.UnitOfWork
         private Moq.Mock<IBuilder> _builder;
         private Moq.Mock<IStoreEvents> _eventStore;
         private Moq.Mock<IRepositoryFactory> _repoFactory;
-        private Moq.Mock<IQueryProcessor> _processor;
+        private Moq.Mock<IProcessor> _processor;
         private Moq.Mock<IRepository<_AggregateStub<Guid>>> _repository;
         private Moq.Mock<IBus> _bus;
         private Aggregates.Internal.UnitOfWork _uow;
@@ -23,7 +23,7 @@ namespace Aggregates.Unit.UnitOfWork
             _builder = new Moq.Mock<IBuilder>();
             _eventStore = new Moq.Mock<IStoreEvents>();
             _repoFactory = new Moq.Mock<IRepositoryFactory>();
-            _processor = new Moq.Mock<IQueryProcessor>();
+            _processor = new Moq.Mock<IProcessor>();
             _bus = new Moq.Mock<IBus>();
             _repository = new Moq.Mock<IRepository<_AggregateStub<Guid>>>();
             _repository.Setup(x => x.Dispose()).Verifiable();

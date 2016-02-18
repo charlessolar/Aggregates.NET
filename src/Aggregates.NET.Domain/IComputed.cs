@@ -4,10 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Aggregates.Contracts
+namespace Aggregates
 {
-    public interface INeedQueries
+    public interface IComputed<TResponse>
     {
-        IQueryProcessor Queries { get; set; }
     }
 }
