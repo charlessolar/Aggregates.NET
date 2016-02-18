@@ -67,7 +67,6 @@
     <Compile Include="Contracts\INeedProcessor.cs" />
     <Compile Include="IComputed.cs" />
     <Compile Include="IHandleComputed.cs" />
-    <Compile Include="IQueryResponse.cs" />
     <Compile Include="Domain.cs" />
     <Compile Include="IBase.cs" />
     <Compile Include="Internal\Dispatcher.cs" />
@@ -104,6 +103,7 @@
     <Compile Include="Internal\ExceptionFilter.cs" />
     <Compile Include="Internal\Repository.cs" />
     <Compile Include="Internal\UnitOfWork.cs" />
+    <Compile Include="IQueryResponse.cs" />
     <Compile Include="IUnitOfWork.cs" />
     <Compile Include="Messages\Accept.cs" />
     <Compile Include="Messages\Reject.cs" />
