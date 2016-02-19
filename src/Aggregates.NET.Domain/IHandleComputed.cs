@@ -8,5 +8,6 @@ namespace Aggregates
 {
     public interface IHandleComputed<TCompute, TResponse> where TResponse : struct where TCompute : IComputed<TResponse>
     {
+        TResponse Handle(TCompute query);
     }
 }
