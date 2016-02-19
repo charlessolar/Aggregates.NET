@@ -10,7 +10,7 @@ namespace Aggregates
 {
     public abstract class Aggregate<TId> : Entity<TId, TId>, IAggregate<TId>, INeedStream, INeedRepositoryFactory
     {
-        protected new static readonly ILog Logger = LogManager.GetLogger(typeof(Aggregate<>));
+        internal new static readonly ILog Logger = LogManager.GetLogger(typeof(Aggregate<>));
     }
 
     public abstract class AggregateWithMemento<TId, TMemento> : Aggregate<TId>, ISnapshotting where TMemento : class, IMemento<TId>
@@ -39,7 +39,7 @@ namespace Aggregates
 
         protected abstract Boolean ShouldTakeSnapshot();
 
-        protected override void Apply<TEvent>(Action<TEvent> action)
+        internal override void Apply<TEvent>(Action<TEvent> action)
         {
             base.Apply(action);
 

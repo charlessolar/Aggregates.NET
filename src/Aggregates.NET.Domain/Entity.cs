@@ -14,7 +14,7 @@ namespace Aggregates
 {
     public abstract class Entity<TId, TAggregateId> : IEntity<TId, TAggregateId>, IHaveEntities<TId>, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver, INeedMutator, INeedRepositoryFactory, INeedProcessor
     {
-        protected static readonly ILog Logger = LogManager.GetLogger(typeof(Entity<,>));
+        internal static readonly ILog Logger = LogManager.GetLogger(typeof(Entity<,>));
         private IDictionary<Type, IEntityRepository> _repositories = new Dictionary<Type, IEntityRepository>();
 
         private IBuilder _builder { get { return (this as INeedBuilder).Builder; } }
@@ -108,7 +108,7 @@ namespace Aggregates
             Apply(action);
         }
 
-        protected virtual void Apply<TEvent>(Action<TEvent> action)
+        internal virtual void Apply<TEvent>(Action<TEvent> action)
         {
             var @event = _eventFactory.CreateInstance(action);
 
@@ -134,7 +134,7 @@ namespace Aggregates
             RouteFor(eventType, @event);
         }
 
-        protected virtual void RouteFor(Type eventType, object @event)
+        internal virtual void RouteFor(Type eventType, object @event)
         {
             var route = _resolver.Resolve(this, eventType);
             if (route == null) return;
@@ -169,7 +169,7 @@ namespace Aggregates
 
         protected abstract Boolean ShouldTakeSnapshot();
 
-        protected override void Apply<TEvent>(Action<TEvent> action)
+        internal override void Apply<TEvent>(Action<TEvent> action)
         {
             base.Apply(action);
 
