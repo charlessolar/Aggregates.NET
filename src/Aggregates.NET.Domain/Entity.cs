@@ -57,7 +57,7 @@ namespace Aggregates
 
         TAggregateId IEntity<TId, TAggregateId>.AggregateId { get; set; }
 
-        
+
         public IEntityRepository<TId, TEntity> For<TEntity>() where TEntity : class, IEntity
         {
             Logger.DebugFormat("Retreiving entity repository for type {0}", typeof(TEntity));
@@ -90,7 +90,7 @@ namespace Aggregates
             computed.Invoke(result);
             return Compute<TComputed, TResponse>(result);
         }
-        
+
 
         public override int GetHashCode()
         {
@@ -108,7 +108,7 @@ namespace Aggregates
             Apply(action);
         }
 
-        internal virtual void Apply<TEvent>(Action<TEvent> action)
+        protected virtual void Apply<TEvent>(Action<TEvent> action) where TEvent : IEvent
         {
             var @event = _eventFactory.CreateInstance(action);
 
@@ -169,7 +169,7 @@ namespace Aggregates
 
         protected abstract Boolean ShouldTakeSnapshot();
 
-        internal override void Apply<TEvent>(Action<TEvent> action)
+        protected override void Apply<TEvent>(Action<TEvent> action)
         {
             base.Apply(action);
 

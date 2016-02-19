@@ -39,7 +39,7 @@ namespace Aggregates
 
         protected abstract Boolean ShouldTakeSnapshot();
 
-        internal override void Apply<TEvent>(Action<TEvent> action)
+        protected override void Apply<TEvent>(Action<TEvent> action)
         {
             base.Apply(action);
 

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public interface IComputed<TResponse> : IFluentInterface
+    public interface IComputed<TResponse>
     {
     }
 }

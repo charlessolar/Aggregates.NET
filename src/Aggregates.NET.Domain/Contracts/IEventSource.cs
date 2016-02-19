@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NServiceBus;
+using System;
 using System.Collections.Generic;
 
 namespace Aggregates.Contracts
@@ -15,6 +16,6 @@ namespace Aggregates.Contracts
     {
         TId Id { get; set; }
         void Hydrate(IEnumerable<object> events);
-        void Apply<TEvent>(Action<TEvent> action);
+        void Apply<TEvent>(Action<TEvent> action) where TEvent : IEvent;
     }
 }

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public interface IQuery<TResponse> : IFluentInterface where TResponse : IQueryResponse
+    public interface IQuery<TResponse> where TResponse : IQueryResponse
     {
     }
 }
