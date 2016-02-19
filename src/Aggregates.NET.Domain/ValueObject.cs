@@ -9,7 +9,8 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public class SingleValueObject<T> : ValueObject<SingleValueObject<T>>
+    public class SingleValueObject<T> : IEquatable<T>
+        where T : SingleValueObject<T>
     {
         public readonly T Value;
 
@@ -26,15 +27,63 @@ namespace Aggregates
             }
         }
 
+        public override bool Equals(object obj)
+        {
+            if (obj == null)
+                return false;
+
+            T other = obj as T;
+
+            return Equals(other);
+        }
+        
+        public virtual bool Equals(T other)
+        {
+            return this.Value.Equals(other.Value);
+        }
+
+        public override int GetHashCode()
+        {
+            return this.Value.GetHashCode();
+        }
+
+
         public override String ToString()
         {
             if (!this.HasValue) return "";
             return this.Value.ToString();
         }
+        
+
+        public static implicit operator T(SingleValueObject<T> x)
+        {
+            return x.Value;
+        }
+        public static implicit operator SingleValueObject<T>(T x)
+        {
+            return new SingleValueObject<T>(x);
+        }
+        public static bool operator ==(SingleValueObject<T> x, SingleValueObject<T> y)
+        {
+            return x.Value.Equals(y.Value);
+        }
+        public static bool operator ==(SingleValueObject<T> x, T y)
+        {
+            return x.Value.Equals(new SingleValueObject<T>(y));
+        }
+
+        public static bool operator !=(SingleValueObject<T> x, SingleValueObject<T> y)
+        {
+            return !(x == y);
+        }
+        public static bool operator !=(SingleValueObject<T> x, T y)
+        {
+            return !(x == y);
+        }
     }
 
     // Implementation from http://grabbagoft.blogspot.com/2007/06/generic-value-object-equality.html
-    public abstract class ValueObject<T> : IEquatable<T>
+    public class ValueObject<T> : IEquatable<T>
         where T : ValueObject<T>
     {
         private Int32? _cachedHash;
