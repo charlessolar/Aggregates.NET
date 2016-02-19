@@ -57,7 +57,6 @@
     </Compile>
     <Compile Include="Attributes\ParallelAttribute.cs" />
     <Compile Include="Contracts\IEventDescriptor.cs" />
-    <Compile Include="Contracts\IFluentInterface.cs" />
     <Compile Include="Contracts\IWritableEvent.cs" />
     <Compile Include="Enumeration.cs" />
     <Compile Include="Exceptions\RetryException.cs" />

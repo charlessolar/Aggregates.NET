@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 namespace Aggregates
 {
     public class SingleValueObject<T> : IEquatable<T>
-        where T : SingleValueObject<T>
     {
         public readonly T Value;
 
@@ -32,12 +31,16 @@ namespace Aggregates
             if (obj == null)
                 return false;
 
-            T other = obj as T;
+            T other = (T)obj;
 
             return Equals(other);
         }
-        
-        public virtual bool Equals(T other)
+
+        public bool Equals(T other)
+        {
+            return this.Equals(new SingleValueObject<T>(other));
+        }
+        public virtual bool Equals(SingleValueObject<T> other)
         {
             return this.Value.Equals(other.Value);
         }
@@ -53,7 +56,7 @@ namespace Aggregates
             if (!this.HasValue) return "";
             return this.Value.ToString();
         }
-        
+
 
         public static implicit operator T(SingleValueObject<T> x)
         {
