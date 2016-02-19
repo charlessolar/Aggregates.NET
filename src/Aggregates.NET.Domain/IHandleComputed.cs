@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public interface IHandleComputed<TCompute, TResponse> where TResponse : struct where TCompute : IComputed<TResponse>
+    public interface IHandleComputed<TCompute, TResponse> where TCompute : IComputed<TResponse>
     {
         TResponse Handle(TCompute query);
     }
