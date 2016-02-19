@@ -12,6 +12,9 @@ namespace Aggregates
         IEnumerable<TResponse> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>;
         IEnumerable<TResponse> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>;
 
+        TResponse Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>;
+        TResponse Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>;
+
         void Commit();
 
         Object CurrentMessage { get; }
