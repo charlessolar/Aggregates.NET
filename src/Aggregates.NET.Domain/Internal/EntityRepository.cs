@@ -80,7 +80,7 @@ namespace Aggregates.Internal
         private ISnapshot GetSnapshot<TId>(TId id)
         {
             ISnapshot snapshot;
-            var snapshotId = String.Format("{0}/{1}", _parentStream.StreamId, id);
+            var snapshotId = String.Format("{0}.{1}", _parentStream.StreamId, id);
             if (!_snapshots.TryGetValue(snapshotId, out snapshot))
             {
                 _snapshots[snapshotId] = snapshot = _snapstore.GetSnapshot(_parentStream.Bucket, snapshotId);
@@ -91,7 +91,7 @@ namespace Aggregates.Internal
 
         private IEventStream OpenStream<TId>(TId id, ISnapshot snapshot)
         {
-            var streamId = String.Format("{0}/{1}", _parentStream.StreamId, id);
+            var streamId = String.Format("{0}.{1}", _parentStream.StreamId, id);
             return OpenStream(streamId, snapshot);
         }
         private IEventStream OpenStream(String streamId, ISnapshot snapshot)
@@ -116,7 +116,7 @@ namespace Aggregates.Internal
             if (_streams.TryGetValue(cacheId, out cached))
                 return cached;
 
-            var streamId = String.Format("{0}/{1}", _parentStream.StreamId, id);
+            var streamId = String.Format("{0}.{1}", _parentStream.StreamId, id);
             _streams[cacheId] = cached = _store.GetStream<T>(_parentStream.Bucket, streamId);
 
             return cached;

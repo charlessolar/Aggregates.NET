@@ -52,10 +52,11 @@ namespace Aggregates
 
         public override void BindToName(Type serializedType, out string assemblyName, out string typeName)
         {
-            var mappedType = _mapper.GetMappedTypeFor(serializedType);
+            var mappedType = _mapper.GetMappedTypeFor(serializedType) ?? serializedType;
 
-            assemblyName = mappedType.Assembly.FullName;
-            typeName = mappedType.FullName;
+            assemblyName = null;
+            typeName = mappedType.AssemblyQualifiedName;
         }
+        
     }
 }

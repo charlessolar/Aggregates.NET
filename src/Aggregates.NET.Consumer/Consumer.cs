@@ -34,6 +34,15 @@ namespace Aggregates
             
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<DurableSubscriber>(DependencyLifecycle.SingleInstance);
+
+            context.Container.ConfigureComponent<JsonSerializerSettings>(y =>
+            {
+                return new JsonSerializerSettings
+                {
+                    Binder = new EventSerializationBinder(y.Build<IMessageMapper>()),
+                    ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
+                };
+            }, DependencyLifecycle.SingleInstance);
         }
     }
 
@@ -55,6 +64,15 @@ namespace Aggregates
         {
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<VolatileSubscriber>(DependencyLifecycle.SingleInstance);
+
+            context.Container.ConfigureComponent<JsonSerializerSettings>(y =>
+            {
+                return new JsonSerializerSettings
+                {
+                    Binder = new EventSerializationBinder(y.Build<IMessageMapper>()),
+                    ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
+                };
+            }, DependencyLifecycle.SingleInstance);
         }
     }
 

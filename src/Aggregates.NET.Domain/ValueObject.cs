@@ -68,11 +68,11 @@ namespace Aggregates
         }
         public static bool operator ==(SingleValueObject<T> x, SingleValueObject<T> y)
         {
-            return x.Value.Equals(y.Value);
+            return x.Equals(y);
         }
         public static bool operator ==(SingleValueObject<T> x, T y)
         {
-            return x.Value.Equals(new SingleValueObject<T>(y));
+            return x.Equals(new SingleValueObject<T>(y));
         }
 
         public static bool operator !=(SingleValueObject<T> x, SingleValueObject<T> y)

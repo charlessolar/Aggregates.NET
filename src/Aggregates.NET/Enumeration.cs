@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -10,6 +11,7 @@ using System.Threading.Tasks;
 namespace Aggregates
 {
     // From https://github.com/HeadspringLabs/Enumeration/blob/master/Enumeration.cs
+    [Serializable]
     [DebuggerDisplay("{DisplayName} - {Value}")]
     public abstract class Enumeration<TEnumeration> : Enumeration<TEnumeration, int>
         where TEnumeration : Enumeration<TEnumeration>
@@ -29,15 +31,19 @@ namespace Aggregates
             return TryParse(listItemValue, out result);
         }
     }
-
+    
     [DebuggerDisplay("{DisplayName} - {Value}")]
+    [Serializable]
+    [DataContract]
     public abstract class Enumeration<TEnumeration, TValue> : IComparable<TEnumeration>, IEquatable<TEnumeration>
         where TEnumeration : Enumeration<TEnumeration, TValue>
         where TValue : IComparable
     {
         private static readonly Lazy<TEnumeration[]> Enumerations = new Lazy<TEnumeration[]>(GetEnumerations);
 
+        [DataMember(Order = 1)]
         public string DisplayName { get; private set; }
+        [DataMember(Order = 0)]
         public TValue Value { get; private set; }
 
         protected Enumeration(TValue value, string displayName)
@@ -79,6 +85,7 @@ namespace Aggregates
 
         public override bool Equals(object obj)
         {
+            if (obj == null) return false;
             return Equals(obj as TEnumeration);
         }
 

@@ -9,6 +9,7 @@ namespace Aggregates.Messages
 {
     public interface Reject : IMessage
     {
+        Exception Exception { get; set; }
         String Message { get; set; }
     }
 }

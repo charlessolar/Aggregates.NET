@@ -33,10 +33,16 @@ namespace Aggregates
                 var eventFactory = y.Build<IMessageCreator>();
                 return () => { return eventFactory.CreateInstance<Accept>(); };
             }, DependencyLifecycle.SingleInstance);
+
             context.Container.ConfigureComponent<Func<String, Reject>>(y =>
             {
                 var eventFactory = y.Build<IMessageCreator>();
                 return (message) => { return eventFactory.CreateInstance<Reject>(e => { e.Message = message; }); };
+            }, DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<Func<Exception, Reject>>(y =>
+            {
+                var eventFactory = y.Build<IMessageCreator>();
+                return (exception) => { return eventFactory.CreateInstance<Reject>(e => { e.Exception = exception; }); };
             }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register<ExceptionFilterRegistration>();
