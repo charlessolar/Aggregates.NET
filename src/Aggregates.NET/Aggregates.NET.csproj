@@ -60,6 +60,8 @@
     <Compile Include="Contracts\IWritableEvent.cs" />
     <Compile Include="Enumeration.cs" />
     <Compile Include="Exceptions\RetryException.cs" />
+    <Compile Include="Messages\Accept.cs" />
+    <Compile Include="Messages\Reject.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Specifications\AdHocSpecification.cs" />
     <Compile Include="Specifications\AndSpecification.cs" />
