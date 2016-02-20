@@ -86,10 +86,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Aggregates.NET.GetEventStore\Aggregates.NET.GetEventStore.csproj">
-      <Project>{cf5bc870-c30b-45de-b440-2cbd740ce370}</Project>
-      <Name>Aggregates.NET.GetEventStore</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj">
       <Project>{ec7040e2-7a13-4447-900d-6ed57328e5df}</Project>
       <Name>Aggregates.NET</Name>
