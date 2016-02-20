@@ -26,17 +26,16 @@ namespace Aggregates
 
         protected override JsonObjectContract CreateObjectContract(Type objectType)
         {
-            if (objectType.IsInterface && (objectType.IsAssignableFrom(typeof(IEvent)) || objectType.IsAssignableFrom(typeof(ISnapshot))))
-            {
-                var mappedType = _mapper.GetMappedTypeFor(objectType);
-                var objectContract = base.CreateObjectContract(mappedType);
+            var mappedTypeFor = _mapper.GetMappedTypeFor(objectType);
 
-                objectContract.DefaultCreator = () => _creator.CreateInstance(mappedType);
+            if (mappedTypeFor == null)
+                return base.CreateObjectContract(objectType);
 
-                return objectContract;
-            }
+            var objectContract = base.CreateObjectContract(mappedTypeFor);
 
-            return base.CreateObjectContract(objectType);
+            objectContract.DefaultCreator = () => _creator.CreateInstance(mappedTypeFor);
+
+            return objectContract;
         }
     }
 
