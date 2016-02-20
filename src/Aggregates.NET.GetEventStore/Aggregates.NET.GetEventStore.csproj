@@ -56,7 +56,6 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="EventContractResolver.cs" />
-    <Compile Include="EventDescriptor.cs" />
     <Compile Include="EventStream.cs" />
     <Compile Include="Feature.cs" />
     <Compile Include="StoreEvents.cs" />

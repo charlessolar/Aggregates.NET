@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Internal;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -20,7 +21,7 @@ namespace Aggregates.Extensions
             return JsonConvert.SerializeObject(@event, settings);
         }
 
-        public static String Serialize(this IEventDescriptor descriptor, JsonSerializerSettings settings)
+        public static String Serialize(this EventDescriptor descriptor, JsonSerializerSettings settings)
         {
             return JsonConvert.SerializeObject(descriptor, settings);
         }
@@ -34,10 +35,10 @@ namespace Aggregates.Extensions
             return JsonConvert.DeserializeObject(json, resolved, settings);
         }
 
-        public static IEventDescriptor Deserialize(this byte[] bytes, JsonSerializerSettings settings)
+        public static EventDescriptor Deserialize(this byte[] bytes, JsonSerializerSettings settings)
         {
             var json = Encoding.UTF8.GetString(bytes);
-            return JsonConvert.DeserializeObject<IEventDescriptor>(json, settings);
+            return JsonConvert.DeserializeObject<EventDescriptor>(json, settings);
         }
 
         public static T Deserialize<T>(this byte[] bytes, JsonSerializerSettings settings)

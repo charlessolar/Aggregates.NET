@@ -65,6 +65,7 @@
     <Compile Include="Enumeration.cs" />
     <Compile Include="Exceptions\RetryException.cs" />
     <Compile Include="Extensions\StoreExtensions.cs" />
+    <Compile Include="Internal\EventDescriptor.cs" />
     <Compile Include="Messages\Accept.cs" />
     <Compile Include="Messages\Reject.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
