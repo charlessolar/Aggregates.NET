@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Serialization;
+﻿using Aggregates.Contracts;
+using Newtonsoft.Json.Serialization;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
@@ -25,7 +26,7 @@ namespace Aggregates
 
         protected override JsonObjectContract CreateObjectContract(Type objectType)
         {
-            if (objectType.IsInterface)
+            if (objectType.IsInterface && (objectType.IsAssignableFrom(typeof(IEvent)) || objectType.IsAssignableFrom(typeof(ISnapshot))))
             {
                 var mappedType = _mapper.GetMappedTypeFor(objectType);
                 var objectContract = base.CreateObjectContract(mappedType);
