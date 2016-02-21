@@ -22,6 +22,7 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             context.Container.ConfigureComponent<ExceptionFilter>(DependencyLifecycle.InstancePerCall);
+            
             context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
@@ -42,17 +43,23 @@ namespace Aggregates
             context.Container.ConfigureComponent<Func<Exception, Reject>>(y =>
             {
                 var eventFactory = y.Build<IMessageCreator>();
-                return (exception) => { return eventFactory.CreateInstance<Reject>(e => { e.Exception = exception; }); };
+                return (exception) => {
+                    return eventFactory.CreateInstance<Reject>(e => {
+                        e.Message = "Exception raised";
+                        e.Exception = exception;
+                    });
+                };
             }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register<ExceptionFilterRegistration>();
+            context.Pipeline.Register<BuilderInjectorRegistration>();
 
             // Register all query handlers in the container
-            foreach (var handler in context.Settings.GetAvailableTypes().Where(IsQueryHandler))
+            foreach (var handler in context.Settings.GetAvailableTypes().Where(IsQueryOrComputeHandler))
                 context.Container.ConfigureComponent(handler, DependencyLifecycle.InstancePerCall);
             
         }
-        public static bool IsQueryHandler(Type type)
+        public static bool IsQueryOrComputeHandler(Type type)
         {
             if (type.IsAbstract || type.IsGenericTypeDefinition)
             {
@@ -62,7 +69,7 @@ namespace Aggregates
             return type.GetInterfaces()
                 .Where(@interface => @interface.IsGenericType)
                 .Select(@interface => @interface.GetGenericTypeDefinition())
-                .Any(genericTypeDef => genericTypeDef == typeof(IHandleQueries<,>));
+                .Any(genericTypeDef => genericTypeDef == typeof(IHandleQueries<,>) || genericTypeDef == typeof(IHandleComputed<,>));
         }
     }
 }

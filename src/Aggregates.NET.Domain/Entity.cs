@@ -71,18 +71,20 @@ namespace Aggregates
         }
         public IEnumerable<TResponse> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
-            return _processor.Process<TResponse, TQuery>(query);
+            var processor = _builder.Build<IProcessor>();
+            return processor.Process<TQuery, TResponse>(_builder, query);
         }
         public IEnumerable<TResponse> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
             var result = (TQuery)FormatterServices.GetUninitializedObject(typeof(TQuery));
             query.Invoke(result);
-            return _processor.Process<TResponse, TQuery>(result);
+            return Query<TQuery, TResponse>(result);
         }
 
         public TResponse Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>
         {
-            return _processor.Compute<TResponse, TComputed>(computed);
+            var processor = _builder.Build<IProcessor>();
+            return processor.Compute<TComputed, TResponse>(_builder, computed);
         }
         public TResponse Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>
         {

@@ -60,14 +60,19 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Attributes\ParallelAttribute.cs" />
+    <Compile Include="Contracts\IDispatcher.cs" />
     <Compile Include="Contracts\IEventDescriptor.cs" />
     <Compile Include="Contracts\IWritableEvent.cs" />
     <Compile Include="Enumeration.cs" />
     <Compile Include="Exceptions\RetryException.cs" />
+    <Compile Include="Extensions\DescriptorExtensions.cs" />
+    <Compile Include="Extensions\DictionaryExtensions.cs" />
     <Compile Include="Extensions\StoreExtensions.cs" />
+    <Compile Include="Internal\Dispatcher.cs" />
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />
     <Compile Include="Messages\Accept.cs" />
+    <Compile Include="Messages\Handler.cs" />
     <Compile Include="Messages\Reject.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Specifications\AdHocSpecification.cs" />

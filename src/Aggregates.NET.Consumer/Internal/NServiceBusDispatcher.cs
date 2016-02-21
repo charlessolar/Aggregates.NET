@@ -41,7 +41,6 @@ namespace Aggregates.Internal
 
         private readonly IDictionary<Type, IDictionary<Type, Boolean>> _parallelCache;
         private readonly IDictionary<Type, Boolean> _eventParallelCache;
-        private readonly IDictionary<String, Object> _handlerCache;
         private readonly ConcurrentDictionary<String, IList<Type>> _invokeCache;
         private readonly ExecutionDataflowBlockOptions _parallelOptions;
 
@@ -61,7 +60,6 @@ namespace Aggregates.Internal
             
             _parallelCache = new Dictionary<Type, IDictionary<Type, Boolean>>();
             _eventParallelCache = new Dictionary<Type, Boolean>();
-            _handlerCache = new ConcurrentDictionary<String, Object>();
             _invokeCache = new ConcurrentDictionary<String, IList<Type>>();
 
             var parallelism = settings.Get<Int32?>("SetEventStoreMaxDegreeOfParallelism") ?? Environment.ProcessorCount;
@@ -166,10 +164,7 @@ namespace Aggregates.Internal
                         var start = DateTime.UtcNow;
 
                         uow.Start();
-                        Object handler = null;
-                        if (!_handlerCache.TryGetValue(job.HandlerType.FullName, out handler))
-                            _handlerCache[job.HandlerType.FullName] = handler = _builder.Build(job.HandlerType);
-
+                        Object handler = _builder.Build(job.HandlerType);
                         _handlerRegistry.InvokeHandle(handler, job.Event);
                         uow.End();
                         

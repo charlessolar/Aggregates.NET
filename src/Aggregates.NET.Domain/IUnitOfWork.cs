@@ -1,5 +1,6 @@
 using Aggregates.Contracts;
 using NServiceBus.MessageMutator;
+using NServiceBus.ObjectBuilder;
 using NServiceBus.UnitOfWork;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,7 @@ namespace Aggregates
 
         void Commit();
 
+        IBuilder Builder { get; set; }
         Object CurrentMessage { get; }
     }
 }

@@ -37,9 +37,7 @@ namespace Aggregates.Internal
                                                                       };
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(UnitOfWork));
-        private readonly IBuilder _builder;
         private readonly IRepositoryFactory _repoFactory;
-        private readonly IProcessor _processor;
 
         private bool _disposed;
         private IDictionary<String, Object> _workHeaders;
@@ -52,17 +50,13 @@ namespace Aggregates.Internal
 
         private Meter _errorsMeter = Metric.Meter("Command Errors", Unit.Errors);
 
-        public UnitOfWork(IBuilder builder, IRepositoryFactory repoFactory, IProcessor processor)
+        public IBuilder Builder { get; set; }
+
+        public UnitOfWork(IRepositoryFactory repoFactory)
         {
-            _builder = builder;
             _repoFactory = repoFactory;
-            _processor = processor;
             _repositories = new Dictionary<Type, IRepository>();
             _workHeaders = new Dictionary<String, Object>();
-        }
-        ~UnitOfWork()
-        {
-            Dispose(false);
         }
 
         public void Dispose()
@@ -95,13 +89,14 @@ namespace Aggregates.Internal
 
             IRepository repository;
             if (!_repositories.TryGetValue(type, out repository))
-                _repositories[type] = repository = (IRepository)_repoFactory.ForAggregate<T>(_builder);
+                _repositories[type] = repository = (IRepository)_repoFactory.ForAggregate<T>(Builder);
 
             return (IRepository<T>)repository;
         }
         public IEnumerable<TResponse> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
-            return _processor.Process<TResponse, TQuery>(query);
+            var processor = Builder.Build<IProcessor>();
+            return processor.Process<TQuery, TResponse>(Builder, query);
         }
         public IEnumerable<TResponse> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
@@ -111,7 +106,8 @@ namespace Aggregates.Internal
         }
         public TResponse Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>
         {
-            return _processor.Compute<TResponse, TComputed>(computed);
+            var processor = Builder.Build<IProcessor>();
+            return processor.Compute<TComputed, TResponse>(Builder, computed);
         }
         public TResponse Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>
         {

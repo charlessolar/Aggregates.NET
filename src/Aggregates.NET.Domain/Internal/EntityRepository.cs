@@ -33,10 +33,6 @@ namespace Aggregates.Internal
             _store = _builder.Build<IStoreEvents>();
             _snapstore = _builder.Build<IStoreSnapshots>();
         }
-        ~EntityRepository()
-        {
-            Dispose(false);
-        }
 
 
         public override T Get<TId>(TId id)

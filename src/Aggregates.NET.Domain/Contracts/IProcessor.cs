@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NServiceBus.ObjectBuilder;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,8 +9,8 @@ namespace Aggregates.Contracts
 {
     public interface IProcessor
     {
-        IEnumerable<TResponse> Process<TResponse, TQuery>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>;
+        IEnumerable<TResponse> Process<TQuery, TResponse>(IBuilder builder, TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>;
 
-        TResponse Compute<TResponse, TComputed>(TComputed compute) where TComputed : IComputed<TResponse>;
+        TResponse Compute<TComputed, TResponse>(IBuilder builder, TComputed compute) where TComputed : IComputed<TResponse>;
     }
 }

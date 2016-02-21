@@ -54,7 +54,6 @@
     <Compile Include="Aggregate.cs" />
     <Compile Include="Bucket.cs" />
     <Compile Include="Contracts\IAggregate.cs" />
-    <Compile Include="Contracts\IDispatcher.cs" />
     <Compile Include="Contracts\IEntity.cs" />
     <Compile Include="Contracts\IEntityRepository.cs" />
     <Compile Include="Contracts\IEventPublisher.cs" />
@@ -69,7 +68,7 @@
     <Compile Include="IHandleComputed.cs" />
     <Compile Include="Domain.cs" />
     <Compile Include="IBase.cs" />
-    <Compile Include="Internal\Dispatcher.cs" />
+    <Compile Include="Internal\BuilderInjector.cs" />
     <Compile Include="Internal\Processor.cs" />
     <Compile Include="IQuery.cs" />
     <Compile Include="Contracts\IProcessor.cs" />
@@ -95,8 +94,6 @@
     <Compile Include="Exceptions\PersistenceException.cs" />
     <Compile Include="Exceptions\StorageException.cs" />
     <Compile Include="Exceptions\VersionException.cs" />
-    <Compile Include="Extensions\DescriptorExtensions.cs" />
-    <Compile Include="Extensions\DictionaryExtensions.cs" />
     <Compile Include="Internal\DefaultRepositoryFactory.cs" />
     <Compile Include="Internal\DefaultRouteResolver.cs" />
     <Compile Include="Internal\EntityRepository.cs" />

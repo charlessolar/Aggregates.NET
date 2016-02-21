@@ -32,10 +32,6 @@ namespace Aggregates.Internal
             _store = _builder.Build<IStoreEvents>();
             _snapstore = _builder.Build<IStoreSnapshots>();
         }
-        ~Repository()
-        {
-            Dispose(false);
-        }
 
         void IRepository.Commit(Guid commitId, IDictionary<String, Object> headers)
         {

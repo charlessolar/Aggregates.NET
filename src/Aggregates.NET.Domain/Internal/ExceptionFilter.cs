@@ -15,12 +15,10 @@ namespace Aggregates.Internal
     internal class ExceptionFilter : IBehavior<IncomingContext>
     {
         private readonly IBus _bus;
-        private readonly IBuilder _builder;
 
-        public ExceptionFilter(IBus bus, IBuilder builder)
+        public ExceptionFilter(IBus bus)
         {
             _bus = bus;
-            _builder = builder;
         }
 
         public void Invoke(IncomingContext context, Action next)
@@ -32,15 +30,15 @@ namespace Aggregates.Internal
                     next();
 
                     // Tell the sender the command was accepted
-                    var acceptance = _builder.Build<Func<Accept>>();
+                    var acceptance = context.Builder.Build<Func<Accept>>();
                     _bus.Reply(acceptance());
 
                 }
                 catch (BusinessException e)
                 {
                     // Tell the sender the command was rejected due to a business exception
-                    var rejection = _builder.Build<Func<String, Reject>>();
-                    _bus.Reply(rejection(e.Message));
+                    var rejection = context.Builder.Build<Func<Exception, Reject>>();
+                    _bus.Reply(rejection(e));
                     // Don't throw exception to NServicebus because we don't wish to retry this command
 
                 }
