@@ -24,7 +24,10 @@ namespace Aggregates.Unit.UnitOfWork
             _eventStore = new Moq.Mock<IStoreEvents>();
             _repoFactory = new Moq.Mock<IRepositoryFactory>();
             _processor = new Moq.Mock<IProcessor>();
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _repoFactory.Object, _processor.Object);
+            _builder.Setup(x => x.Build<IProcessor>()).Returns(_processor.Object);
+
+            _uow = new Aggregates.Internal.UnitOfWork(_repoFactory.Object);
+            _uow.Builder = _builder.Object;
         }
 
 

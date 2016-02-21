@@ -27,9 +27,11 @@ namespace Aggregates.Unit.Repository
             _repository = new Moq.Mock<IRepository<_AggregateStub>>();
             _builder.Setup(x => x.Build<IRepository<_AggregateStub>>()).Returns(_repository.Object);
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
+            _builder.Setup(x => x.Build<IProcessor>()).Returns(_processor.Object);
             _repoFactory.Setup(x => x.ForAggregate<_AggregateStub>(Moq.It.IsAny<IBuilder>())).Returns(_repository.Object);
 
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _repoFactory.Object, _processor.Object);
+            _uow = new Aggregates.Internal.UnitOfWork(_repoFactory.Object);
+            _uow.Builder = _builder.Object;
         }
 
         [Test]

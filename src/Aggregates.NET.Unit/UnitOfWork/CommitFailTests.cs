@@ -31,8 +31,11 @@ namespace Aggregates.Unit.UnitOfWork
 
             _builder.Setup(x => x.Build<IRepository<_AggregateStub<Guid>>>()).Returns(_guidRepository.Object);
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
+            _builder.Setup(x => x.Build<IProcessor>()).Returns(_processor.Object);
             _repoFactory.Setup(x => x.ForAggregate<_AggregateStub<Guid>>(Moq.It.IsAny<IBuilder>())).Returns(_guidRepository.Object);
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _repoFactory.Object, _processor.Object);
+
+            _uow = new Aggregates.Internal.UnitOfWork(_repoFactory.Object);
+            _uow.Builder = _builder.Object;
         }
 
         [Test]

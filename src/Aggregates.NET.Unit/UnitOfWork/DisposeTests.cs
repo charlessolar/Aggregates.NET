@@ -29,7 +29,10 @@ namespace Aggregates.Unit.UnitOfWork
             _repository.Setup(x => x.Dispose()).Verifiable();
             _repoFactory.Setup(x => x.ForAggregate<_AggregateStub<Guid>>(Moq.It.IsAny<IBuilder>())).Returns(_repository.Object);
 
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, _repoFactory.Object, _processor.Object);
+            _builder.Setup(x => x.Build<IProcessor>()).Returns(_processor.Object);
+
+            _uow = new Aggregates.Internal.UnitOfWork(_repoFactory.Object);
+            _uow.Builder = _builder.Object;
         }
 
         [Test]

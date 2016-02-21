@@ -52,11 +52,13 @@ namespace Aggregates.Unit.Aggregate
             _builder.Setup(x => x.Build<IMessageCreator>()).Returns(_eventFactory.Object);
             _builder.Setup(x => x.Build<IStoreEvents>()).Returns(_store.Object);
             _builder.Setup(x => x.Build<IStoreSnapshots>()).Returns(_snaps.Object);
+            _builder.Setup(x => x.Build<IProcessor>()).Returns(_processor.Object);
             _stream.Setup(x => x.StreamId).Returns(String.Format("{0}", _id));
             _stream.Setup(x => x.StreamVersion).Returns(0);
             _stream.Setup(x => x.Events).Returns(new List<IWritableEvent> { new _EventStub { Event = new CreatedEvent { Value = "Test" } } });
 
-            _uow = new Aggregates.Internal.UnitOfWork(_builder.Object, new DefaultRepositoryFactory(), _processor.Object);
+            _uow = new Aggregates.Internal.UnitOfWork( new DefaultRepositoryFactory());
+            _uow.Builder = _builder.Object;
         }
 
 
