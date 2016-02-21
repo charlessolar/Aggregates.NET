@@ -34,6 +34,7 @@ namespace Aggregates
             
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<DurableSubscriber>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<Dispatcher>(DependencyLifecycle.InstancePerCall);
 
             context.Container.ConfigureComponent<JsonSerializerSettings>(y =>
             {
@@ -64,6 +65,7 @@ namespace Aggregates
         {
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<VolatileSubscriber>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<Dispatcher>(DependencyLifecycle.InstancePerCall);
 
             context.Container.ConfigureComponent<JsonSerializerSettings>(y =>
             {
