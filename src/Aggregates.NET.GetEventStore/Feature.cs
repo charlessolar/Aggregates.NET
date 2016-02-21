@@ -27,7 +27,7 @@ namespace Aggregates.GetEventStore
         {
             context.Container.ConfigureComponent<StoreEvents>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<StoreSnapshots>(DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<JsonSerializerSettings>(y =>
+            context.Container.ConfigureComponent(y =>
                 {
                     return new JsonSerializerSettings
                     {

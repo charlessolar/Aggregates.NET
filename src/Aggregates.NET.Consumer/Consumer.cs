@@ -15,12 +15,11 @@ using Aggregates.Internal;
 
 namespace Aggregates
 {
-    public class DurableConsumer : NServiceBus.Features.Feature
+    public class DurableConsumer : Feature
     {
         public DurableConsumer()
         {
             RegisterStartupTask<ConsumerRunner>();
-            DependsOn<NServiceBus.Features.Feature>();
 
             Defaults(s =>
             {
@@ -31,12 +30,10 @@ namespace Aggregates
 
         protected override void Setup(FeatureConfigurationContext context)
         {
-            
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<DurableSubscriber>(DependencyLifecycle.SingleInstance);
-            context.Container.ConfigureComponent<Dispatcher>(DependencyLifecycle.InstancePerCall);
 
-            context.Container.ConfigureComponent<JsonSerializerSettings>(y =>
+            context.Container.ConfigureComponent(y =>
             {
                 return new JsonSerializerSettings
                 {
@@ -47,12 +44,11 @@ namespace Aggregates
         }
     }
 
-    public class VolatileConsumer : NServiceBus.Features.Feature
+    public class VolatileConsumer : Feature
     {
         public VolatileConsumer()
         {
             RegisterStartupTask<ConsumerRunner>();
-            DependsOn<NServiceBus.Features.Feature>();
 
             Defaults(s =>
             {
@@ -65,9 +61,8 @@ namespace Aggregates
         {
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<VolatileSubscriber>(DependencyLifecycle.SingleInstance);
-            context.Container.ConfigureComponent<Dispatcher>(DependencyLifecycle.InstancePerCall);
 
-            context.Container.ConfigureComponent<JsonSerializerSettings>(y =>
+            context.Container.ConfigureComponent(y =>
             {
                 return new JsonSerializerSettings
                 {
