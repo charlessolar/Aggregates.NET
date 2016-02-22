@@ -49,12 +49,13 @@ namespace Aggregates.Internal
         {
             var streamId = String.Format("{0}.{1}", _parentStream.StreamId, id);
 
-            var stream = OpenStream(_parentStream.Bucket, streamId);
-            var entity = Newup(stream, _builder);
+            var entity = New(_parentStream.Bucket, streamId);
+
             (entity as IEventSource<TId>).Id = id;
             (entity as IEntity<TId, TAggregateId>).AggregateId = _aggregateId;
 
-            this._parentStream.AddChild(stream);
+            _tracked.TryAdd(streamId, entity);
+            this._parentStream.AddChild(entity.Stream);
             return entity;
         }
         

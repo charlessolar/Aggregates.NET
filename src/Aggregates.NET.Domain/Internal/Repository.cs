@@ -22,7 +22,7 @@ namespace Aggregates.Internal
         private readonly IStoreSnapshots _snapstore;
         private readonly IBuilder _builder;
         
-        private readonly ConcurrentDictionary<String, T> _tracked = new ConcurrentDictionary<String, T>();
+        protected readonly ConcurrentDictionary<String, T> _tracked = new ConcurrentDictionary<String, T>();
 
         private Boolean _disposed;
 
@@ -156,7 +156,8 @@ namespace Aggregates.Internal
         {
             var stream = OpenStream(bucket, streamId);
             var root = Newup(stream, _builder);
-            
+
+            _tracked.TryAdd(streamId, root);
             return root;
         }
 
@@ -186,7 +187,6 @@ namespace Aggregates.Internal
             if (root is INeedProcessor)
                 (root as INeedProcessor).Processor = builder.Build<IProcessor>();
 
-            _tracked.TryAdd(stream.StreamId, root);
             return root;
         }
         
