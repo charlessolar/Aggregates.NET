@@ -32,28 +32,28 @@ task ILMerge -depends Compile {
 	$dllDir = "$srcDir\Aggregates.NET\bin\Release"
 	#$inputDlls = "$dllDir\Aggregates.NET.dll"
 	#@() |% { $inputDlls = "$inputDlls $dllDir\$_.dll" }
-	#Invoke-Expression "$ilmerge_path /targetplatform:v4.0 /internalize /allowDup /target:library /log /out:$mergedDir\Aggregates.NET.dll $inputDlls"
+	#Invoke-Expression "$ilmerge_path /targetplatform:v4.6.1 /internalize /allowDup /target:library /log /out:$mergedDir\Aggregates.NET.dll $inputDlls"
 	Copy-Item $dllDir\Aggregates.NET.dll $mergedDir\Aggregates.NET.dll
 	Copy-Item $dllDir\Aggregates.NET.dll $mergedDir\Aggregates.NET.pdb
 
 	$dllDir = "$srcDir\Aggregates.NET.Consumer\bin\Release"
 	#$inputDlls = "$dllDir\Aggregates.NET.Consumer.dll"
 	#@() |% { $inputDlls = "$inputDlls $dllDir\$_.dll" }
-	#Invoke-Expression "$ilmerge_path /targetplatform:v4.0 /internalize /allowDup /target:library /log /out:$mergedDir\Aggregates.NET.Consumer.dll $inputDlls"
+	#Invoke-Expression "$ilmerge_path /targetplatform:v4.6.1 /internalize /allowDup /target:library /log /out:$mergedDir\Aggregates.NET.Consumer.dll $inputDlls"
 	Copy-Item $dllDir\Aggregates.NET.Consumer.dll $mergedDir\Aggregates.NET.Consumer.dll
 	Copy-Item $dllDir\Aggregates.NET.Consumer.dll $mergedDir\Aggregates.NET.Consumer.pdb
 
 	$dllDir = "$srcDir\Aggregates.NET.Domain\bin\Release"
 	#$inputDlls = "$dllDir\Aggregates.NET.Domain.dll"
 	#@() |% { $inputDlls = "$inputDlls $dllDir\$_.dll" }
-	#Invoke-Expression "$ilmerge_path /targetplatform:v4.0 /internalize /allowDup /target:library /log /out:$mergedDir\Aggregates.NET.Domain.dll $inputDlls"
+	#Invoke-Expression "$ilmerge_path /targetplatform:v4.6.1 /internalize /allowDup /target:library /log /out:$mergedDir\Aggregates.NET.Domain.dll $inputDlls"
 	Copy-Item $dllDir\Aggregates.NET.Domain.dll $mergedDir\Aggregates.NET.Domain.dll
 	Copy-Item $dllDir\Aggregates.NET.Domain.dll $mergedDir\Aggregates.NET.Domain.pdb
 
 	$dllDir = "$srcDir\Aggregates.NET.GetEventStore\bin\Release"
 	#$inputDlls = "$dllDir\Aggregates.NET.GetEventStore.dll"
 	#@() |% { $inputDlls = "$inputDlls $dllDir\$_.dll" }
-	#Invoke-Expression "$ilmerge_path /targetplatform:v4.0 /internalize /allowDup /target:library /log /out:$mergedDir\Aggregates.NET.GetEventStore.dll $inputDlls"
+	#Invoke-Expression "$ilmerge_path /targetplatform:v4.6.1 /internalize /allowDup /target:library /log /out:$mergedDir\Aggregates.NET.GetEventStore.dll $inputDlls"
 	Copy-Item $dllDir\Aggregates.NET.GetEventStore.dll $mergedDir\Aggregates.NET.GetEventStore.dll
 	Copy-Item $dllDir\Aggregates.NET.GetEventStore.dll $mergedDir\Aggregates.NET.GetEventStore.pdb
 }
