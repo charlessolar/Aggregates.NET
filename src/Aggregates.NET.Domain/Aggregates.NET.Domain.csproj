@@ -54,7 +54,6 @@
     <Compile Include="Aggregate.cs" />
     <Compile Include="Bucket.cs" />
     <Compile Include="Contracts\IAggregate.cs" />
-    <Compile Include="Contracts\IDispatcher.cs" />
     <Compile Include="Contracts\IEntity.cs" />
     <Compile Include="Contracts\IEntityRepository.cs" />
     <Compile Include="Contracts\IEventPublisher.cs" />
@@ -70,7 +69,6 @@
     <Compile Include="Domain.cs" />
     <Compile Include="IBase.cs" />
     <Compile Include="Internal\BuilderInjector.cs" />
-    <Compile Include="Internal\Dispatcher.cs" />
     <Compile Include="Internal\Processor.cs" />
     <Compile Include="IQuery.cs" />
     <Compile Include="Contracts\IProcessor.cs" />
@@ -103,9 +101,9 @@
     <Compile Include="Internal\Repository.cs" />
     <Compile Include="Internal\UnitOfWork.cs" />
     <Compile Include="IQueryResponse.cs" />
-    <Compile Include="IUnitOfWork.cs" />
     <Compile Include="Feature.cs" />
     <Compile Include="Internal\Snapshot.cs" />
+    <Compile Include="IUnitOfWork.cs" />
     <Compile Include="ValueObject.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -113,6 +111,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Aggregates.NET.Consumer\Aggregates.NET.Consumer.csproj">
+      <Project>{4d1df1d2-39e0-4f9f-9e2a-7a9c57420b9f}</Project>
+      <Name>Aggregates.NET.Consumer</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj">
       <Project>{ec7040e2-7a13-4447-900d-6ed57328e5df}</Project>
       <Name>Aggregates.NET</Name>

@@ -158,29 +158,32 @@ namespace Aggregates.Internal
             {
                 using (_eventsTimer.NewContext())
                 {
-                    var uow = _builder.Build<IConsumeUnitOfWork>();
-                    try
+                    using (var childBuilder = _builder.CreateChildBuilder())
                     {
-                        var start = DateTime.UtcNow;
-
-                        uow.Start();
-                        Object handler = _builder.Build(job.HandlerType);
-                        _handlerRegistry.InvokeHandle(handler, job.Event);
-                        uow.End();
+                        var uow = childBuilder.Build<IConsumerUnitOfWork>();
                         
-                        success = true;
-                    }
-                    catch (RetryException e)
-                    {
-                        Logger.InfoFormat("Received retry signal while dispatching event {0}.  Message: {1}", job.Event.GetType(), e.Message);
-                        uow.End(e);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.ErrorFormat("Error processing event {0}.  Exception: {1}", job.Event.GetType(), ex);
-                        uow.End(ex);
-                        retries++;
-                        System.Threading.Thread.Sleep(50);
+                        uow.Builder = childBuilder;
+                        try
+                        {
+                            uow.Begin();
+                            Object handler = childBuilder.Build(job.HandlerType);
+                            _handlerRegistry.InvokeHandle(handler, job.Event);
+                            uow.End();
+
+                            success = true;
+                        }
+                        catch (RetryException e)
+                        {
+                            Logger.InfoFormat("Received retry signal while dispatching event {0}.  Message: {1}", job.Event.GetType(), e.Message);
+                            uow.End(e);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.ErrorFormat("Error processing event {0}.  Exception: {1}", job.Event.GetType(), ex);
+                            uow.End(ex);
+                            retries++;
+                            System.Threading.Thread.Sleep(50);
+                        }
                     }
                 }
             } while (!success && retries < 3);

@@ -6,7 +6,7 @@ using System;
 using System.Collections.Generic;
 namespace Aggregates
 {
-    public interface IUnitOfWork : IDisposable, IManageUnitsOfWork, IMutateTransportMessages, IMessageMutator
+    public interface IUnitOfWork : IDisposable, IManageUnitsOfWork,  IMutateTransportMessages, IMessageMutator
     {
         IRepository<T> For<T>() where T : class, IAggregate;
 

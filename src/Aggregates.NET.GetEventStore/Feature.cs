@@ -13,6 +13,7 @@ using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
+using Aggregates.Internal;
 
 namespace Aggregates.GetEventStore
 {
@@ -20,13 +21,22 @@ namespace Aggregates.GetEventStore
     {
         public Feature()
         {
-            RegisterStartupTask<Runner>();
+            RegisterStartupTask<ConsumerRunner>();
+
+            Defaults(s =>
+            {
+                s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
+                s.SetDefault("SetEventStoreCapacity", new Tuple<int, int>(1024, 1024));
+            });
         }
 
         protected override void Setup(FeatureConfigurationContext context)
         {
             context.Container.ConfigureComponent<StoreEvents>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<StoreSnapshots>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<DomainSubscriber>(DependencyLifecycle.SingleInstance);
+
             context.Container.ConfigureComponent(y =>
                 {
                     return new JsonSerializerSettings
@@ -36,24 +46,6 @@ namespace Aggregates.GetEventStore
                     };
                 }, DependencyLifecycle.SingleInstance);
         }
-
-        private class Runner : FeatureStartupTask
-        {
-            private readonly IBuilder _builder;
-            private readonly ReadOnlySettings _settings;
-            private readonly Configure _configure;
-
-            public Runner(IBuilder builder, ReadOnlySettings settings, Configure configure)
-            {
-                _builder = builder;
-                _settings = settings;
-                _configure = configure;
-            }
-
-            protected override void OnStart()
-            {
-                _builder.Build<IEventStoreConnection>().DispatchEvents(_builder.Build<IDispatcher>(), _builder.Build<JsonSerializerSettings>());
-            }
-        }
+        
     }
 }

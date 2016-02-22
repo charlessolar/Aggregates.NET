@@ -34,7 +34,7 @@ namespace Aggregates
         {
             var saved = _store.Load(endpoint);
 
-            Logger.DebugFormat("Endpoint '{0}' subscribing to all events from position '{1}'", endpoint, saved);
+            Logger.InfoFormat("Endpoint '{0}' subscribing to all events from position '{1}'", endpoint, saved);
 
             _client.SubscribeToAllFrom(saved, false, (_, e) =>
             {
@@ -57,7 +57,7 @@ namespace Aggregates
                 Logger.Info("Live processing started");
             }, subscriptionDropped: (_, reason, e) =>
             {
-                Logger.WarnFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e.Message);
+                Logger.WarnFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e);
             });
         }
     }

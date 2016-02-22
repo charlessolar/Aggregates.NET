@@ -75,7 +75,7 @@
     <Compile Include="IDispatcher.cs" />
     <Compile Include="IEventSubscriber.cs" />
     <Compile Include="IPersistCheckpoints.cs" />
-    <Compile Include="IConsumeUnitOfWork.cs" />
+    <Compile Include="IConsumerUnitOfWork.cs" />
     <Compile Include="Internal\NServiceBusDispatcher.cs" />
     <Compile Include="VolatileSubscriber.cs" />
   </ItemGroup>

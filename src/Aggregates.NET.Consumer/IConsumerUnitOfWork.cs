@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NServiceBus.ObjectBuilder;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,9 +7,10 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public interface IConsumeUnitOfWork
+    public interface IConsumerUnitOfWork
     {
-        void Start();
+        IBuilder Builder { get; set; }
+        void Begin();
         void End(Exception ex = null);
     }
 }

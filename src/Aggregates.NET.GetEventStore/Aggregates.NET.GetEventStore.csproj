@@ -55,6 +55,7 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="DomainSubscriber.cs" />
     <Compile Include="EventStream.cs" />
     <Compile Include="Feature.cs" />
     <Compile Include="StoreEvents.cs" />
@@ -63,6 +64,10 @@
     <Compile Include="WritableEvent.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Aggregates.NET.Consumer\Aggregates.NET.Consumer.csproj">
+      <Project>{4d1df1d2-39e0-4f9f-9e2a-7a9c57420b9f}</Project>
+      <Name>Aggregates.NET.Consumer</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Aggregates.NET.Domain\Aggregates.NET.Domain.csproj">
       <Project>{44aba11e-6abd-4bdf-9fb4-02c2852baadf}</Project>
       <Name>Aggregates.NET.Domain</Name>

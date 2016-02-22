@@ -73,7 +73,7 @@ namespace Aggregates
         }
     }
 
-    internal class ConsumerRunner : FeatureStartupTask
+    public class ConsumerRunner : FeatureStartupTask
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(ConsumerRunner));
         private readonly IBuilder _builder;

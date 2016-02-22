@@ -16,7 +16,7 @@ using System.Runtime.Serialization;
 
 namespace Aggregates.Internal
 {
-    public class UnitOfWork : IUnitOfWork
+    public class UnitOfWork : IUnitOfWork, IConsumerUnitOfWork
     {
         public static String PrefixHeader = "Originating";
         public static String MessageIdHeader = "Originating.NServiceBus.MessageId";
