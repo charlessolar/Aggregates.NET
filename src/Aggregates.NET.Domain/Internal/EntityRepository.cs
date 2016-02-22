@@ -54,7 +54,6 @@ namespace Aggregates.Internal
             (entity as IEventSource<TId>).Id = id;
             (entity as IEntity<TId, TAggregateId>).AggregateId = _aggregateId;
 
-            _tracked.TryAdd(streamId, entity);
             this._parentStream.AddChild(entity.Stream);
             return entity;
         }

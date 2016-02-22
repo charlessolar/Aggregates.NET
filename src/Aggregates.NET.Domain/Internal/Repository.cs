@@ -157,7 +157,8 @@ namespace Aggregates.Internal
             var stream = OpenStream(bucket, streamId);
             var root = Newup(stream, _builder);
 
-            _tracked.TryAdd(streamId, root);
+            var cacheId = String.Format("{0}.{1}", bucket, streamId);
+            _tracked.TryAdd(cacheId, root);
             return root;
         }
 
@@ -182,8 +183,6 @@ namespace Aggregates.Internal
                 (root as INeedRouteResolver).Resolver = builder.Build<IRouteResolver>();
             if (root is INeedRepositoryFactory)
                 (root as INeedRepositoryFactory).RepositoryFactory = builder.Build<IRepositoryFactory>();
-            if (root is INeedMutator)
-                (root as INeedMutator).Mutator = builder.Build<IEventMutator>();
             if (root is INeedProcessor)
                 (root as INeedProcessor).Processor = builder.Build<IProcessor>();
 

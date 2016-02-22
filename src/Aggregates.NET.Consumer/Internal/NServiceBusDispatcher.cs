@@ -16,6 +16,7 @@ using Aggregates.Attributes;
 using NServiceBus.MessageInterfaces;
 using System.Collections.Concurrent;
 using Metrics;
+using Aggregates.Contracts;
 
 namespace Aggregates.Internal
 {
@@ -23,11 +24,12 @@ namespace Aggregates.Internal
     {
         private class ParellelJob
         {
-            public Type HandlerType { get; set; }
+            public Object Handler { get; set; }
             public Object Event { get; set; }
         }
         private class Job
         {
+            public IEventDescriptor Descriptor { get; set; }
             public Object Event { get; set; }
         }
 
@@ -57,7 +59,7 @@ namespace Aggregates.Internal
             _eventFactory = builder.Build<IMessageCreator>();
             _mapper = builder.Build<IMessageMapper>();
             _handlerRegistry = builder.Build<IMessageHandlerRegistry>();
-            
+
             _parallelCache = new Dictionary<Type, IDictionary<Type, Boolean>>();
             _eventParallelCache = new Dictionary<Type, Boolean>();
             _invokeCache = new ConcurrentDictionary<String, IList<Type>>();
@@ -79,7 +81,7 @@ namespace Aggregates.Internal
                 });
         }
 
-        private void Process(Job job)
+        private async Task Process(Job job)
         {
             _eventsMeter.Mark();
 
@@ -87,116 +89,147 @@ namespace Aggregates.Internal
             // This will prevent the event from being queued on MSMQ
 
 
-            Logger.DebugFormat("Processing event {0}", job.Event.GetType().FullName);
-            var parallelQueue = new ActionBlock<ParellelJob>((x) => ExecuteJob(x), _parallelOptions);
-
-            var handlersToInvoke = _invokeCache.GetOrAdd(job.Event.GetType().FullName, 
-                (key) => _handlerRegistry.GetHandlerTypes(job.Event.GetType()).ToList());
-
-            foreach (var handler in handlersToInvoke)
+            var retries = 0;
+            bool success = false;
+            do
             {
-                var eventType = _mapper.GetMappedTypeFor(job.Event.GetType());
-                var parellelJob = new ParellelJob
+                try
                 {
-                    HandlerType = handler,
-                    Event = job.Event
-                };
 
-                IDictionary<Type, Boolean> cached;
-                Boolean parallel;
-                if (!_parallelCache.TryGetValue(handler, out cached))
-                {
-                    cached = new Dictionary<Type, bool>();
-                    _parallelCache[handler] = cached;
+                    Logger.DebugFormat("Processing event {0}", job.Event.GetType().FullName);
+                    var parallelQueue = new ActionBlock<ParellelJob>((x) => ExecuteJob(x), _parallelOptions);
+
+                    var handlersToInvoke = _invokeCache.GetOrAdd(job.Event.GetType().FullName,
+                        (key) => _handlerRegistry.GetHandlerTypes(job.Event.GetType()).ToList());
+
+                    using (var childBuilder = _builder.CreateChildBuilder())
+                    {
+                        var uow = childBuilder.Build<IConsumerUnitOfWork>();
+
+                        var mutators = childBuilder.BuildAll<IEventMutator>();
+
+                        if (mutators != null && mutators.Any())
+                            foreach (var mutate in mutators)
+                            {
+                                Logger.DebugFormat("Mutating incoming event {0} with mutator {1}", job.Event.GetType().FullName, mutate.GetType().FullName);
+                                job.Event = mutate.MutateIncoming(job.Event, job.Descriptor);
+                            }
+
+                        uow.Builder = childBuilder;
+                        try
+                        {
+                            uow.Begin();
+                            foreach (var handler in handlersToInvoke)
+                            {
+                                var eventType = _mapper.GetMappedTypeFor(job.Event.GetType());
+                                var parellelJob = new ParellelJob
+                                {
+                                    Handler = childBuilder.Build(handler),
+                                    Event = job.Event
+                                };
+
+                                IDictionary<Type, Boolean> cached;
+                                Boolean parallel;
+                                if (!_parallelCache.TryGetValue(handler, out cached))
+                                {
+                                    cached = new Dictionary<Type, bool>();
+                                    _parallelCache[handler] = cached;
+                                }
+                                if (!cached.TryGetValue(eventType, out parallel))
+                                {
+
+                                    var interfaceType = typeof(IHandleMessages<>).MakeGenericType(eventType);
+
+                                    if (!interfaceType.IsAssignableFrom(handler))
+                                        continue;
+                                    var methodInfo = handler.GetInterfaceMap(interfaceType).TargetMethods.FirstOrDefault();
+                                    if (methodInfo == null)
+                                        continue;
+
+                                    parallel = handler.GetCustomAttributes(typeof(ParallelAttribute), false).Any() || methodInfo.GetCustomAttributes(typeof(ParallelAttribute), false).Any();
+                                    _parallelCache[handler][eventType] = parallel;
+                                }
+
+                                // If parallel - put on the threaded execution queue
+                                // Post returns false if its full - so keep retrying until it gets in
+                                if (parallel)
+                                    await parallelQueue.SendAsync(parellelJob);
+                                else
+                                    ExecuteJob(parellelJob);
+                            }
+
+                            parallelQueue.Complete();
+
+                            Boolean dontWait = false;
+                            if (!_eventParallelCache.TryGetValue(job.Event.GetType(), out dontWait))
+                                _eventParallelCache[job.Event.GetType()] = dontWait = job.Event.GetType().GetCustomAttributes(typeof(ParallelAttribute), false).Any();
+
+                            if (!dontWait)
+                                await parallelQueue.Completion;
+
+                            uow.End();
+
+                            _processingQueueSize.Decrement();
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.ErrorFormat("Error processing event {0}.  Exception: {1}", job.Event.GetType(), ex);
+                            uow.End(ex);
+                            throw;
+                        }
+                    }
+                    success = true;
                 }
-                if (!cached.TryGetValue(eventType, out parallel))
+                // Catch all our internal exceptions, retrying the command up to 5 times before giving up
+                catch (NotFoundException) { }
+                catch (PersistenceException) { }
+                catch (AggregateException) { }
+                catch (ConflictingCommandException) { }
+                if (!success)
                 {
-
-                    var interfaceType = typeof(IHandleMessages<>).MakeGenericType(eventType);
-
-                    if (!interfaceType.IsAssignableFrom(handler))
-                        continue;
-                    var methodInfo = handler.GetInterfaceMap(interfaceType).TargetMethods.FirstOrDefault();
-                    if (methodInfo == null)
-                        continue;
-
-                    parallel = handler.GetCustomAttributes(typeof(ParallelAttribute), false).Any() || methodInfo.GetCustomAttributes(typeof(ParallelAttribute), false).Any();
-                    _parallelCache[handler][eventType] = parallel;
+                    retries++;
+                    System.Threading.Thread.Sleep(50);
                 }
-
-                // If parallel - put on the threaded execution queue
-                // Post returns false if its full - so keep retrying until it gets in
-                if (parallel)
-                    parallelQueue.SendAsync(parellelJob).Wait();
-                else
-                    ExecuteJob(parellelJob);
-            }
-
-            parallelQueue.Complete();
-
-            parallelQueue.Completion.ContinueWith((_) =>
-            {
-                _processingQueueSize.Decrement();
-            });
-
-            Boolean dontWait = false;
-            if(!_eventParallelCache.TryGetValue(job.Event.GetType(), out dontWait))
-                _eventParallelCache[job.Event.GetType()] = dontWait = job.Event.GetType().GetCustomAttributes(typeof(ParallelAttribute), false).Any();
-
-            if (dontWait)
-                return;
-
-            parallelQueue.Completion.Wait();
+            } while (!success && retries < 5);
         }
 
         private void ExecuteJob(ParellelJob job)
         {
-            Logger.DebugFormat("Executing event {0} on handler {1}", job.Event.GetType().FullName, job.HandlerType.FullName);
+            Logger.DebugFormat("Executing event {0} on handler {1}", job.Event.GetType().FullName, job.Handler.GetType().FullName);
             var retries = 0;
             bool success = false;
             do
             {
                 using (_eventsTimer.NewContext())
                 {
-                    using (var childBuilder = _builder.CreateChildBuilder())
-                    {
-                        var uow = childBuilder.Build<IConsumerUnitOfWork>();
-                        
-                        uow.Builder = childBuilder;
-                        try
-                        {
-                            uow.Begin();
-                            Object handler = childBuilder.Build(job.HandlerType);
-                            _handlerRegistry.InvokeHandle(handler, job.Event);
-                            uow.End();
 
-                            success = true;
-                        }
-                        catch (RetryException e)
-                        {
-                            Logger.InfoFormat("Received retry signal while dispatching event {0}.  Message: {1}", job.Event.GetType(), e.Message);
-                            uow.End(e);
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.ErrorFormat("Error processing event {0}.  Exception: {1}", job.Event.GetType(), ex);
-                            uow.End(ex);
-                            retries++;
-                            System.Threading.Thread.Sleep(50);
-                        }
+                    try
+                    {
+                        _handlerRegistry.InvokeHandle(job.Handler, job.Event);
+
+                        success = true;
+                    }
+                    catch (RetryException e)
+                    {
+                        Logger.InfoFormat("Received retry signal while dispatching event {0}.  Message: {1}", job.Event.GetType(), e.Message);
+                        retries++;
                     }
                 }
             } while (!success && retries < 3);
             if (!success)
+            {
                 _errorsMeter.Mark();
-            Logger.DebugFormat("Finished executing event {0} on handler {1}", job.Event.GetType().FullName, job.HandlerType.FullName);
+                Logger.ErrorFormat("Failed executing event {0} on handler {1}", job.Event.GetType().FullName, job.Handler.GetType().FullName);
+            }
+            else
+                Logger.DebugFormat("Finished executing event {0} on handler {1}", job.Event.GetType().FullName, job.Handler.GetType().FullName);
         }
 
-        public void Dispatch(Object @event)
+        public void Dispatch(Object @event, IEventDescriptor descriptor = null)
         {
             Logger.DebugFormat("Queueing event {0} for processing", @event.GetType().FullName);
             _processingQueueSize.Increment();
-            _processingQueue.SendAsync(new Job { Event = @event }).Wait();
+            _processingQueue.SendAsync(new Job { Event = @event, Descriptor = descriptor }).Wait();
         }
 
         public void Dispatch<TEvent>(Action<TEvent> action)

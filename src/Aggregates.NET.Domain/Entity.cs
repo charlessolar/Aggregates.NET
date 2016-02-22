@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public abstract class Entity<TId, TAggregateId> : IEntity<TId, TAggregateId>, IHaveEntities<TId>, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver, INeedMutator, INeedRepositoryFactory, INeedProcessor
+    public abstract class Entity<TId, TAggregateId> : IEntity<TId, TAggregateId>, IHaveEntities<TId>, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver, INeedRepositoryFactory, INeedProcessor
     {
         internal static readonly ILog Logger = LogManager.GetLogger(typeof(Entity<,>));
         private IDictionary<Type, IEntityRepository> _repositories = new Dictionary<Type, IEntityRepository>();
@@ -24,7 +24,6 @@ namespace Aggregates
         private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
 
         private IRouteResolver _resolver { get { return (this as INeedRouteResolver).Resolver; } }
-        private IEventMutator _mutator { get { return (this as INeedMutator).Mutator; } }
 
         public TId Id { get { return (this as IEventSource<TId>).Id; } }
 
@@ -50,7 +49,6 @@ namespace Aggregates
         IMessageCreator INeedEventFactory.EventFactory { get; set; }
 
         IRouteResolver INeedRouteResolver.Resolver { get; set; }
-        IEventMutator INeedMutator.Mutator { get; set; }
         IBuilder INeedBuilder.Builder { get; set; }
 
         TId IEventSource<TId>.Id { get; set; }
@@ -113,9 +111,6 @@ namespace Aggregates
         protected void Apply<TEvent>(Action<TEvent> action) where TEvent : IEvent
         {
             var @event = _eventFactory.CreateInstance(action);
-
-            if (this._mutator != null)
-                this._mutator.MutateEvent(@event);
 
             Raise(@event);
 

@@ -8,6 +8,7 @@ using EventStore.ClientAPI;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
+using Aggregates.Contracts;
 
 namespace Aggregates
 {
@@ -41,7 +42,9 @@ namespace Aggregates
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
                 if (data == null) return;
 
-                _dispatcher.Dispatch(data);
+
+
+                _dispatcher.Dispatch(data, descriptor);
 
             }, liveProcessingStarted: (_) =>
             {

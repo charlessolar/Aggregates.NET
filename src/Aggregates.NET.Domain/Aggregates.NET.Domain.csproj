@@ -61,8 +61,6 @@
     <Compile Include="Contracts\IEventSource.cs" />
     <Compile Include="Contracts\IEventStream.cs" />
     <Compile Include="Contracts\IHaveEntities.cs" />
-    <Compile Include="Contracts\IEventMutator.cs" />
-    <Compile Include="Contracts\INeedMutator.cs" />
     <Compile Include="Contracts\INeedProcessor.cs" />
     <Compile Include="IComputed.cs" />
     <Compile Include="IHandleComputed.cs" />
@@ -70,10 +68,10 @@
     <Compile Include="IBase.cs" />
     <Compile Include="Internal\BuilderInjector.cs" />
     <Compile Include="Internal\Processor.cs" />
+    <Compile Include="Internal\SafetyNet.cs" />
     <Compile Include="IQuery.cs" />
     <Compile Include="Contracts\IProcessor.cs" />
     <Compile Include="Contracts\IStoreSnapshots.cs" />
-    <Compile Include="Exceptions\NotFoundException.cs" />
     <Compile Include="IHandleQueries.cs" />
     <Compile Include="IMemento.cs" />
     <Compile Include="Contracts\INeedBuilder.cs" />
@@ -88,10 +86,7 @@
     <Compile Include="Contracts\ISnapshotting.cs" />
     <Compile Include="Contracts\IStoreEvents.cs" />
     <Compile Include="Entity.cs" />
-    <Compile Include="Exceptions\AggregateException.cs" />
     <Compile Include="Exceptions\BusinessException.cs" />
-    <Compile Include="Exceptions\ConflictingCommandException.cs" />
-    <Compile Include="Exceptions\PersistenceException.cs" />
     <Compile Include="Exceptions\StorageException.cs" />
     <Compile Include="Exceptions\VersionException.cs" />
     <Compile Include="Internal\DefaultRepositoryFactory.cs" />

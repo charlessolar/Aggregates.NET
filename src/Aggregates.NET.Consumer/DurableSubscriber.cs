@@ -47,7 +47,7 @@ namespace Aggregates
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position or snapshots)
                 if (data == null) return;
 
-                _dispatcher.Dispatch(data);
+                _dispatcher.Dispatch(data, descriptor);
 
                 // Todo: Shouldn't save position here, event is actually processed yet
                 if (e.OriginalPosition.HasValue)

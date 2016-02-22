@@ -1,7 +1,9 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Aggregates.Internal;
 using EventStore.ClientAPI;
+using EventStore.ClientAPI.Exceptions;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
@@ -75,7 +77,14 @@ namespace Aggregates
                     );
             });
 
-            _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvents).Wait();
+            try
+            {
+                _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvents).Wait();
+            }
+            catch (global::System.AggregateException e)
+            {
+                throw e.InnerException;
+            }
         }
         
     }

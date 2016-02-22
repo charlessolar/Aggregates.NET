@@ -16,7 +16,7 @@ using System.Runtime.Serialization;
 
 namespace Aggregates.Internal
 {
-    public class UnitOfWork : IUnitOfWork, IConsumerUnitOfWork
+    public class UnitOfWork : IUnitOfWork, IConsumerUnitOfWork, IEventMutator
     {
         public static String PrefixHeader = "Originating";
         public static String MessageIdHeader = "Originating.NServiceBus.MessageId";
@@ -199,8 +199,6 @@ namespace Aggregates.Internal
 
             foreach (var header in userHeaders)
                 _workHeaders[header] = headers[header];
-
-            _workHeaders[DomainHeader] = Domain.Current;
         }
 
         public Object MutateOutgoing(Object message)
@@ -210,7 +208,51 @@ namespace Aggregates.Internal
         public Object MutateIncoming(Object message)
         {
             this.CurrentMessage = message;
+
+            _workHeaders[DomainHeader] = Domain.Current;
+
             return message;
+        }
+
+        // Event mutating
+        public Object MutateIncoming(Object Event, IEventDescriptor Descriptor)
+        {
+            this.CurrentMessage = Event;
+            _workHeaders[DomainHeader] = Domain.Current;
+
+            var headers = Descriptor.Headers;
+
+            // There are certain headers that we can make note of
+            // These will be committed to the event stream and included in all .Reply or .Publish done via this Unit Of Work
+            // Meaning all receivers of events from the command will get information about the command's message, if they care
+            foreach (var header in CarryOverHeaders)
+            {
+                Object defaultHeader;
+                if (!headers.TryGetValue(header, out defaultHeader))
+                    defaultHeader = NotFound;
+                
+                var workHeader = String.Format("{0}.{1}", PrefixHeader, header);
+                _workHeaders[workHeader] = defaultHeader;
+            }
+
+            // Copy any application headers the user might have included
+            var userHeaders = headers.Keys.Where(h =>
+                            !h.Equals("CorrId", StringComparison.InvariantCultureIgnoreCase) &&
+                            !h.Equals("WinIdName", StringComparison.InvariantCultureIgnoreCase) &&
+                            !h.StartsWith("NServiceBus", StringComparison.InvariantCultureIgnoreCase) &&
+                            !h.StartsWith("$", StringComparison.InvariantCultureIgnoreCase));
+
+            foreach (var header in userHeaders)
+                _workHeaders[header] = headers[header];
+
+            return Event;
+        }
+
+        public IWritableEvent MutateOutgoing(IWritableEvent Event)
+        {
+            foreach (var header in _workHeaders)
+                Event.Descriptor.Headers[header.Key] = header.Value.ToString();
+            return Event;
         }
 
         public Object CurrentMessage { get; private set; }

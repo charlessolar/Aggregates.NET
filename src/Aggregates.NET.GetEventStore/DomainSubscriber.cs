@@ -51,7 +51,7 @@ namespace Aggregates
                     return;
 
 
-                _dispatcher.Dispatch(data);
+                _dispatcher.Dispatch(data, descriptor);
 
             }, liveProcessingStarted: (_) =>
             {

@@ -5,6 +5,7 @@ using EventStore.ClientAPI;
 using EventStore.ClientAPI.Exceptions;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
+using NServiceBus.ObjectBuilder;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -39,23 +40,25 @@ namespace Aggregates.Internal
 
         private readonly IStoreEvents _store;
         private readonly IStoreSnapshots _snapshots;
+        private readonly IBuilder _builder;
         private readonly Int32 _streamVersion;
         private Int32 _version;
-        private IEnumerable<WritableEvent> _committed;
-        private IList<WritableEvent> _uncommitted;
+        private IEnumerable<IWritableEvent> _committed;
+        private IList<IWritableEvent> _uncommitted;
         private IList<ISnapshot> _pendingShots;
         private IList<IEventStream> _children;
 
-        public EventStream(IStoreEvents store, IStoreSnapshots snapshots, String bucket, String streamId, Int32 streamVersion, IEnumerable<WritableEvent> events)
+        public EventStream(IBuilder builder, IStoreEvents store, IStoreSnapshots snapshots, String bucket, String streamId, Int32 streamVersion, IEnumerable<IWritableEvent> events)
         {
             this._store = store;
             this._snapshots = snapshots;
+            this._builder = builder;
             this.Bucket = bucket;
             this.StreamId = streamId;
             this._streamVersion = streamVersion;
             this._version = streamVersion;
             this._committed = events.ToList();
-            this._uncommitted = new List<WritableEvent>();
+            this._uncommitted = new List<IWritableEvent>();
             this._pendingShots = new List<ISnapshot>();
             this._children = new List<IEventStream>();
 
@@ -64,7 +67,7 @@ namespace Aggregates.Internal
 
         public void Add(Object @event, IDictionary<String, Object> headers)
         {
-            this._uncommitted.Add(new WritableEvent
+            IWritableEvent writable = new WritableEvent
             {
                 Descriptor = new EventDescriptor
                 {
@@ -75,7 +78,17 @@ namespace Aggregates.Internal
                 },
                 Event = @event,
                 EventId = Guid.NewGuid()
-            });
+            };
+
+            var mutators = _builder.BuildAll<IEventMutator>();
+            if (mutators != null && mutators.Any())
+                foreach (var mutate in mutators)
+                {
+                    Logger.DebugFormat("Mutating outgoing event {0} with mutator {1}", @event.GetType().FullName, mutate.GetType().FullName);
+                    writable = mutate.MutateOutgoing(writable);
+                }
+
+            _uncommitted.Add(writable);
         }
 
         public void AddSnapshot(Object memento, IDictionary<String, Object> headers)
@@ -113,9 +126,7 @@ namespace Aggregates.Internal
             }
             catch (WrongExpectedVersionException e)
             {
-                // Todo: Send to aggregate for conflict resolution
-                ClearChanges();
-                throw new ConflictingCommandException(e.Message, e);
+                throw new VersionException("Wrong expected version", e);
             }
             catch (CannotEstablishConnectionException e)
             {

@@ -61,7 +61,6 @@
     <Compile Include="StoreEvents.cs" />
     <Compile Include="StoreExtensions.cs" />
     <Compile Include="StoreSnapshots.cs" />
-    <Compile Include="WritableEvent.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Aggregates.NET.Consumer\Aggregates.NET.Consumer.csproj">

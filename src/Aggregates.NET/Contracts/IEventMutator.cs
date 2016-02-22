@@ -8,6 +8,7 @@ namespace Aggregates.Contracts
 {
     public interface IEventMutator
     {
-        Object MutateEvent(Object Event);
+        Object MutateIncoming(Object Event, IEventDescriptor Descriptor);
+        IWritableEvent MutateOutgoing(IWritableEvent Event);
     }
 }

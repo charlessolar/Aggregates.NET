@@ -11,13 +11,6 @@ namespace Aggregates.Internal
 {
     internal class BuilderInjector : IBehavior<IncomingContext>
     {
-        private readonly IBus _bus;
-
-        public BuilderInjector(IBus bus)
-        {
-            _bus = bus;
-        }
-
         public void Invoke(IncomingContext context, Action next)
         {
             var unitOfWork = context.Builder.Build<IUnitOfWork>();
@@ -32,7 +25,7 @@ namespace Aggregates.Internal
         public BuilderInjectorRegistration()
             : base("BuilderInjector", typeof(BuilderInjector), "Injects builder into unit of work")
         {
-            InsertAfter(WellKnownStep.InvokeHandlers);
+            InsertAfter(WellKnownStep.ExecuteUnitOfWork);
 
         }
     }

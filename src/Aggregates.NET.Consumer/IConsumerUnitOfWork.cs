@@ -10,6 +10,7 @@ namespace Aggregates
     public interface IConsumerUnitOfWork
     {
         IBuilder Builder { get; set; }
+
         void Begin();
         void End(Exception ex = null);
     }

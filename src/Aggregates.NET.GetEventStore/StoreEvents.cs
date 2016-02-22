@@ -6,6 +6,7 @@ using EventStore.ClientAPI.Exceptions;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
+using NServiceBus.ObjectBuilder;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,14 +21,16 @@ namespace Aggregates
         private readonly IEventStoreConnection _client;
         private readonly IMessageMapper _mapper;
         private readonly IStoreSnapshots _snapshots;
+        private readonly IBuilder _builder;
         private readonly JsonSerializerSettings _settings;
 
-        public StoreEvents(IEventStoreConnection client, IMessageMapper mapper, IStoreSnapshots snapshots, JsonSerializerSettings settings)
+        public StoreEvents(IEventStoreConnection client, IBuilder builder, IMessageMapper mapper, IStoreSnapshots snapshots, JsonSerializerSettings settings)
         {
             _client = client;
             _mapper = mapper;
             _snapshots = snapshots;
             _settings = settings;
+            _builder = builder;
         }
 
 
@@ -60,8 +63,8 @@ namespace Aggregates
                     EventId = e.Event.EventId
                 };
             });
-
-            return new Internal.EventStream<T>(this, _snapshots, bucket, stream, current.LastEventNumber, translatedEvents);
+            
+            return new Internal.EventStream<T>(_builder, this, _snapshots, bucket, stream, current.LastEventNumber, translatedEvents);
         }
 
         public void WriteEvents(String bucket, String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, Object> commitHeaders)
@@ -87,10 +90,7 @@ namespace Aggregates
             }
             catch (global::System.AggregateException e)
             {
-                if (e.InnerException.GetType() == typeof(WrongExpectedVersionException))
-                    throw new VersionException("Version mismatch", e);
-
-                throw;
+                throw e.InnerException;
             }
         }
     }
