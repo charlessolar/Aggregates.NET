@@ -29,6 +29,13 @@ namespace Aggregates.Internal
                 return this._committed.Concat(this._uncommitted);
             }
         }
+        public IEnumerable<IWritableEvent> Uncommitted
+        {
+            get
+            {
+                return this._uncommitted;
+            }
+        }
 
         private readonly IStoreEvents _store;
         private readonly IStoreSnapshots _snapshots;

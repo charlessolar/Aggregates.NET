@@ -1,6 +1,8 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
+using EventStore.ClientAPI.Exceptions;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
@@ -79,7 +81,17 @@ namespace Aggregates
                     );
             });
 
-            _client.AppendToStreamAsync(streamId, expectedVersion, translatedEvents).Wait();
+            try
+            {
+                _client.AppendToStreamAsync(streamId, expectedVersion, translatedEvents).Wait();
+            }
+            catch (global::System.AggregateException e)
+            {
+                if (e.InnerException.GetType() == typeof(WrongExpectedVersionException))
+                    throw new VersionException("Version mismatch", e);
+
+                throw;
+            }
         }
     }
 }

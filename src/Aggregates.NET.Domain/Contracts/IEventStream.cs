@@ -14,10 +14,12 @@ namespace Aggregates.Contracts
         Int32 CommitVersion { get; }
 
         IEnumerable<IWritableEvent> Events { get; }
+        IEnumerable<IWritableEvent> Uncommitted { get; }
 
         void Add(Object @event, IDictionary<String, Object> headers);
         void AddSnapshot(Object memento, IDictionary<String, Object> headers);
         void Commit(Guid commitId, IDictionary<String, Object> commitHeaders);
+
 
         void AddChild(IEventStream stream);
 

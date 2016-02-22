@@ -22,7 +22,7 @@ namespace Aggregates
         {
             get
             {
-                return !this.Value.Equals(default(T));
+                return this.Value != null && !this.Value.Equals(default(T));
             }
         }
 

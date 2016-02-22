@@ -72,9 +72,9 @@ namespace Aggregates.Internal
 
             lock (_repositories)
             {
-                foreach (var repo in _repositories)
+                foreach (var repo in _repositories.Values)
                 {
-                    repo.Value.Dispose();
+                    repo.Dispose();
                 }
 
                 _repositories.Clear();
@@ -148,14 +148,14 @@ namespace Aggregates.Internal
             if (_workHeaders.TryGetValue(CommitIdHeader, out messageId) && messageId is Guid)
                 commitId = (Guid)messageId;
 
-            foreach (var repo in _repositories)
+            foreach (var repo in _repositories.Values)
             {
                 try
                 {
                     // Insert all command headers into the commit
                     var headers = new Dictionary<String, Object>(_workHeaders);
 
-                    repo.Value.Commit(commitId, headers);
+                    repo.Commit(commitId, headers);
                 }
                 catch (StorageException e)
                 {
@@ -186,7 +186,7 @@ namespace Aggregates.Internal
                 if (String.IsNullOrEmpty(defaultHeader))
                     defaultHeader = NotFound;
 
-                var workHeader = String.Format("{0}.{1}", PrefixHeader, header);
+                var workHeader = $"{PrefixHeader}.{header}";
                 _workHeaders[workHeader] = defaultHeader;
             }
 

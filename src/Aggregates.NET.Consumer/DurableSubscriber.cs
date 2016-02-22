@@ -57,7 +57,7 @@ namespace Aggregates
                 Logger.Info("Live processing started");
             }, subscriptionDropped: (_, reason, e) =>
             {
-                Logger.InfoFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e.Message);
+                Logger.WarnFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e.Message);
             });
         }
     }

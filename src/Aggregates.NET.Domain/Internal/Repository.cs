@@ -21,9 +21,9 @@ namespace Aggregates.Internal
         private readonly IStoreEvents _store;
         private readonly IStoreSnapshots _snapstore;
         private readonly IBuilder _builder;
+        
+        private readonly ConcurrentDictionary<String, T> _tracked = new ConcurrentDictionary<String, T>();
 
-        private readonly ConcurrentDictionary<String, ISnapshot> _snapshots = new ConcurrentDictionary<String, ISnapshot>();
-        private readonly ConcurrentDictionary<String, IEventStream> _streams = new ConcurrentDictionary<String, IEventStream>();
         private Boolean _disposed;
 
         public Repository(IBuilder builder)
@@ -35,8 +35,54 @@ namespace Aggregates.Internal
 
         void IRepository.Commit(Guid commitId, IDictionary<String, Object> headers)
         {
-            foreach (var stream in _streams)
-                stream.Value.Commit(commitId, headers);
+            foreach (var tracked in _tracked.Values )
+            {
+                var stream = tracked.Stream;
+
+                if (tracked is ISnapshotting && (tracked as ISnapshotting).ShouldTakeSnapshot())
+                {
+                    Logger.DebugFormat("Taking snapshot of {0} id {1} version {2}", tracked.GetType().FullName, tracked.StreamId, tracked.Version);
+                    var memento = (tracked as ISnapshotting).TakeSnapshot();
+                    stream.AddSnapshot(memento, headers);
+                }
+
+
+                var count = 0;
+                var success = false;
+                do
+                {
+                    try
+                    {
+                        count++;
+                        stream.Commit(commitId, headers);
+                        success = true;
+                    }
+                    catch (VersionException version)
+                    {
+                        try
+                        {
+                            Logger.DebugFormat("Stream {0} entity {1} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName);
+                            stream = ResolveConflict(tracked.Stream);
+                        }
+                        catch
+                        {
+                            Logger.ErrorFormat("Stream {0} entity {1} has version conflicts with store - FAILED to resolve", tracked.StreamId, tracked.GetType().FullName);
+                            throw new ConflictingCommandException("Could not resolve conflicting events", version);
+                        }
+                    }
+                } while (!success && count < 5);
+            }
+        }
+
+        private IEventStream ResolveConflict(IEventStream stream)
+        {
+            var uncommitted = stream.Uncommitted;
+            // Get latest stream from store
+            var existing = Get(stream.Bucket, stream.StreamId);
+            // Hydrate the uncommitted events
+            existing.Hydrate(uncommitted);
+            // Success! Streams merged
+            return existing.Stream;
         }
 
         public void Dispose()
@@ -50,8 +96,7 @@ namespace Aggregates.Internal
             if (_disposed || !disposing)
                 return;
 
-            _snapshots.Clear();
-            _streams.Clear();
+            _tracked.Clear();
 
             _disposed = true;
         }
@@ -64,27 +109,35 @@ namespace Aggregates.Internal
         public T Get<TId>(String bucket, TId id)
         {
             Logger.DebugFormat("Retreiving aggregate id '{0}' from bucket '{1}' in store", id, bucket);
-
-            var snapshot = GetSnapshot(bucket, id);
-            var stream = OpenStream(bucket, id, snapshot);
-
-            if (stream == null && snapshot == null)
-                throw new NotFoundException("Aggregate snapshot not found");
-
-            // Get requires the stream exists
-            if (stream.StreamVersion == -1)
-                throw new NotFoundException("Aggregate stream not found");
-
-            // Call the 'private' constructor
-            var root = Newup(stream, _builder);
+            var root = Get(bucket, id.ToString());
             (root as IEventSource<TId>).Id = id;
-
-            if (snapshot != null && root is ISnapshotting)
-                ((ISnapshotting)root).RestoreSnapshot(snapshot.Payload);
-
-            (root as IEventSource<TId>).Hydrate(stream.Events.Select(e => e.Event));
-
             return root;
+        }
+        public T Get(String bucket, String id)
+        {
+            var cacheId = $"{bucket}.{id}";
+            return _tracked.GetOrAdd(cacheId, (key) =>
+            {
+                var snapshot = GetSnapshot(bucket, id);
+                var stream = OpenStream(bucket, id, snapshot);
+
+                if (stream == null && snapshot == null)
+                    throw new NotFoundException("Aggregate snapshot not found");
+
+                // Get requires the stream exists
+                if (stream.StreamVersion == -1)
+                    throw new NotFoundException("Aggregate stream not found");
+
+                // Call the 'private' constructor
+                var root = Newup(stream, _builder);
+
+                if (snapshot != null && root is ISnapshotting)
+                    ((ISnapshotting)root).RestoreSnapshot(snapshot.Payload);
+
+                (root as IEventSource).Hydrate(stream.Events.Select(e => e.Event));
+
+                return root;
+            });
         }
 
         public virtual T New<TId>(TId id)
@@ -94,10 +147,16 @@ namespace Aggregates.Internal
 
         public T New<TId>(String bucket, TId id)
         {
-            var stream = PrepareStream(bucket, id);
-            var root = Newup(stream, _builder);
+            var root = New(bucket, id.ToString());
             (root as IEventSource<TId>).Id = id;
 
+            return root;
+        }
+        public T New(String bucket, String streamId)
+        {
+            var stream = OpenStream(bucket, streamId);
+            var root = Newup(stream, _builder);
+            
             return root;
         }
 
@@ -127,49 +186,19 @@ namespace Aggregates.Internal
             if (root is INeedProcessor)
                 (root as INeedProcessor).Processor = builder.Build<IProcessor>();
 
+            _tracked.TryAdd(stream.StreamId, root);
             return root;
         }
         
-        private ISnapshot GetSnapshot<TId>(String bucket, TId id)
+        protected ISnapshot GetSnapshot(String bucket, String streamId)
         {
-            ISnapshot snapshot;
-            var snapshotId = String.Format("{1}-{0}-{2}", typeof(T).FullName, bucket, id);
-            if (!_snapshots.TryGetValue(snapshotId, out snapshot))
-            {
-                _snapshots[snapshotId] = snapshot = _snapstore.GetSnapshot(bucket, id.ToString());
-            }
-
-            return snapshot;
+            return _snapstore.GetSnapshot(bucket, streamId);
         }
 
-        private IEventStream OpenStream<TId>(String bucket, TId id, ISnapshot snapshot)
+        protected IEventStream OpenStream(String bucket, String streamId, ISnapshot snapshot = null)
         {
-            return OpenStream(bucket, id.ToString(), snapshot);
+            return _store.GetStream<T>(bucket, streamId, snapshot?.Version + 1);
         }
-        private IEventStream OpenStream(String bucket, String streamId, ISnapshot snapshot)
-        {
-            var cacheId = String.Format("{0}-{1}", bucket, streamId);
-            IEventStream cached;
-            if (_streams.TryGetValue(cacheId, out cached))
-                return cached;
-            
-            if (snapshot == null)
-                _streams[cacheId] = cached = _store.GetStream<T>(bucket, streamId);
-            else
-                _streams[cacheId] = cached = _store.GetStream<T>(bucket, streamId, snapshot.Version + 1);
-            return cached;
-        }
-
-        private IEventStream PrepareStream<TId>(String bucket, TId id)
-        {
-            IEventStream cached;
-            var cacheId = String.Format("{0}-{1}", bucket, id);
-            if (_streams.TryGetValue(cacheId, out cached))
-                return cached;
-
-            _streams[cacheId] = cached = _store.GetStream<T>(bucket, id.ToString());
-
-            return cached;
-        }
+        
     }
 }

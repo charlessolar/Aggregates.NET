@@ -18,7 +18,6 @@ namespace Aggregates
         private IDictionary<Type, IEntityRepository> _repositories = new Dictionary<Type, IEntityRepository>();
 
         private IBuilder _builder { get { return (this as INeedBuilder).Builder; } }
-        private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
         private IRepositoryFactory _repoFactory { get { return (this as INeedRepositoryFactory).RepositoryFactory; } }
 
         private IProcessor _processor { get { return (this as INeedProcessor).Processor; } }
@@ -36,12 +35,13 @@ namespace Aggregates
 
         Int32 IEventSource.Version { get { return this.Version; } }
 
-        public String Bucket { get { return _eventStream.Bucket; } }
-        public String StreamId { get { return _eventStream.StreamId; } }
+        public IEventStream Stream { get { return (this as INeedStream).Stream; } }
+        public String Bucket { get { return Stream.Bucket; } }
+        public String StreamId { get { return Stream.StreamId; } }
 
-        public Int32 Version { get { return _eventStream.StreamVersion; } }
+        public Int32 Version { get { return Stream.StreamVersion; } }
 
-        public Int32 CommitVersion { get { return _eventStream.CommitVersion; } }
+        public Int32 CommitVersion { get { return Stream.CommitVersion; } }
 
         IEventStream INeedStream.Stream { get; set; }
         IRepositoryFactory INeedRepositoryFactory.RepositoryFactory { get; set; }
@@ -67,7 +67,7 @@ namespace Aggregates
             if (_repositories.TryGetValue(type, out repository))
                 return (IEntityRepository<TId, TEntity>)repository;
 
-            return (IEntityRepository<TId, TEntity>)(_repositories[type] = (IEntityRepository)_repoFactory.ForEntity<TId, TEntity>(Id, _eventStream, _builder));
+            return (IEntityRepository<TId, TEntity>)(_repositories[type] = (IEntityRepository)_repoFactory.ForEntity<TId, TEntity>(Id, Stream, _builder));
         }
         public IEnumerable<TResponse> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
@@ -99,18 +99,18 @@ namespace Aggregates
             return Id.GetHashCode();
         }
 
-        void IEventSource<TId>.Hydrate(IEnumerable<object> events)
+        void IEventSource.Hydrate(IEnumerable<object> events)
         {
             foreach (var @event in events)
                 Raise(@event);
         }
 
-        void IEventSource<TId>.Apply<TEvent>(Action<TEvent> action)
+        void IEventSource.Apply<TEvent>(Action<TEvent> action)
         {
             Apply(action);
         }
 
-        protected virtual void Apply<TEvent>(Action<TEvent> action) where TEvent : IEvent
+        protected void Apply<TEvent>(Action<TEvent> action) where TEvent : IEvent
         {
             var @event = _eventFactory.CreateInstance(action);
 
@@ -121,7 +121,7 @@ namespace Aggregates
 
             // Todo: Fill with user headers or something
             var headers = new Dictionary<String, Object>();
-            _eventStream.Add(@event, headers);
+            Stream.Add(@event, headers);
         }
 
         private void Raise(object @event)
@@ -136,7 +136,7 @@ namespace Aggregates
             RouteFor(eventType, @event);
         }
 
-        internal virtual void RouteFor(Type eventType, object @event)
+        internal void RouteFor(Type eventType, object @event)
         {
             var route = _resolver.Resolve(this, eventType);
             if (route == null) return;
@@ -147,8 +147,6 @@ namespace Aggregates
 
     public abstract class EntityWithMemento<TId, TAggregateId, TMemento> : Entity<TId, TAggregateId>, ISnapshotting where TMemento : class, IMemento<TId>
     {
-        private IEventStream _eventStream { get { return (this as INeedStream).Stream; } }
-
         void ISnapshotting.RestoreSnapshot(Object snapshot)
         {
             Logger.DebugFormat("Restoring snapshot to {0} id {1} version {2}", this.GetType().FullName, this.Id, this.Version);
@@ -170,17 +168,7 @@ namespace Aggregates
         protected abstract TMemento TakeSnapshot();
 
         protected abstract Boolean ShouldTakeSnapshot();
-
-        protected override void Apply<TEvent>(Action<TEvent> action)
-        {
-            base.Apply(action);
-
-            if (this.ShouldTakeSnapshot())
-            {
-                Logger.DebugFormat("Taking snapshot of {0} id {1} version {2}", this.GetType().FullName, this.Id, this.Version);
-                _eventStream.AddSnapshot((this as ISnapshotting).TakeSnapshot(), new Dictionary<string, object> { });
-            }
-        }
+        
     }
 
     public abstract class Entity<TId> : Entity<TId, TId> { }

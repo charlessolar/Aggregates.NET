@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
 using NServiceBus;
+using NServiceBus.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,7 +22,7 @@ namespace Aggregates.Internal
         public void Dispatch(IWritableEvent @event)
         {
             _bus.OutgoingHeaders.Merge(@event.Descriptor.ToDictionary());
-            _bus.Publish(@event.Event);
+            _bus.SendLocal(@event.Event);
         }
     }
 }
