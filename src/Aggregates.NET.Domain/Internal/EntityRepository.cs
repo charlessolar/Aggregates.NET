@@ -35,7 +35,7 @@ namespace Aggregates.Internal
         public override T Get<TId>(TId id)
         {
             Logger.DebugFormat("Retreiving entity id '{0}' from aggregate '{1}' in store", id, _aggregateId);
-            var streamId = $"{_parentStream.StreamId}.{id}";
+            var streamId = String.Format("{0}.{1}", _parentStream.StreamId, id);
 
             var entity = Get(_parentStream.Bucket, streamId);
             (entity as IEventSource<TId>).Id = id;
@@ -47,7 +47,7 @@ namespace Aggregates.Internal
 
         public override T New<TId>(TId id)
         {
-            var streamId = $"{_parentStream.StreamId}.{id}";
+            var streamId = String.Format("{0}.{1}", _parentStream.StreamId, id);
 
             var stream = OpenStream(_parentStream.Bucket, streamId);
             var entity = Newup(stream, _builder);

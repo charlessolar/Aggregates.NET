@@ -115,7 +115,7 @@ namespace Aggregates.Internal
         }
         public T Get(String bucket, String id)
         {
-            var cacheId = $"{bucket}.{id}";
+            var cacheId = String.Format("{0}.{1}", bucket, id);
             return _tracked.GetOrAdd(cacheId, (key) =>
             {
                 var snapshot = GetSnapshot(bucket, id);

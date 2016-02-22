@@ -186,7 +186,7 @@ namespace Aggregates.Internal
                 if (String.IsNullOrEmpty(defaultHeader))
                     defaultHeader = NotFound;
 
-                var workHeader = $"{PrefixHeader}.{header}";
+                var workHeader = String.Format("{0}.{1}", PrefixHeader, header);
                 _workHeaders[workHeader] = defaultHeader;
             }
 
