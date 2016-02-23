@@ -16,9 +16,9 @@ namespace Aggregates
         {
             settings.GetSettings().Set("SetEventStoreMaxDegreeOfParallelism", Parallelism);
         }
-        public static void SetEventStoreCapacity(this ExposeSettings settings, Int32 ProcessorCapacity, Int32 ParallelCapacity)
+        public static void SetEventStoreCapacity(this ExposeSettings settings, Int32 Capacity)
         {
-            settings.GetSettings().Set("SetEventStoreCapacity", new Tuple<Int32, Int32>(ProcessorCapacity, ParallelCapacity));
+            settings.GetSettings().Set("SetEventStoreCapacity", Capacity);
         }
     }
 }

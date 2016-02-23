@@ -220,6 +220,8 @@ namespace Aggregates.Internal
             this.CurrentMessage = Event;
             _workHeaders[DomainHeader] = Domain.Current;
 
+            if (Descriptor == null) return Event; 
+
             var headers = Descriptor.Headers;
 
             // There are certain headers that we can make note of

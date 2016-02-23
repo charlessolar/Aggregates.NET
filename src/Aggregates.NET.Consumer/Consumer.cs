@@ -24,7 +24,7 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
-                s.SetDefault("SetEventStoreCapacity", new Tuple<int, int>(1024, 1024));
+                s.SetDefault("SetEventStoreCapacity", 10000);
             });
         }
 
@@ -53,7 +53,7 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
-                s.SetDefault("SetEventStoreCapacity", new Tuple<int, int>(64, 64));
+                s.SetDefault("SetEventStoreCapacity", 10000);
             });
         }
 

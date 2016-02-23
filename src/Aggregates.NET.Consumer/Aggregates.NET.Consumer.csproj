@@ -70,7 +70,6 @@
     <Compile Include="Consumer.cs" />
     <Compile Include="ConsumerConfiguration.cs" />
     <Compile Include="DurableSubscriber.cs" />
-    <Compile Include="Internal\ErrorDetectionStrategy.cs" />
     <Compile Include="IDispatcher.cs" />
     <Compile Include="IEventSubscriber.cs" />
     <Compile Include="IPersistCheckpoints.cs" />
