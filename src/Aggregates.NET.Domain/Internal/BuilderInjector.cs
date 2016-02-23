@@ -25,7 +25,7 @@ namespace Aggregates.Internal
         public BuilderInjectorRegistration()
             : base("BuilderInjector", typeof(BuilderInjector), "Injects builder into unit of work")
         {
-            InsertAfter(WellKnownStep.ExecuteUnitOfWork);
+            InsertBefore(WellKnownStep.InvokeHandlers);
 
         }
     }

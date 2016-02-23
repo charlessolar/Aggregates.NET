@@ -104,7 +104,8 @@ namespace Aggregates.Internal
 
                     using (var childBuilder = _builder.CreateChildBuilder())
                     {
-                        var uow = childBuilder.Build<IConsumerUnitOfWork>();
+                        var uows = childBuilder.BuildAll<IConsumerUnitOfWork>();
+                        
 
                         var mutators = childBuilder.BuildAll<IEventMutator>();
 
@@ -115,10 +116,15 @@ namespace Aggregates.Internal
                                 job.Event = mutate.MutateIncoming(job.Event, job.Descriptor);
                             }
 
-                        uow.Builder = childBuilder;
                         try
                         {
-                            uow.Begin();
+                            if (uows != null && uows.Any())
+                                foreach (var uow in uows)
+                                {
+                                    uow.Builder = childBuilder;
+                                    uow.Begin();
+                                }
+
                             foreach (var handler in handlersToInvoke)
                             {
                                 var eventType = _mapper.GetMappedTypeFor(job.Event.GetType());
@@ -167,14 +173,19 @@ namespace Aggregates.Internal
                             if (!dontWait)
                                 await parallelQueue.Completion;
 
-                            uow.End();
+                            if (uows != null && uows.Any())
+                                foreach (var uow in uows)
+                                    uow.End();
 
                             _processingQueueSize.Decrement();
                         }
                         catch (Exception ex)
                         {
                             Logger.ErrorFormat("Error processing event {0}.  Exception: {1}", job.Event.GetType(), ex);
-                            uow.End(ex);
+
+                            if (uows != null && uows.Any())
+                                foreach (var uow in uows)
+                                    uow.End(ex);
                             throw;
                         }
                     }
@@ -185,6 +196,11 @@ namespace Aggregates.Internal
                 catch (PersistenceException) { }
                 catch (AggregateException) { }
                 catch (ConflictingCommandException) { }
+                catch(Exception e)
+                {
+                    Logger.ErrorFormat("Unhanded exception happened while processing event {0}.  Exception: {1}", job.Event.GetType().FullName, e);
+                    throw;
+                }
                 if (!success)
                 {
                     retries++;
