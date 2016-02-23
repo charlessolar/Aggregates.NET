@@ -33,6 +33,7 @@ namespace Aggregates
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from END", endpoint);
             _client.SubscribeToAllFrom(Position.End, false, (_, e) =>
             {
+                System.Threading.Thread.CurrentThread.Name = "Eventstore";
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
 

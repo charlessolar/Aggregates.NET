@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Aggregates.Internal
@@ -14,6 +15,7 @@ namespace Aggregates.Internal
 
         public void Invoke(IncomingContext context, Action next)
         {
+            Thread.CurrentThread.Name = "ServiceBus";
             // Catch all our internal exceptions, retrying the command up to 5 times before giving up
             var retries = 0;
             bool success = false;

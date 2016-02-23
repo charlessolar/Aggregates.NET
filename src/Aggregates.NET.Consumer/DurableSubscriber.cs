@@ -38,6 +38,7 @@ namespace Aggregates
 
             _client.SubscribeToAllFrom(saved, false, (_, e) =>
             {
+                System.Threading.Thread.CurrentThread.Name = "Eventstore";
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
 

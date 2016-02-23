@@ -19,6 +19,7 @@ using Metrics;
 using Aggregates.Contracts;
 using System.Diagnostics;
 using Newtonsoft.Json;
+using System.Threading;
 
 namespace Aggregates.Internal
 {
@@ -50,7 +51,7 @@ namespace Aggregates.Internal
         private readonly JsonSerializerSettings _jsonSettings;
 
         private Meter _eventsMeter = Metric.Meter("Events", Unit.Events);
-        private Timer _eventsTimer = Metric.Timer("Event Duration", Unit.Events);
+        private Metrics.Timer _eventsTimer = Metric.Timer("Event Duration", Unit.Events);
 
         private Meter _errorsMeter = Metric.Meter("Event Errors", Unit.Errors);
 
@@ -61,6 +62,7 @@ namespace Aggregates.Internal
             _eventFactory = builder.Build<IMessageCreator>();
             _mapper = builder.Build<IMessageMapper>();
             _handlerRegistry = builder.Build<IMessageHandlerRegistry>();
+            _jsonSettings = jsonSettings;
 
             _parallelCache = new Dictionary<Type, IDictionary<Type, Boolean>>();
             _eventParallelCache = new Dictionary<Type, Boolean>();
@@ -80,6 +82,7 @@ namespace Aggregates.Internal
 
         private async Task Process(Object @event, IEventDescriptor descriptor)
         {
+            Thread.CurrentThread.Name = "Dispatcher";
             _eventsMeter.Mark();
 
             // Use NSB internal handler registry to directly call Handle(@event)
@@ -191,6 +194,7 @@ namespace Aggregates.Internal
 
         private void ExecuteJob(ParellelJob job)
         {
+            Thread.CurrentThread.Name = "Dispatcher";
             var retries = 0;
             bool success = false;
             do
