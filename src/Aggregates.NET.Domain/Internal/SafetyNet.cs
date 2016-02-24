@@ -1,4 +1,5 @@
 ﻿using Aggregates.Exceptions;
+using Aggregates.Extensions;
 using NServiceBus.Pipeline;
 using NServiceBus.Pipeline.Contexts;
 using System;
@@ -15,7 +16,7 @@ namespace Aggregates.Internal
 
         public void Invoke(IncomingContext context, Action next)
         {
-            Thread.CurrentThread.Name = "ServiceBus";
+            Thread.CurrentThread.Rename("ServiceBus");
             // Catch all our internal exceptions, retrying the command up to 5 times before giving up
             var retries = 0;
             bool success = false;

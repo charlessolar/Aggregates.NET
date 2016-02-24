@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Aggregates
@@ -38,7 +39,7 @@ namespace Aggregates
 
             _client.SubscribeToAllFrom(saved, false, (_, e) =>
             {
-                System.Threading.Thread.CurrentThread.Name = "Eventstore";
+                Thread.CurrentThread.Rename("Eventstore");
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
 

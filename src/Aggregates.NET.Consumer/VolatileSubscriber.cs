@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
 using Aggregates.Contracts;
+using System.Threading;
 
 namespace Aggregates
 {
@@ -33,7 +34,7 @@ namespace Aggregates
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from END", endpoint);
             _client.SubscribeToAllFrom(Position.End, false, (_, e) =>
             {
-                System.Threading.Thread.CurrentThread.Name = "Eventstore";
+                Thread.CurrentThread.Rename("Eventstore");
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
 
