@@ -11,7 +11,6 @@ using NServiceBus.Settings;
 using NServiceBus.Logging;
 using Aggregates.Exceptions;
 using System.Threading.Tasks.Dataflow;
-using Microsoft.Practices.TransientFaultHandling;
 using Aggregates.Attributes;
 using NServiceBus.MessageInterfaces;
 using System.Collections.Concurrent;
@@ -26,11 +25,6 @@ namespace Aggregates.Internal
 {
     public class NServiceBusDispatcher : IDispatcher
     {
-        private class ParellelJob
-        {
-            public Object Handler { get; set; }
-            public Object Event { get; set; }
-        }
         private class Job
         {
             public Object Event { get; set; }
@@ -38,17 +32,13 @@ namespace Aggregates.Internal
         }
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(NServiceBusDispatcher));
-        private readonly IBus _bus;
         private readonly IBuilder _builder;
         private readonly IMessageCreator _eventFactory;
         private readonly IMessageMapper _mapper;
         private readonly IMessageHandlerRegistry _handlerRegistry;
-
-        private readonly IDictionary<Type, IDictionary<Type, Boolean>> _parallelCache;
-        private readonly IDictionary<Type, Boolean> _eventParallelCache;
+        
         private readonly ConcurrentDictionary<String, IList<Type>> _invokeCache;
         private readonly ActionBlock<Job> _queue;
-        private readonly ExecutionDataflowBlockOptions _parallelOptions;
         private readonly JsonSerializerSettings _jsonSettings;
 
         private static DateTime Stamp = DateTime.UtcNow;
@@ -58,36 +48,30 @@ namespace Aggregates.Internal
 
         private Meter _errorsMeter = Metric.Meter("Event Errors", Unit.Errors);
 
-        public NServiceBusDispatcher(IBus bus, IBuilder builder, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
+        public NServiceBusDispatcher(IBuilder builder, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
         {
-            _bus = bus;
             _builder = builder;
             _eventFactory = builder.Build<IMessageCreator>();
             _mapper = builder.Build<IMessageMapper>();
             _handlerRegistry = builder.Build<IMessageHandlerRegistry>();
             _jsonSettings = jsonSettings;
-
-            _parallelCache = new Dictionary<Type, IDictionary<Type, Boolean>>();
-            _eventParallelCache = new Dictionary<Type, Boolean>();
+            
             _invokeCache = new ConcurrentDictionary<String, IList<Type>>();
 
             var parallelism = settings.Get<Int32?>("SetEventStoreMaxDegreeOfParallelism") ?? Environment.ProcessorCount;
             var capacity = settings.Get<Int32?>("SetEventStoreCapacity") ?? 10000;
-
-            _parallelOptions = new ExecutionDataflowBlockOptions
-            {
-                MaxDegreeOfParallelism = parallelism,
-                BoundedCapacity = capacity,
-            };
-            _queue = new ActionBlock<Job>((x) => Process(x.Event, x.Descriptor), _parallelOptions);
+            
+            _queue = new ActionBlock<Job>((x) => Process(x.Event, x.Descriptor), 
+                new ExecutionDataflowBlockOptions
+                {
+                    MaxDegreeOfParallelism = parallelism,
+                    BoundedCapacity = capacity,
+                });
 
         }
 
         private void Process(Object @event, IEventDescriptor descriptor)
         {
-            //Logger.InfoFormat("Time since last process: {0} ms", (DateTime.UtcNow - Stamp).TotalMilliseconds);
-            //Stamp = DateTime.UtcNow;
-
             Thread.CurrentThread.Rename("Dispatcher");
             _eventsMeter.Mark();
 
@@ -130,44 +114,10 @@ namespace Aggregates.Internal
                                     uow.Builder = childBuilder;
                                     uow.Begin();
                                 }
-
-                            //var parallelQueue = new ActionBlock<ParellelJob>(job => ExecuteJob(job), _parallelOptions);
+                            
                             foreach (var handler in handlersToInvoke)
                             {
-                                var parellelJob = new ParellelJob
-                                {
-                                    Handler = childBuilder.Build(handler),
-                                    Event = @event
-                                };
 
-                                //IDictionary<Type, Boolean> cached;
-                                //Boolean parallel;
-                                //if (!_parallelCache.TryGetValue(handler, out cached))
-                                //{
-                                //    cached = new Dictionary<Type, bool>();
-                                //    _parallelCache[handler] = cached;
-                                //}
-                                //if (!cached.TryGetValue(eventType, out parallel))
-                                //{
-
-                                //    var interfaceType = typeof(IHandleMessages<>).MakeGenericType(eventType);
-
-                                //    if (!interfaceType.IsAssignableFrom(handler))
-                                //        continue;
-                                //    var methodInfo = handler.GetInterfaceMap(interfaceType).TargetMethods.FirstOrDefault();
-                                //    if (methodInfo == null)
-                                //        continue;
-
-                                //    parallel = handler.GetCustomAttributes(typeof(ParallelAttribute), false).Any() || methodInfo.GetCustomAttributes(typeof(ParallelAttribute), false).Any();
-                                //    _parallelCache[handler][eventType] = parallel;
-                                //}
-
-                                // If parallel - put on the threaded execution queue
-                                // Post returns false if its full - so keep retrying until it gets in
-                                //if (parallel)
-                                //    await parallelQueue.SendAsync(parellelJob);
-                                //else
-                                //ExecuteJob(parellelJob);
                                 var handlerRetries = 0;
                                 var handlerSuccess = false;
                                 do
@@ -192,9 +142,6 @@ namespace Aggregates.Internal
                                     throw new RetryException(String.Format("Failed executing event {0} on handler {1}", eventType.FullName, handler.FullName));
                                 }
                             }
-
-                            //parallelQueue.Complete();
-                            //await parallelQueue.Completion;
                         }
 
 
@@ -226,7 +173,6 @@ namespace Aggregates.Internal
 
         public void Dispatch(Object @event, IEventDescriptor descriptor = null)
         {
-            Logger.DebugFormat("Queueing event {0} for processing", @event.GetType().FullName);
             _queue.SendAsync(new Job { Event = @event, Descriptor = descriptor }).Wait();
         }
 

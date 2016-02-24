@@ -17,7 +17,6 @@
     <tags>CQRS NServicebus GetEventStore eventstore event store aggregate ddd repository unit of work uow</tags>
     <dependencies>
       <group>
-        <dependency id="TransientFaultHandling.Core" version="[5,6)" />
         <dependency id="Microsoft.Tpl.Dataflow" version="[4.5,5)" />
         <dependency id="NServicebus" version="[5,6)" />
         <dependency id="EventStore.Client" version="[3,4)" />
