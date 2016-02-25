@@ -17,6 +17,7 @@ namespace Aggregates.Internal
 
     public class EventStream<T> : IEventStream where T : class, IEntity
     {
+        private static String CommitHeader = "CommitId";
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventStream<>));
         public String Bucket { get; private set; }
         public String StreamId { get; private set; }
@@ -114,7 +115,17 @@ namespace Aggregates.Internal
             if (commitHeaders == null)
                 commitHeaders = new Dictionary<String, Object>();
 
-            commitHeaders["CommitId"] = commitId;
+            commitHeaders[CommitHeader] = commitId;
+
+            var oldCommits = Events.Select(x =>
+            {
+                Object temp;
+                if (!x.Descriptor.Headers.TryGetValue(CommitHeader, out temp))
+                    return Guid.Empty;
+                return (Guid)temp;                
+            });
+            if (oldCommits.Any(x => x == commitId))
+                throw new PersistenceException("Probable duplicate message handled - discarding commit");
 
             try
             {
