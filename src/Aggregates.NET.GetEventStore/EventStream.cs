@@ -66,7 +66,7 @@ namespace Aggregates.Internal
             if (events == null || events.Count() == 0) return;
         }
 
-        public void Add(Object @event, IDictionary<String, Object> headers)
+        public void Add(Object @event, IDictionary<String, String> headers)
         {
             IWritableEvent writable = new WritableEvent
             {
@@ -92,7 +92,7 @@ namespace Aggregates.Internal
             _uncommitted.Add(writable);
         }
 
-        public void AddSnapshot(Object memento, IDictionary<String, Object> headers)
+        public void AddSnapshot(Object memento, IDictionary<String, String> headers)
         {
             this._pendingShots.Add(new Snapshot
             {
@@ -105,7 +105,7 @@ namespace Aggregates.Internal
             });
         }
 
-        public void Commit(Guid commitId, IDictionary<String, Object> commitHeaders)
+        public void Commit(Guid commitId, IDictionary<String, String> commitHeaders)
         {
             foreach (var child in this._children)
                 child.Commit(commitId, commitHeaders);
@@ -113,25 +113,25 @@ namespace Aggregates.Internal
             if (this._uncommitted.Count == 0) return;
 
             if (commitHeaders == null)
-                commitHeaders = new Dictionary<String, Object>();
+                commitHeaders = new Dictionary<String, String>();
 
-            commitHeaders[CommitHeader] = commitId;
+            commitHeaders[CommitHeader] = commitId.ToString();
 
             var oldCommits = Events.Select(x =>
             {
-                Object temp;
+                String temp;
                 if (!x.Descriptor.Headers.TryGetValue(CommitHeader, out temp))
                     return Guid.Empty;
-                return (Guid)temp;                
+                return Guid.Parse(temp);
             });
             if (oldCommits.Any(x => x == commitId))
-                throw new PersistenceException("Probable duplicate message handled - discarding commit");
+                throw new ConflictingCommandException("Probable duplicate message handled - discarding commit");
 
             try
             {
                 _store.WriteEvents(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
 
-                _snapshots.WriteSnapshots(this.Bucket, this.StreamId, _pendingShots);
+                _snapshots.WriteSnapshots(this.Bucket, this.StreamId, _pendingShots, commitHeaders);
 
                 ClearChanges();
             }

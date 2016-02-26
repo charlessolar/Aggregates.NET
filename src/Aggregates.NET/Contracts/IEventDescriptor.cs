@@ -13,6 +13,6 @@ namespace Aggregates.Contracts
         Int32 Version { get; }
         DateTime Timestamp { get; }
 
-        IDictionary<String, Object> Headers { get; }
+        IDictionary<String, String> Headers { get; }
     }
 }

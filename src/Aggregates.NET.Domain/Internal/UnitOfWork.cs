@@ -40,7 +40,7 @@ namespace Aggregates.Internal
         private readonly IRepositoryFactory _repoFactory;
 
         private bool _disposed;
-        private IDictionary<String, Object> _workHeaders;
+        private IDictionary<String, String> _workHeaders;
         private IDictionary<Type, IRepository> _repositories;
 
         private Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
@@ -56,7 +56,7 @@ namespace Aggregates.Internal
         {
             _repoFactory = repoFactory;
             _repositories = new Dictionary<Type, IRepository>();
-            _workHeaders = new Dictionary<String, Object>();
+            _workHeaders = new Dictionary<String, String>();
         }
 
         public void Dispose()
@@ -137,23 +137,23 @@ namespace Aggregates.Internal
         public void Commit()
         {
             var commitId = Guid.NewGuid();
-            Object messageId;
+            String messageId;
 
             // Attempt to get MessageId from NServicebus headers
             // If we maintain a good CommitId convention it should solve the message idempotentcy issue (assuming the storage they choose supports it)
-            if (_workHeaders.TryGetValue(MessageIdHeader, out messageId) && messageId is Guid)
-                commitId = (Guid)messageId;
+            if (_workHeaders.TryGetValue(MessageIdHeader, out messageId))
+                commitId = Guid.Parse(messageId);
 
             // Allow the user to send a CommitId along with his message if he wants
-            if (_workHeaders.TryGetValue(CommitIdHeader, out messageId) && messageId is Guid)
-                commitId = (Guid)messageId;
+            if (_workHeaders.TryGetValue(CommitIdHeader, out messageId))
+                commitId = Guid.Parse(messageId);
 
             foreach (var repo in _repositories.Values)
             {
                 try
                 {
                     // Insert all command headers into the commit
-                    var headers = new Dictionary<String, Object>(_workHeaders);
+                    var headers = new Dictionary<String, String>(_workHeaders);
 
                     repo.Commit(commitId, headers);
                 }
@@ -209,7 +209,7 @@ namespace Aggregates.Internal
         {
             this.CurrentMessage = message;
 
-            _workHeaders[DomainHeader] = Domain.Current;
+            _workHeaders[DomainHeader] = Domain.Current.ToString();
 
             return message;
         }
@@ -218,7 +218,7 @@ namespace Aggregates.Internal
         public Object MutateIncoming(Object Event, IEventDescriptor Descriptor)
         {
             this.CurrentMessage = Event;
-            _workHeaders[DomainHeader] = Domain.Current;
+            _workHeaders[DomainHeader] = Domain.Current.ToString();
 
             if (Descriptor == null) return Event; 
 
@@ -229,7 +229,7 @@ namespace Aggregates.Internal
             // Meaning all receivers of events from the command will get information about the command's message, if they care
             foreach (var header in CarryOverHeaders)
             {
-                Object defaultHeader;
+                String defaultHeader;
                 if (!headers.TryGetValue(header, out defaultHeader))
                     defaultHeader = NotFound;
                 

@@ -33,7 +33,7 @@ namespace Aggregates.Internal
             _snapstore = _builder.Build<IStoreSnapshots>();
         }
 
-        void IRepository.Commit(Guid commitId, IDictionary<String, Object> headers)
+        void IRepository.Commit(Guid commitId, IDictionary<String, String> headers)
         {
             foreach (var tracked in _tracked.Values )
             {

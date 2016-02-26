@@ -29,8 +29,8 @@ namespace Aggregates.Unit.UnitOfWork
             _bus = new Moq.Mock<IBus>();
             _guidRepository = new Moq.Mock<IRepository<_AggregateStub<Guid>>>();
             _intRepository = new Moq.Mock<IRepository<_AggregateStub<Int32>>>();
-            _guidRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, Object>>())).Verifiable();
-            _intRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, Object>>())).Verifiable();
+            _guidRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>())).Verifiable();
+            _intRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>())).Verifiable();
 
             _repoFactory.Setup(x => x.ForAggregate<_AggregateStub<Guid>>(Moq.It.IsAny<IBuilder>())).Returns(_guidRepository.Object);
             _repoFactory.Setup(x => x.ForAggregate<_AggregateStub<Int32>>(Moq.It.IsAny<IBuilder>())).Returns(_intRepository.Object);
@@ -52,7 +52,7 @@ namespace Aggregates.Unit.UnitOfWork
         {
             var repo = _uow.For<_AggregateStub<Guid>>();
             Assert.DoesNotThrow(() => _uow.Commit());
-            _guidRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, Object>>()), Moq.Times.Once);
+            _guidRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>()), Moq.Times.Once);
         }
 
         [Test]
@@ -61,8 +61,8 @@ namespace Aggregates.Unit.UnitOfWork
             var repo = _uow.For<_AggregateStub<Guid>>();
             var repo2 = _uow.For<_AggregateStub<Int32>>();
             Assert.DoesNotThrow(() => _uow.Commit());
-            _guidRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, Object>>()), Moq.Times.Once);
-            _intRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, Object>>()), Moq.Times.Once);
+            _guidRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>()), Moq.Times.Once);
+            _intRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>()), Moq.Times.Once);
         }
 
         [Test]
@@ -70,7 +70,7 @@ namespace Aggregates.Unit.UnitOfWork
         {
             var repo = _uow.For<_AggregateStub<Guid>>();
             _uow.End();
-            _guidRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, Object>>()), Moq.Times.Once);
+            _guidRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>()), Moq.Times.Once);
         }
     }
 }

@@ -36,7 +36,7 @@ namespace Aggregates.Internal
         private readonly IMessageCreator _eventFactory;
         private readonly IMessageMapper _mapper;
         private readonly IMessageHandlerRegistry _handlerRegistry;
-        
+
         private readonly ConcurrentDictionary<String, IList<Type>> _invokeCache;
         private readonly ActionBlock<Job> _queue;
         private readonly JsonSerializerSettings _jsonSettings;
@@ -45,6 +45,7 @@ namespace Aggregates.Internal
 
         private Meter _eventsMeter = Metric.Meter("Events", Unit.Events);
         private Metrics.Timer _eventsTimer = Metric.Timer("Event Duration", Unit.Events);
+        private Metrics.Timer _handlerTimer = Metric.Timer("Event Handler Duration", Unit.Events);
 
         private Meter _errorsMeter = Metric.Meter("Event Errors", Unit.Errors);
 
@@ -55,13 +56,13 @@ namespace Aggregates.Internal
             _mapper = builder.Build<IMessageMapper>();
             _handlerRegistry = builder.Build<IMessageHandlerRegistry>();
             _jsonSettings = jsonSettings;
-            
+
             _invokeCache = new ConcurrentDictionary<String, IList<Type>>();
 
             var parallelism = settings.Get<Int32?>("SetEventStoreMaxDegreeOfParallelism") ?? Environment.ProcessorCount;
             var capacity = settings.Get<Int32?>("SetEventStoreCapacity") ?? 10000;
-            
-            _queue = new ActionBlock<Job>((x) => Process(x.Event, x.Descriptor), 
+
+            _queue = new ActionBlock<Job>((x) => Process(x.Event, x.Descriptor),
                 new ExecutionDataflowBlockOptions
                 {
                     MaxDegreeOfParallelism = parallelism,
@@ -73,7 +74,6 @@ namespace Aggregates.Internal
         private void Process(Object @event, IEventDescriptor descriptor)
         {
             Thread.CurrentThread.Rename("Dispatcher");
-            _eventsMeter.Mark();
 
             var eventType = _mapper.GetMappedTypeFor(@event.GetType());
 
@@ -83,23 +83,25 @@ namespace Aggregates.Internal
             Exception lastException = null;
             var retries = 0;
             bool success = false;
-            do
+
+            _eventsMeter.Mark();
+            using (_eventsTimer.NewContext())
             {
-                Logger.DebugFormat("Processing event {0}", eventType.FullName);
-
-
-                retries++;
-                var handlersToInvoke = _invokeCache.GetOrAdd(eventType.FullName,
-                    (key) => _handlerRegistry.GetHandlerTypes(eventType).ToList());
-
-                using (var childBuilder = _builder.CreateChildBuilder())
+                do
                 {
-                    var uows = childBuilder.BuildAll<IConsumerUnitOfWork>();
-                    var mutators = childBuilder.BuildAll<IEventMutator>();
+                    Logger.DebugFormat("Processing event {0}", eventType.FullName);
 
-                    try
+
+                    retries++;
+                    var handlersToInvoke = _invokeCache.GetOrAdd(eventType.FullName,
+                        (key) => _handlerRegistry.GetHandlerTypes(eventType).ToList());
+
+                    using (var childBuilder = _builder.CreateChildBuilder())
                     {
-                        using (_eventsTimer.NewContext())
+                        var uows = childBuilder.BuildAll<IConsumerUnitOfWork>();
+                        var mutators = childBuilder.BuildAll<IEventMutator>();
+
+                        try
                         {
                             if (mutators != null && mutators.Any())
                                 foreach (var mutate in mutators)
@@ -114,62 +116,65 @@ namespace Aggregates.Internal
                                     uow.Builder = childBuilder;
                                     uow.Begin();
                                 }
-                            
+
                             foreach (var handler in handlersToInvoke)
                             {
-
-                                var handlerRetries = 0;
-                                var handlerSuccess = false;
-                                do
+                                using (_handlerTimer.NewContext())
                                 {
-                                    try
+                                    var handlerRetries = 0;
+                                    var handlerSuccess = false;
+                                    do
                                     {
-                                        var instance = childBuilder.Build(handler);
-                                        handlerRetries++;
-                                        _handlerRegistry.InvokeHandle(instance, @event);
-                                        handlerSuccess = true;
-                                    }
-                                    catch (RetryException e)
+                                        try
+                                        {
+                                            var instance = childBuilder.Build(handler);
+                                            handlerRetries++;
+                                            _handlerRegistry.InvokeHandle(instance, @event);
+                                            handlerSuccess = true;
+                                        }
+                                        catch (RetryException e)
+                                        {
+                                            Logger.InfoFormat("Received retry signal while dispatching event {0} to {1}. Retry: {2}\nException: {3}", eventType.FullName, handler.FullName, handlerRetries, e);
+                                        }
+
+                                    } while (!handlerSuccess && handlerRetries <= 3);
+
+                                    if (!handlerSuccess)
                                     {
-                                        Logger.InfoFormat("Received retry signal while dispatching event {0} to {1}. Retry: {2}\nException: {3}", eventType.FullName, handler.FullName, handlerRetries, e);
+                                        Logger.ErrorFormat("Failed executing event {0} on handler {1}", eventType.FullName, handler.FullName);
+                                        throw new RetryException(String.Format("Failed executing event {0} on handler {1}", eventType.FullName, handler.FullName));
                                     }
-
-                                } while (!handlerSuccess && handlerRetries <= 3);
-
-                                if (!handlerSuccess)
-                                {
-                                    Logger.ErrorFormat("Failed executing event {0} on handler {1}", eventType.FullName, handler.FullName);
-                                    throw new RetryException(String.Format("Failed executing event {0} on handler {1}", eventType.FullName, handler.FullName));
                                 }
                             }
+
+
+
+                            if (uows != null && uows.Any())
+                                foreach (var uow in uows)
+                                    uow.End();
+
+                            success = true;
                         }
+                        catch (Exception ex)
+                        {
 
+                            if (uows != null && uows.Any())
+                                foreach (var uow in uows)
+                                    uow.End(ex);
 
-                        if (uows != null && uows.Any())
-                            foreach (var uow in uows)
-                                uow.End();
-
-                        success = true;
+                            lastException = ex;
+                            Thread.Sleep(50);
+                        }
                     }
-                    catch (Exception ex)
-                    {
-
-                        if (uows != null && uows.Any())
-                            foreach (var uow in uows)
-                                uow.End(ex);
-
-                        lastException = ex;
-                        Thread.Sleep(50);
-                    }
-                }
-            } while (!success && retries <= 3);
+                } while (!success && retries <= 3);
+            }
             if (!success)
             {
                 _errorsMeter.Mark();
                 Logger.ErrorFormat("Failed to process event {0}.  Payload: \n{1}\n Exception: {2}", @event.GetType().FullName, JsonConvert.SerializeObject(@event, _jsonSettings), lastException);
             }
         }
-        
+
 
         public void Dispatch(Object @event, IEventDescriptor descriptor = null)
         {

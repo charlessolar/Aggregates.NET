@@ -115,7 +115,7 @@ namespace Aggregates
             Raise(@event);
 
             // Todo: Fill with user headers or something
-            var headers = new Dictionary<String, Object>();
+            var headers = new Dictionary<String, String>();
             Stream.Add(@event, headers);
         }
 

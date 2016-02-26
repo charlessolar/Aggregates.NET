@@ -47,9 +47,9 @@ namespace Aggregates
 
                 // Check if the event was written by this domain handler
                 // We don't need to publish events saved by other domain instances
-                Object header = null;
+                String header = null;
                 Guid domain = Guid.Empty;
-                if (!descriptor.Headers.TryGetValue(UnitOfWork.DomainHeader, out header) || !Guid.TryParse(header.ToString(), out domain) || domain != Domain.Current)
+                if (!descriptor.Headers.TryGetValue(UnitOfWork.DomainHeader, out header) || !Guid.TryParse(header, out domain) || domain != Domain.Current)
                     return;
 
 

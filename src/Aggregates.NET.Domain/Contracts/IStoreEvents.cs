@@ -10,6 +10,6 @@ namespace Aggregates.Contracts
     {
         IEventStream GetStream<T>(String bucket, String stream, Int32? start = null) where T : class, IEntity;
 
-        void WriteEvents(String bucket, String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, Object> commitHeaders);
+        void WriteEvents(String bucket, String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders);
     }
 }

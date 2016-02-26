@@ -41,7 +41,7 @@ namespace Aggregates.Unit.UnitOfWork
         [Test]
         public void Commit_persistence_exception()
         {
-            _guidRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, Object>>())).Throws<PersistenceException>();
+            _guidRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>())).Throws<PersistenceException>();
             var repo = _uow.For<_AggregateStub<Guid>>();
             Assert.Throws<PersistenceException>(() => _uow.Commit());
         }

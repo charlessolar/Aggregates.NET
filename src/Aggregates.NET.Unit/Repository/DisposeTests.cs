@@ -26,7 +26,7 @@ namespace Aggregates.Unit.Repository
             _eventStream = new Moq.Mock<IEventStream>();
             _eventRouter = new Moq.Mock<IEventRouter>();
             _eventFactory = new Moq.Mock<IMessageCreator>();
-            _eventStream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, Object>>())).Verifiable();
+            _eventStream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>())).Verifiable();
             _eventStore.Setup(x => x.GetStream<_AggregateStub>(Moq.It.IsAny<String>(), Moq.It.IsAny<String>(), Moq.It.IsAny<Int32?>())).Returns(_eventStream.Object);
             _aggregate = new Moq.Mock<_AggregateStub>();
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);

@@ -30,7 +30,7 @@ namespace Aggregates.Unit.Repository
             _eventStream = new Moq.Mock<IEventStream>();
             _eventRouter = new Moq.Mock<IEventRouter>();
             _eventFactory = new Moq.Mock<IMessageCreator>();
-            _eventStream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, Object>>())).Verifiable();
+            _eventStream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>())).Verifiable();
             _eventStream.Setup(x => x.ClearChanges()).Verifiable();
             _eventStore.Setup(x => x.GetStream<_AggregateStub>(Moq.It.IsAny<String>(),Moq.It.IsAny<String>(), Moq.It.IsAny<Int32?>())).Returns(_eventStream.Object);
             _aggregate = new Moq.Mock<_AggregateStub>();
@@ -72,8 +72,8 @@ namespace Aggregates.Unit.Repository
         {
             var eventSource = _repository.New(Guid.NewGuid());
 
-            Assert.DoesNotThrow(() => _repository.Commit(Guid.NewGuid(), new Dictionary<String, Object> { { "Test", "Test" } }));
-            _eventStream.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, Object>>()), Moq.Times.Once);
+            Assert.DoesNotThrow(() => _repository.Commit(Guid.NewGuid(), new Dictionary<String, String> { { "Test", "Test" } }));
+            _eventStream.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>()), Moq.Times.Once);
         }
     }
 }

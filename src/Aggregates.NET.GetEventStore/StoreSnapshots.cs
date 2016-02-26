@@ -55,7 +55,7 @@ namespace Aggregates
         }
 
 
-        public void WriteSnapshots(String bucket, String stream, IEnumerable<ISnapshot> snapshots)
+        public void WriteSnapshots(String bucket, String stream, IEnumerable<ISnapshot> snapshots, IDictionary<String, String> commitHeaders)
         {
             Logger.DebugFormat("Writing {0} snapshots to stream id '{1}' in bucket '{2}'", snapshots.Count(), stream, bucket);
             var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
@@ -66,7 +66,8 @@ namespace Aggregates
                 {
                     EntityType = e.EntityType,
                     Timestamp = e.Timestamp,
-                    Version = e.Version
+                    Version = e.Version,
+                    Headers = commitHeaders
                 };
                 return new EventData(
                     Guid.NewGuid(),
