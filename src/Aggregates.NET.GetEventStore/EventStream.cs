@@ -125,7 +125,7 @@ namespace Aggregates.Internal
                 return Guid.Parse(temp);
             });
             if (oldCommits.Any(x => x == commitId))
-                throw new ConflictingCommandException("Probable duplicate message handled - discarding commit");
+                throw new DuplicateCommitException("Probable duplicate message handled - discarding commit");
 
             try
             {

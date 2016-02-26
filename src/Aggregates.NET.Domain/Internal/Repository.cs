@@ -70,6 +70,10 @@ namespace Aggregates.Internal
                             throw new ConflictingCommandException("Could not resolve conflicting events", version);
                         }
                     }
+                    catch (DuplicateCommitException)
+                    {
+                        Logger.WarnFormat("Detected a possible double commit for stream: {0} bucket {1}", stream.StreamId, stream.Bucket);
+                    }
                 } while (!success && count < 5);
             }
         }
