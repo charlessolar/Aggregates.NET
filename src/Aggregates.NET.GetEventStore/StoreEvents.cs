@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
+using Aggregates.Internal;
 using EventStore.ClientAPI;
 using EventStore.ClientAPI.Exceptions;
 using Newtonsoft.Json;
@@ -74,13 +75,20 @@ namespace Aggregates
 
             var translatedEvents = events.Select(e =>
             {
-                e.Descriptor.Headers.Merge(commitHeaders);
+                var descriptor = new EventDescriptor
+                {
+                    EntityType = e.Descriptor.EntityType,
+                    Timestamp = e.Descriptor.Timestamp,
+                    Version = e.Descriptor.Version,
+                    Headers = e.Descriptor.Headers.Merge(commitHeaders)
+                };
+                
                 return new EventData(
                     e.EventId,
                     _mapper.GetMappedTypeFor(e.Event.GetType()).AssemblyQualifiedName,
                     true,
                     e.Event.Serialize(_settings).AsByteArray(),
-                    e.Descriptor.Serialize(_settings).AsByteArray()
+                    descriptor.Serialize(_settings).AsByteArray()
                     );
             });
 

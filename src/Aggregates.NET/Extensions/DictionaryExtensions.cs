@@ -8,10 +8,13 @@ namespace Aggregates.Extensions
 {
     public static class DictionaryExtensions
     {
-        public static void Merge<T, U>(this IDictionary<T, U> first, IDictionary<T, U> second)
+        public static IDictionary<T, U> Merge<T, U>(this IDictionary<T, U> first, IDictionary<T, U> second)
         {
+            var result = new Dictionary<T, U>(first);
+
             foreach (var item in second)
-                first[item.Key] = item.Value;
+                result[item.Key] = item.Value;
+            return result;
         }
     }
 }
