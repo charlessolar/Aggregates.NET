@@ -195,7 +195,8 @@ namespace Aggregates.Internal
                             !h.Equals("CorrId", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals("WinIdName", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.StartsWith("NServiceBus", StringComparison.InvariantCultureIgnoreCase) &&
-                            !h.StartsWith("$", StringComparison.InvariantCultureIgnoreCase));
+                            !h.StartsWith("$", StringComparison.InvariantCultureIgnoreCase) &&
+                            !h.Equals(CommitIdHeader, StringComparison.InvariantCultureIgnoreCase));
 
             foreach (var header in userHeaders)
                 _workHeaders[header] = headers[header];
