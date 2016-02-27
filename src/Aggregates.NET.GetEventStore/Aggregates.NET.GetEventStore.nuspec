@@ -27,7 +27,7 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="..\..\build\merged\Aggregates.NET.GetEventStore.dll" target="lib\net46" />
-    <file src="..\..\build\merged\Aggregates.NET.GetEventStore.pdb" target="lib\net46" />
+    <file src="..\..\build\merged\Aggregates.NET.GetEventStore.dll" target="lib\net45" />
+    <file src="..\..\build\merged\Aggregates.NET.GetEventStore.pdb" target="lib\net45" />
   </files>
 </package>

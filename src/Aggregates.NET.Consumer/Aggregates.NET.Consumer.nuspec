@@ -27,7 +27,7 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="..\..\build\merged\Aggregates.NET.Consumer.dll" target="lib\net46" />
-    <file src="..\..\build\merged\Aggregates.NET.Consumer.pdb" target="lib\net46" />
+    <file src="..\..\build\merged\Aggregates.NET.Consumer.dll" target="lib\net45" />
+    <file src="..\..\build\merged\Aggregates.NET.Consumer.pdb" target="lib\net45" />
   </files>
 </package>
