@@ -66,6 +66,7 @@
     <Compile Include="Consumer.cs" />
     <Compile Include="ConsumerConfiguration.cs" />
     <Compile Include="DurableSubscriber.cs" />
+    <Compile Include="Exceptions\QueueFullException.cs" />
     <Compile Include="IDispatcher.cs" />
     <Compile Include="IEventSubscriber.cs" />
     <Compile Include="IPersistCheckpoints.cs" />

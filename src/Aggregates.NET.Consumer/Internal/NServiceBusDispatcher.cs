@@ -60,7 +60,7 @@ namespace Aggregates.Internal
             _invokeCache = new ConcurrentDictionary<String, IList<Type>>();
 
             var parallelism = settings.Get<Int32?>("SetEventStoreMaxDegreeOfParallelism") ?? Environment.ProcessorCount;
-            var capacity = settings.Get<Int32?>("SetEventStoreCapacity") ?? 10000;
+            var capacity = settings.Get<Int32?>("SetEventStoreCapacity") ?? 128;
 
             _queue = new ActionBlock<Job>((x) => Process(x.Event, x.Descriptor),
                 new ExecutionDataflowBlockOptions
@@ -127,6 +127,7 @@ namespace Aggregates.Internal
                                     {
                                         try
                                         {
+                                            Logger.DebugFormat("Executing event {0} on handler {1}", eventType.FullName, handler.FullName);
                                             var instance = childBuilder.Build(handler);
                                             handlerRetries++;
                                             _handlerRegistry.InvokeHandle(instance, @event);
@@ -178,7 +179,8 @@ namespace Aggregates.Internal
 
         public void Dispatch(Object @event, IEventDescriptor descriptor = null)
         {
-            _queue.SendAsync(new Job { Event = @event, Descriptor = descriptor }).Wait();
+            if (!_queue.Post(new Job { Event = @event, Descriptor = descriptor }))
+                throw new QueueFullException("Dispatch queue is full, going to stop dispatching messages");
         }
 
         public void Dispatch<TEvent>(Action<TEvent> action)

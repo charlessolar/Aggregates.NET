@@ -1,5 +1,7 @@
-﻿using Aggregates.Extensions;
+﻿using Aggregates.Exceptions;
+using Aggregates.Extensions;
 using EventStore.ClientAPI;
+using Metrics;
 using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Logging;
@@ -21,6 +23,7 @@ namespace Aggregates
         private readonly IPersistCheckpoints _store;
         private readonly IDispatcher _dispatcher;
         private readonly JsonSerializerSettings _settings;
+        private Meter _fullMeter = Metric.Meter("Queue Full Exceptions", Unit.Errors);
 
         public DurableSubscriber(IBuilder builder, IEventStoreConnection client, IPersistCheckpoints store, IDispatcher dispatcher, JsonSerializerSettings settings)
         {
@@ -37,7 +40,7 @@ namespace Aggregates
 
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from position '{1}'", endpoint, saved);
 
-            _client.SubscribeToAllFrom(saved, false, (_, e) =>
+            _client.SubscribeToAllFrom(saved, false, (subscription, e) =>
             {
                 Thread.CurrentThread.Rename("Eventstore");
                 // Unsure if we need to care about events from eventstore currently
@@ -49,11 +52,26 @@ namespace Aggregates
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position or snapshots)
                 if (data == null) return;
 
-                _dispatcher.Dispatch(data, descriptor);
+                try
+                {
+                    _dispatcher.Dispatch(data, descriptor);
+                    // Todo: Shouldn't save position here, event isn't actually processed yet
+                    if (e.OriginalPosition.HasValue)
+                        _store.Save(endpoint, e.OriginalPosition.Value);
+                }
+                catch (QueueFullException)
+                {
+                    _fullMeter.Mark();
+                    // If the queue fills up take a break from dispatching and hope its ready when we continue
+                    subscription.Stop(TimeSpan.FromSeconds(15));
 
-                // Todo: Shouldn't save position here, event is actually processed yet
-                if (e.OriginalPosition.HasValue)
-                    _store.Save(endpoint, e.OriginalPosition.Value);
+                    ThreadPool.QueueUserWorkItem((_) =>
+                    {
+                        Thread.Sleep(15000);
+                        SubscribeToAll(endpoint);
+                    });
+                }
+
             }, liveProcessingStarted: (_) =>
             {
                 Logger.Info("Live processing started");

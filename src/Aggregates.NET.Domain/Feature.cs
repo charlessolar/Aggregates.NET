@@ -59,7 +59,7 @@ namespace Aggregates
                 context.Container.ConfigureComponent(handler, DependencyLifecycle.InstancePerUnitOfWork);
             
         }
-        public static bool IsQueryOrComputeHandler(Type type)
+        private static bool IsQueryOrComputeHandler(Type type)
         {
             if (type.IsAbstract || type.IsGenericTypeDefinition)
             {
