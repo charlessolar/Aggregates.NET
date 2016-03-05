@@ -106,7 +106,7 @@ namespace Aggregates.Unit.UnitOfWork
             var transportMessage = new TransportMessage();
             _uow.MutateOutgoing(Moq.It.IsAny<LogicalMessage>(), transportMessage);
 
-            foreach (var carryOver in Aggregates.Internal.UnitOfWork.CarryOverHeaders)
+            foreach (var carryOver in Defaults.CarryOverHeaders)
             {
                 var header = String.Format("{0}.{1}", Aggregates.Internal.UnitOfWork.PrefixHeader, carryOver);
 

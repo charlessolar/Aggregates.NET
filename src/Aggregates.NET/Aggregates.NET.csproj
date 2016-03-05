@@ -63,6 +63,7 @@
     <Compile Include="Contracts\IEventDescriptor.cs" />
     <Compile Include="Contracts\IEventMutator.cs" />
     <Compile Include="Contracts\IWritableEvent.cs" />
+    <Compile Include="Defaults.cs" />
     <Compile Include="Enumeration.cs" />
     <Compile Include="Exceptions\AggregateException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />

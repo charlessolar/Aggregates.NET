@@ -19,22 +19,8 @@ namespace Aggregates.Internal
     public class UnitOfWork : IUnitOfWork, IConsumerUnitOfWork, IEventMutator
     {
         public static String PrefixHeader = "Originating";
-        public static String MessageIdHeader = "Originating.NServiceBus.MessageId";
-        public static String CommitIdHeader = "CommitId";
-        public static String DomainHeader = "Domain";
         public static String NotFound = "<NOT FOUND>";
 
-        // Header information to take from incoming messages
-        public static IList<String> CarryOverHeaders = new List<String> {
-                                                                          "NServiceBus.MessageId",
-                                                                          "NServiceBus.CorrelationId",
-                                                                          "NServiceBus.Version",
-                                                                          "NServiceBus.TimeSent",
-                                                                          "NServiceBus.ConversationId",
-                                                                          "CorrId",
-                                                                          "NServiceBus.OriginatingMachine",
-                                                                          "NServiceBus.OriginatingEndpoint"
-                                                                      };
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(UnitOfWork));
         private readonly IRepositoryFactory _repoFactory;
@@ -141,11 +127,11 @@ namespace Aggregates.Internal
 
             // Attempt to get MessageId from NServicebus headers
             // If we maintain a good CommitId convention it should solve the message idempotentcy issue (assuming the storage they choose supports it)
-            if (_workHeaders.TryGetValue(MessageIdHeader, out messageId))
+            if (_workHeaders.TryGetValue(Defaults.MessageIdHeader, out messageId))
                 commitId = Guid.Parse(messageId);
 
             // Allow the user to send a CommitId along with his message if he wants
-            if (_workHeaders.TryGetValue(CommitIdHeader, out messageId))
+            if (_workHeaders.TryGetValue(Defaults.CommitIdHeader, out messageId))
                 commitId = Guid.Parse(messageId);
 
             foreach (var repo in _repositories.Values)
@@ -178,7 +164,7 @@ namespace Aggregates.Internal
             // There are certain headers that we can make note of
             // These will be committed to the event stream and included in all .Reply or .Publish done via this Unit Of Work
             // Meaning all receivers of events from the command will get information about the command's message, if they care
-            foreach (var header in CarryOverHeaders)
+            foreach (var header in Defaults.CarryOverHeaders)
             {
                 var defaultHeader = "";
                 headers.TryGetValue(header, out defaultHeader);
@@ -196,7 +182,7 @@ namespace Aggregates.Internal
                             !h.Equals("WinIdName", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.StartsWith("NServiceBus", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.StartsWith("$", StringComparison.InvariantCultureIgnoreCase) &&
-                            !h.Equals(CommitIdHeader, StringComparison.InvariantCultureIgnoreCase));
+                            !h.Equals(Defaults.CommitIdHeader, StringComparison.InvariantCultureIgnoreCase));
 
             foreach (var header in userHeaders)
                 _workHeaders[header] = headers[header];
@@ -210,7 +196,7 @@ namespace Aggregates.Internal
         {
             this.CurrentMessage = message;
 
-            _workHeaders[DomainHeader] = Domain.Current.ToString();
+            _workHeaders[Defaults.DomainHeader] = Domain.Current.ToString();
 
             return message;
         }
@@ -219,7 +205,7 @@ namespace Aggregates.Internal
         public Object MutateIncoming(Object Event, IEventDescriptor Descriptor)
         {
             this.CurrentMessage = Event;
-            _workHeaders[DomainHeader] = Domain.Current.ToString();
+            _workHeaders[Defaults.DomainHeader] = Domain.Current.ToString();
 
             if (Descriptor == null) return Event; 
 
@@ -228,7 +214,7 @@ namespace Aggregates.Internal
             // There are certain headers that we can make note of
             // These will be committed to the event stream and included in all .Reply or .Publish done via this Unit Of Work
             // Meaning all receivers of events from the command will get information about the command's message, if they care
-            foreach (var header in CarryOverHeaders)
+            foreach (var header in Defaults.CarryOverHeaders)
             {
                 String defaultHeader;
                 if (!headers.TryGetValue(header, out defaultHeader))

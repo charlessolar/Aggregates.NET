@@ -63,12 +63,14 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="CompetingSubscriber.cs" />
     <Compile Include="Consumer.cs" />
     <Compile Include="ConsumerConfiguration.cs" />
     <Compile Include="DurableSubscriber.cs" />
     <Compile Include="Exceptions\QueueFullException.cs" />
     <Compile Include="IDispatcher.cs" />
     <Compile Include="IEventSubscriber.cs" />
+    <Compile Include="IManageCompetes.cs" />
     <Compile Include="IPersistCheckpoints.cs" />
     <Compile Include="IConsumerUnitOfWork.cs" />
     <Compile Include="Internal\NServiceBusDispatcher.cs" />

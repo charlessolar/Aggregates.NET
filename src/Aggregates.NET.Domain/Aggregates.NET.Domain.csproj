@@ -52,7 +52,6 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Aggregate.cs" />
-    <Compile Include="Bucket.cs" />
     <Compile Include="Contracts\IAggregate.cs" />
     <Compile Include="Contracts\IEntity.cs" />
     <Compile Include="Contracts\IEntityRepository.cs" />

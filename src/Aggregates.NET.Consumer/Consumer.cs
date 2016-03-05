@@ -72,6 +72,35 @@ namespace Aggregates
             }, DependencyLifecycle.SingleInstance);
         }
     }
+    public class CompetingConsumer : Feature
+    {
+        public CompetingConsumer()
+        {
+            RegisterStartupTask<ConsumerRunner>();
+
+            Defaults(s =>
+            {
+                s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
+                s.SetDefault("SetEventStoreCapacity", 10000);
+                s.SetDefault("HandledDomains", Int32.MaxValue);
+            });
+        }
+
+        protected override void Setup(FeatureConfigurationContext context)
+        {
+            context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<CompetingSubscriber>(DependencyLifecycle.SingleInstance);
+
+            context.Container.ConfigureComponent(y =>
+            {
+                return new JsonSerializerSettings
+                {
+                    Binder = new EventSerializationBinder(y.Build<IMessageMapper>()),
+                    ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
+                };
+            }, DependencyLifecycle.SingleInstance);
+        }
+    }
 
     public class ConsumerRunner : FeatureStartupTask
     {

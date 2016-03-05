@@ -49,7 +49,7 @@ namespace Aggregates
                 // We don't need to publish events saved by other domain instances
                 String header = null;
                 Guid domain = Guid.Empty;
-                if (!descriptor.Headers.TryGetValue(UnitOfWork.DomainHeader, out header) || !Guid.TryParse(header, out domain) || domain != Domain.Current)
+                if (!descriptor.Headers.TryGetValue(Defaults.DomainHeader, out header) || !Guid.TryParse(header, out domain) || domain != Domain.Current)
                     return;
 
 

@@ -107,7 +107,7 @@ namespace Aggregates.Internal
 
         public virtual T Get<TId>(TId id)
         {
-            return Get<TId>(Bucket.Default, id);
+            return Get<TId>(Defaults.Bucket, id);
         }
 
         public T Get<TId>(String bucket, TId id)
@@ -146,7 +146,7 @@ namespace Aggregates.Internal
 
         public virtual T New<TId>(TId id)
         {
-            return New<TId>(Bucket.Default, id);
+            return New<TId>(Defaults.Bucket, id);
         }
 
         public T New<TId>(String bucket, TId id)

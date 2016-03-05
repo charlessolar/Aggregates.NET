@@ -20,5 +20,9 @@ namespace Aggregates
         {
             settings.GetSettings().Set("SetEventStoreCapacity", Capacity);
         }
+        public static void SetHandledDomains(this ExposeSettings settings, Int32 Count)
+        {
+            settings.GetSettings().Set("HandledDomains", Count);
+        }
     }
 }
