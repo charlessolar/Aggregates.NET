@@ -43,8 +43,8 @@ namespace Aggregates
 
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
                 if (data == null) return;
-                
-                _dispatcher.Dispatch(data, descriptor);
+
+                _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
 
             }, liveProcessingStarted: (_) =>
             {
