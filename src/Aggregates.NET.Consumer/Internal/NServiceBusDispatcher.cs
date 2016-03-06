@@ -155,28 +155,26 @@ namespace Aggregates.Internal
                         }
 
                         queue.Complete();
-                        var task = queue.Completion;
-                        task.Wait();
 
+                        try {
+                            queue.Completion.Wait();
 
-                        if (!task.IsFaulted)
-                        {
                             if (uows != null && uows.Any())
                                 foreach (var uow in uows)
                                     uow.End();
 
                             success = true;
                         }
-                        else
+                        catch(Exception e)
                         {
+
                             if (uows != null && uows.Any())
                                 foreach (var uow in uows)
-                                    uow.End(task.Exception);
-                            lastException = task.Exception;
+                                    uow.End(e);
+                            lastException = e;
                             Thread.Sleep(50);
                         }
-
-
+                        
                     }
 
                 } while (!success && retries <= 3);
