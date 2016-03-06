@@ -24,7 +24,6 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
-                s.SetDefault("SetEventStoreCapacity", 10000);
             });
         }
 
@@ -53,7 +52,6 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
-                s.SetDefault("SetEventStoreCapacity", 10000);
             });
         }
 
@@ -81,8 +79,9 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
-                s.SetDefault("SetEventStoreCapacity", 10000);
                 s.SetDefault("HandledDomains", Int32.MaxValue);
+                s.SetDefault("DomainHeartbeats", 5);
+                s.SetDefault("DomainExpiration", 30);
             });
         }
 

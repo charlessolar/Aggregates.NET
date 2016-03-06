@@ -24,5 +24,13 @@ namespace Aggregates
         {
             settings.GetSettings().Set("HandledDomains", Count);
         }
+        public static void SetHeartbeats(this ExposeSettings settings, Int32 Seconds)
+        {
+            settings.GetSettings().Set("DomainHeartbeats", Seconds);
+        }
+        public static void SetExpiration(this ExposeSettings settings, Int32 Seconds)
+        {
+            settings.GetSettings().Set("DomainExpiration", Seconds);
+        }
     }
 }

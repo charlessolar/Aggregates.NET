@@ -44,7 +44,7 @@ namespace Aggregates
                 if (descriptor == null) return;
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
                 if (data == null) return;
-
+                
                 // Check if the event was written by this domain handler
                 // We don't need to publish events saved by other domain instances
                 String header = null;

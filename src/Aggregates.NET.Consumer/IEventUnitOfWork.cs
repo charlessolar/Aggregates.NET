@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public interface IConsumerUnitOfWork
+    public interface IEventUnitOfWork
     {
         IBuilder Builder { get; set; }
 

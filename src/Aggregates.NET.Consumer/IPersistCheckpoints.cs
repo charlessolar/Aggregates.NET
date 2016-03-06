@@ -11,6 +11,6 @@ namespace Aggregates
     {
         Position Load(String endpoint);
 
-        void Save(String endpoint, Position position);
+        void Save(String endpoint, long position);
     }
 }

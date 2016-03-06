@@ -67,12 +67,12 @@
     <Compile Include="Consumer.cs" />
     <Compile Include="ConsumerConfiguration.cs" />
     <Compile Include="DurableSubscriber.cs" />
-    <Compile Include="Exceptions\QueueFullException.cs" />
     <Compile Include="IDispatcher.cs" />
     <Compile Include="IEventSubscriber.cs" />
     <Compile Include="IManageCompetes.cs" />
+    <Compile Include="Internal\EventUnitOfWork.cs" />
     <Compile Include="IPersistCheckpoints.cs" />
-    <Compile Include="IConsumerUnitOfWork.cs" />
+    <Compile Include="IEventUnitOfWork.cs" />
     <Compile Include="Internal\NServiceBusDispatcher.cs" />
     <Compile Include="VolatileSubscriber.cs" />
   </ItemGroup>
@@ -87,6 +87,9 @@
       <Project>{ec7040e2-7a13-4447-900d-6ed57328e5df}</Project>
       <Name>Aggregates.NET</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Exceptions\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

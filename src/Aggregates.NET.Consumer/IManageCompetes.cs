@@ -15,6 +15,10 @@ namespace Aggregates
         /// <param name="endpoint"></param>
         /// <param name="domain"></param>
         /// <returns></returns>
-        Boolean CheckOrSave(String endpoint, String domain);
+        Boolean CheckOrSave(String endpoint, String domain, long position);
+        
+        DateTime? LastHeartbeat(String endpoint, String domain);
+        long LastPosition(String endpoint, String domain);
+        void Heartbeat(String endpoint, String domain, DateTime Timestamp, long position);
     }
 }

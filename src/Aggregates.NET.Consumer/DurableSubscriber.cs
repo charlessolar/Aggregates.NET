@@ -39,7 +39,7 @@ namespace Aggregates
             var saved = _store.Load(endpoint);
 
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from position '{1}'", endpoint, saved);
-            
+
 
             _client.SubscribeToAllFrom(saved, false, (subscription, e) =>
             {
@@ -52,32 +52,8 @@ namespace Aggregates
 
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position or snapshots)
                 if (data == null) return;
-                
-                //fromAll()
-                //    .whenAny(function(state, ev) {
-                //        linkTo('p$all', ev);
-                //})
-                    
 
-                try
-                {
-                    _dispatcher.Dispatch(data, descriptor);
-                    // Todo: Shouldn't save position here, event isn't actually processed yet
-                    if (e.OriginalPosition.HasValue)
-                        _store.Save(endpoint, e.OriginalPosition.Value);
-                }
-                catch (QueueFullException)
-                {
-                    _fullMeter.Mark();
-                    // If the queue fills up take a break from dispatching and hope its ready when we continue
-                    subscription.Stop(TimeSpan.FromSeconds(15));
-
-                    ThreadPool.QueueUserWorkItem((_) =>
-                    {
-                        Thread.Sleep(15000);
-                        SubscribeToAll(endpoint);
-                    });
-                }
+                _dispatcher.Dispatch(data, descriptor);
 
             }, liveProcessingStarted: (_) =>
             {

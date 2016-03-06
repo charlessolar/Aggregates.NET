@@ -16,7 +16,7 @@ using System.Runtime.Serialization;
 
 namespace Aggregates.Internal
 {
-    public class UnitOfWork : IUnitOfWork, IConsumerUnitOfWork, IEventMutator
+    public class UnitOfWork : IUnitOfWork, IEventUnitOfWork, IEventMutator
     {
         public static String PrefixHeader = "Originating";
         public static String NotFound = "<NOT FOUND>";
@@ -202,7 +202,7 @@ namespace Aggregates.Internal
         }
 
         // Event mutating
-        public Object MutateIncoming(Object Event, IEventDescriptor Descriptor)
+        public Object MutateIncoming(Object Event, IEventDescriptor Descriptor, long? Position)
         {
             this.CurrentMessage = Event;
             _workHeaders[Defaults.DomainHeader] = Domain.Current.ToString();
