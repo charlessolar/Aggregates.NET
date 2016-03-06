@@ -192,7 +192,10 @@ namespace Aggregates.Internal
         public void Dispatch<TEvent>(Action<TEvent> action)
         {
             var @event = _eventFactory.CreateInstance(action);
-            this.Dispatch(@event);
+            ThreadPool.QueueUserWorkItem((_) =>
+            {
+                this.Dispatch(@event);
+            });
         }
     }
 }
