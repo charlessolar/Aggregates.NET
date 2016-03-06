@@ -52,7 +52,7 @@ namespace Aggregates
             {
 
                 var maxDomains = _settings.Get<Int32>("HandledDomains");
-                var expiration = TimeSpan.FromSeconds(_settings.Get<Int32>("DomainExpiration"));
+                var expiration = _settings.Get<Int32>("DomainExpiration");
 
                 var consumer = (CompetingSubscriber)state;
                 var endpoint = consumer._settings.EndpointName();
@@ -64,11 +64,10 @@ namespace Aggregates
                 {
                     if (consumer._domains.Contains(seen.Key))
                         consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value);
-
-                    if (!consumer._adopting && consumer._domains.Count < maxDomains)
+                    else if (!consumer._adopting && consumer._domains.Count < maxDomains )
                     {
                         var lastBeat = consumer._competes.LastHeartbeat(endpoint, seen.Key);
-                        if ((DateTime.UtcNow - lastBeat) > expiration)
+                        if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
                         {
                             // We saw new events but the consumer for this domain has died, so we will adopt its domain
                             AdoptDomain(consumer, endpoint, seen.Key);
@@ -77,14 +76,12 @@ namespace Aggregates
                     }
                 }
 
-
-
                 var expiredDomains = new List<String>();
                 // Check that each domain we are processing is still alive
-                foreach (var domain in consumer._domains)
+                foreach (var domain in consumer._domains.Except(seenDomains.Keys))
                 {
                     var lastBeat = consumer._competes.LastHeartbeat(endpoint, domain);
-                    if ((DateTime.UtcNow - lastBeat) > expiration)
+                    if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
                         expiredDomains.Add(domain);
                 }
                 expiredDomains.ForEach(x =>
@@ -111,8 +108,10 @@ namespace Aggregates
                 if (!e.Event.IsJson) return;
 
                 var descriptor = e.Event.Metadata.Deserialize(consumer._jsonSettings);
+                if (descriptor == null) return;
+
                 String headerDomain;
-                if (!descriptor.Headers.TryGetValue(Aggregates.Defaults.DomainHeader, out headerDomain))
+                if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.DomainHeader, out headerDomain))
                     return;
 
                 // Don't care about events that we are not adopting
