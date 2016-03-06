@@ -65,12 +65,15 @@ namespace Aggregates
                     if (consumer._domains.Contains(seen.Key))
                         consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value);
 
-                    var lastBeat = consumer._competes.LastHeartbeat(endpoint, seen.Key);
-                    if ((DateTime.UtcNow - lastBeat) > expiration)
+                    if (!consumer._adopting && consumer._domains.Count < maxDomains)
                     {
-                        // We saw new events but the consumer for this domain has died, so we will adopt its domain
-                        AdoptDomain(consumer, endpoint, seen.Key);
-                        break;
+                        var lastBeat = consumer._competes.LastHeartbeat(endpoint, seen.Key);
+                        if ((DateTime.UtcNow - lastBeat) > expiration)
+                        {
+                            // We saw new events but the consumer for this domain has died, so we will adopt its domain
+                            AdoptDomain(consumer, endpoint, seen.Key);
+                            break;
+                        }
                     }
                 }
 
@@ -88,12 +91,7 @@ namespace Aggregates
                 {
                     consumer._domains.Remove(x);
                 });
-
-                // If consumer has a slot available
-                if (!consumer._adopting && consumer._domains.Count < maxDomains) {
-                    // Make sure all active domains are being processed
-                    
-                }
+                
             }, this, period, period);
         }
         public void Dispose()
