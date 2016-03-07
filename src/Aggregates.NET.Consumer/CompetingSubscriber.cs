@@ -8,6 +8,7 @@ using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -31,7 +32,7 @@ namespace Aggregates
         private readonly ReadOnlySettings _settings;
         private readonly JsonSerializerSettings _jsonSettings;
         private readonly HashSet<String> _domains;
-        private readonly Dictionary<String, long> _seenDomains;
+        private readonly ConcurrentDictionary<String, long> _seenDomains;
         private readonly System.Threading.Timer _domainChecker;
         private Boolean _adopting;
 
@@ -44,27 +45,31 @@ namespace Aggregates
             _settings = settings;
             _jsonSettings = jsonSettings;
             _domains = new HashSet<String>();
-            _seenDomains = new Dictionary<String, long>();
+            _seenDomains = new ConcurrentDictionary<String, long>();
             _adopting = false;
 
             var period = TimeSpan.FromSeconds(_settings.Get<Int32>("DomainHeartbeats"));
             _domainChecker = new System.Threading.Timer((state) =>
             {
-
+                Logger.Debug("Processing compete heartbeats");
                 var maxDomains = _settings.Get<Int32>("HandledDomains");
                 var expiration = _settings.Get<Int32>("DomainExpiration");
 
                 var consumer = (CompetingSubscriber)state;
                 var endpoint = consumer._settings.EndpointName();
-                
+
+                var notSeenDomains = new HashSet<String>(consumer._domains);
                 var seenDomains = new Dictionary<String, long>(consumer._seenDomains);
                 consumer._seenDomains.Clear();
 
                 foreach (var seen in seenDomains)
                 {
                     if (consumer._domains.Contains(seen.Key))
+                    {
                         consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value);
-                    else if (!consumer._adopting && consumer._domains.Count < maxDomains )
+                        notSeenDomains.Remove(seen.Key);
+                    }
+                    else if (!consumer._adopting && consumer._domains.Count < maxDomains)
                     {
                         var lastBeat = consumer._competes.LastHeartbeat(endpoint, seen.Key);
                         if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
@@ -78,7 +83,7 @@ namespace Aggregates
 
                 var expiredDomains = new List<String>();
                 // Check that each domain we are processing is still alive
-                foreach (var domain in consumer._domains.Except(seenDomains.Keys))
+                foreach (var domain in notSeenDomains)
                 {
                     var lastBeat = consumer._competes.LastHeartbeat(endpoint, domain);
                     if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
@@ -87,6 +92,7 @@ namespace Aggregates
                 expiredDomains.ForEach(x =>
                 {
                     consumer._domains.Remove(x);
+                    Logger.InfoFormat("Detected and removed expired domain {0}.  Total claimed: {1}/{2}", x, consumer._domains.Count, maxDomains);
                 });
                 
             }, this, period, period);
@@ -101,7 +107,7 @@ namespace Aggregates
             Logger.InfoFormat("Discovered orphaned domain {0}.. adopting", domain);
             consumer._adopting = true;
             var lastPosition = consumer._competes.LastPosition(endpoint, domain);
-            consumer._client.SubscribeToAllFrom(new Position(lastPosition,lastPosition), false, (subscription, e) =>
+            consumer._client.SubscribeToAllFrom(new Position(lastPosition, lastPosition), false, (subscription, e) =>
             {
                 Thread.CurrentThread.Rename("Eventstore");
                 // Unsure if we need to care about events from eventstore currently
@@ -124,10 +130,10 @@ namespace Aggregates
 
             }, liveProcessingStarted: (sub) =>
             {
-                Logger.InfoFormat("Successfully adopted domain {0}", domain);
                 consumer._domains.Add(domain);
                 consumer._adopting = false;
                 sub.Stop();
+                Logger.InfoFormat("Successfully adopted domain {0}", domain);
             }, subscriptionDropped: (_, reason, e) =>
             {
                 Logger.WarnFormat("While adopting domain {0} the subscription dropped for reason: {1}.  Exception: {2}", domain, reason, e);
@@ -170,7 +176,7 @@ namespace Aggregates
                             if (_competes.CheckOrSave(endpoint, domain, e.OriginalPosition.Value.CommitPosition))
                             {
                                 _domains.Add(domain);
-                                Logger.InfoFormat("Claimed domain {0}.  Total claimed: {1}", domain, _domains.Count);
+                                Logger.InfoFormat("Claimed domain {0}.  Total claimed: {1}/{2}", domain, _domains.Count, maxDomains);
                             }
                             else
                                 return;
