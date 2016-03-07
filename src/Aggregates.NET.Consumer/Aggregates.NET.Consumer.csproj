@@ -63,10 +63,10 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
-    <Compile Include="CompetingSubscriber.cs" />
+    <Compile Include="Internal\CompetingSubscriber.cs" />
     <Compile Include="Consumer.cs" />
     <Compile Include="ConsumerConfiguration.cs" />
-    <Compile Include="DurableSubscriber.cs" />
+    <Compile Include="Internal\DurableSubscriber.cs" />
     <Compile Include="IDispatcher.cs" />
     <Compile Include="IEventSubscriber.cs" />
     <Compile Include="IManageCompetes.cs" />
@@ -74,7 +74,7 @@
     <Compile Include="IPersistCheckpoints.cs" />
     <Compile Include="IEventUnitOfWork.cs" />
     <Compile Include="Internal\NServiceBusDispatcher.cs" />
-    <Compile Include="VolatileSubscriber.cs" />
+    <Compile Include="Internal\VolatileSubscriber.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Aggregates.NET.Consumer.nuspec">

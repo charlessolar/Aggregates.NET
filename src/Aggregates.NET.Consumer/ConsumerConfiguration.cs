@@ -32,5 +32,9 @@ namespace Aggregates
         {
             settings.GetSettings().Set("BucketsHandled", Count);
         }
+        public static void SetReadSize(this ExposeSettings settings, Int32 Count)
+        {
+            settings.GetSettings().Set("ReadSize", Count);
+        }
     }
 }

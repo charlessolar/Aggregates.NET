@@ -16,7 +16,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 
-namespace Aggregates
+namespace Aggregates.Internal
 {
     /// <summary>
     /// Keeps track of the domain events it handles and imposes a limit on the amount of events to process (allowing other instances to process others)
@@ -106,6 +106,7 @@ namespace Aggregates
 
         private static void AdoptBucket(CompetingSubscriber consumer, String endpoint, Int32 bucket)
         {
+            var readSize = consumer._settings.Get<Int32>("ReadSize");
             Logger.InfoFormat("Discovered orphaned bucket {0}.. adopting", bucket);
             consumer._adopting = true;
             var lastPosition = consumer._competes.LastPosition(endpoint, bucket);
@@ -135,7 +136,7 @@ namespace Aggregates
             }, subscriptionDropped: (_, reason, e) =>
             {
                 Logger.WarnFormat("While adopting bucket {0} the subscription dropped for reason: {1}.  Exception: {2}", bucket, reason, e);
-            });
+            }, readBatchSize: readSize);
         }
 
         public void SubscribeToAll(String endpoint)
@@ -143,6 +144,7 @@ namespace Aggregates
             var saved = _checkpoints.Load(endpoint);
             // To support HA simply save IManageCompetes data to a different db, in this way we can make clusters of consumers
             var handledBuckets = _settings.Get<Int32>("BucketsHandled");
+            var readSize = _settings.Get<Int32>("ReadSize");
 
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from position '{1}'", endpoint, saved);
             _client.SubscribeToAllFrom(saved, false, (subscription, e) =>
@@ -193,7 +195,7 @@ namespace Aggregates
             }, subscriptionDropped: (_, reason, e) =>
             {
                 Logger.WarnFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e);
-            });
+            }, readBatchSize: readSize);
         }
 
     }

@@ -10,8 +10,9 @@ using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
 using Aggregates.Contracts;
 using System.Threading;
+using NServiceBus.Settings;
 
-namespace Aggregates
+namespace Aggregates.Internal
 {
     public class VolatileSubscriber : IEventSubscriber
     {
@@ -19,18 +20,21 @@ namespace Aggregates
         private readonly IBuilder _builder;
         private readonly IEventStoreConnection _client;
         private readonly IDispatcher _dispatcher;
-        private readonly JsonSerializerSettings _settings;
+        private readonly ReadOnlySettings _settings;
+        private readonly JsonSerializerSettings _jsonSettings;
 
-        public VolatileSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, JsonSerializerSettings settings)
+        public VolatileSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
         {
             _builder = builder;
             _client = client;
             _dispatcher = dispatcher;
             _settings = settings;
+            _jsonSettings = jsonSettings;
         }
 
         public void SubscribeToAll(String endpoint)
         {
+            var readSize = _settings.Get<Int32>("ReadSize");
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from END", endpoint);
             _client.SubscribeToAllFrom(Position.End, false, (_, e) =>
             {
@@ -38,8 +42,8 @@ namespace Aggregates
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
 
-                var descriptor = e.Event.Metadata.Deserialize(_settings);
-                var data = e.Event.Data.Deserialize(e.Event.EventType, _settings);
+                var descriptor = e.Event.Metadata.Deserialize(_jsonSettings);
+                var data = e.Event.Data.Deserialize(e.Event.EventType, _jsonSettings);
 
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
                 if (data == null) return;
@@ -52,7 +56,7 @@ namespace Aggregates
             }, subscriptionDropped: (_, reason, e) =>
             {
                 Logger.WarnFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e);
-            });
+            }, readBatchSize: readSize);
         }
     }
 }
