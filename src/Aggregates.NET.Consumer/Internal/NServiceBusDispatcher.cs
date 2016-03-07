@@ -156,7 +156,8 @@ namespace Aggregates.Internal
 
                         queue.Complete();
 
-                        try {
+                        try
+                        {
                             queue.Completion.Wait();
 
                             if (uows != null && uows.Any())

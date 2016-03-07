@@ -31,9 +31,10 @@ namespace Aggregates
         private readonly IDispatcher _dispatcher;
         private readonly ReadOnlySettings _settings;
         private readonly JsonSerializerSettings _jsonSettings;
-        private readonly HashSet<String> _domains;
-        private readonly ConcurrentDictionary<String, long> _seenDomains;
-        private readonly System.Threading.Timer _domainChecker;
+        private readonly HashSet<Int32> _buckets;
+        private readonly ConcurrentDictionary<Int32, long> _seenBuckets;
+        private readonly System.Threading.Timer _bucketChecker;
+        private readonly Int32 _bucketCount;
         private Boolean _adopting;
 
         public CompetingSubscriber(IEventStoreConnection client, IPersistCheckpoints checkpoints, IManageCompetes competes, IDispatcher dispatcher, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
@@ -44,69 +45,70 @@ namespace Aggregates
             _dispatcher = dispatcher;
             _settings = settings;
             _jsonSettings = jsonSettings;
-            _domains = new HashSet<String>();
-            _seenDomains = new ConcurrentDictionary<String, long>();
+            _buckets = new HashSet<Int32>();
+            _seenBuckets = new ConcurrentDictionary<Int32, long>();
+            _bucketCount = _settings.Get<Int32>("BucketCount");
             _adopting = false;
 
-            var period = TimeSpan.FromSeconds(_settings.Get<Int32>("DomainHeartbeats"));
-            _domainChecker = new System.Threading.Timer((state) =>
+            var period = TimeSpan.FromSeconds(_settings.Get<Int32>("BucketHeartbeats"));
+            _bucketChecker = new System.Threading.Timer((state) =>
             {
                 Logger.Debug("Processing compete heartbeats");
-                var maxDomains = _settings.Get<Int32>("HandledDomains");
-                var expiration = _settings.Get<Int32>("DomainExpiration");
+                var handledBuckets = _settings.Get<Int32>("BucketsHandled");
+                var expiration = _settings.Get<Int32>("BucketExpiration");
 
                 var consumer = (CompetingSubscriber)state;
                 var endpoint = consumer._settings.EndpointName();
 
-                var notSeenDomains = new HashSet<String>(consumer._domains);
-                var seenDomains = new Dictionary<String, long>(consumer._seenDomains);
-                consumer._seenDomains.Clear();
+                var notSeenBuckets = new HashSet<Int32>(consumer._buckets);
+                var seenBuckets = new Dictionary<Int32, long>(consumer._seenBuckets);
+                consumer._seenBuckets.Clear();
 
-                foreach (var seen in seenDomains)
+                foreach (var seen in seenBuckets)
                 {
-                    if (consumer._domains.Contains(seen.Key))
+                    if (consumer._buckets.Contains(seen.Key))
                     {
                         consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value);
-                        notSeenDomains.Remove(seen.Key);
+                        notSeenBuckets.Remove(seen.Key);
                     }
-                    else if (!consumer._adopting && consumer._domains.Count < maxDomains)
+                    else if (!consumer._adopting && consumer._buckets.Count < handledBuckets)
                     {
                         var lastBeat = consumer._competes.LastHeartbeat(endpoint, seen.Key);
                         if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
                         {
-                            // We saw new events but the consumer for this domain has died, so we will adopt its domain
-                            AdoptDomain(consumer, endpoint, seen.Key);
+                            // We saw new events but the consumer for this bucket has died, so we will adopt its bucket
+                            AdoptBucket(consumer, endpoint, seen.Key);
                             break;
                         }
                     }
                 }
 
-                var expiredDomains = new List<String>();
-                // Check that each domain we are processing is still alive
-                foreach (var domain in notSeenDomains)
+                var expiredBuckets = new List<Int32>();
+                // Check that each bucket we are processing is still alive
+                foreach (var bucket in notSeenBuckets)
                 {
-                    var lastBeat = consumer._competes.LastHeartbeat(endpoint, domain);
+                    var lastBeat = consumer._competes.LastHeartbeat(endpoint, bucket);
                     if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
-                        expiredDomains.Add(domain);
+                        expiredBuckets.Add(bucket);
                 }
-                expiredDomains.ForEach(x =>
+                expiredBuckets.ForEach(x =>
                 {
-                    consumer._domains.Remove(x);
-                    Logger.InfoFormat("Detected and removed expired domain {0}.  Total claimed: {1}/{2}", x, consumer._domains.Count, maxDomains);
+                    consumer._buckets.Remove(x);
+                    Logger.InfoFormat("Detected and removed expired bucket {0}.  Total claimed: {1}/{2}", x, consumer._buckets.Count, consumer._bucketCount);
                 });
                 
             }, this, period, period);
         }
         public void Dispose()
         {
-            this._domainChecker.Dispose();
+            this._bucketChecker.Dispose();
         }
 
-        private static void AdoptDomain(CompetingSubscriber consumer, String endpoint, String domain)
+        private static void AdoptBucket(CompetingSubscriber consumer, String endpoint, Int32 bucket)
         {
-            Logger.InfoFormat("Discovered orphaned domain {0}.. adopting", domain);
+            Logger.InfoFormat("Discovered orphaned bucket {0}.. adopting", bucket);
             consumer._adopting = true;
-            var lastPosition = consumer._competes.LastPosition(endpoint, domain);
+            var lastPosition = consumer._competes.LastPosition(endpoint, bucket);
             consumer._client.SubscribeToAllFrom(new Position(lastPosition, lastPosition), false, (subscription, e) =>
             {
                 Thread.CurrentThread.Rename("Eventstore");
@@ -116,13 +118,9 @@ namespace Aggregates
                 var descriptor = e.Event.Metadata.Deserialize(consumer._jsonSettings);
                 if (descriptor == null) return;
 
-                String headerDomain;
-                if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.DomainHeader, out headerDomain))
-                    return;
-
-                // Don't care about events that we are not adopting
-                if (headerDomain != domain) return;
-                
+                var eventBucket = Math.Abs(e.OriginalStreamId.GetHashCode() % consumer._bucketCount);
+                if (eventBucket != bucket) return;
+                                
                 var data = e.Event.Data.Deserialize(e.Event.EventType, consumer._jsonSettings);
                 if (data == null) return;
                 
@@ -130,13 +128,13 @@ namespace Aggregates
 
             }, liveProcessingStarted: (sub) =>
             {
-                consumer._domains.Add(domain);
+                consumer._buckets.Add(bucket);
                 consumer._adopting = false;
                 sub.Stop();
-                Logger.InfoFormat("Successfully adopted domain {0}", domain);
+                Logger.InfoFormat("Successfully adopted bucket {0}", bucket);
             }, subscriptionDropped: (_, reason, e) =>
             {
-                Logger.WarnFormat("While adopting domain {0} the subscription dropped for reason: {1}.  Exception: {2}", domain, reason, e);
+                Logger.WarnFormat("While adopting bucket {0} the subscription dropped for reason: {1}.  Exception: {2}", bucket, reason, e);
             });
         }
 
@@ -144,7 +142,7 @@ namespace Aggregates
         {
             var saved = _checkpoints.Load(endpoint);
             // To support HA simply save IManageCompetes data to a different db, in this way we can make clusters of consumers
-            var maxDomains = _settings.Get<Int32>("HandledDomains");
+            var handledBuckets = _settings.Get<Int32>("BucketsHandled");
 
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from position '{1}'", endpoint, saved);
             _client.SubscribeToAllFrom(saved, false, (subscription, e) =>
@@ -157,26 +155,24 @@ namespace Aggregates
 
                 if (descriptor == null) return;
 
-                // If the event doesn't contain a domain header it was not generated by the domain
-                String domain;
-                if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.DomainHeader, out domain))
-                    return;
+                var bucket = Math.Abs(e.OriginalStreamId.GetHashCode() % _bucketCount);
 
+                
                 if (e.OriginalPosition.HasValue)
                 {
-                    _seenDomains[domain] = e.OriginalPosition.Value.CommitPosition;
+                    _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
 
-                    if (!_domains.Contains(domain))
+                    if (!_buckets.Contains(bucket))
                     {
-                        if (_domains.Count >= maxDomains)
+                        if (_buckets.Count >= handledBuckets)
                             return;
                         else
                         {
-                            // Returns true if it claimed the domain
-                            if (_competes.CheckOrSave(endpoint, domain, e.OriginalPosition.Value.CommitPosition))
+                            // Returns true if it claimed the bucket
+                            if (_competes.CheckOrSave(endpoint, bucket, e.OriginalPosition.Value.CommitPosition))
                             {
-                                _domains.Add(domain);
-                                Logger.InfoFormat("Claimed domain {0}.  Total claimed: {1}/{2}", domain, _domains.Count, maxDomains);
+                                _buckets.Add(bucket);
+                                Logger.InfoFormat("Claimed bucket {0}.  Total claimed: {1}/{2}", bucket, _buckets.Count, handledBuckets);
                             }
                             else
                                 return;

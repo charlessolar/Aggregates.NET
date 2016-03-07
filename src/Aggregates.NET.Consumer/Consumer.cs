@@ -81,8 +81,10 @@ namespace Aggregates
             {
                 s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
                 s.SetDefault("HandledDomains", Int32.MaxValue);
-                s.SetDefault("DomainHeartbeats", 5);
-                s.SetDefault("DomainExpiration", 30);
+                s.SetDefault("BucketHeartbeats", 5);
+                s.SetDefault("BucketExpiration", 30);
+                s.SetDefault("BucketCount", 30);
+                s.SetDefault("BucketsHandled", 30);
             });
         }
 

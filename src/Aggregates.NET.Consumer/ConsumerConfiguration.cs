@@ -20,17 +20,21 @@ namespace Aggregates
         {
             settings.GetSettings().Set("SetEventStoreCapacity", Capacity);
         }
-        public static void SetHandledDomains(this ExposeSettings settings, Int32 Count)
+        public static void SetBucketHeartbeats(this ExposeSettings settings, Int32 Seconds)
         {
-            settings.GetSettings().Set("HandledDomains", Count);
+            settings.GetSettings().Set("BucketHeartbeats", Seconds);
         }
-        public static void SetHeartbeats(this ExposeSettings settings, Int32 Seconds)
+        public static void SetBucketExpiration(this ExposeSettings settings, Int32 Seconds)
         {
-            settings.GetSettings().Set("DomainHeartbeats", Seconds);
+            settings.GetSettings().Set("BucketExpiration", Seconds);
         }
-        public static void SetExpiration(this ExposeSettings settings, Int32 Seconds)
+        public static void SetBucketCount(this ExposeSettings settings, Int32 Count)
         {
-            settings.GetSettings().Set("DomainExpiration", Seconds);
+            settings.GetSettings().Set("BucketCount", Count);
+        }
+        public static void SetBucketsHandled(this ExposeSettings settings, Int32 Count)
+        {
+            settings.GetSettings().Set("BucketsHandled", Count);
         }
     }
 }
