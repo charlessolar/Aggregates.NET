@@ -135,7 +135,7 @@ namespace Aggregates
             }, subscriptionDropped: (_, reason, e) =>
             {
                 Logger.WarnFormat("While adopting bucket {0} the subscription dropped for reason: {1}.  Exception: {2}", bucket, reason, e);
-            });
+            }, readBatchSize: 100);
         }
 
         public void SubscribeToAll(String endpoint)
@@ -193,7 +193,7 @@ namespace Aggregates
             }, subscriptionDropped: (_, reason, e) =>
             {
                 Logger.WarnFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e);
-            });
+            }, readBatchSize: 100);
         }
 
     }
