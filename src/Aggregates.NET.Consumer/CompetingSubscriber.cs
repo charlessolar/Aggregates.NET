@@ -35,7 +35,6 @@ namespace Aggregates
         private readonly ConcurrentDictionary<Int32, long> _seenBuckets;
         private readonly System.Threading.Timer _bucketChecker;
         private readonly Int32 _bucketCount;
-        private Boolean _adopting;
 
         public CompetingSubscriber(IEventStoreConnection client, IPersistCheckpoints checkpoints, IManageCompetes competes, IDispatcher dispatcher, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
         {
@@ -48,94 +47,32 @@ namespace Aggregates
             _buckets = new HashSet<Int32>();
             _seenBuckets = new ConcurrentDictionary<Int32, long>();
             _bucketCount = _settings.Get<Int32>("BucketCount");
-            _adopting = false;
 
             var period = TimeSpan.FromSeconds(_settings.Get<Int32>("BucketHeartbeats"));
             _bucketChecker = new System.Threading.Timer((state) =>
             {
                 Logger.Debug("Processing compete heartbeats");
                 var handledBuckets = _settings.Get<Int32>("BucketsHandled");
-                var expiration = _settings.Get<Int32>("BucketExpiration");
 
                 var consumer = (CompetingSubscriber)state;
                 var endpoint = consumer._settings.EndpointName();
-
-                var notSeenBuckets = new HashSet<Int32>(consumer._buckets);
+                
                 var seenBuckets = new Dictionary<Int32, long>(consumer._seenBuckets);
                 consumer._seenBuckets.Clear();
 
                 foreach (var seen in seenBuckets)
                 {
                     if (consumer._buckets.Contains(seen.Key))
-                    {
                         consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value);
-                        notSeenBuckets.Remove(seen.Key);
-                    }
-                    else if (!consumer._adopting && consumer._buckets.Count < handledBuckets)
-                    {
-                        var lastBeat = consumer._competes.LastHeartbeat(endpoint, seen.Key);
-                        if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
-                        {
-                            // We saw new events but the consumer for this bucket has died, so we will adopt its bucket
-                            AdoptBucket(consumer, endpoint, seen.Key);
-                            break;
-                        }
-                    }
+                    
                 }
-
-                var expiredBuckets = new List<Int32>();
-                // Check that each bucket we are processing is still alive
-                foreach (var bucket in notSeenBuckets)
-                {
-                    var lastBeat = consumer._competes.LastHeartbeat(endpoint, bucket);
-                    if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
-                        expiredBuckets.Add(bucket);
-                }
-                expiredBuckets.ForEach(x =>
-                {
-                    consumer._buckets.Remove(x);
-                    Logger.InfoFormat("Detected and removed expired bucket {0}.  Total claimed: {1}/{2}", x, consumer._buckets.Count, consumer._bucketCount);
-                });
+                
                 
             }, this, period, period);
         }
         public void Dispose()
         {
             this._bucketChecker.Dispose();
-        }
-
-        private static void AdoptBucket(CompetingSubscriber consumer, String endpoint, Int32 bucket)
-        {
-            Logger.InfoFormat("Discovered orphaned bucket {0}.. adopting", bucket);
-            consumer._adopting = true;
-            var lastPosition = consumer._competes.LastPosition(endpoint, bucket);
-            consumer._client.SubscribeToAllFrom(new Position(lastPosition, lastPosition), false, (subscription, e) =>
-            {
-                Thread.CurrentThread.Rename("Eventstore");
-                // Unsure if we need to care about events from eventstore currently
-                if (!e.Event.IsJson) return;
-
-                var descriptor = e.Event.Metadata.Deserialize(consumer._jsonSettings);
-                if (descriptor == null) return;
-
-                var eventBucket = Math.Abs(e.OriginalStreamId.GetHashCode() % consumer._bucketCount);
-                if (eventBucket != bucket) return;
-                                
-                var data = e.Event.Data.Deserialize(e.Event.EventType, consumer._jsonSettings);
-                if (data == null) return;
-                
-                consumer._dispatcher.Dispatch(data, descriptor);
-
-            }, liveProcessingStarted: (sub) =>
-            {
-                consumer._buckets.Add(bucket);
-                consumer._adopting = false;
-                sub.Stop();
-                Logger.InfoFormat("Successfully adopted bucket {0}", bucket);
-            }, subscriptionDropped: (_, reason, e) =>
-            {
-                Logger.WarnFormat("While adopting bucket {0} the subscription dropped for reason: {1}.  Exception: {2}", bucket, reason, e);
-            }, readBatchSize: 100);
         }
 
         public void SubscribeToAll(String endpoint)

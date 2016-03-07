@@ -24,10 +24,6 @@ namespace Aggregates
         {
             settings.GetSettings().Set("BucketHeartbeats", Seconds);
         }
-        public static void SetBucketExpiration(this ExposeSettings settings, Int32 Seconds)
-        {
-            settings.GetSettings().Set("BucketExpiration", Seconds);
-        }
         public static void SetBucketCount(this ExposeSettings settings, Int32 Count)
         {
             settings.GetSettings().Set("BucketCount", Count);
