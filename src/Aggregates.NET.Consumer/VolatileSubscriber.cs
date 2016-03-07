@@ -52,7 +52,7 @@ namespace Aggregates
             }, subscriptionDropped: (_, reason, e) =>
             {
                 Logger.WarnFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e);
-            }, readBatchSize: 100);
+            });
         }
     }
 }
