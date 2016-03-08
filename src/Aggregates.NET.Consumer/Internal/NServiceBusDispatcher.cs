@@ -31,6 +31,12 @@ namespace Aggregates.Internal
             public Object Handler { get; set; }
             public Object Event { get; set; }
         }
+        private class DelayedJob
+        {
+            public Object Event { get; set; }
+            public IEventDescriptor Descriptor { get; set; }
+            public long? Position { get; set; }
+        }
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(NServiceBusDispatcher));
         private readonly IBuilder _builder;
@@ -41,6 +47,7 @@ namespace Aggregates.Internal
         private readonly ConcurrentDictionary<String, IList<Type>> _invokeCache;
         private readonly ExecutionDataflowBlockOptions _parallelOptions;
         private readonly JsonSerializerSettings _jsonSettings;
+        private readonly ActionBlock<DelayedJob> _delayedQueue;
 
         private static DateTime Stamp = DateTime.UtcNow;
 
@@ -48,6 +55,7 @@ namespace Aggregates.Internal
         private Metrics.Timer _eventsTimer = Metric.Timer("Event Duration", Unit.Events);
         private Metrics.Timer _handlerTimer = Metric.Timer("Event Handler Duration", Unit.Events);
 
+        private Counter _delayedSize = Metric.Counter("Events Delayed Queue", Unit.Events);
         private Meter _errorsMeter = Metric.Meter("Event Errors", Unit.Errors);
 
         public NServiceBusDispatcher(IBuilder builder, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
@@ -65,10 +73,16 @@ namespace Aggregates.Internal
             {
                 MaxDegreeOfParallelism = parallelism,
             };
+            _delayedQueue = new ActionBlock<DelayedJob>(x =>
+            {
+                Thread.Sleep(250);
+                Dispatch(x.Event, x.Descriptor, x.Position, true);
+            }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = parallelism, BoundedCapacity = 128 });
+        
 
 
         }
-        public void Dispatch(Object @event, IEventDescriptor descriptor = null, long? position = null)
+        public void Dispatch(Object @event, IEventDescriptor descriptor = null, long? position = null, Boolean delayed = false)
         {
 
             var queue = new ActionBlock<Job>((x) =>
@@ -109,85 +123,83 @@ namespace Aggregates.Internal
             // This will prevent the event from being queued on MSMQ
 
             var eventType = _mapper.GetMappedTypeFor(@event.GetType());
-            Exception lastException = null;
-            var retries = 0;
-            bool success = false;
 
             _eventsMeter.Mark();
             using (_eventsTimer.NewContext())
             {
-                do
+                Logger.DebugFormat("Processing event {0}", eventType.FullName);
+
+
+                var handlersToInvoke = _invokeCache.GetOrAdd(eventType.FullName,
+                    (key) => _handlerRegistry.GetHandlerTypes(eventType).ToList());
+
+                using (var childBuilder = _builder.CreateChildBuilder())
                 {
-                    Logger.DebugFormat("Processing event {0}", eventType.FullName);
+                    var uows = childBuilder.BuildAll<IEventUnitOfWork>();
+                    var mutators = childBuilder.BuildAll<IEventMutator>();
 
 
-                    retries++;
-                    var handlersToInvoke = _invokeCache.GetOrAdd(eventType.FullName,
-                        (key) => _handlerRegistry.GetHandlerTypes(eventType).ToList());
+                    if (mutators != null && mutators.Any())
+                        foreach (var mutate in mutators)
+                        {
+                            Logger.DebugFormat("Mutating incoming event {0} with mutator {1}", eventType.FullName, mutate.GetType().FullName);
+                            @event = mutate.MutateIncoming(@event, descriptor, position);
+                        }
 
-                    using (var childBuilder = _builder.CreateChildBuilder())
+                    if (uows != null && uows.Any())
+                        foreach (var uow in uows)
+                        {
+                            uow.Builder = childBuilder;
+                            uow.Begin();
+                        }
+
+                    // Run each handler in parallel
+                    foreach (var handler in handlersToInvoke)
                     {
-                        var uows = childBuilder.BuildAll<IEventUnitOfWork>();
-                        var mutators = childBuilder.BuildAll<IEventMutator>();
+                        var instance = childBuilder.Build(handler);
 
+                        queue.Post(new Job { EventType = eventType, Handler = instance, Event = @event });
 
-                        if (mutators != null && mutators.Any())
-                            foreach (var mutate in mutators)
-                            {
-                                Logger.DebugFormat("Mutating incoming event {0} with mutator {1}", eventType.FullName, mutate.GetType().FullName);
-                                @event = mutate.MutateIncoming(@event, descriptor, position);
-                            }
+                    }
+
+                    queue.Complete();
+
+                    try
+                    {
+                        queue.Completion.Wait();
 
                         if (uows != null && uows.Any())
                             foreach (var uow in uows)
-                            {
-                                uow.Builder = childBuilder;
-                                uow.Begin();
-                            }
+                                uow.End();
 
-                        // Run each handler in parallel
-                        foreach (var handler in handlersToInvoke)
+                    }
+                    catch (Exception e)
+                    {
+
+                        if (uows != null && uows.Any())
+                            foreach (var uow in uows)
+                                uow.End(e);
+
+                        Logger.DebugFormat("Encountered an error while processing {0}.  Will move to the delayed queue for future processing.  Exception details:\n{1}", eventType.FullName, e);
+                        _delayedSize.Increment();
+                        _errorsMeter.Mark();
+                        var delay = _delayedQueue.SendAsync(new DelayedJob { Event = @event, Descriptor = descriptor, Position = position });
+                        delay.Wait();
+                        if (!delay.Result)
                         {
-                            var instance = childBuilder.Build(handler);
-
-                            queue.Post(new Job { EventType = eventType, Handler = instance, Event = @event });
-
+                            Logger.Fatal("Too many events in error queue.  Shutting down");
+                            throw new SubscriptionCanceled("Too many events in error queue");
                         }
 
-                        queue.Complete();
-
-                        try
-                        {
-                            queue.Completion.Wait();
-
-                            if (uows != null && uows.Any())
-                                foreach (var uow in uows)
-                                    uow.End();
-
-                            success = true;
-                        }
-                        catch(Exception e)
-                        {
-
-                            if (uows != null && uows.Any())
-                                foreach (var uow in uows)
-                                    uow.End(e);
-                            lastException = e;
-                            Thread.Sleep(50);
-                        }
-                        
                     }
 
-                } while (!success && retries <= 3);
+                }
             }
-            if (!success)
-            {
-                _errorsMeter.Mark();
-                Logger.ErrorFormat("Failed to process event {0}.  Payload: \n{1}\n Exception: {2}", @event.GetType().FullName, JsonConvert.SerializeObject(@event, _jsonSettings), lastException);
-            }
+            if (delayed)
+                _delayedSize.Decrement();
         }
-
         
+
         public void Dispatch<TEvent>(Action<TEvent> action)
         {
             var @event = _eventFactory.CreateInstance(action);

@@ -70,7 +70,10 @@ namespace Aggregates.Internal
                     {
                         // If heartbeat fails assume someone else took over the bucket
                         if (!consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value))
+                        {
+                            Logger.InfoFormat("Lost claim on bucket {0}.  Total claimed: {1}/{2}", seen.Key, consumer._buckets.Count, consumer._bucketCount);
                             consumer._buckets.Remove(seen.Key);
+                        }
                         notSeenBuckets.Remove(seen.Key);
                     }
                     else if (!consumer._adopting && consumer._buckets.Count < handledBuckets)
@@ -126,9 +129,16 @@ namespace Aggregates.Internal
                                 
                 var data = e.Event.Data.Deserialize(e.Event.EventType, consumer._jsonSettings);
                 if (data == null) return;
-                
-                consumer._dispatcher.Dispatch(data, descriptor);
 
+                try
+                {
+                    consumer._dispatcher.Dispatch(data, descriptor);
+                }
+                catch (SubscriptionCanceled)
+                {
+                    subscription.Stop();
+                    throw;
+                }
             }, liveProcessingStarted: (sub) =>
             {
                 consumer._buckets.Add(bucket);
@@ -137,6 +147,7 @@ namespace Aggregates.Internal
                 Logger.InfoFormat("Successfully adopted bucket {0}", bucket);
             }, subscriptionDropped: (_, reason, e) =>
             {
+                if (reason == SubscriptionDropReason.UserInitiated) return;
                 Logger.WarnFormat("While adopting bucket {0} the subscription dropped for reason: {1}.  Exception: {2}", bucket, reason, e);
             }, readBatchSize: readSize);
         }
@@ -188,8 +199,16 @@ namespace Aggregates.Internal
 
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position or snapshots)
                 if (data == null) return;
-                
-                _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
+
+                try
+                { 
+                    _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
+                }
+                catch (SubscriptionCanceled)
+                {
+                    subscription.Stop();
+                    throw;
+                }
 
             }, liveProcessingStarted: (_) =>
             {

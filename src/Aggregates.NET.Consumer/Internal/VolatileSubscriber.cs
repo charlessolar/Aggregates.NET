@@ -11,6 +11,7 @@ using NServiceBus.ObjectBuilder;
 using Aggregates.Contracts;
 using System.Threading;
 using NServiceBus.Settings;
+using Aggregates.Exceptions;
 
 namespace Aggregates.Internal
 {
@@ -36,7 +37,7 @@ namespace Aggregates.Internal
         {
             var readSize = _settings.Get<Int32>("ReadSize");
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from END", endpoint);
-            _client.SubscribeToAllFrom(Position.End, false, (_, e) =>
+            _client.SubscribeToAllFrom(Position.End, false, (subscription, e) =>
             {
                 Thread.CurrentThread.Rename("Eventstore");
                 // Unsure if we need to care about events from eventstore currently
@@ -48,7 +49,15 @@ namespace Aggregates.Internal
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
                 if (data == null) return;
 
-                _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
+                try
+                {
+                    _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
+                }
+                catch (SubscriptionCanceled)
+                {
+                    subscription.Stop();
+                    throw;
+                }
 
             }, liveProcessingStarted: (_) =>
             {

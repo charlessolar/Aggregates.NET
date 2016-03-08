@@ -57,7 +57,15 @@ namespace Aggregates.Internal
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position or snapshots)
                 if (data == null) return;
 
-                _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
+                try
+                {
+                    _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
+                }
+                catch (SubscriptionCanceled)
+                {
+                    subscription.Stop();
+                    throw;
+                }
 
             }, liveProcessingStarted: (_) =>
             {
