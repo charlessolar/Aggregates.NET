@@ -71,7 +71,7 @@ namespace Aggregates.Internal
                         // If heartbeat fails assume someone else took over the bucket
                         if (!consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value))
                         {
-                            Logger.InfoFormat("Lost claim on bucket {0}.  Total claimed: {1}/{2}", seen.Key, consumer._buckets.Count, consumer._bucketCount);
+                            Logger.InfoFormat("Lost claim on bucket {0}.  Total claimed: {1}/{2}", seen.Key, consumer._buckets.Count, handledBuckets);
                             consumer._buckets.Remove(seen.Key);
                         }
                         notSeenBuckets.Remove(seen.Key);
@@ -99,7 +99,7 @@ namespace Aggregates.Internal
                 expiredBuckets.ForEach(x =>
                 {
                     consumer._buckets.Remove(x);
-                    Logger.InfoFormat("Detected and removed expired bucket {0}.  Total claimed: {1}/{2}", x, consumer._buckets.Count, consumer._bucketCount);
+                    Logger.InfoFormat("Detected and removed expired bucket {0}.  Total claimed: {1}/{2}", x, consumer._buckets.Count, handledBuckets);
                 });
                 
             }, this, period, period);
