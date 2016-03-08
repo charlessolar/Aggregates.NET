@@ -68,7 +68,9 @@ namespace Aggregates.Internal
                 {
                     if (consumer._buckets.Contains(seen.Key))
                     {
-                        consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value);
+                        // If heartbeat fails assume someone else took over the bucket
+                        if (!consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value))
+                            consumer._buckets.Remove(seen.Key);
                         notSeenBuckets.Remove(seen.Key);
                     }
                     else if (!consumer._adopting && consumer._buckets.Count < handledBuckets)
