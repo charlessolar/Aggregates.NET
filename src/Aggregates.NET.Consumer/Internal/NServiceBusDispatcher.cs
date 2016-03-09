@@ -141,7 +141,7 @@ namespace Aggregates.Internal
                     var uows = childBuilder.BuildAll<IEventUnitOfWork>();
                     var mutators = childBuilder.BuildAll<IEventMutator>();
 
-
+                    var s = Stopwatch.StartNew();
                     if (mutators != null && mutators.Any())
                         foreach (var mutate in mutators)
                         {
@@ -174,6 +174,8 @@ namespace Aggregates.Internal
                         if (uows != null && uows.Any())
                             foreach (var uow in uows)
                                 uow.End();
+                        s.Stop();
+                        Logger.DebugFormat("Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
 
                     }
                     catch (Exception e)
@@ -183,7 +185,7 @@ namespace Aggregates.Internal
                             foreach (var uow in uows)
                                 uow.End(e);
 
-                        Logger.DebugFormat("Encountered an error while processing {0}.  Will move to the delayed queue for future processing.  Exception details:\n{1}", eventType.FullName, e);
+                        Logger.InfoFormat("Encountered an error while processing {0}.  Will move to the delayed queue for future processing.  Exception details:\n{1}", eventType.FullName, e);
                         _delayedSize.Increment();
                         _errorsMeter.Mark();
                         var delay = _delayedQueue.SendAsync(new DelayedJob { Event = @event, Descriptor = descriptor, Position = position });
