@@ -35,7 +35,8 @@ namespace Aggregates.Internal
         private readonly ConcurrentDictionary<Int32, long> _seenBuckets;
         private readonly System.Threading.Timer _bucketChecker;
         private readonly Int32 _bucketCount;
-        private Boolean _adopting;
+        private Int32? _adopting;
+        private Int64? _adoptingPosition;
 
         public CompetingSubscriber(IEventStoreConnection client, IPersistCheckpoints checkpoints, IManageCompetes competes, IDispatcher dispatcher, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
         {
@@ -48,7 +49,6 @@ namespace Aggregates.Internal
             _buckets = new HashSet<Int32>();
             _seenBuckets = new ConcurrentDictionary<Int32, long>();
             _bucketCount = _settings.Get<Int32>("BucketCount");
-            _adopting = false;
 
             var period = TimeSpan.FromSeconds(_settings.Get<Int32>("BucketHeartbeats"));
             _bucketChecker = new System.Threading.Timer((state) =>
@@ -80,7 +80,7 @@ namespace Aggregates.Internal
                         }
                         notSeenBuckets.Remove(seen.Key);
                     }
-                    else if (!consumer._adopting && consumer._buckets.Count < handledBuckets)
+                    else if (!consumer._adopting.HasValue && consumer._buckets.Count < handledBuckets)
                     {
                         var lastBeat = consumer._competes.LastHeartbeat(endpoint, seen.Key);
                         if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
@@ -89,6 +89,20 @@ namespace Aggregates.Internal
                             AdoptBucket(consumer, endpoint, seen.Key);
                             break;
                         }
+                    }
+                    else if(consumer._adopting == seen.Key)
+                    {
+                        try
+                        {
+                            consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, consumer._adoptingPosition.Value);
+                        }
+                        catch (DiscriminatorException)
+                        {
+                            // someone else took over the bucket
+                            consumer._buckets.Remove(seen.Key);
+                            Logger.InfoFormat("Lost claim on bucket {0}.  Total claimed: {1}/{2}", seen.Key, consumer._buckets.Count, handledBuckets);
+                        }
+                        notSeenBuckets.Remove(seen.Key);
                     }
                 }
 
@@ -117,9 +131,11 @@ namespace Aggregates.Internal
         {
             var readSize = consumer._settings.Get<Int32>("ReadSize");
             Logger.InfoFormat("Discovered orphaned bucket {0}.. adopting", bucket);
-            consumer._adopting = true;
+            consumer._adopting = bucket;
             consumer._competes.Adopt(endpoint, bucket, DateTime.UtcNow);
             var lastPosition = consumer._competes.LastPosition(endpoint, bucket);
+            consumer._adoptingPosition = lastPosition;
+
             consumer._client.SubscribeToAllFrom(new Position(lastPosition, lastPosition), false, (subscription, e) =>
             {
                 Logger.DebugFormat("Adopted event appeared position {0}", e.OriginalPosition?.CommitPosition);
@@ -132,13 +148,11 @@ namespace Aggregates.Internal
 
                 var eventBucket = Math.Abs(e.OriginalStreamId.GetHashCode() % consumer._bucketCount);
                 if (eventBucket != bucket) return;
-
-                if(e.OriginalPosition.HasValue) 
-                    consumer._seenBuckets[eventBucket] = e.OriginalPosition.Value.CommitPosition;
-
+                
                 var data = e.Event.Data.Deserialize(e.Event.EventType, consumer._jsonSettings);
                 if (data == null) return;
 
+                consumer._adoptingPosition = e.OriginalPosition?.CommitPosition ?? consumer._adoptingPosition;
                 try
                 {
                     consumer._dispatcher.Dispatch(data, descriptor);
@@ -151,12 +165,16 @@ namespace Aggregates.Internal
             }, liveProcessingStarted: (sub) =>
             {
                 consumer._buckets.Add(bucket);
-                consumer._adopting = false;
+                consumer._adopting = null;
+                consumer._adoptingPosition = null;
                 sub.Stop();
                 Logger.InfoFormat("Successfully adopted bucket {0}", bucket);
-            }, subscriptionDropped: (_, reason, e) =>
+            }, subscriptionDropped: (subscription, reason, e) =>
             {
                 if (reason == SubscriptionDropReason.UserInitiated) return;
+                consumer._adopting = null;
+                consumer._adoptingPosition = null;
+                subscription.Stop();
                 Logger.WarnFormat("While adopting bucket {0} the subscription dropped for reason: {1}.  Exception: {2}", bucket, reason, e);
             }, readBatchSize: readSize);
         }
