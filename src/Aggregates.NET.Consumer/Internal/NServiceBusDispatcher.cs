@@ -99,9 +99,12 @@ namespace Aggregates.Internal
                         try
                         {
                             Logger.DebugFormat("Executing event {0} on handler {1}", x.EventType.FullName, handlerType.FullName);
+                            var s = Stopwatch.StartNew();
                             handlerRetries++;
                             _handlerRegistry.InvokeHandle(x.Handler, x.Event);
+                            s.Stop();
                             handlerSuccess = true;
+                            Logger.DebugFormat("Executing event {0} on handler {1} took {2} ms", x.EventType.FullName, handlerType.FullName, s.ElapsedMilliseconds);
                         }
                         catch (RetryException e)
                         {

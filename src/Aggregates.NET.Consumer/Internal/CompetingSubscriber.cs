@@ -122,6 +122,7 @@ namespace Aggregates.Internal
             var lastPosition = consumer._competes.LastPosition(endpoint, bucket);
             consumer._client.SubscribeToAllFrom(new Position(lastPosition, lastPosition), false, (subscription, e) =>
             {
+                Logger.DebugFormat("Adopted event appeared position {0}", e.OriginalPosition?.CommitPosition);
                 Thread.CurrentThread.Rename("Eventstore");
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
@@ -170,6 +171,7 @@ namespace Aggregates.Internal
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from position '{1}'", endpoint, saved);
             _client.SubscribeToAllFrom(saved, false, (subscription, e) =>
             {
+                Logger.DebugFormat("Event appeared position {0}", e.OriginalPosition?.CommitPosition);
                 Thread.CurrentThread.Rename("Eventstore");
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
