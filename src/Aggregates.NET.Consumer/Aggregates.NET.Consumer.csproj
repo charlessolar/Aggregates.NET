@@ -63,6 +63,7 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="Exceptions\DiscriminatorException.cs" />
     <Compile Include="Exceptions\SubscriptionCanceled.cs" />
     <Compile Include="Internal\CompetingSubscriber.cs" />
     <Compile Include="Consumer.cs" />

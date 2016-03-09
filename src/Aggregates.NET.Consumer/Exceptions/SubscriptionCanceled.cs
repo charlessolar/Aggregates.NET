@@ -8,7 +8,7 @@ namespace Aggregates.Exceptions
 {
     public class SubscriptionCanceled : Exception
     {
-        public SubscriptionCanceled() { }
+        public SubscriptionCanceled() : base() { }
         public SubscriptionCanceled(String message) : base(message) { }
     }
 }

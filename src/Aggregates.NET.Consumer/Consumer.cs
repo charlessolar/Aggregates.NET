@@ -85,7 +85,7 @@ namespace Aggregates
                 s.SetDefault("ReadSize", 500);
                 s.SetDefault("HandledDomains", Int32.MaxValue);
                 s.SetDefault("BucketHeartbeats", 1);
-                s.SetDefault("BucketExpiration", 30);
+                s.SetDefault("BucketExpiration", 60);
                 s.SetDefault("BucketCount", 1);
                 s.SetDefault("BucketsHandled", 1);
             });

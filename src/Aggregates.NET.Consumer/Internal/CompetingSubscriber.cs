@@ -68,11 +68,15 @@ namespace Aggregates.Internal
                 {
                     if (consumer._buckets.Contains(seen.Key))
                     {
-                        // If heartbeat fails assume someone else took over the bucket
-                        if (!consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value))
+                        try
                         {
-                            Logger.InfoFormat("Lost claim on bucket {0}.  Total claimed: {1}/{2}", seen.Key, consumer._buckets.Count, handledBuckets);
+                            consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value);
+                        }
+                        catch (DiscriminatorException)
+                        {
+                            // someone else took over the bucket
                             consumer._buckets.Remove(seen.Key);
+                            Logger.InfoFormat("Lost claim on bucket {0}.  Total claimed: {1}/{2}", seen.Key, consumer._buckets.Count, handledBuckets);
                         }
                         notSeenBuckets.Remove(seen.Key);
                     }
@@ -101,7 +105,7 @@ namespace Aggregates.Internal
                     consumer._buckets.Remove(x);
                     Logger.InfoFormat("Detected and removed expired bucket {0}.  Total claimed: {1}/{2}", x, consumer._buckets.Count, handledBuckets);
                 });
-                
+
             }, this, period, period);
         }
         public void Dispose()
@@ -114,6 +118,7 @@ namespace Aggregates.Internal
             var readSize = consumer._settings.Get<Int32>("ReadSize");
             Logger.InfoFormat("Discovered orphaned bucket {0}.. adopting", bucket);
             consumer._adopting = true;
+            consumer._competes.Adopt(endpoint, bucket, DateTime.UtcNow);
             var lastPosition = consumer._competes.LastPosition(endpoint, bucket);
             consumer._client.SubscribeToAllFrom(new Position(lastPosition, lastPosition), false, (subscription, e) =>
             {
@@ -126,7 +131,10 @@ namespace Aggregates.Internal
 
                 var eventBucket = Math.Abs(e.OriginalStreamId.GetHashCode() % consumer._bucketCount);
                 if (eventBucket != bucket) return;
-                                
+
+                if(e.OriginalPosition.HasValue) 
+                    consumer._seenBuckets[eventBucket] = e.OriginalPosition.Value.CommitPosition;
+
                 var data = e.Event.Data.Deserialize(e.Event.EventType, consumer._jsonSettings);
                 if (data == null) return;
 
@@ -172,7 +180,7 @@ namespace Aggregates.Internal
 
                 var bucket = Math.Abs(e.OriginalStreamId.GetHashCode() % _bucketCount);
 
-                
+
                 if (e.OriginalPosition.HasValue)
                 {
                     _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
@@ -201,7 +209,7 @@ namespace Aggregates.Internal
                 if (data == null) return;
 
                 try
-                { 
+                {
                     _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
                 }
                 catch (SubscriptionCanceled)
