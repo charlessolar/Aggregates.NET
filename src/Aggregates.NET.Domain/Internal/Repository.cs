@@ -1,5 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Exceptions;
+using Metrics;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
@@ -23,7 +24,11 @@ namespace Aggregates.Internal
         private readonly IStoreEvents _store;
         private readonly IStoreSnapshots _snapstore;
         private readonly IBuilder _builder;
-        
+
+        private static Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Events);
+        private static Meter ConflictsResolved = Metric.Meter("Conflicts Resolved", Unit.Items);
+        private static Meter WriteErrors = Metric.Meter("Event Write Errors", Unit.Errors);
+
         protected readonly ConcurrentDictionary<String, T> _tracked = new ConcurrentDictionary<String, T>();
 
         private Boolean _disposed;
@@ -37,6 +42,7 @@ namespace Aggregates.Internal
 
         void IRepository.Commit(Guid commitId, IDictionary<String, String> headers)
         {
+            var written = 0;
             foreach (var tracked in _tracked.Values )
             {
                 var stream = tracked.Stream;
@@ -48,6 +54,7 @@ namespace Aggregates.Internal
                     stream.AddSnapshot(memento, headers);
                 }
 
+                written += stream.Uncommitted.Count();
 
                 var count = 0;
                 var success = false;
@@ -65,6 +72,7 @@ namespace Aggregates.Internal
                         {
                             Logger.DebugFormat("Stream {0} entity {1} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName);
                             stream = ResolveConflict(tracked.Stream);
+                            ConflictsResolved.Mark();
                         }
                         catch
                         {
@@ -75,6 +83,11 @@ namespace Aggregates.Internal
                     catch (DuplicateCommitException)
                     {
                         Logger.WarnFormat("Detected a possible double commit for stream: {0} bucket {1}", stream.StreamId, stream.Bucket);
+                    }
+                    catch
+                    {
+                        WriteErrors.Mark();
+                        throw;
                     }
                 } while (!success && count < 5);
             }

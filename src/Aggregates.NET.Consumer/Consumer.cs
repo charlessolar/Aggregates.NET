@@ -84,7 +84,7 @@ namespace Aggregates
                 s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
                 s.SetDefault("ReadSize", 500);
                 s.SetDefault("HandledDomains", Int32.MaxValue);
-                s.SetDefault("BucketHeartbeats", 1);
+                s.SetDefault("BucketHeartbeats", 5);
                 s.SetDefault("BucketExpiration", 60);
                 s.SetDefault("BucketCount", 1);
                 s.SetDefault("BucketsHandled", 1);

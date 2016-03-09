@@ -131,11 +131,10 @@ namespace Aggregates.Internal
             using (_eventsTimer.NewContext())
             {
                 Logger.DebugFormat("Processing event {0}", eventType.FullName);
-
-
+                
                 var handlersToInvoke = _invokeCache.GetOrAdd(eventType.FullName,
                     (key) => _handlerRegistry.GetHandlerTypes(eventType).ToList());
-
+                
                 using (var childBuilder = _builder.CreateChildBuilder())
                 {
                     var uows = childBuilder.BuildAll<IEventUnitOfWork>();
@@ -181,11 +180,12 @@ namespace Aggregates.Internal
                     catch (Exception e)
                     {
 
+                        Logger.InfoFormat("Encountered an error while processing {0}.  Will move to the delayed queue for future processing.  Exception details:\n{1}", eventType.FullName, e);
+
                         if (uows != null && uows.Any())
                             foreach (var uow in uows)
                                 uow.End(e);
 
-                        Logger.InfoFormat("Encountered an error while processing {0}.  Will move to the delayed queue for future processing.  Exception details:\n{1}", eventType.FullName, e);
                         _delayedSize.Increment();
                         _errorsMeter.Mark();
                         var delay = _delayedQueue.SendAsync(new DelayedJob { Event = @event, Descriptor = descriptor, Position = position });
