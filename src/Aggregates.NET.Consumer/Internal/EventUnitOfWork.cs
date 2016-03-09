@@ -17,12 +17,10 @@ namespace Aggregates.Internal
         public long? CurrentPosition { get; private set; }
 
         public IBuilder Builder { get; set; }
-
-        private readonly IPersistCheckpoints _checkpoints;
+        
         private readonly ReadOnlySettings _settings;
-        public EventUnitOfWork(IPersistCheckpoints checkpoints, ReadOnlySettings settings)
+        public EventUnitOfWork(ReadOnlySettings settings)
         {
-            _checkpoints = checkpoints;
             _settings = settings;
         }
 
@@ -33,8 +31,13 @@ namespace Aggregates.Internal
         public void End(Exception ex = null)
         {
             if (ex != null) return;
-            if(this.CurrentPosition.HasValue)
-                _checkpoints.Save(_settings.EndpointName(), CurrentPosition.Value);
+            if (this.CurrentPosition.HasValue)
+            {
+                // IPersistCheckpoints can't be in the constructor because it will depend on a IEventUnitOfWork
+                // Which would cause the builder to delivery 2 diffent uow to us and the app
+                var checkpoints = Builder.Build<IPersistCheckpoints>();
+                checkpoints.Save(_settings.EndpointName(), CurrentPosition.Value);
+            }
         }
 
         public object MutateIncoming(object Event, IEventDescriptor Descriptor, long? Position)

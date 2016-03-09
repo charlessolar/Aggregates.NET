@@ -77,7 +77,7 @@ namespace Aggregates.Internal
             {
                 Thread.Sleep(250);
                 Dispatch(x.Event, x.Descriptor, x.Position, true);
-            }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = parallelism, BoundedCapacity = 128 });
+            }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 1, BoundedCapacity = 128 });
         
 
 
