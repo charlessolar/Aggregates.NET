@@ -68,6 +68,5 @@ task CreateNuGetPackages -depends ILMerge {
 	$versionString = Get-Version $assemblyInfoFilePath
 	gci $srcDir -Recurse -Include *.nuspec | % {
 		exec { .$rootDir\nuget\nuget.exe pack $_ -o $buildOutputDir -properties "version=$versionString;configuration=$configuration" }
-		exec { .$rootDir\nuget\nuget.exe pack $_ -symbols -o $buildOutputDir -properties "version=$versionString;configuration=$configuration" }
 	}
 }
