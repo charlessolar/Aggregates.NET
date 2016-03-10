@@ -170,12 +170,6 @@ namespace Aggregates.Internal
                     {
                         queue.Completion.Wait();
 
-                        if (uows != null && uows.Any())
-                            foreach (var uow in uows)
-                                uow.End();
-                        s.Stop();
-                        Logger.DebugFormat("Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
-
                     }
                     catch (Exception e)
                     {
@@ -195,8 +189,15 @@ namespace Aggregates.Internal
                             Logger.Fatal("Too many events in error queue.  Shutting down");
                             throw new SubscriptionCanceled("Too many events in error queue");
                         }
-
+                        return;
                     }
+
+                    // Don't put in try/catch, any exceptions raised while running uow.End is pretty much a game over, subscription will (and should) crash
+                    if (uows != null && uows.Any())
+                        foreach (var uow in uows)
+                            uow.End();
+                    s.Stop();
+                    Logger.DebugFormat("Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
 
                 }
             }
