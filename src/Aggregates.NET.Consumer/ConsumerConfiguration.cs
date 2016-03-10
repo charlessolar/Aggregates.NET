@@ -40,9 +40,9 @@ namespace Aggregates
         {
             settings.GetSettings().Set("ReadSize", Count);
         }
-        public static void ParrallelHandlers(this ExposeSettings settings, Boolean Parrallel)
+        public static void ParallelHandlers(this ExposeSettings settings, Boolean Parrallel)
         {
-            settings.GetSettings().Set("ParrallelHandlers", Parrallel);
+            settings.GetSettings().Set("ParallelHandlers", Parrallel);
         }
     }
 }

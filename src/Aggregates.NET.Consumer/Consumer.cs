@@ -24,7 +24,7 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
-                s.SetDefault("ParrallelHandlers", true);
+                s.SetDefault("ParallelHandlers", true);
                 s.SetDefault("ReadSize", 500);
             });
         }
@@ -55,7 +55,7 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
-                s.SetDefault("ParrallelHandlers", true);
+                s.SetDefault("ParallelHandlers", true);
                 s.SetDefault("ReadSize", 500);
             });
         }
@@ -84,7 +84,7 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
-                s.SetDefault("ParrallelHandlers", true);
+                s.SetDefault("ParallelHandlers", true);
                 s.SetDefault("ReadSize", 500);
                 s.SetDefault("HandledDomains", Int32.MaxValue);
                 s.SetDefault("BucketHeartbeats", 5);
