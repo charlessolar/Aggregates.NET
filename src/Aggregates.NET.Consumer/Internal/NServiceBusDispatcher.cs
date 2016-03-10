@@ -48,6 +48,7 @@ namespace Aggregates.Internal
         private readonly ParallelOptions _parallelOptions;
         private readonly JsonSerializerSettings _jsonSettings;
         private readonly ActionBlock<DelayedJob> _delayedQueue;
+        private readonly Boolean _parallelHandlers;
 
         private static DateTime Stamp = DateTime.UtcNow;
 
@@ -65,6 +66,7 @@ namespace Aggregates.Internal
             _mapper = builder.Build<IMessageMapper>();
             _handlerRegistry = builder.Build<IMessageHandlerRegistry>();
             _jsonSettings = jsonSettings;
+            _parallelHandlers = settings.Get<Boolean>("ParallelHandlers");
 
             _invokeCache = new ConcurrentDictionary<String, IList<Type>>();
 
@@ -84,13 +86,6 @@ namespace Aggregates.Internal
         }
         public void Dispatch(Object @event, IEventDescriptor descriptor = null, long? position = null, Boolean delayed = false)
         {
-
-            var queue = new ActionBlock<Job>((x) =>
-            {
-
-            });
-
-
             // Use NSB internal handler registry to directly call Handle(@event)
             // This will prevent the event from being queued on MSMQ
 
@@ -129,45 +124,53 @@ namespace Aggregates.Internal
                     try
                     {
                         s.Restart();
-                        // Run each handler in parallel
-                        Parallel.ForEach(handlersToInvoke, _parallelOptions, (handler) =>
+
+                        Action<Type> processor = (handler) =>
+                         {
+                             var instance = childBuilder.Build(handler);
+
+                             var handlerType = handler.GetType();
+                             Thread.CurrentThread.Rename("Dispatcher");
+                             using (_handlerTimer.NewContext())
+                             {
+                                 var handlerRetries = 0;
+                                 var handlerSuccess = false;
+                                 do
+                                 {
+                                     try
+                                     {
+                                         Logger.DebugFormat("Executing event {0} on handler {1}", eventType.FullName, handlerType.FullName);
+                                         var handerWatch = Stopwatch.StartNew();
+                                         handlerRetries++;
+                                         _handlerRegistry.InvokeHandle(instance, @event);
+                                         handerWatch.Stop();
+                                         handlerSuccess = true;
+                                         Logger.DebugFormat("Executing event {0} on handler {1} took {2} ms", eventType.FullName, handlerType.FullName, handerWatch.ElapsedMilliseconds);
+                                     }
+                                     catch (RetryException e)
+                                     {
+                                         Logger.InfoFormat("Received retry signal while dispatching event {0} to {1}. Retry: {2}\nException: {3}", eventType.FullName, handlerType.FullName, handlerRetries, e);
+                                     }
+
+                                 } while (!handlerSuccess && handlerRetries <= 3);
+
+                                 if (!handlerSuccess)
+                                 {
+                                     Logger.ErrorFormat("Failed executing event {0} on handler {1}", eventType.FullName, handlerType.FullName);
+                                     throw new RetryException(String.Format("Failed executing event {0} on handler {1}", eventType.FullName, handlerType.FullName));
+                                 }
+                             }
+
+                         };
+
+                        // Run each handler in parallel (or not)
+                        if (_parallelHandlers)
+                            Parallel.ForEach(handlersToInvoke, _parallelOptions, processor);
+                        else
                         {
-                            var instance = childBuilder.Build(handler);
-
-                            var handlerType = handler.GetType();
-                            Thread.CurrentThread.Rename("Dispatcher");
-                            using (_handlerTimer.NewContext())
-                            {
-                                var handlerRetries = 0;
-                                var handlerSuccess = false;
-                                do
-                                {
-                                    try
-                                    {
-                                        Logger.DebugFormat("Executing event {0} on handler {1}", eventType.FullName, handlerType.FullName);
-                                        var handerWatch = Stopwatch.StartNew();
-                                        handlerRetries++;
-                                        _handlerRegistry.InvokeHandle(instance, @event);
-                                        handerWatch.Stop();
-                                        handlerSuccess = true;
-                                        Logger.DebugFormat("Executing event {0} on handler {1} took {2} ms", eventType.FullName, handlerType.FullName, handerWatch.ElapsedMilliseconds);
-                                    }
-                                    catch (RetryException e)
-                                    {
-                                        Logger.InfoFormat("Received retry signal while dispatching event {0} to {1}. Retry: {2}\nException: {3}", eventType.FullName, handlerType.FullName, handlerRetries, e);
-                                    }
-
-                                } while (!handlerSuccess && handlerRetries <= 3);
-
-                                if (!handlerSuccess)
-                                {
-                                    Logger.ErrorFormat("Failed executing event {0} on handler {1}", eventType.FullName, handlerType.FullName);
-                                    throw new RetryException(String.Format("Failed executing event {0} on handler {1}", eventType.FullName, handlerType.FullName));
-                                }
-                            }
-
-                        });
-
+                            foreach (var handler in handlersToInvoke)
+                                processor(handler);
+                        }
                         s.Stop();
                         Logger.DebugFormat("Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
 
