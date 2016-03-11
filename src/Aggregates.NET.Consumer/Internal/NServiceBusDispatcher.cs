@@ -128,8 +128,7 @@ namespace Aggregates.Internal
                         Action<Type> processor = (handler) =>
                          {
                              var instance = childBuilder.Build(handler);
-
-                             var handlerType = handler.GetType();
+                             
                              Thread.CurrentThread.Rename("Dispatcher");
                              using (_handlerTimer.NewContext())
                              {
@@ -139,25 +138,25 @@ namespace Aggregates.Internal
                                  {
                                      try
                                      {
-                                         Logger.DebugFormat("Executing event {0} on handler {1}", eventType.FullName, handlerType.FullName);
+                                         Logger.DebugFormat("Executing event {0} on handler {1}", eventType.FullName, handler.FullName);
                                          var handerWatch = Stopwatch.StartNew();
                                          handlerRetries++;
                                          _handlerRegistry.InvokeHandle(instance, @event);
                                          handerWatch.Stop();
                                          handlerSuccess = true;
-                                         Logger.DebugFormat("Executing event {0} on handler {1} took {2} ms", eventType.FullName, handlerType.FullName, handerWatch.ElapsedMilliseconds);
+                                         Logger.DebugFormat("Executing event {0} on handler {1} took {2} ms", eventType.FullName, handler.FullName, handerWatch.ElapsedMilliseconds);
                                      }
                                      catch (RetryException e)
                                      {
-                                         Logger.InfoFormat("Received retry signal while dispatching event {0} to {1}. Retry: {2}\nException: {3}", eventType.FullName, handlerType.FullName, handlerRetries, e);
+                                         Logger.InfoFormat("Received retry signal while dispatching event {0} to {1}. Retry: {2}\nException: {3}", eventType.FullName, handler.FullName, handlerRetries, e);
                                      }
 
                                  } while (!handlerSuccess && handlerRetries <= 3);
 
                                  if (!handlerSuccess)
                                  {
-                                     Logger.ErrorFormat("Failed executing event {0} on handler {1}", eventType.FullName, handlerType.FullName);
-                                     throw new RetryException(String.Format("Failed executing event {0} on handler {1}", eventType.FullName, handlerType.FullName));
+                                     Logger.ErrorFormat("Failed executing event {0} on handler {1}", eventType.FullName, handler.FullName);
+                                     throw new RetryException(String.Format("Failed executing event {0} on handler {1}", eventType.FullName, handler.FullName));
                                  }
                              }
 

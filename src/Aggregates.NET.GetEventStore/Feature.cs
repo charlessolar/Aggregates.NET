@@ -26,7 +26,7 @@ namespace Aggregates.GetEventStore
             Defaults(s =>
             {
                 s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
-                s.SetDefault("ParallelHandlers", true);
+                s.SetDefault("ParallelHandlers", true); 
                 s.SetDefault("ReadSize", 500);
             });
         }

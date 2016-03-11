@@ -10,6 +10,7 @@ using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
 using Aggregates.Internal;
 using System.Threading;
+using Aggregates.Exceptions;
 
 namespace Aggregates
 {
@@ -32,7 +33,7 @@ namespace Aggregates
         public void SubscribeToAll(String endpoint)
         {
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from END", endpoint);
-            _client.SubscribeToAllFrom(Position.End, false, (_, e) =>
+            _client.SubscribeToAllFrom(Position.End, false, (subscription, e) =>
             {
                 Thread.CurrentThread.Rename("Eventstore");
                 // Unsure if we need to care about events from eventstore currently
@@ -53,7 +54,15 @@ namespace Aggregates
                     return;
 
 
-                _dispatcher.Dispatch(data, descriptor);
+                try
+                {
+                    _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
+                }
+                catch (SubscriptionCanceled)
+                {
+                    subscription.Stop();
+                    throw;
+                }
 
             }, liveProcessingStarted: (_) =>
             {
