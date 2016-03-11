@@ -11,6 +11,7 @@ using NServiceBus.ObjectBuilder;
 using Aggregates.Internal;
 using System.Threading;
 using Aggregates.Exceptions;
+using NServiceBus.Settings;
 
 namespace Aggregates
 {
@@ -20,18 +21,24 @@ namespace Aggregates
         private readonly IBuilder _builder;
         private readonly IEventStoreConnection _client;
         private readonly IDispatcher _dispatcher;
-        private readonly JsonSerializerSettings _settings;
+        private readonly ReadOnlySettings _settings;
+        private readonly JsonSerializerSettings _jsonSettings;
 
-        public DomainSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, JsonSerializerSettings settings)
+        public Boolean ProcessingLive { get; set; }
+        public Action<String, Exception> Dropped { get; set; }
+
+        public DomainSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
         {
             _builder = builder;
             _client = client;
             _dispatcher = dispatcher;
             _settings = settings;
+            _jsonSettings = jsonSettings;
         }
 
         public void SubscribeToAll(String endpoint)
         {
+            var readSize = _settings.Get<Int32>("ReadSize");
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from END", endpoint);
             _client.SubscribeToAllFrom(Position.End, false, (subscription, e) =>
             {
@@ -39,8 +46,8 @@ namespace Aggregates
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
 
-                var descriptor = e.Event.Metadata.Deserialize(_settings);
-                var data = e.Event.Data.Deserialize(e.Event.EventType, _settings);
+                var descriptor = e.Event.Metadata.Deserialize(_jsonSettings);
+                var data = e.Event.Data.Deserialize(e.Event.EventType, _jsonSettings);
 
                 if (descriptor == null) return;
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
@@ -66,11 +73,15 @@ namespace Aggregates
 
             }, liveProcessingStarted: (_) =>
             {
-                Logger.Debug("Live processing started");
+                Logger.Info("Live processing started");
+                ProcessingLive = true;
             }, subscriptionDropped: (_, reason, e) =>
             {
                 Logger.WarnFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e);
-            }, readBatchSize: 1);
+                ProcessingLive = false;
+                if (Dropped != null)
+                    Dropped.Invoke(reason.ToString(), e);
+            }, readBatchSize: readSize);
         }
     }
 }

@@ -10,5 +10,7 @@ namespace Aggregates
     public interface IEventSubscriber
     {
         void SubscribeToAll(String endpoint);
+        Boolean ProcessingLive { get; set; }
+        Action<String, Exception> Dropped { get; set; }
     }
 }

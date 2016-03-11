@@ -38,6 +38,9 @@ namespace Aggregates.Internal
         private Int32? _adopting;
         private Int64? _adoptingPosition;
 
+        public Boolean ProcessingLive { get; set; }
+        public Action<String, Exception> Dropped { get; set; }
+
         public CompetingSubscriber(IEventStoreConnection client, IPersistCheckpoints checkpoints, IManageCompetes competes, IDispatcher dispatcher, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
         {
             _client = client;
@@ -241,9 +244,13 @@ namespace Aggregates.Internal
             }, liveProcessingStarted: (_) =>
             {
                 Logger.Info("Live processing started");
+                ProcessingLive = true;
             }, subscriptionDropped: (_, reason, e) =>
             {
                 Logger.WarnFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e);
+                ProcessingLive = false;
+                if (Dropped != null)
+                    Dropped.Invoke(reason.ToString(), e);
             }, readBatchSize: readSize);
         }
 

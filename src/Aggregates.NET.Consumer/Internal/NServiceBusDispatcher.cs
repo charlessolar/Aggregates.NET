@@ -36,6 +36,7 @@ namespace Aggregates.Internal
             public Object Event { get; set; }
             public IEventDescriptor Descriptor { get; set; }
             public long? Position { get; set; }
+            public int? Retry { get; set; }
         }
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(NServiceBusDispatcher));
@@ -49,6 +50,8 @@ namespace Aggregates.Internal
         private readonly JsonSerializerSettings _jsonSettings;
         private readonly ActionBlock<DelayedJob> _delayedQueue;
         private readonly Boolean _parallelHandlers;
+        private readonly Int32 _maxRetries;
+        private readonly Boolean _dropEventFatal;
 
         private static DateTime Stamp = DateTime.UtcNow;
 
@@ -67,6 +70,8 @@ namespace Aggregates.Internal
             _handlerRegistry = builder.Build<IMessageHandlerRegistry>();
             _jsonSettings = jsonSettings;
             _parallelHandlers = settings.Get<Boolean>("ParallelHandlers");
+            _maxRetries = settings.Get<Int32>("MaxRetries");
+            _dropEventFatal = settings.Get<Boolean>("EventDropIsFatal");
 
             _invokeCache = new ConcurrentDictionary<String, IList<Type>>();
 
@@ -78,13 +83,13 @@ namespace Aggregates.Internal
             _delayedQueue = new ActionBlock<DelayedJob>(x =>
             {
                 Thread.Sleep(250);
-                Dispatch(x.Event, x.Descriptor, x.Position, true);
+                Dispatch(x.Event, x.Descriptor, x.Position, x.Retry);
             }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 1, BoundedCapacity = 128 });
 
 
 
         }
-        public void Dispatch(Object @event, IEventDescriptor descriptor = null, long? position = null, Boolean delayed = false)
+        public void Dispatch(Object @event, IEventDescriptor descriptor = null, long? position = null, int? retried = null)
         {
             // Use NSB internal handler registry to directly call Handle(@event)
             // This will prevent the event from being queued on MSMQ
@@ -128,7 +133,7 @@ namespace Aggregates.Internal
                         Action<Type> processor = (handler) =>
                          {
                              var instance = childBuilder.Build(handler);
-                             
+
                              Thread.CurrentThread.Rename("Dispatcher");
                              using (_handlerTimer.NewContext())
                              {
@@ -177,15 +182,28 @@ namespace Aggregates.Internal
                     catch (Exception e)
                     {
 
-                        Logger.InfoFormat("Encountered an error while processing {0}.  Will move to the delayed queue for future processing.  Exception details:\n{1}", eventType.FullName, e);
+                        Logger.InfoFormat("Encountered an error while processing {0}. Retry {1}/{2}\nWill move to the delayed queue for future processing. Payload:\n{3}\nException details:\n{4}", eventType.FullName, retried ?? 0, _maxRetries, JsonConvert.SerializeObject(e, _jsonSettings), e);
 
                         if (uows != null && uows.Any())
                             foreach (var uow in uows)
                                 uow.End(e);
 
-                        _delayedSize.Increment();
                         _errorsMeter.Mark();
-                        if (!_delayedQueue.Post(new DelayedJob { Event = @event, Descriptor = descriptor, Position = position }))
+                        if (retried > _maxRetries && _maxRetries != -1)
+                        {
+                            var message = String.Format("Encountered an error while processing {0}.  Ran out of retries, dropping event. Payload:\n{3}\nException details:\n{4}", eventType.FullName, JsonConvert.SerializeObject(e, _jsonSettings), e);
+                            if (_dropEventFatal)
+                            {
+                                Logger.Fatal(message);
+                                throw new SubscriptionCanceled(message);
+                            }
+
+                            Logger.Error(message);
+                            return;
+                        }
+
+                        _delayedSize.Increment();
+                        if (!_delayedQueue.Post(new DelayedJob { Event = @event, Descriptor = descriptor, Position = position, Retry = (retried ?? 0) + 1 }))
                         {
                             Logger.Fatal("Too many events in error queue.  Shutting down");
                             throw new SubscriptionCanceled("Too many events in error queue");
@@ -203,7 +221,7 @@ namespace Aggregates.Internal
                     Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
                 }
             }
-            if (delayed)
+            if (retried.HasValue)
                 _delayedSize.Decrement();
         }
 

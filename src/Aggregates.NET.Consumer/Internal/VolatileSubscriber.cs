@@ -1,14 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
-using Aggregates.Contracts;
 using System.Threading;
 using NServiceBus.Settings;
 using Aggregates.Exceptions;
@@ -23,6 +18,9 @@ namespace Aggregates.Internal
         private readonly IDispatcher _dispatcher;
         private readonly ReadOnlySettings _settings;
         private readonly JsonSerializerSettings _jsonSettings;
+
+        public Boolean ProcessingLive { get; set; }
+        public Action<String, Exception> Dropped { get; set; }
 
         public VolatileSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
         {
@@ -63,9 +61,13 @@ namespace Aggregates.Internal
             }, liveProcessingStarted: (_) =>
             {
                 Logger.Info("Live processing started");
+                ProcessingLive = true;
             }, subscriptionDropped: (_, reason, e) =>
             {
                 Logger.WarnFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e);
+                ProcessingLive = false;
+                if (Dropped != null)
+                    Dropped.Invoke(reason.ToString(), e);
             }, readBatchSize: readSize);
         }
     }

@@ -1,18 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Aggregates.Contracts;
-using Aggregates.Extensions;
-using EventStore.ClientAPI;
 using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Features;
-using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
-using NServiceBus.ObjectBuilder;
-using NServiceBus.Settings;
 using Aggregates.Internal;
 
 namespace Aggregates.GetEventStore
@@ -28,6 +18,8 @@ namespace Aggregates.GetEventStore
                 s.SetDefault("SetEventStoreMaxDegreeOfParallelism", Environment.ProcessorCount);
                 s.SetDefault("ParallelHandlers", true); 
                 s.SetDefault("ReadSize", 500);
+                s.SetDefault("MaxRetries", 5);
+                s.SetDefault("EventDropIsFatal", false);
             });
         }
 

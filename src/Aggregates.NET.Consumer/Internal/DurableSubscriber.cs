@@ -27,6 +27,9 @@ namespace Aggregates.Internal
         private readonly JsonSerializerSettings _jsonSettings;
         private Meter _fullMeter = Metric.Meter("Queue Full Exceptions", Unit.Errors);
 
+        public Boolean ProcessingLive { get; set; }
+        public Action<String, Exception> Dropped { get; set; }
+
         public DurableSubscriber(IBuilder builder, IEventStoreConnection client, IPersistCheckpoints store, IDispatcher dispatcher, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
         {
             _builder = builder;
@@ -71,9 +74,13 @@ namespace Aggregates.Internal
             }, liveProcessingStarted: (_) =>
             {
                 Logger.Info("Live processing started");
+                ProcessingLive = true;
             }, subscriptionDropped: (_, reason, e) =>
             {
                 Logger.WarnFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e);
+                ProcessingLive = false;
+                if (Dropped != null)
+                    Dropped.Invoke(reason.ToString(), e);
             }, readBatchSize: readSize);
         }
     }
