@@ -153,7 +153,7 @@ namespace Aggregates.Internal
                                      }
                                      catch (RetryException e)
                                      {
-                                         Logger.InfoFormat("Received retry signal while dispatching event {0} to {1}. Retry: {2}\nException: {3}", eventType.FullName, handler.FullName, handlerRetries, e);
+                                         Logger.InfoFormat("Received retry signal while dispatching event {0} to {1}. Retry: {2}/3\nException: {3}", eventType.FullName, handler.FullName, handlerRetries, e);
                                      }
 
                                  } while (!handlerSuccess && handlerRetries <= 3);
@@ -182,7 +182,7 @@ namespace Aggregates.Internal
                     catch (Exception e)
                     {
 
-                        Logger.InfoFormat("Encountered an error while processing {0}. Retry {1}/{2}\nWill move to the delayed queue for future processing. Payload:\n{3}\nException details:\n{4}", eventType.FullName, retried ?? 0, _maxRetries, JsonConvert.SerializeObject(e, _jsonSettings), e);
+                        Logger.InfoFormat("Encountered an error while processing {0}. Retry {1}/{2}\nWill move to the delayed queue for future processing.\nPayload: {3}\nException details:\n{4}", eventType.FullName, retried ?? 0, _maxRetries, JsonConvert.SerializeObject(@event, _jsonSettings), e);
 
                         if (uows != null && uows.Any())
                             foreach (var uow in uows)
@@ -191,7 +191,7 @@ namespace Aggregates.Internal
                         _errorsMeter.Mark();
                         if (retried > _maxRetries && _maxRetries != -1)
                         {
-                            var message = String.Format("Encountered an error while processing {0}.  Ran out of retries, dropping event. Payload:\n{3}\nException details:\n{4}", eventType.FullName, JsonConvert.SerializeObject(e, _jsonSettings), e);
+                            var message = String.Format("Encountered an error while processing {0}.  Ran out of retries, dropping event.\nPayload: {3}\nException details:\n{4}", eventType.FullName, JsonConvert.SerializeObject(@event, _jsonSettings), e);
                             if (_dropEventFatal)
                             {
                                 Logger.Fatal(message);
