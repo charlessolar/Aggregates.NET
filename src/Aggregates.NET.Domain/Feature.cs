@@ -19,6 +19,13 @@ namespace Aggregates
 {
     public class Feature : NServiceBus.Features.Feature
     {
+        public Feature()
+        {
+            Defaults(s =>
+            {
+                s.SetDefault("ReadSize", 500);
+            });
+        }
         protected override void Setup(FeatureConfigurationContext context)
         {
             context.Container.ConfigureComponent<ExceptionFilter>(DependencyLifecycle.InstancePerCall);

@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
+using NServiceBus.Settings;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,13 +24,15 @@ namespace Aggregates
         private readonly IMessageMapper _mapper;
         private readonly IStoreSnapshots _snapshots;
         private readonly IBuilder _builder;
+        private readonly ReadOnlySettings _nsbSettings;
         private readonly JsonSerializerSettings _settings;
 
-        public StoreEvents(IEventStoreConnection client, IBuilder builder, IMessageMapper mapper, IStoreSnapshots snapshots, JsonSerializerSettings settings)
+        public StoreEvents(IEventStoreConnection client, IBuilder builder, IMessageMapper mapper, IStoreSnapshots snapshots, ReadOnlySettings nsbSettings, JsonSerializerSettings settings)
         {
             _client = client;
             _mapper = mapper;
             _snapshots = snapshots;
+            _nsbSettings = nsbSettings;
             _settings = settings;
             _builder = builder;
         }
@@ -42,11 +45,13 @@ namespace Aggregates
             var streamId = String.Format("{0}.{1}", bucket, stream);
             var events = new List<ResolvedEvent>();
 
+            var readSize = _nsbSettings.Get<Int32>("ReadSize");
+
             StreamEventsSlice current;
             var sliceStart = start ?? StreamPosition.Start;
             do
             {
-                current = _client.ReadStreamEventsForwardAsync(streamId, sliceStart, 200, false).WaitForResult();
+                current = _client.ReadStreamEventsForwardAsync(streamId, sliceStart, readSize, false).WaitForResult();
 
                 events.AddRange(current.Events);
                 sliceStart = current.NextEventNumber;

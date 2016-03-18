@@ -210,10 +210,12 @@ namespace Aggregates.Internal
 
                     if (!_buckets.Contains(bucket))
                     {
-                        if (_buckets.Count >= handledBuckets)
+                        // If we are already handling enough buckets, or we've seen (and tried to claim) it before, ignore
+                        if (_buckets.Count >= handledBuckets || _seenBuckets.ContainsKey(bucket))
                             return;
                         else
                         {
+                            Logger.DebugFormat("Attempting to claim bucket {0}", bucket);
                             // Returns true if it claimed the bucket
                             if (_competes.CheckOrSave(endpoint, bucket, e.OriginalPosition.Value.CommitPosition))
                             {
