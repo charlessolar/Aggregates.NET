@@ -26,7 +26,6 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CompetingSubscriber));
         private readonly IEventStoreConnection _client;
-        private readonly IPersistCheckpoints _checkpoints;
         private readonly IManageCompetes _competes;
         private readonly IDispatcher _dispatcher;
         private readonly ReadOnlySettings _settings;
@@ -41,10 +40,9 @@ namespace Aggregates.Internal
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public CompetingSubscriber(IEventStoreConnection client, IPersistCheckpoints checkpoints, IManageCompetes competes, IDispatcher dispatcher, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
+        public CompetingSubscriber(IEventStoreConnection client, IManageCompetes competes, IDispatcher dispatcher, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
         {
             _client = client;
-            _checkpoints = checkpoints;
             _competes = competes;
             _dispatcher = dispatcher;
             _settings = settings;
@@ -184,13 +182,13 @@ namespace Aggregates.Internal
 
         public void SubscribeToAll(String endpoint)
         {
-            var saved = _checkpoints.Load(endpoint);
             // To support HA simply save IManageCompetes data to a different db, in this way we can make clusters of consumers
             var handledBuckets = _settings.Get<Int32>("BucketsHandled");
             var readSize = _settings.Get<Int32>("ReadSize");
 
-            Logger.InfoFormat("Endpoint '{0}' subscribing to all events from position '{1}'", endpoint, saved);
-            _client.SubscribeToAllFrom(saved, false, (subscription, e) =>
+            // Start competing subscribers from the start, if they are picking up a new bucket they need to start from the begining
+            Logger.InfoFormat("Endpoint '{0}' subscribing to all events from START", endpoint);
+            _client.SubscribeToAllFrom(Position.Start, false, (subscription, e) =>
             {
                 Logger.DebugFormat("Event appeared position {0}", e.OriginalPosition?.CommitPosition);
                 Thread.CurrentThread.Rename("Eventstore");
