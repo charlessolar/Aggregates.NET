@@ -204,7 +204,6 @@ namespace Aggregates.Internal
 
                 if (e.OriginalPosition.HasValue)
                 {
-                    _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
 
                     if (!_buckets.Contains(bucket))
                     {
@@ -224,6 +223,7 @@ namespace Aggregates.Internal
                                 return;
                         }
                     }
+                    _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
                 }
 
                 var data = e.Event.Data.Deserialize(e.Event.EventType, _jsonSettings);
