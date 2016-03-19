@@ -102,7 +102,6 @@ namespace Aggregates
 
         protected override void Setup(FeatureConfigurationContext context)
         {
-            context.Container.ConfigureComponent<EventUnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<CompetingSubscriber>(DependencyLifecycle.SingleInstance);
 

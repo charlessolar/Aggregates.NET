@@ -124,7 +124,7 @@ namespace Aggregates.Internal
                             uow.Begin();
                         }
                     s.Stop();
-                    Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                    Logger.DebugFormat("UOW.Begin for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
 
                     try
                     {
