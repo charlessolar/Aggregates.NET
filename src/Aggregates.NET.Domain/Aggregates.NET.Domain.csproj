@@ -61,11 +61,13 @@
     <Compile Include="Contracts\IEventStream.cs" />
     <Compile Include="Contracts\IHaveEntities.cs" />
     <Compile Include="Contracts\INeedProcessor.cs" />
+    <Compile Include="ICommandUnitOfWork.cs" />
     <Compile Include="IComputed.cs" />
     <Compile Include="IHandleComputed.cs" />
     <Compile Include="Domain.cs" />
     <Compile Include="IBase.cs" />
     <Compile Include="Internal\BuilderInjector.cs" />
+    <Compile Include="Internal\CommandUnitOfWork.cs" />
     <Compile Include="Internal\Processor.cs" />
     <Compile Include="Internal\SafetyNet.cs" />
     <Compile Include="IQuery.cs" />

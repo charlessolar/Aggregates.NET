@@ -10,7 +10,6 @@ using NServiceBus.Unicast;
 using NServiceBus.Settings;
 using NServiceBus.Logging;
 using Aggregates.Exceptions;
-using System.Threading.Tasks.Dataflow;
 using Aggregates.Attributes;
 using NServiceBus.MessageInterfaces;
 using System.Collections.Concurrent;
@@ -23,20 +22,21 @@ using Aggregates.Extensions;
 
 namespace Aggregates.Internal
 {
-    public class NServiceBusDispatcher : IDispatcher
+    public class NServiceBusDispatcher : IDispatcher, IDisposable
     {
         private class Job
         {
-            public Type EventType { get; set; }
-            public Object Handler { get; set; }
             public Object Event { get; set; }
+            public IEventDescriptor Descriptor { get; set; }
+            public long? Position { get; set; }
         }
         private class DelayedJob
         {
             public Object Event { get; set; }
             public IEventDescriptor Descriptor { get; set; }
             public long? Position { get; set; }
-            public int? Retry { get; set; }
+            public int Retry { get; set; }
+            public long FailedAt { get; set; }
         }
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(NServiceBusDispatcher));
@@ -48,10 +48,13 @@ namespace Aggregates.Internal
         private readonly ConcurrentDictionary<String, IList<Type>> _invokeCache;
         private readonly ParallelOptions _parallelOptions;
         private readonly JsonSerializerSettings _jsonSettings;
-        private readonly ActionBlock<DelayedJob> _delayedQueue;
+
         private readonly Boolean _parallelHandlers;
         private readonly Int32 _maxRetries;
         private readonly Boolean _dropEventFatal;
+
+        private readonly CancellationTokenSource _cancelToken;
+        private readonly TaskScheduler _scheduler;
 
         private static DateTime Stamp = DateTime.UtcNow;
 
@@ -61,6 +64,24 @@ namespace Aggregates.Internal
 
         private Counter _delayedSize = Metric.Counter("Events Delayed Queue", Unit.Events);
         private Meter _errorsMeter = Metric.Meter("Event Errors", Unit.Errors);
+
+        private static Action<NServiceBusDispatcher, Job> QueueTask = (dispatcher, x) =>
+        {
+            Task.Factory.StartNew(() =>
+            {
+                dispatcher.Process(x.Event, x.Descriptor, x.Position);
+            }, creationOptions: TaskCreationOptions.None, cancellationToken: dispatcher._cancelToken.Token, scheduler: dispatcher._scheduler);
+        };
+        private static Action<NServiceBusDispatcher, DelayedJob> QueueDelayedTask = (dispatcher, x) =>
+        {
+            Task.Factory.StartNew(() =>
+            {
+                
+                var diff = (DateTime.UtcNow.Ticks - x.FailedAt) / TimeSpan.TicksPerMillisecond;
+                Thread.Sleep(TimeSpan.FromMilliseconds(Math.Min(250, diff)));
+                dispatcher.Process(x.Event, x.Descriptor, x.Position, x.Retry + 1);
+            }, cancellationToken: dispatcher._cancelToken.Token);
+        };
 
         public NServiceBusDispatcher(IBuilder builder, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
         {
@@ -80,17 +101,27 @@ namespace Aggregates.Internal
             {
                 MaxDegreeOfParallelism = parallelism,
             };
-            _delayedQueue = new ActionBlock<DelayedJob>(x =>
-            {
-                Thread.Sleep(250);
-                Dispatch(x.Event, x.Descriptor, x.Position, x.Retry);
-            }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = 1, BoundedCapacity = 128 });
 
-
-
+            _scheduler = new LimitedConcurrencyLevelTaskScheduler(1);
+            _cancelToken = new CancellationTokenSource();
         }
-        public void Dispatch(Object @event, IEventDescriptor descriptor = null, long? position = null, int? retried = null)
+
+
+
+        public void Dispatch(Object @event, IEventDescriptor descriptor = null, long? position = null)
         {
+            QueueTask(this, new Job
+            {
+                Event = @event,
+                Descriptor = descriptor,
+                Position = position,
+            });
+        }
+
+        // Todo: all the logging and timing can be moved into a "Debug Dispatcher" which can be registered as the IDispatcher if the user wants
+        public void Process(Object @event, IEventDescriptor descriptor = null, long? position = null, int? retried = null)
+        {
+            Thread.CurrentThread.Rename("Dispatcher");
             // Use NSB internal handler registry to directly call Handle(@event)
             // This will prevent the event from being queued on MSMQ
 
@@ -134,7 +165,6 @@ namespace Aggregates.Internal
                          {
                              var instance = childBuilder.Build(handler);
 
-                             Thread.CurrentThread.Rename("Dispatcher");
                              using (_handlerTimer.NewContext())
                              {
                                  var handlerRetries = 0;
@@ -203,11 +233,7 @@ namespace Aggregates.Internal
                         }
 
                         _delayedSize.Increment();
-                        if (!_delayedQueue.Post(new DelayedJob { Event = @event, Descriptor = descriptor, Position = position, Retry = (retried ?? 0) + 1 }))
-                        {
-                            Logger.Fatal("Too many events in error queue.  Shutting down");
-                            throw new SubscriptionCanceled("Too many events in error queue");
-                        }
+                        QueueDelayedTask(this, new DelayedJob { Event = @event, Descriptor = descriptor, Position = position, Retry = (retried ?? 0) + 1, FailedAt = DateTime.UtcNow.Ticks });
                         return;
                     }
 
@@ -229,10 +255,13 @@ namespace Aggregates.Internal
         public void Dispatch<TEvent>(Action<TEvent> action)
         {
             var @event = _eventFactory.CreateInstance(action);
-            ThreadPool.QueueUserWorkItem((_) =>
-            {
-                this.Dispatch(@event);
-            });
+            this.Dispatch(@event);
+
+        }
+
+        public void Dispose()
+        {
+            _cancelToken.Cancel();
         }
     }
 }

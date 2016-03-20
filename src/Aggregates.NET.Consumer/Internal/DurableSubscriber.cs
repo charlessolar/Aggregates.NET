@@ -63,7 +63,7 @@ namespace Aggregates.Internal
 
                 try
                 {
-                    _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
+                    _dispatcher.Process(data, descriptor, e.OriginalPosition?.CommitPosition);
                 }
                 catch (SubscriptionCanceled)
                 {

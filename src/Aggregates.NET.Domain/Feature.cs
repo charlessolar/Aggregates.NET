@@ -59,6 +59,7 @@ namespace Aggregates
 
             context.Pipeline.Register<ExceptionFilterRegistration>();
             context.Pipeline.Register<BuilderInjectorRegistration>();
+            context.Pipeline.Register<CommandUnitOfWorkRegistration>();
             context.Pipeline.Register<SafetyNetRegistration>();
 
             // Register all query handlers in the container
