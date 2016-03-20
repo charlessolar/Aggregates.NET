@@ -91,7 +91,7 @@ namespace Aggregates.Internal
                             break;
                         }
                     }
-                    else if(consumer._adopting == seen.Key)
+                    else if (consumer._adopting == seen.Key)
                     {
                         try
                         {
@@ -149,7 +149,7 @@ namespace Aggregates.Internal
 
                 var eventBucket = Math.Abs(e.OriginalStreamId.GetHashCode() % consumer._bucketCount);
                 if (eventBucket != bucket) return;
-                
+
                 var data = e.Event.Data.Deserialize(e.Event.EventType, consumer._jsonSettings);
                 if (data == null) return;
 
@@ -190,41 +190,36 @@ namespace Aggregates.Internal
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from START", endpoint);
             _client.SubscribeToAllFrom(Position.Start, false, (subscription, e) =>
             {
-                Logger.DebugFormat("Event appeared position {0}", e.OriginalPosition?.CommitPosition);
-                Thread.CurrentThread.Rename("Eventstore");
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
-
-                var descriptor = e.Event.Metadata.Deserialize(_jsonSettings);
-
-                if (descriptor == null) return;
-
                 var bucket = Math.Abs(e.OriginalStreamId.GetHashCode() % _bucketCount);
 
+                if (!e.OriginalPosition.HasValue) return;
 
-                if (e.OriginalPosition.HasValue)
+                if (!_buckets.Contains(bucket))
                 {
-
-                    if (!_buckets.Contains(bucket))
+                    // If we are already handling enough buckets, or we've seen (and tried to claim) it before, ignore
+                    if (_buckets.Count >= handledBuckets || _seenBuckets.ContainsKey(bucket))
+                        return;
+                    else
                     {
-                        // If we are already handling enough buckets, or we've seen (and tried to claim) it before, ignore
-                        if (_buckets.Count >= handledBuckets || _seenBuckets.ContainsKey(bucket))
-                            return;
-                        else
+                        Logger.DebugFormat("Attempting to claim bucket {0}", bucket);
+                        // Returns true if it claimed the bucket
+                        if (_competes.CheckOrSave(endpoint, bucket, e.OriginalPosition.Value.CommitPosition))
                         {
-                            Logger.DebugFormat("Attempting to claim bucket {0}", bucket);
-                            // Returns true if it claimed the bucket
-                            if (_competes.CheckOrSave(endpoint, bucket, e.OriginalPosition.Value.CommitPosition))
-                            {
-                                _buckets.Add(bucket);
-                                Logger.InfoFormat("Claimed bucket {0}.  Total claimed: {1}/{2}", bucket, _buckets.Count, handledBuckets);
-                            }
-                            else
-                                return;
+                            _buckets.Add(bucket);
+                            Logger.InfoFormat("Claimed bucket {0}.  Total claimed: {1}/{2}", bucket, _buckets.Count, handledBuckets);
                         }
+                        else
+                            return;
                     }
-                    _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
                 }
+                _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
+
+
+                Thread.CurrentThread.Rename("Eventstore");
+                var descriptor = e.Event.Metadata.Deserialize(_jsonSettings);
+                if (descriptor == null) return;
 
                 var data = e.Event.Data.Deserialize(e.Event.EventType, _jsonSettings);
 
