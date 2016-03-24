@@ -23,7 +23,7 @@ namespace Aggregates
         {
             Defaults(s =>
             {
-                s.SetDefault("ReadSize", 500);
+                s.SetDefault("ReadSize", 200);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
@@ -64,7 +64,7 @@ namespace Aggregates
 
             // Register all query handlers in the container
             foreach (var handler in context.Settings.GetAvailableTypes().Where(IsQueryOrComputeHandler))
-                context.Container.ConfigureComponent(handler, DependencyLifecycle.InstancePerUnitOfWork);
+                context.Container.ConfigureComponent(handler, DependencyLifecycle.InstancePerCall);
             
         }
         private static bool IsQueryOrComputeHandler(Type type)
