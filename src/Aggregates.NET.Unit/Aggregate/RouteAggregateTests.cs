@@ -2,6 +2,7 @@
 using Aggregates.Internal;
 
 using NServiceBus;
+using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
 using NUnit.Framework;
@@ -22,6 +23,7 @@ namespace Aggregates.Unit.Aggregate
         private Moq.Mock<IMessageCreator> _eventFactory;
         private Moq.Mock<IRouteResolver> _resolver;
         private Moq.Mock<IProcessor> _processor;
+        private Moq.Mock<IMessageMapper> _mapper;
         private IUnitOfWork _uow;
         private Guid _id;
 
@@ -35,6 +37,7 @@ namespace Aggregates.Unit.Aggregate
             _eventFactory = new Moq.Mock<IMessageCreator>();
             _resolver = new Moq.Mock<IRouteResolver>();
             _processor = new Moq.Mock<IProcessor>();
+            _mapper = new Moq.Mock<IMessageMapper>();
 
             _builder.Setup(x => x.CreateChildBuilder()).Returns(_builder.Object);
             _builder.Setup(x => x.Build<IRouteResolver>()).Returns(_resolver.Object);
@@ -46,7 +49,7 @@ namespace Aggregates.Unit.Aggregate
             _stream.Setup(x => x.StreamVersion).Returns(0);
             _stream.Setup(x => x.Events).Returns(new List<IWritableEvent>());
 
-            _uow = new Aggregates.Internal.UnitOfWork(new DefaultRepositoryFactory());
+            _uow = new Aggregates.Internal.UnitOfWork(new DefaultRepositoryFactory(), _mapper.Object);
             _uow.Builder = _builder.Object;
         }
 

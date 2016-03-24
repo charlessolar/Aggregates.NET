@@ -4,6 +4,7 @@ using Aggregates.Internal;
 using Metrics;
 using NServiceBus;
 using NServiceBus.Logging;
+using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
 using NServiceBus.Pipeline.Contexts;
@@ -24,6 +25,7 @@ namespace Aggregates.Internal
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(UnitOfWork));
         private readonly IRepositoryFactory _repoFactory;
+        private readonly IMessageMapper _mapper;
 
         private bool _disposed;
         private IDictionary<String, String> _workHeaders;
@@ -38,9 +40,10 @@ namespace Aggregates.Internal
 
         public IBuilder Builder { get; set; }
 
-        public UnitOfWork(IRepositoryFactory repoFactory)
+        public UnitOfWork(IRepositoryFactory repoFactory, IMessageMapper mapper)
         {
             _repoFactory = repoFactory;
+            _mapper = mapper;
             _repositories = new Dictionary<Type, IRepository>();
             _workHeaders = new Dictionary<String, String>();
         }
@@ -86,8 +89,7 @@ namespace Aggregates.Internal
         }
         public IEnumerable<TResponse> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
-            var result = (TQuery)FormatterServices.GetUninitializedObject(typeof(TQuery));
-            query.Invoke(result);
+            var result = _mapper.CreateInstance(query);
             return Query<TQuery, TResponse>(result);
         }
         public TResponse Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>
@@ -97,8 +99,7 @@ namespace Aggregates.Internal
         }
         public TResponse Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>
         {
-            var result = (TComputed)FormatterServices.GetUninitializedObject(typeof(TComputed));
-            computed.Invoke(result);
+            var result = _mapper.CreateInstance(computed);
             return Compute<TComputed, TResponse>(result);
         }
 

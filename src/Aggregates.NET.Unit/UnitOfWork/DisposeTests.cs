@@ -1,5 +1,6 @@
 ﻿using Aggregates.Contracts;
 using NServiceBus;
+using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NUnit.Framework;
 using System;
@@ -15,6 +16,7 @@ namespace Aggregates.Unit.UnitOfWork
         private Moq.Mock<IProcessor> _processor;
         private Moq.Mock<IRepository<_AggregateStub<Guid>>> _repository;
         private Moq.Mock<IBus> _bus;
+        private Moq.Mock<IMessageMapper> _mapper;
         private Aggregates.Internal.UnitOfWork _uow;
 
         [SetUp]
@@ -24,6 +26,7 @@ namespace Aggregates.Unit.UnitOfWork
             _eventStore = new Moq.Mock<IStoreEvents>();
             _repoFactory = new Moq.Mock<IRepositoryFactory>();
             _processor = new Moq.Mock<IProcessor>();
+            _mapper = new Moq.Mock<IMessageMapper>();
             _bus = new Moq.Mock<IBus>();
             _repository = new Moq.Mock<IRepository<_AggregateStub<Guid>>>();
             _repository.Setup(x => x.Dispose()).Verifiable();
@@ -31,7 +34,7 @@ namespace Aggregates.Unit.UnitOfWork
 
             _builder.Setup(x => x.Build<IProcessor>()).Returns(_processor.Object);
 
-            _uow = new Aggregates.Internal.UnitOfWork(_repoFactory.Object);
+            _uow = new Aggregates.Internal.UnitOfWork(_repoFactory.Object, _mapper.Object);
             _uow.Builder = _builder.Object;
         }
 

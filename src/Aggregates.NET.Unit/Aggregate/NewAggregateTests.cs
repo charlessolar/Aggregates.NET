@@ -19,6 +19,7 @@ namespace Aggregates.Unit.Aggregate
         private Moq.Mock<IMessageCreator> _eventFactory;
         private Moq.Mock<IRouteResolver> _resolver;
         private Moq.Mock<IProcessor> _processor;
+        private Moq.Mock<IMessageMapper> _mapper;
         private IUnitOfWork _uow;
         private Guid _id;
 
@@ -33,6 +34,7 @@ namespace Aggregates.Unit.Aggregate
             _eventFactory = new Moq.Mock<IMessageCreator>();
             _resolver = new Moq.Mock<IRouteResolver>();
             _processor = new Moq.Mock<IProcessor>();
+            _mapper = new Moq.Mock<IMessageMapper>();
 
             _eventFactory.Setup(x => x.CreateInstance(Moq.It.IsAny<Action<CreatedEvent>>())).Returns<Action<CreatedEvent>>((e) => { var ev = new CreatedEvent(); e(ev); return ev; });
             _eventFactory.Setup(x => x.CreateInstance(Moq.It.IsAny<Action<UpdatedEvent>>())).Returns<Action<UpdatedEvent>>((e) => { var ev = new UpdatedEvent(); e(ev); return ev; });
@@ -54,7 +56,7 @@ namespace Aggregates.Unit.Aggregate
             _stream.Setup(x => x.StreamVersion).Returns(0);
             _stream.Setup(x => x.Events).Returns(new List<IWritableEvent>());
             
-            _uow = new Aggregates.Internal.UnitOfWork(new DefaultRepositoryFactory());
+            _uow = new Aggregates.Internal.UnitOfWork(new DefaultRepositoryFactory(), _mapper.Object);
             _uow.Builder = _builder.Object;
         }
 
