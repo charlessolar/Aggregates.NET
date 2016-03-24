@@ -52,5 +52,9 @@ namespace Aggregates
         {
             settings.GetSettings().Set("EventDropIsFatal", Fatal);
         }
+        public static void MaxProcessingQueueSize(this ExposeSettings settings, Int32 Size)
+        {
+            settings.GetSettings().Set("MaxQueueSize", Size);
+        }
     }
 }

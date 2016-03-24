@@ -28,6 +28,7 @@ namespace Aggregates
                 s.SetDefault("ReadSize", 500);
                 s.SetDefault("MaxRetries", 5);
                 s.SetDefault("EventDropIsFatal", false);
+                s.SetDefault("MaxQueueSize", 10000);
             });
         }
 
@@ -61,6 +62,7 @@ namespace Aggregates
                 s.SetDefault("ReadSize", 500);
                 s.SetDefault("MaxRetries", 5);
                 s.SetDefault("EventDropIsFatal", false);
+                s.SetDefault("MaxQueueSize", 10000);
             });
         }
 
@@ -97,6 +99,7 @@ namespace Aggregates
                 s.SetDefault("BucketExpiration", 60);
                 s.SetDefault("BucketCount", 1);
                 s.SetDefault("BucketsHandled", 1);
+                s.SetDefault("MaxQueueSize", 10000);
             });
         }
 

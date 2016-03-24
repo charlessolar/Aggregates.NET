@@ -20,6 +20,7 @@ namespace Aggregates.GetEventStore
                 s.SetDefault("ReadSize", 500);
                 s.SetDefault("MaxRetries", 5);
                 s.SetDefault("EventDropIsFatal", false);
+                s.SetDefault("MaxQueueSize", 10000);
             });
         }
 

@@ -31,6 +31,7 @@ namespace Aggregates.Internal
                 {
                     uow.End(e);
                 }
+                throw;
             }
             foreach (var uow in unitOfWorks)
             {
@@ -42,7 +43,7 @@ namespace Aggregates.Internal
     internal class CommandUnitOfWorkRegistration : RegisterStep
     {
         public CommandUnitOfWorkRegistration()
-            : base("CommandUnitOfWork", typeof(BuilderInjector), "Begins and Ends command unit of work")
+            : base("CommandUnitOfWork", typeof(CommandUnitOfWorkRegistration), "Begins and Ends command unit of work")
         {
             InsertAfter(WellKnownStep.ExecuteUnitOfWork);
 

@@ -55,12 +55,14 @@ namespace Aggregates.Internal
 
         private readonly CancellationTokenSource _cancelToken;
         private readonly TaskScheduler _scheduler;
-
-        private static DateTime Stamp = DateTime.UtcNow;
+        
+        private Int32 _processingQueueSize;
+        private readonly Int32 _maxQueueSize;
 
         private Meter _eventsMeter = Metric.Meter("Events", Unit.Events);
         private Metrics.Timer _eventsTimer = Metric.Timer("Event Duration", Unit.Events);
         private Metrics.Timer _handlerTimer = Metric.Timer("Event Handler Duration", Unit.Events);
+        private Counter _queueSize = Metric.Counter("Event Queue Size", Unit.Events);
 
         private Counter _delayedSize = Metric.Counter("Events Delayed Queue", Unit.Events);
         private Meter _errorsMeter = Metric.Meter("Event Errors", Unit.Errors);
@@ -76,7 +78,7 @@ namespace Aggregates.Internal
         {
             Task.Factory.StartNew(() =>
             {
-                
+                // Wait at least 250ms to retry, if its been longer just run it with no wait
                 var diff = (DateTime.UtcNow.Ticks - x.FailedAt) / TimeSpan.TicksPerMillisecond;
                 Thread.Sleep(TimeSpan.FromMilliseconds(Math.Min(250, diff)));
                 dispatcher.Process(x.Event, x.Descriptor, x.Position, x.Retry + 1);
@@ -93,6 +95,7 @@ namespace Aggregates.Internal
             _parallelHandlers = settings.Get<Boolean>("ParallelHandlers");
             _maxRetries = settings.Get<Int32>("MaxRetries");
             _dropEventFatal = settings.Get<Boolean>("EventDropIsFatal");
+            _maxQueueSize = settings.Get<Int32>("MaxQueueSize");
 
             _invokeCache = new ConcurrentDictionary<String, IList<Type>>();
 
@@ -110,7 +113,12 @@ namespace Aggregates.Internal
 
         public void Dispatch(Object @event, IEventDescriptor descriptor = null, long? position = null)
         {
-            QueueTask(this, new Job
+            if (_processingQueueSize >= _maxQueueSize)
+                throw new SubscriptionCanceled("Processing queue overflow, too many items waiting to be processed");
+
+            Interlocked.Increment(ref _processingQueueSize);
+            _queueSize.Increment();
+               QueueTask(this, new Job
             {
                 Event = @event,
                 Descriptor = descriptor,
@@ -249,6 +257,8 @@ namespace Aggregates.Internal
             }
             if (retried.HasValue)
                 _delayedSize.Decrement();
+            _queueSize.Decrement();
+            Interlocked.Decrement(ref _processingQueueSize);
         }
 
 
