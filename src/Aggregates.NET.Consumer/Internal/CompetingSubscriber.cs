@@ -143,12 +143,13 @@ namespace Aggregates.Internal
                 Thread.CurrentThread.Rename("Eventstore");
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
+                var eventBucket = Math.Abs(e.OriginalStreamId.GetHashCode() % consumer._bucketCount);
+                if (eventBucket != bucket) return;
+
+                if (!e.OriginalPosition.HasValue) return;
 
                 var descriptor = e.Event.Metadata.Deserialize(consumer._jsonSettings);
                 if (descriptor == null) return;
-
-                var eventBucket = Math.Abs(e.OriginalStreamId.GetHashCode() % consumer._bucketCount);
-                if (eventBucket != bucket) return;
 
                 var data = e.Event.Data.Deserialize(e.Event.EventType, consumer._jsonSettings);
                 if (data == null) return;
@@ -200,7 +201,10 @@ namespace Aggregates.Internal
                 {
                     // If we are already handling enough buckets, or we've seen (and tried to claim) it before, ignore
                     if (_buckets.Count >= handledBuckets || _seenBuckets.ContainsKey(bucket))
+                    {
+                        _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
                         return;
+                    }
                     else
                     {
                         Logger.DebugFormat("Attempting to claim bucket {0}", bucket);
@@ -211,13 +215,15 @@ namespace Aggregates.Internal
                             Logger.InfoFormat("Claimed bucket {0}.  Total claimed: {1}/{2}", bucket, _buckets.Count, handledBuckets);
                         }
                         else
+                        {
+                            _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
                             return;
+                        }
                     }
                 }
                 _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
 
 
-                Thread.CurrentThread.Rename("Eventstore");
                 var descriptor = e.Event.Metadata.Deserialize(_jsonSettings);
                 if (descriptor == null) return;
 
