@@ -82,7 +82,7 @@ namespace Aggregates.Internal
                 var diff = (DateTime.UtcNow.Ticks - x.FailedAt) / TimeSpan.TicksPerMillisecond;
                 Thread.Sleep(TimeSpan.FromMilliseconds(Math.Min(250, diff)));
                 dispatcher.Process(x.Event, x.Descriptor, x.Position, x.Retry + 1);
-            }, cancellationToken: dispatcher._cancelToken.Token);
+            }, creationOptions: TaskCreationOptions.None, cancellationToken: dispatcher._cancelToken.Token, scheduler: dispatcher._scheduler);
         };
 
         public NServiceBusDispatcher(IBuilder builder, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
@@ -257,8 +257,11 @@ namespace Aggregates.Internal
             }
             if (retried.HasValue)
                 _delayedSize.Decrement();
-            _queueSize.Decrement();
-            Interlocked.Decrement(ref _processingQueueSize);
+            else
+            {
+                _queueSize.Decrement();
+                Interlocked.Decrement(ref _processingQueueSize);
+            }
         }
 
 
