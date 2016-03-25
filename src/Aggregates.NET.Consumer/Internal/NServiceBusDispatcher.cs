@@ -118,7 +118,7 @@ namespace Aggregates.Internal
 
             Interlocked.Increment(ref _processingQueueSize);
             _queueSize.Increment();
-               QueueTask(this, new Job
+            QueueTask(this, new Job
             {
                 Event = @event,
                 Descriptor = descriptor,
@@ -134,6 +134,14 @@ namespace Aggregates.Internal
             // This will prevent the event from being queued on MSMQ
 
             var eventType = _mapper.GetMappedTypeFor(@event.GetType());
+
+            if (!retried.HasValue)
+            {
+                _queueSize.Decrement();
+                Interlocked.Decrement(ref _processingQueueSize);
+            }
+            else
+                _delayedSize.Decrement();
 
             _eventsMeter.Mark();
             using (_eventsTimer.NewContext())
@@ -239,7 +247,7 @@ namespace Aggregates.Internal
                             Logger.Error(message);
                             return;
                         }
-
+                        
                         _delayedSize.Increment();
                         QueueDelayedTask(this, new DelayedJob { Event = @event, Descriptor = descriptor, Position = position, Retry = (retried ?? 0) + 1, FailedAt = DateTime.UtcNow.Ticks });
                         return;
@@ -254,13 +262,6 @@ namespace Aggregates.Internal
                     s.Stop();
                     Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
                 }
-            }
-            if (retried.HasValue)
-                _delayedSize.Decrement();
-            else
-            {
-                _queueSize.Decrement();
-                Interlocked.Decrement(ref _processingQueueSize);
             }
         }
 
