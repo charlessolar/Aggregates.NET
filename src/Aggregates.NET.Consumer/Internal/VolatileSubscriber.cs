@@ -38,7 +38,6 @@ namespace Aggregates.Internal
             _client.SubscribeToAllFrom(Position.End, false, (subscription, e) =>
             {
                 Logger.DebugFormat("Event appeared position {0}", e.OriginalPosition?.CommitPosition);
-                Thread.CurrentThread.Rename("Eventstore");
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
 

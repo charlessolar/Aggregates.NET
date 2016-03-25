@@ -42,17 +42,12 @@ namespace Aggregates
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from END", endpoint);
             _client.SubscribeToAllFrom(Position.End, false, (subscription, e) =>
             {
-                Thread.CurrentThread.Rename("Eventstore");
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
 
                 var descriptor = e.Event.Metadata.Deserialize(_jsonSettings);
-                var data = e.Event.Data.Deserialize(e.Event.EventType, _jsonSettings);
 
                 if (descriptor == null) return;
-                // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
-                if (data == null) return;
-                
                 // Check if the event was written by this domain handler
                 // We don't need to publish events saved by other domain instances
                 String header = null;
@@ -60,6 +55,10 @@ namespace Aggregates
                 if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.DomainHeader, out header) || !Guid.TryParse(header, out domain) || domain != Domain.Current)
                     return;
 
+                var data = e.Event.Data.Deserialize(e.Event.EventType, _jsonSettings);
+
+                // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
+                if (data == null) return;
 
                 try
                 {
