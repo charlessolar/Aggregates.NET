@@ -71,6 +71,7 @@ namespace Aggregates.Internal
                     {
                         try
                         {
+                            Logger.DebugFormat("Heartbeating bucket {0} position {1}", seen.Key, seen.Value);
                             consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value);
                         }
                         catch (DiscriminatorException)
@@ -86,6 +87,7 @@ namespace Aggregates.Internal
                         var lastBeat = consumer._competes.LastHeartbeat(endpoint, seen.Key);
                         if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
                         {
+                            Logger.DebugFormat("Last beat on bucket {0} is {1} - it is {2} seconds old, adopting...", seen.Key, lastBeat, (DateTime.UtcNow - lastBeat.Value).TotalSeconds);
                             // We saw new events but the consumer for this bucket has died, so we will adopt its bucket
                             AdoptBucket(consumer, endpoint, seen.Key);
                             break;
@@ -95,6 +97,7 @@ namespace Aggregates.Internal
                     {
                         try
                         {
+                            Logger.DebugFormat("Heartbeating adopted bucket {0} position {1}", seen.Key, consumer._adoptingPosition.Value);
                             consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, consumer._adoptingPosition.Value);
                         }
                         catch (DiscriminatorException)
@@ -113,7 +116,10 @@ namespace Aggregates.Internal
                 {
                     var lastBeat = consumer._competes.LastHeartbeat(endpoint, bucket);
                     if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
+                    {
+                        Logger.DebugFormat("Bucket {0} has expired - last heartbeat {1} is {2} seconds old", bucket, lastBeat, (DateTime.UtcNow - lastBeat.Value).TotalSeconds);
                         expiredBuckets.Add(bucket);
+                    }
                 }
                 expiredBuckets.ForEach(x =>
                 {
@@ -139,13 +145,13 @@ namespace Aggregates.Internal
 
             consumer._client.SubscribeToAllFrom(new Position(lastPosition, lastPosition), false, (subscription, e) =>
             {
-                Logger.DebugFormat("Adopted event appeared position {0}", e.OriginalPosition?.CommitPosition);
                 Thread.CurrentThread.Rename("Eventstore");
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
                 var eventBucket = Math.Abs(e.OriginalStreamId.GetHashCode() % consumer._bucketCount);
                 if (eventBucket != bucket) return;
 
+                Logger.DebugFormat("Adopted event appeared position {0}... processing - bucket {1}", e.OriginalPosition?.CommitPosition);
                 if (!e.OriginalPosition.HasValue) return;
 
                 var descriptor = e.Event.Metadata.Deserialize(consumer._jsonSettings);
@@ -157,7 +163,7 @@ namespace Aggregates.Internal
                 consumer._adoptingPosition = e.OriginalPosition?.CommitPosition ?? consumer._adoptingPosition;
                 try
                 {
-                    consumer._dispatcher.Process(data, descriptor);
+                    consumer._dispatcher.Process(data, descriptor, e.OriginalPosition?.CommitPosition);
                 }
                 catch (SubscriptionCanceled)
                 {
@@ -202,6 +208,7 @@ namespace Aggregates.Internal
                     // If we are already handling enough buckets, or we've seen (and tried to claim) it before, ignore
                     if (_buckets.Count >= handledBuckets || _seenBuckets.ContainsKey(bucket))
                     {
+                        Logger.DebugFormat("Event appeared position {0}... skipping", e.OriginalPosition?.CommitPosition);
                         _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
                         return;
                     }
@@ -221,6 +228,7 @@ namespace Aggregates.Internal
                         }
                     }
                 }
+                Logger.DebugFormat("Event appeared position {0}... processing - bucket {1}", e.OriginalPosition?.CommitPosition, bucket);
                 _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
 
 
