@@ -55,7 +55,7 @@ namespace Aggregates.Internal
 
         private readonly CancellationTokenSource _cancelToken;
         private readonly TaskScheduler _scheduler;
-        
+
         private Int32 _processingQueueSize;
         private readonly Int32 _maxQueueSize;
 
@@ -153,7 +153,8 @@ namespace Aggregates.Internal
 
                 using (var childBuilder = _builder.CreateChildBuilder())
                 {
-                    var uows = childBuilder.BuildAll<IEventUnitOfWork>();
+                    var uows = new Stack<IEventUnitOfWork>();
+
                     var mutators = childBuilder.BuildAll<IEventMutator>();
 
                     var s = Stopwatch.StartNew();
@@ -164,12 +165,13 @@ namespace Aggregates.Internal
                             @event = mutate.MutateIncoming(@event, descriptor, position);
                         }
 
-                    if (uows != null && uows.Any())
-                        foreach (var uow in uows)
-                        {
-                            uow.Builder = childBuilder;
-                            uow.Begin();
-                        }
+                    foreach (var uow in childBuilder.BuildAll<IEventUnitOfWork>())
+                    {
+                        uows.Push(uow);
+                        uow.Builder = childBuilder;
+                        uow.Begin();
+                    }
+
                     s.Stop();
                     Logger.DebugFormat("UOW.Begin for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
 
@@ -228,14 +230,30 @@ namespace Aggregates.Internal
                     catch (Exception e)
                     {
 
+
+                        var trailingExceptions = new List<Exception>();
+                        while (uows.Count > 0)
+                        {
+                            var uow = uows.Pop();
+                            try
+                            {
+                                uow.End(e);
+                            }
+                            catch (Exception endException)
+                            {
+                                trailingExceptions.Add(endException);
+                            }
+                        }
+                        if (trailingExceptions.Any())
+                        {
+                            trailingExceptions.Insert(0, e);
+                            e = new System.AggregateException(trailingExceptions);
+                        }
+
                         Logger.InfoFormat("Encountered an error while processing {0}. Retry {1}/{2}\nWill move to the delayed queue for future processing.\nPayload: {3}\nException details:\n{4}", eventType.FullName, retried ?? 0, _maxRetries, JsonConvert.SerializeObject(@event, _jsonSettings), e);
 
-                        if (uows != null && uows.Any())
-                            foreach (var uow in uows)
-                                uow.End(e);
-
                         _errorsMeter.Mark();
-                        if (retried > _maxRetries && _maxRetries != -1)
+                        if (retried >= _maxRetries && _maxRetries != -1)
                         {
                             var message = String.Format("Encountered an error while processing {0}.  Ran out of retries, dropping event.\nPayload: {3}\nException details:\n{4}", eventType.FullName, JsonConvert.SerializeObject(@event, _jsonSettings), e);
                             if (_dropEventFatal)
@@ -247,18 +265,37 @@ namespace Aggregates.Internal
                             Logger.Error(message);
                             return;
                         }
-                        
+
                         _delayedSize.Increment();
                         QueueDelayedTask(this, new DelayedJob { Event = @event, Descriptor = descriptor, Position = position, Retry = (retried ?? 0) + 1, FailedAt = DateTime.UtcNow.Ticks });
                         return;
                     }
 
-
+                    // Failures when executing UOW.End `could` be transient (network or disk hicup)
+                    // A failure of 1 uow in a chain of 5 is a problem as it could create a mangled DB (partial update via one uow then crash)
+                    // So we'll just keep retrying the failing UOW forever until it succeeds.  
                     s.Restart();
-                    // Don't put in try/catch, any exceptions raised while running uow.End is pretty much a game over, subscription will (and should) crash
-                    if (uows != null && uows.Any())
-                        foreach (var uow in uows)
-                            uow.End();
+                    var success = false;
+                    var retry = 0;
+                    while (!success)
+                    {
+                        try
+                        {
+                            while (uows.Count > 0)
+                            {
+                                var uow = uows.Peek();
+                                uow.End();
+                                uows.Pop();
+                            }
+                            success = true;
+                        }
+                        catch (Exception e)
+                        {
+                            Logger.ErrorFormat("UOW.End failure - retry {0}\nException:\n{1}", retry, e);
+                            retry++;
+                            Thread.Sleep(50);
+                        }
+                    }
                     s.Stop();
                     Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
                 }
