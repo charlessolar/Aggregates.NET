@@ -64,6 +64,7 @@ namespace Aggregates.Internal
                 var notSeenBuckets = new HashSet<Int32>(consumer._buckets);
                 var seenBuckets = new Dictionary<Int32, long>(consumer._seenBuckets);
                 consumer._seenBuckets.Clear();
+                
 
                 foreach (var seen in seenBuckets)
                 {
@@ -111,21 +112,21 @@ namespace Aggregates.Internal
                 }
 
                 var expiredBuckets = new List<Int32>();
-                // Check that each bucket we are processing is still alive
+                // Heartbeat the buckets we haven't seen but are still watching
                 foreach (var bucket in notSeenBuckets)
                 {
-                    var lastBeat = consumer._competes.LastHeartbeat(endpoint, bucket);
-                    if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
+                    try
                     {
-                        Logger.DebugFormat("Bucket {0} has expired - last heartbeat {1} is {2} seconds old", bucket, lastBeat, (DateTime.UtcNow - lastBeat.Value).TotalSeconds);
-                        expiredBuckets.Add(bucket);
+                        Logger.DebugFormat("Heartbeating unseen bucket {0}", bucket);
+                        consumer._competes.Heartbeat(endpoint, bucket, DateTime.UtcNow);
+                    }
+                    catch (DiscriminatorException)
+                    {
+                        // someone else took over the bucket
+                        consumer._buckets.Remove(bucket);
+                        Logger.InfoFormat("Lost claim on bucket {0}.  Total claimed: {1}/{2}", bucket, consumer._buckets.Count, handledBuckets);
                     }
                 }
-                expiredBuckets.ForEach(x =>
-                {
-                    consumer._buckets.Remove(x);
-                    Logger.InfoFormat("Detected and removed expired bucket {0}.  Total claimed: {1}/{2}", x, consumer._buckets.Count, handledBuckets);
-                });
 
             }, this, period, period);
         }
@@ -136,6 +137,7 @@ namespace Aggregates.Internal
 
         private static void AdoptBucket(CompetingSubscriber consumer, String endpoint, Int32 bucket)
         {
+            var handledBuckets = consumer._settings.Get<Int32>("BucketsHandled");
             var readSize = consumer._settings.Get<Int32>("ReadSize");
             Logger.InfoFormat("Discovered orphaned bucket {0}.. adopting", bucket);
             consumer._adopting = bucket;
@@ -172,11 +174,11 @@ namespace Aggregates.Internal
                 }
             }, liveProcessingStarted: (sub) =>
             {
+                sub.Stop();
                 consumer._buckets.Add(bucket);
                 consumer._adopting = null;
                 consumer._adoptingPosition = null;
-                sub.Stop();
-                Logger.InfoFormat("Successfully adopted bucket {0}", bucket);
+                Logger.InfoFormat("Successfully adopted bucket {0}.  Total claimed: {1}/{2}", bucket, consumer._buckets.Count, handledBuckets);
             }, subscriptionDropped: (subscription, reason, e) =>
             {
                 if (reason == SubscriptionDropReason.UserInitiated) return;
