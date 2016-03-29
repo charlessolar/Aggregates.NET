@@ -129,7 +129,6 @@ namespace Aggregates.Internal
         // Todo: all the logging and timing can be moved into a "Debug Dispatcher" which can be registered as the IDispatcher if the user wants
         public void Process(Object @event, IEventDescriptor descriptor = null, long? position = null, int? retried = null)
         {
-            Thread.CurrentThread.Rename("Dispatcher");
             // Use NSB internal handler registry to directly call Handle(@event)
             // This will prevent the event from being queued on MSMQ
 
@@ -291,7 +290,7 @@ namespace Aggregates.Internal
                         }
                         catch (Exception e)
                         {
-                            Logger.ErrorFormat("UOW.End failure - retry {0}\nException:\n{1}", retry, e);
+                            Logger.ErrorFormat("UOW.End failure while processing event {0} - retry {1}\nException:\n{2}", eventType.FullName, retry, e);
                             retry++;
                             Thread.Sleep(50);
                         }
