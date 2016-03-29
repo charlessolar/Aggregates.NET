@@ -55,6 +55,7 @@ namespace Aggregates.Internal
 
         private readonly CancellationTokenSource _cancelToken;
         private readonly TaskScheduler _scheduler;
+        private readonly TaskScheduler _delayedScheduler;
 
         private Int32 _processingQueueSize;
         private readonly Int32 _maxQueueSize;
@@ -69,20 +70,26 @@ namespace Aggregates.Internal
 
         private static Action<NServiceBusDispatcher, Job> QueueTask = (dispatcher, x) =>
         {
+            Interlocked.Increment(ref dispatcher._processingQueueSize);
+            dispatcher._queueSize.Increment();
             Task.Factory.StartNew(() =>
             {
                 dispatcher.Process(x.Event, x.Descriptor, x.Position);
+                dispatcher._queueSize.Decrement();
+                Interlocked.Decrement(ref dispatcher._processingQueueSize);
             }, creationOptions: TaskCreationOptions.None, cancellationToken: dispatcher._cancelToken.Token, scheduler: dispatcher._scheduler);
         };
         private static Action<NServiceBusDispatcher, DelayedJob> QueueDelayedTask = (dispatcher, x) =>
         {
+            dispatcher._delayedSize.Increment();
             Task.Factory.StartNew(() =>
             {
                 // Wait at least 250ms to retry, if its been longer just run it with no wait
                 var diff = (DateTime.UtcNow.Ticks - x.FailedAt) / TimeSpan.TicksPerMillisecond;
                 Thread.Sleep(TimeSpan.FromMilliseconds(Math.Min(250, diff)));
                 dispatcher.Process(x.Event, x.Descriptor, x.Position, x.Retry + 1);
-            }, creationOptions: TaskCreationOptions.None, cancellationToken: dispatcher._cancelToken.Token, scheduler: dispatcher._scheduler);
+                dispatcher._delayedSize.Decrement();
+            }, creationOptions: TaskCreationOptions.None, cancellationToken: dispatcher._cancelToken.Token, scheduler: dispatcher._delayedScheduler);
         };
 
         public NServiceBusDispatcher(IBuilder builder, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
@@ -106,6 +113,7 @@ namespace Aggregates.Internal
             };
 
             _scheduler = new LimitedConcurrencyLevelTaskScheduler(1);
+            _delayedScheduler = new LimitedConcurrencyLevelTaskScheduler(1);
             _cancelToken = new CancellationTokenSource();
         }
 
@@ -116,8 +124,6 @@ namespace Aggregates.Internal
             if (_processingQueueSize >= _maxQueueSize)
                 throw new SubscriptionCanceled("Processing queue overflow, too many items waiting to be processed");
 
-            Interlocked.Increment(ref _processingQueueSize);
-            _queueSize.Increment();
             QueueTask(this, new Job
             {
                 Event = @event,
@@ -133,14 +139,7 @@ namespace Aggregates.Internal
             // This will prevent the event from being queued on MSMQ
 
             var eventType = _mapper.GetMappedTypeFor(@event.GetType());
-
-            if (!retried.HasValue)
-            {
-                _queueSize.Decrement();
-                Interlocked.Decrement(ref _processingQueueSize);
-            }
-            else
-                _delayedSize.Decrement();
+            
 
             _eventsMeter.Mark();
             using (_eventsTimer.NewContext())
