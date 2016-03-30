@@ -42,6 +42,7 @@ namespace Aggregates
             {
                 return new JsonSerializerSettings
                 {
+                    TypeNameHandling = TypeNameHandling.All,
                     Binder = new EventSerializationBinder(y.Build<IMessageMapper>()),
                     ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
                 };

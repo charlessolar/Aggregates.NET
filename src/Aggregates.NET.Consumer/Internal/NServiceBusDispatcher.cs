@@ -263,8 +263,7 @@ namespace Aggregates.Internal
                             Logger.Error(message);
                             return;
                         }
-
-                        _delayedSize.Increment();
+                        
                         QueueDelayedTask(this, new DelayedJob { Event = @event, Descriptor = descriptor, Position = position, Retry = (retried ?? 0) + 1, FailedAt = DateTime.UtcNow.Ticks });
                         return;
                     }
@@ -285,6 +284,13 @@ namespace Aggregates.Internal
                                 uow.End();
                                 uows.Pop();
                             }
+                            success = true;
+                        }
+                        catch (RetryException e)
+                        {
+                            // Throwing this means the UOW is accepting the posibility there will be a partial update and wants to re-run the event
+                            Logger.InfoFormat("Received retry signal while processing event {0} will push to delayed queue\nException: {1}", eventType.FullName, e);
+                            QueueDelayedTask(this, new DelayedJob { Event = @event, Descriptor = descriptor, Position = position, Retry = (retried ?? 0) + 1, FailedAt = DateTime.UtcNow.Ticks });
                             success = true;
                         }
                         catch (Exception e)
