@@ -92,6 +92,9 @@ namespace Aggregates
             Logger.DebugFormat("Writing {0} events to stream id '{1}'.  Expected version: {2}", events.Count(), stream, expectedVersion);
             var streamId = String.Format("{0}.{1}", bucket, stream);
 
+            if (_shouldCache)
+                _cache.Evict(streamId);
+
             var translatedEvents = events.Select(e =>
             {
                 var descriptor = new EventDescriptor
