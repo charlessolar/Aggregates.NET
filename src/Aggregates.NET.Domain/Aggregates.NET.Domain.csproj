@@ -52,6 +52,7 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Aggregate.cs" />
+    <Compile Include="Configuration.cs" />
     <Compile Include="Contracts\IAggregate.cs" />
     <Compile Include="Contracts\IEntity.cs" />
     <Compile Include="Contracts\IEntityRepository.cs" />
@@ -61,6 +62,7 @@
     <Compile Include="Contracts\IEventStream.cs" />
     <Compile Include="Contracts\IHaveEntities.cs" />
     <Compile Include="Contracts\INeedProcessor.cs" />
+    <Compile Include="Contracts\IStreamCache.cs" />
     <Compile Include="ICommandUnitOfWork.cs" />
     <Compile Include="IComputed.cs" />
     <Compile Include="IHandleComputed.cs" />
@@ -68,6 +70,7 @@
     <Compile Include="IBase.cs" />
     <Compile Include="Internal\BuilderInjector.cs" />
     <Compile Include="Internal\CommandUnitOfWork.cs" />
+    <Compile Include="Internal\MemoryStreamCache.cs" />
     <Compile Include="Internal\Processor.cs" />
     <Compile Include="Internal\SafetyNet.cs" />
     <Compile Include="IQuery.cs" />

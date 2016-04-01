@@ -25,9 +25,11 @@ namespace Aggregates
         private readonly IStoreSnapshots _snapshots;
         private readonly IBuilder _builder;
         private readonly ReadOnlySettings _nsbSettings;
+        private readonly IStreamCache _cache;
+        private readonly Boolean _shouldCache;
         private readonly JsonSerializerSettings _settings;
 
-        public StoreEvents(IEventStoreConnection client, IBuilder builder, IMessageMapper mapper, IStoreSnapshots snapshots, ReadOnlySettings nsbSettings, JsonSerializerSettings settings)
+        public StoreEvents(IEventStoreConnection client, IBuilder builder, IMessageMapper mapper, IStoreSnapshots snapshots, ReadOnlySettings nsbSettings, IStreamCache cache, JsonSerializerSettings settings)
         {
             _client = client;
             _mapper = mapper;
@@ -35,6 +37,8 @@ namespace Aggregates
             _nsbSettings = nsbSettings;
             _settings = settings;
             _builder = builder;
+            _cache = cache;
+            _shouldCache = _nsbSettings.Get<Boolean>("ShouldCacheEntities");
         }
 
 
@@ -46,6 +50,12 @@ namespace Aggregates
             var events = new List<ResolvedEvent>();
 
             var readSize = _nsbSettings.Get<Int32>("ReadSize");
+            if(_shouldCache)
+            {
+                var cached = _cache.Retreive(streamId);
+                if (cached != null)
+                    return cached;
+            }
 
             StreamEventsSlice current;
             var sliceStart = start ?? StreamPosition.Start;
@@ -70,7 +80,11 @@ namespace Aggregates
                 };
             });
             
-            return new Internal.EventStream<T>(_builder, this, _snapshots, bucket, stream, current.LastEventNumber, translatedEvents);
+            var eventstream = new Internal.EventStream<T>(_builder, this, _snapshots, bucket, stream, current.LastEventNumber, translatedEvents);
+            if(_shouldCache)
+                _cache.Cache(streamId, eventstream);
+
+            return eventstream;
         }
 
         public void WriteEvents(String bucket, String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders)

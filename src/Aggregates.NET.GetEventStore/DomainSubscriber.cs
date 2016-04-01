@@ -12,6 +12,7 @@ using Aggregates.Internal;
 using System.Threading;
 using Aggregates.Exceptions;
 using NServiceBus.Settings;
+using Aggregates.Contracts;
 
 namespace Aggregates
 {
@@ -21,17 +22,19 @@ namespace Aggregates
         private readonly IBuilder _builder;
         private readonly IEventStoreConnection _client;
         private readonly IDispatcher _dispatcher;
+        private readonly IStreamCache _cache;
         private readonly ReadOnlySettings _settings;
         private readonly JsonSerializerSettings _jsonSettings;
 
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public DomainSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
+        public DomainSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, IStreamCache cache, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
         {
             _builder = builder;
             _client = client;
             _dispatcher = dispatcher;
+            _cache = cache;
             _settings = settings;
             _jsonSettings = jsonSettings;
         }
@@ -44,6 +47,8 @@ namespace Aggregates
             {
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
+
+                _cache.Evict(e.OriginalStreamId);
 
                 var descriptor = e.Event.Metadata.Deserialize(_jsonSettings);
 

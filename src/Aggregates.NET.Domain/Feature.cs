@@ -24,6 +24,7 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("ReadSize", 200);
+                s.SetDefault("ShouldCacheEntities", false);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
@@ -34,6 +35,7 @@ namespace Aggregates
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<Processor>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<MemoryStreamCache>(DependencyLifecycle.InstancePerCall);
 
             context.Container.ConfigureComponent<Func<Accept>>(y =>
             {
