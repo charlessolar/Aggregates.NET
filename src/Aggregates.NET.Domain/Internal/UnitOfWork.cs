@@ -9,6 +9,7 @@ using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
 using NServiceBus.Pipeline.Contexts;
 using NServiceBus.Unicast.Messages;
+using NServiceBus.UnitOfWork;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -34,9 +35,13 @@ namespace Aggregates.Internal
         private Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
         private Timer _commandsTimer = Metric.Timer("Commands Duration", Unit.Commands);
         private Counter _commandsConcurrent = Metric.Counter("Concurrent Commands", Unit.Commands);
+        private Meter _eventsMeter = Metric.Meter("Events", Unit.Commands);
+        private Timer _eventsTimer = Metric.Timer("Events Duration", Unit.Commands);
+        private Counter _eventsConcurrent = Metric.Counter("Concurrent Events", Unit.Commands);
         private TimerContext _timerContext;
 
         private Meter _errorsMeter = Metric.Meter("Command Errors", Unit.Errors);
+        private Meter _eventErrorsMeter = Metric.Meter("Event Errors", Unit.Errors);
 
         public IBuilder Builder { get; set; }
 
@@ -103,14 +108,14 @@ namespace Aggregates.Internal
             return Compute<TComputed, TResponse>(result);
         }
 
-        public void Begin()
+        void IManageUnitsOfWork.Begin()
         {
             _commandsMeter.Mark();
             _commandsConcurrent.Increment();
             _timerContext = _commandsTimer.NewContext();
         }
 
-        public void End(Exception ex)
+        void IManageUnitsOfWork.End(Exception ex)
         {
             _commandsConcurrent.Decrement();
             if (ex == null)
@@ -121,8 +126,21 @@ namespace Aggregates.Internal
             _timerContext.Dispose();
         }
 
+        void IEventUnitOfWork.Begin()
+        {
+            _eventsMeter.Mark();
+            _eventsConcurrent.Increment();
+            _timerContext = _eventsTimer.NewContext();
+        }
+        void IEventUnitOfWork.End(Exception ex)
+        {
+            _eventsConcurrent.Decrement();
+            _timerContext.Dispose();
+        }
+
         public void Commit()
         {
+
             var commitId = Guid.NewGuid();
             String messageId;
 

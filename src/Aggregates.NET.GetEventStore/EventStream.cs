@@ -66,6 +66,11 @@ namespace Aggregates.Internal
             if (events == null || events.Count() == 0) return;
         }
 
+        internal IEventStream Copy()
+        {
+            return new EventStream<T>(_builder, _store, _snapshots, Bucket, StreamId, _streamVersion, _committed);
+        }
+
         public void Add(Object @event, IDictionary<String, String> headers)
         {
             IWritableEvent writable = new WritableEvent

@@ -82,7 +82,7 @@ namespace Aggregates
             
             var eventstream = new Internal.EventStream<T>(_builder, this, _snapshots, bucket, stream, current.LastEventNumber, translatedEvents);
             if(_shouldCache)
-                _cache.Cache(streamId, eventstream);
+                _cache.Cache(streamId, eventstream.Copy());
 
             return eventstream;
         }
