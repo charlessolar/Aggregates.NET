@@ -31,7 +31,7 @@ namespace Aggregates
         {
             context.Container.ConfigureComponent<ExceptionFilter>(DependencyLifecycle.InstancePerCall);
             
-            context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<Processor>(DependencyLifecycle.InstancePerCall);
