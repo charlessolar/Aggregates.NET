@@ -20,6 +20,6 @@ namespace Aggregates
         DateTime? LastHeartbeat(String endpoint, Int32 bucket);
         long LastPosition(String endpoint, Int32 bucket);
         void Heartbeat(String endpoint, Int32 bucket, DateTime Timestamp, long? position =null);
-        void Adopt(String endpoint, Int32 bucket, DateTime Timestamp);
+        Boolean Adopt(String endpoint, Int32 bucket, DateTime Timestamp);
     }
 }

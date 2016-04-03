@@ -104,8 +104,9 @@ namespace Aggregates.Internal
                         catch (DiscriminatorException)
                         {
                             // someone else took over the bucket
-                            consumer._buckets.Remove(seen.Key);
-                            Logger.InfoFormat("Lost claim on bucket {0}.  Total claimed: {1}/{2}", seen.Key, consumer._buckets.Count, handledBuckets);
+                            consumer._adopting = null;
+                            consumer._adoptingPosition = null;
+                            Logger.InfoFormat("Lost claim on adopted bucket {0}.  Total claimed: {1}/{2}", seen.Key, consumer._buckets.Count, handledBuckets);
                         }
                         notSeenBuckets.Remove(seen.Key);
                     }
@@ -140,8 +141,12 @@ namespace Aggregates.Internal
             var handledBuckets = consumer._settings.Get<Int32>("BucketsHandled");
             var readSize = consumer._settings.Get<Int32>("ReadSize");
             Logger.InfoFormat("Discovered orphaned bucket {0}.. adopting", bucket);
+            if(!consumer._competes.Adopt(endpoint, bucket, DateTime.UtcNow))
+            {
+                Logger.InfoFormat("Failed to adopt bucket {0}.. maybe next time", bucket);
+                return;
+            }
             consumer._adopting = bucket;
-            consumer._competes.Adopt(endpoint, bucket, DateTime.UtcNow);
             var lastPosition = consumer._competes.LastPosition(endpoint, bucket);
             consumer._adoptingPosition = lastPosition;
 
