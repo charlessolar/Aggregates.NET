@@ -46,7 +46,7 @@ namespace Aggregates.Unit.UnitOfWork
         {
             _guidRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>())).Throws<PersistenceException>();
             var repo = _uow.For<_AggregateStub<Guid>>();
-            Assert.Throws<PersistenceException>(() => _uow.Commit());
+            Assert.Throws<PersistenceException>(() => (_uow as ICommandUnitOfWork).End());
         }
     }
 }

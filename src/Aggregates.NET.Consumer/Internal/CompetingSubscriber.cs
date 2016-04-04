@@ -91,7 +91,6 @@ namespace Aggregates.Internal
                             Logger.DebugFormat("Last beat on bucket {0} is {1} - it is {2} seconds old, adopting...", seen.Key, lastBeat, (DateTime.UtcNow - lastBeat.Value).TotalSeconds);
                             // We saw new events but the consumer for this bucket has died, so we will adopt its bucket
                             AdoptBucket(consumer, endpoint, seen.Key);
-                            break;
                         }
                     }
                     else if (consumer._adopting == seen.Key)

@@ -47,14 +47,14 @@ namespace Aggregates.Unit.UnitOfWork
         [Test]
         public void Commit_no_events()
         {
-            Assert.DoesNotThrow(() => _uow.Commit());
+            Assert.DoesNotThrow(() => (_uow as ICommandUnitOfWork).End());
         }
 
         [Test]
         public void Commit_one_repo()
         {
             var repo = _uow.For<_AggregateStub<Guid>>();
-            Assert.DoesNotThrow(() => _uow.Commit());
+            Assert.DoesNotThrow(() => (_uow as ICommandUnitOfWork).End());
             _guidRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>()), Moq.Times.Once);
         }
 
@@ -63,7 +63,7 @@ namespace Aggregates.Unit.UnitOfWork
         {
             var repo = _uow.For<_AggregateStub<Guid>>();
             var repo2 = _uow.For<_AggregateStub<Int32>>();
-            Assert.DoesNotThrow(() => _uow.Commit());
+            Assert.DoesNotThrow(() => (_uow as ICommandUnitOfWork).End());
             _guidRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>()), Moq.Times.Once);
             _intRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>()), Moq.Times.Once);
         }
@@ -72,7 +72,7 @@ namespace Aggregates.Unit.UnitOfWork
         public void end_calls_commit()
         {
             var repo = _uow.For<_AggregateStub<Guid>>();
-            _uow.End();
+            (_uow as ICommandUnitOfWork).End();
             _guidRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<String, String>>()), Moq.Times.Once);
         }
     }

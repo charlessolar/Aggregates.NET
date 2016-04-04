@@ -18,7 +18,7 @@ using System.Runtime.Serialization;
 
 namespace Aggregates.Internal
 {
-    public class UnitOfWork : IUnitOfWork, IEventUnitOfWork, IEventMutator
+    public class UnitOfWork : IUnitOfWork, ICommandUnitOfWork, IEventUnitOfWork, IEventMutator
     {
         public static String PrefixHeader = "Originating";
         public static String NotFound = "<NOT FOUND>";
@@ -108,14 +108,14 @@ namespace Aggregates.Internal
             return Compute<TComputed, TResponse>(result);
         }
 
-        void IManageUnitsOfWork.Begin()
+        void ICommandUnitOfWork.Begin()
         {
             _commandsMeter.Mark();
             _commandsConcurrent.Increment();
             _timerContext = _commandsTimer.NewContext();
         }
 
-        void IManageUnitsOfWork.End(Exception ex)
+        void ICommandUnitOfWork.End(Exception ex)
         {
             _commandsConcurrent.Decrement();
             if (ex == null)
@@ -138,7 +138,7 @@ namespace Aggregates.Internal
             _timerContext.Dispose();
         }
 
-        public void Commit()
+        private void Commit()
         {
 
             var commitId = Guid.NewGuid();

@@ -6,7 +6,7 @@ using System;
 using System.Collections.Generic;
 namespace Aggregates
 {
-    public interface IUnitOfWork : IDisposable, IManageUnitsOfWork,  IMutateTransportMessages, IMessageMutator
+    public interface IUnitOfWork : IDisposable,  IMutateTransportMessages, IMessageMutator
     {
         IRepository<T> For<T>() where T : class, IAggregate;
 
@@ -15,9 +15,7 @@ namespace Aggregates
 
         TResponse Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>;
         TResponse Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>;
-
-        void Commit();
-
+        
         IBuilder Builder { get; set; }
         Object CurrentMessage { get; }
     }
