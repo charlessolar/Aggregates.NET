@@ -23,5 +23,6 @@ namespace Aggregates.Contracts
         void AddChild(IEventStream stream);
 
         void ClearChanges();
+        IEventStream Clone();
     }
 }

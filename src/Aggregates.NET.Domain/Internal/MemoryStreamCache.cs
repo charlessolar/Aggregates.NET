@@ -26,7 +26,9 @@ namespace Aggregates.Internal
         {
             IEventStream eventstream = null;
             _cache.TryGetValue(stream, out eventstream);
-            return eventstream;
+            if (eventstream == null) return null;
+
+            return eventstream.Clone();
         }
     }
 }

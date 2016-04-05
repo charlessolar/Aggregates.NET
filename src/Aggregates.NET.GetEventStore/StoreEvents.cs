@@ -44,7 +44,7 @@ namespace Aggregates
 
         public IEventStream GetStream<T>(String bucket, String stream, Int32? start = null) where T : class, IEntity
         {
-            Logger.DebugFormat("Getting stream for stream '{0}' in bucket '{1}'", stream, bucket);
+            Logger.DebugFormat("Getting stream '{0}' in bucket '{1}'", stream, bucket);
 
             var streamId = String.Format("{0}.{1}", bucket, stream);
             var events = new List<ResolvedEvent>();
@@ -82,7 +82,7 @@ namespace Aggregates
             
             var eventstream = new Internal.EventStream<T>(_builder, this, _snapshots, bucket, stream, current.LastEventNumber, translatedEvents);
             if(_shouldCache)
-                _cache.Cache(streamId, eventstream.Copy());
+                _cache.Cache(streamId, eventstream.Clone());
 
             return eventstream;
         }

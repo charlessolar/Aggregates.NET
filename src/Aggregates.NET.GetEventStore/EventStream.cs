@@ -47,7 +47,7 @@ namespace Aggregates.Internal
         private IEnumerable<IWritableEvent> _committed;
         private IList<IWritableEvent> _uncommitted;
         private IList<ISnapshot> _pendingShots;
-        private IList<IEventStream> _children;
+        private IDictionary<String, IEventStream> _children;
 
         public EventStream(IBuilder builder, IStoreEvents store, IStoreSnapshots snapshots, String bucket, String streamId, Int32 streamVersion, IEnumerable<IWritableEvent> events)
         {
@@ -61,12 +61,12 @@ namespace Aggregates.Internal
             this._committed = events.ToList();
             this._uncommitted = new List<IWritableEvent>();
             this._pendingShots = new List<ISnapshot>();
-            this._children = new List<IEventStream>();
+            this._children = new Dictionary<String, IEventStream>();
 
             if (events == null || events.Count() == 0) return;
         }
 
-        internal IEventStream Copy()
+        public IEventStream Clone()
         {
             return new EventStream<T>(_builder, _store, _snapshots, Bucket, StreamId, _streamVersion, _committed);
         }
@@ -112,10 +112,18 @@ namespace Aggregates.Internal
 
         public void Commit(Guid commitId, IDictionary<String, String> commitHeaders)
         {
-            foreach (var child in this._children)
+            Logger.DebugFormat("Event stream {0} commiting events", this.StreamId);
+            foreach (var child in this._children.Values)
+            {
+                Logger.DebugFormat("Event stream {0} commiting changes to child stream {1}", this.StreamId, child.StreamId);
                 child.Commit(commitId, commitHeaders);
+            }
 
-            if (this._uncommitted.Count == 0) return;
+            if (this._uncommitted.Count == 0)
+            {
+                ClearChanges();
+                return;
+            }
 
             if (commitHeaders == null)
                 commitHeaders = new Dictionary<String, String>();
@@ -132,6 +140,7 @@ namespace Aggregates.Internal
             if (oldCommits.Any(x => x == commitId))
                 throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
 
+            Logger.DebugFormat("Event stream {0} committing {1} events", this.StreamId, _uncommitted.Count);
             try
             {
                 _store.WriteEvents(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
@@ -160,13 +169,16 @@ namespace Aggregates.Internal
 
         public void AddChild(IEventStream stream)
         {
-            this._children.Add(stream);
+            Logger.DebugFormat("Event stream {0} adding child {1}", this.StreamId, stream.StreamId);
+            this._children[stream.StreamId] = stream;
         }
 
         public void ClearChanges()
         {
+            Logger.DebugFormat("Event stream {0} clearing changes", this.StreamId);
             this._uncommitted.Clear();
             this._pendingShots.Clear();
+            this._children.Clear();
         }
     }
 }
