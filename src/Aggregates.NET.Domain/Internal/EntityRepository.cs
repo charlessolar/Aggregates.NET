@@ -51,9 +51,9 @@ namespace Aggregates.Internal
 
             var entity = New(_parentStream.Bucket, streamId);
 
-            (entity as IEventSource<TId>).Id = id;
             try
             {
+                (entity as IEventSource<TId>).Id = id;
                 (entity as IEntity<TId, TAggregateId>).AggregateId = _aggregateId;
             }
             catch (NullReferenceException)

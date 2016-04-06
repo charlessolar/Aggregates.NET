@@ -33,7 +33,7 @@ namespace Aggregates.Internal
                 if (!success)
                 {
                     retries++;
-                    System.Threading.Thread.Sleep(50);
+                    Thread.Sleep(50);
                 }
             } while (!success && retries < 5);
         }
@@ -44,8 +44,7 @@ namespace Aggregates.Internal
         public SafetyNetRegistration()
             : base("SafetyNet", typeof(SafetyNet), "Inserts a safety net into the chain to catch Aggregates.NET exceptions for retrying")
         {
-            InsertBefore(WellKnownStep.InvokeHandlers);
-
+            InsertBefore(WellKnownStep.ExecuteUnitOfWork);
         }
     }
 }
