@@ -20,7 +20,7 @@ namespace Aggregates.Internal
         private readonly IBuilder _builder;
         private readonly TAggregateId _aggregateId;
         private readonly IEventStream _parentStream;
-        
+
         public EntityRepository(TAggregateId aggregateId, IEventStream parentStream, IBuilder builder)
             : base(builder)
         {
@@ -40,7 +40,7 @@ namespace Aggregates.Internal
             var entity = Get(_parentStream.Bucket, streamId);
             (entity as IEventSource<TId>).Id = id;
             (entity as IEntity<TId, TAggregateId>).AggregateId = _aggregateId;
-            
+
             this._parentStream.AddChild(entity.Stream);
             return entity;
         }
@@ -52,12 +52,20 @@ namespace Aggregates.Internal
             var entity = New(_parentStream.Bucket, streamId);
 
             (entity as IEventSource<TId>).Id = id;
-            (entity as IEntity<TId, TAggregateId>).AggregateId = _aggregateId;
-
+            try
+            {
+                (entity as IEntity<TId, TAggregateId>).AggregateId = _aggregateId;
+            }
+            catch (NullReferenceException)
+            {
+                var message = String.Format("Failed to new up entity {0}, could not set parent id! Information we have indicated entity has id type <{1}> with parent id type <{2}> - please review that this is true", typeof(T).FullName, typeof(TId).FullName, typeof(TAggregateId).FullName);
+                Logger.Error(message);
+                throw new ArgumentException(message);
+            }
             this._parentStream.AddChild(entity.Stream);
             return entity;
         }
-        
-        
+
+
     }
 }

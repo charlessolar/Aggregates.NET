@@ -117,12 +117,12 @@ namespace Aggregates.Internal
 
         void ICommandUnitOfWork.End(Exception ex)
         {
-            _commandsConcurrent.Decrement();
             if (ex == null)
                 Commit();
             else
                 _errorsMeter.Mark();
 
+            _commandsConcurrent.Decrement();
             _timerContext.Dispose();
         }
 
@@ -134,6 +134,11 @@ namespace Aggregates.Internal
         }
         void IEventUnitOfWork.End(Exception ex)
         {
+            if (ex == null)
+                Commit();
+            else
+                _errorsMeter.Mark();
+
             _eventsConcurrent.Decrement();
             _timerContext.Dispose();
         }
