@@ -76,6 +76,7 @@
     <Compile Include="Extensions\StoreExtensions.cs" />
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />
+    <Compile Include="Internal\LimitedConcurrencyLevelTaskScheduler.cs" />
     <Compile Include="Internal\WritableEvent.cs" />
     <Compile Include="Messages\Accept.cs" />
     <Compile Include="Messages\Handler.cs" />

@@ -106,14 +106,15 @@ namespace Aggregates.Internal
 
             _invokeCache = new ConcurrentDictionary<String, IList<Type>>();
 
-            var parallelism = settings.Get<Int32>("SetEventStoreMaxDegreeOfParallelism");
+            var parallelism = settings.Get<Int32>("HandlerParallelism");
             _parallelOptions = new ParallelOptions
             {
                 MaxDegreeOfParallelism = parallelism,
             };
 
-            _scheduler = new LimitedConcurrencyLevelTaskScheduler(1);
-            _delayedScheduler = new LimitedConcurrencyLevelTaskScheduler(1);
+            parallelism = settings.Get<Int32>("ProcessingParallelism");
+            _scheduler = new LimitedConcurrencyLevelTaskScheduler(parallelism);
+            _delayedScheduler = new LimitedConcurrencyLevelTaskScheduler(parallelism / 2);
             _cancelToken = new CancellationTokenSource();
         }
 

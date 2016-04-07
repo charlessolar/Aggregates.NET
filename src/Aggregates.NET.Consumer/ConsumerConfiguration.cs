@@ -12,13 +12,13 @@ namespace Aggregates
 
     public static class ConsumerConfiguration
     {
-        public static void SetEventStoreMaxDegreeOfParallelism( this ExposeSettings settings, Int32 Parallelism)
+        public static void SetHandlerParallelism( this ExposeSettings settings, Int32 Parallelism)
         {
-            settings.GetSettings().Set("SetEventStoreMaxDegreeOfParallelism", Parallelism);
+            settings.GetSettings().Set("HandlerParallelism", Parallelism);
         }
-        public static void SetEventStoreCapacity(this ExposeSettings settings, Int32 Capacity)
+        public static void SetProcessingParallelism(this ExposeSettings settings, Int32 Parallelism)
         {
-            settings.GetSettings().Set("SetEventStoreCapacity", Capacity);
+            settings.GetSettings().Set("ProcessingParallelism", Parallelism);
         }
         public static void SetBucketHeartbeats(this ExposeSettings settings, Int32 Seconds)
         {

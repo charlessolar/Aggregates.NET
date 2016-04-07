@@ -151,7 +151,7 @@ namespace Aggregates.Internal
             }
             catch (WrongExpectedVersionException e)
             {
-                throw new VersionException("Wrong expected version", e);
+                throw new VersionException($"Expected version {_streamVersion}", e);
             }
             catch (CannotEstablishConnectionException e)
             {
