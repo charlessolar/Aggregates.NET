@@ -58,6 +58,7 @@ namespace Aggregates.Internal
         private readonly TaskScheduler _delayedScheduler;
 
         private Int32 _processingQueueSize;
+        private Int32 _delayedQueueSize;
         private readonly Int32 _maxQueueSize;
 
         private Meter _eventsMeter = Metric.Meter("Events", Unit.Events);
@@ -72,6 +73,16 @@ namespace Aggregates.Internal
         {
             Interlocked.Increment(ref dispatcher._processingQueueSize);
             dispatcher._queueSize.Increment();
+
+            if (dispatcher._processingQueueSize % 10 == 0 || Logger.IsDebugEnabled)
+            {
+                var msg = String.Format("Queueing event {0} at position {1}.  Size of queue: {2}/{3}", x.Event.GetType().FullName, x.Position, dispatcher._processingQueueSize, dispatcher._maxQueueSize);
+                if (dispatcher._processingQueueSize % 10 == 0)
+                    Logger.Info(msg);
+                else
+                    Logger.Debug(msg);
+            }
+
             Task.Factory.StartNew(() =>
             {
                 dispatcher.Process(x.Event, x.Descriptor, x.Position);
@@ -81,7 +92,19 @@ namespace Aggregates.Internal
         };
         private static Action<NServiceBusDispatcher, DelayedJob> QueueDelayedTask = (dispatcher, x) =>
         {
+            Interlocked.Increment(ref dispatcher._delayedQueueSize);
             dispatcher._delayedSize.Increment();
+
+
+            if (dispatcher._delayedQueueSize % 10 == 0 || Logger.IsDebugEnabled)
+            {
+                var msg = String.Format("Queueing delayed event {0} at position {1}.  Size of queue: {2}/{3}", x.Event.GetType().FullName, x.Position, dispatcher._delayedQueueSize, dispatcher._maxQueueSize);
+                if (dispatcher._processingQueueSize % 10 == 0)
+                    Logger.Info(msg);
+                else
+                    Logger.Debug(msg);
+            }
+            
             Task.Factory.StartNew(() =>
             {
                 // Wait at least 250ms to retry, if its been longer just run it with no wait
@@ -140,12 +163,13 @@ namespace Aggregates.Internal
             // This will prevent the event from being queued on MSMQ
 
             var eventType = _mapper.GetMappedTypeFor(@event.GetType());
-            
+
 
             _eventsMeter.Mark();
             using (_eventsTimer.NewContext())
             {
-                Logger.DebugFormat("Processing event {0}", eventType.FullName);
+                if (Logger.IsDebugEnabled)
+                    Logger.DebugFormat("Processing event {0} at position {1}.  Size of queue: {2}/{3}", eventType.FullName, position, _processingQueueSize, _maxQueueSize);
 
                 var handlersToInvoke = _invokeCache.GetOrAdd(eventType.FullName,
                     (key) => _handlerRegistry.GetHandlerTypes(eventType).ToList());
@@ -156,11 +180,14 @@ namespace Aggregates.Internal
 
                     var mutators = childBuilder.BuildAll<IEventMutator>();
 
-                    var s = Stopwatch.StartNew();
+                    Stopwatch s = null;
+                    if (Logger.IsDebugEnabled)
+                        s = Stopwatch.StartNew();
                     if (mutators != null && mutators.Any())
                         foreach (var mutate in mutators)
                         {
-                            Logger.DebugFormat("Mutating incoming event {0} with mutator {1}", eventType.FullName, mutate.GetType().FullName);
+                            if (Logger.IsDebugEnabled)
+                                Logger.DebugFormat("Mutating incoming event {0} with mutator {1}", eventType.FullName, mutate.GetType().FullName);
                             @event = mutate.MutateIncoming(@event, descriptor, position);
                         }
 
@@ -171,12 +198,15 @@ namespace Aggregates.Internal
                         uow.Begin();
                     }
 
-                    s.Stop();
-                    Logger.DebugFormat("UOW.Begin for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
-
+                    if (Logger.IsDebugEnabled)
+                    {
+                        s.Stop();
+                        Logger.DebugFormat("UOW.Begin for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                    }
                     try
                     {
-                        s.Restart();
+                        if (Logger.IsDebugEnabled)
+                            s.Restart();
 
                         Action<Type> processor = (handler) =>
                          {
@@ -190,13 +220,15 @@ namespace Aggregates.Internal
                                  {
                                      try
                                      {
-                                         Logger.DebugFormat("Executing event {0} on handler {1}", eventType.FullName, handler.FullName);
+                                         if (Logger.IsDebugEnabled)
+                                             Logger.DebugFormat("Executing event {0} on handler {1}", eventType.FullName, handler.FullName);
                                          var handerWatch = Stopwatch.StartNew();
                                          handlerRetries++;
                                          _handlerRegistry.InvokeHandle(instance, @event);
                                          handerWatch.Stop();
                                          handlerSuccess = true;
-                                         Logger.DebugFormat("Executing event {0} on handler {1} took {2} ms", eventType.FullName, handler.FullName, handerWatch.ElapsedMilliseconds);
+                                         if (Logger.IsDebugEnabled)
+                                             Logger.DebugFormat("Executing event {0} on handler {1} took {2} ms", eventType.FullName, handler.FullName, handerWatch.ElapsedMilliseconds);
                                      }
                                      catch (RetryException e)
                                      {
@@ -222,9 +254,12 @@ namespace Aggregates.Internal
                             foreach (var handler in handlersToInvoke)
                                 processor(handler);
                         }
-                        s.Stop();
-                        Logger.DebugFormat("Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
 
+                        if (Logger.IsDebugEnabled)
+                        {
+                            s.Stop();
+                            Logger.DebugFormat("Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                        }
                     }
                     catch (Exception e)
                     {
@@ -264,15 +299,16 @@ namespace Aggregates.Internal
                             Logger.Error(message);
                             return;
                         }
-                        
+
                         QueueDelayedTask(this, new DelayedJob { Event = @event, Descriptor = descriptor, Position = position, Retry = (retried ?? 0) + 1, FailedAt = DateTime.UtcNow.Ticks });
                         return;
                     }
 
                     // Failures when executing UOW.End `could` be transient (network or disk hicup)
                     // A failure of 1 uow in a chain of 5 is a problem as it could create a mangled DB (partial update via one uow then crash)
-                    // So we'll just keep retrying the failing UOW forever until it succeeds.  
-                    s.Restart();
+                    // So we'll just keep retrying the failing UOW forever until it succeeds.
+                    if (Logger.IsDebugEnabled)
+                        s.Restart();
                     var success = false;
                     var retry = 0;
                     while (!success)
@@ -301,8 +337,11 @@ namespace Aggregates.Internal
                             Thread.Sleep(50);
                         }
                     }
-                    s.Stop();
-                    Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                    if (Logger.IsDebugEnabled)
+                    {
+                        s.Stop();
+                        Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                    }
                 }
             }
         }
