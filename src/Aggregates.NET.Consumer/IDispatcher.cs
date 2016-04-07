@@ -9,7 +9,7 @@ namespace Aggregates
 {
     public interface IDispatcher
     {
-        void Process(Object @event, IEventDescriptor descriptor = null, long? position = null, int? delayed = null);
+        void Dispatch(Object @event, IEventDescriptor descriptor = null, long? position = null);
         void Dispatch<TEvent>(Action<TEvent> action);
     }
 }

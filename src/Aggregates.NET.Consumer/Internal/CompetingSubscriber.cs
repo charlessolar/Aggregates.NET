@@ -168,7 +168,7 @@ namespace Aggregates.Internal
                 consumer._adoptingPosition = e.OriginalPosition?.CommitPosition ?? consumer._adoptingPosition;
                 try
                 {
-                    consumer._dispatcher.Process(data, descriptor, e.OriginalPosition?.CommitPosition);
+                    consumer._dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
                 }
                 catch (SubscriptionCanceled)
                 {
@@ -247,7 +247,7 @@ namespace Aggregates.Internal
 
                 try
                 {
-                    _dispatcher.Process(data, descriptor, e.OriginalPosition?.CommitPosition);
+                    _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
                 }
                 catch (SubscriptionCanceled)
                 {

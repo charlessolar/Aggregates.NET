@@ -67,7 +67,7 @@ namespace Aggregates
 
                 try
                 {
-                    _dispatcher.Process(data, descriptor, e.OriginalPosition?.CommitPosition);
+                    _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
                 }
                 catch (SubscriptionCanceled)
                 {

@@ -69,51 +69,53 @@ namespace Aggregates.Internal
         private Counter _delayedSize = Metric.Counter("Events Delayed Queue", Unit.Events);
         private Meter _errorsMeter = Metric.Meter("Event Errors", Unit.Errors);
 
-        private static Action<NServiceBusDispatcher, Job> QueueTask = (dispatcher, x) =>
+        private void QueueTask(Job x) 
         {
-            Interlocked.Increment(ref dispatcher._processingQueueSize);
-            dispatcher._queueSize.Increment();
+            Interlocked.Increment(ref _processingQueueSize);
+            _queueSize.Increment();
 
-            if (dispatcher._processingQueueSize % 10 == 0 || Logger.IsDebugEnabled)
+            if (_processingQueueSize % 10 == 0 || Logger.IsDebugEnabled)
             {
-                var msg = String.Format("Queueing event {0} at position {1}.  Size of queue: {2}/{3}", x.Event.GetType().FullName, x.Position, dispatcher._processingQueueSize, dispatcher._maxQueueSize);
-                if (dispatcher._processingQueueSize % 10 == 0)
+                var msg = String.Format("Queueing event {0} at position {1}.  Size of queue: {2}/{3}", x.Event.GetType().FullName, x.Position, _processingQueueSize, _maxQueueSize);
+                if (_processingQueueSize % 10 == 0)
                     Logger.Info(msg);
                 else
                     Logger.Debug(msg);
             }
 
-            Task.Factory.StartNew(() =>
+            Task.Factory.StartNew((state) =>
             {
+                var dispatcher = (NServiceBusDispatcher)state;
                 dispatcher.Process(x.Event, x.Descriptor, x.Position);
                 dispatcher._queueSize.Decrement();
                 Interlocked.Decrement(ref dispatcher._processingQueueSize);
-            }, creationOptions: TaskCreationOptions.None, cancellationToken: dispatcher._cancelToken.Token, scheduler: dispatcher._scheduler);
-        };
-        private static Action<NServiceBusDispatcher, DelayedJob> QueueDelayedTask = (dispatcher, x) =>
+            }, state: this, creationOptions: TaskCreationOptions.None, cancellationToken: _cancelToken.Token, scheduler: _scheduler);
+        }
+        private void QueueDelayedTask(DelayedJob x) 
         {
-            Interlocked.Increment(ref dispatcher._delayedQueueSize);
-            dispatcher._delayedSize.Increment();
+            Interlocked.Increment(ref _delayedQueueSize);
+            _delayedSize.Increment();
 
 
-            if (dispatcher._delayedQueueSize % 10 == 0 || Logger.IsDebugEnabled)
+            if (_delayedQueueSize % 10 == 0 || Logger.IsDebugEnabled)
             {
-                var msg = String.Format("Queueing delayed event {0} at position {1}.  Size of queue: {2}/{3}", x.Event.GetType().FullName, x.Position, dispatcher._delayedQueueSize, dispatcher._maxQueueSize);
-                if (dispatcher._processingQueueSize % 10 == 0)
+                var msg = String.Format("Queueing delayed event {0} at position {1}.  Size of queue: {2}/{3}", x.Event.GetType().FullName, x.Position, _delayedQueueSize, _maxQueueSize);
+                if (_processingQueueSize % 10 == 0)
                     Logger.Info(msg);
                 else
                     Logger.Debug(msg);
             }
             
-            Task.Factory.StartNew(() =>
+            Task.Factory.StartNew((state) =>
             {
+                var dispatcher = (NServiceBusDispatcher)state;
                 // Wait at least 250ms to retry, if its been longer just run it with no wait
                 var diff = (DateTime.UtcNow.Ticks - x.FailedAt) / TimeSpan.TicksPerMillisecond;
                 Thread.Sleep(TimeSpan.FromMilliseconds(Math.Min(250, diff)));
                 dispatcher.Process(x.Event, x.Descriptor, x.Position, x.Retry + 1);
                 dispatcher._delayedSize.Decrement();
-            }, creationOptions: TaskCreationOptions.None, cancellationToken: dispatcher._cancelToken.Token, scheduler: dispatcher._delayedScheduler);
-        };
+            }, state: this, creationOptions: TaskCreationOptions.None, cancellationToken: _cancelToken.Token, scheduler: _delayedScheduler);
+        }
 
         public NServiceBusDispatcher(IBuilder builder, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
         {
@@ -148,7 +150,7 @@ namespace Aggregates.Internal
             if (_processingQueueSize >= _maxQueueSize)
                 throw new SubscriptionCanceled("Processing queue overflow, too many items waiting to be processed");
 
-            QueueTask(this, new Job
+            QueueTask(new Job
             {
                 Event = @event,
                 Descriptor = descriptor,
@@ -157,7 +159,7 @@ namespace Aggregates.Internal
         }
 
         // Todo: all the logging and timing can be moved into a "Debug Dispatcher" which can be registered as the IDispatcher if the user wants
-        public void Process(Object @event, IEventDescriptor descriptor = null, long? position = null, int? retried = null)
+        private void Process(Object @event, IEventDescriptor descriptor = null, long? position = null, int? retried = null)
         {
             // Use NSB internal handler registry to directly call Handle(@event)
             // This will prevent the event from being queued on MSMQ
@@ -300,7 +302,7 @@ namespace Aggregates.Internal
                             return;
                         }
 
-                        QueueDelayedTask(this, new DelayedJob { Event = @event, Descriptor = descriptor, Position = position, Retry = (retried ?? 0) + 1, FailedAt = DateTime.UtcNow.Ticks });
+                        QueueDelayedTask(new DelayedJob { Event = @event, Descriptor = descriptor, Position = position, Retry = (retried ?? 0) + 1, FailedAt = DateTime.UtcNow.Ticks });
                         return;
                     }
 
@@ -327,7 +329,7 @@ namespace Aggregates.Internal
                         {
                             // Throwing this means the UOW is accepting the posibility there will be a partial update and wants to re-run the event
                             Logger.InfoFormat("Received retry signal while processing event {0} will push to delayed queue\nException: {1}", eventType.FullName, e);
-                            QueueDelayedTask(this, new DelayedJob { Event = @event, Descriptor = descriptor, Position = position, Retry = (retried ?? 0) + 1, FailedAt = DateTime.UtcNow.Ticks });
+                            QueueDelayedTask(new DelayedJob { Event = @event, Descriptor = descriptor, Position = position, Retry = (retried ?? 0) + 1, FailedAt = DateTime.UtcNow.Ticks });
                             success = true;
                         }
                         catch (Exception e)
