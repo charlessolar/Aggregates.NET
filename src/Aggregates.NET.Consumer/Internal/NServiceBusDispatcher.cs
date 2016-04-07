@@ -55,21 +55,18 @@ namespace Aggregates.Internal
 
         private readonly CancellationTokenSource _cancelToken;
         private readonly TaskScheduler _scheduler;
-        private readonly TaskScheduler _delayedScheduler;
 
         private Int32 _processingQueueSize;
-        private Int32 _delayedQueueSize;
         private readonly Int32 _maxQueueSize;
 
         private Meter _eventsMeter = Metric.Meter("Events", Unit.Events);
         private Metrics.Timer _eventsTimer = Metric.Timer("Event Duration", Unit.Events);
         private Metrics.Timer _handlerTimer = Metric.Timer("Event Handler Duration", Unit.Events);
         private Counter _queueSize = Metric.Counter("Event Queue Size", Unit.Events);
-
-        private Counter _delayedSize = Metric.Counter("Events Delayed Queue", Unit.Events);
+        
         private Meter _errorsMeter = Metric.Meter("Event Errors", Unit.Errors);
 
-        private void QueueTask(Job x) 
+        private void QueueTask(Job x)
         {
             Interlocked.Increment(ref _processingQueueSize);
             _queueSize.Increment();
@@ -90,31 +87,6 @@ namespace Aggregates.Internal
                 dispatcher._queueSize.Decrement();
                 Interlocked.Decrement(ref dispatcher._processingQueueSize);
             }, state: this, creationOptions: TaskCreationOptions.None, cancellationToken: _cancelToken.Token, scheduler: _scheduler);
-        }
-        private void QueueDelayedTask(DelayedJob x) 
-        {
-            Interlocked.Increment(ref _delayedQueueSize);
-            _delayedSize.Increment();
-
-
-            if (_delayedQueueSize % 10 == 0 || Logger.IsDebugEnabled)
-            {
-                var msg = String.Format("Queueing delayed event {0} at position {1}.  Size of queue: {2}/{3}", x.Event.GetType().FullName, x.Position, _delayedQueueSize, _maxQueueSize);
-                if (_processingQueueSize % 10 == 0)
-                    Logger.Info(msg);
-                else
-                    Logger.Debug(msg);
-            }
-            
-            Task.Factory.StartNew((state) =>
-            {
-                var dispatcher = (NServiceBusDispatcher)state;
-                // Wait at least 250ms to retry, if its been longer just run it with no wait
-                var diff = (DateTime.UtcNow.Ticks - x.FailedAt) / TimeSpan.TicksPerMillisecond;
-                Thread.Sleep(TimeSpan.FromMilliseconds(Math.Min(250, diff)));
-                dispatcher.Process(x.Event, x.Descriptor, x.Position, x.Retry + 1);
-                dispatcher._delayedSize.Decrement();
-            }, state: this, creationOptions: TaskCreationOptions.None, cancellationToken: _cancelToken.Token, scheduler: _delayedScheduler);
         }
 
         public NServiceBusDispatcher(IBuilder builder, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
@@ -139,7 +111,6 @@ namespace Aggregates.Internal
 
             parallelism = settings.Get<Int32>("ProcessingParallelism");
             _scheduler = new LimitedConcurrencyLevelTaskScheduler(parallelism);
-            _delayedScheduler = new LimitedConcurrencyLevelTaskScheduler(parallelism / 2);
             _cancelToken = new CancellationTokenSource();
         }
 
@@ -165,185 +136,188 @@ namespace Aggregates.Internal
             // This will prevent the event from being queued on MSMQ
 
             var eventType = _mapper.GetMappedTypeFor(@event.GetType());
-
+            Stopwatch s = null;
 
             _eventsMeter.Mark();
             using (_eventsTimer.NewContext())
             {
                 if (Logger.IsDebugEnabled)
-                    Logger.DebugFormat("Processing event {0} at position {1}.  Size of queue: {2}/{3}", eventType.FullName, position, _processingQueueSize, _maxQueueSize);
+                    Logger.DebugFormat("Processing event {0} at position {1}.  Size of queue: {2}/{3} {4}", eventType.FullName, position, _processingQueueSize, _maxQueueSize, retried.HasValue ? $"Retry {retried}" : "");
+
 
                 var handlersToInvoke = _invokeCache.GetOrAdd(eventType.FullName,
                     (key) => _handlerRegistry.GetHandlerTypes(eventType).ToList());
 
+
                 using (var childBuilder = _builder.CreateChildBuilder())
                 {
-                    var uows = new Stack<IEventUnitOfWork>();
-
-                    var mutators = childBuilder.BuildAll<IEventMutator>();
-
-                    Stopwatch s = null;
-                    if (Logger.IsDebugEnabled)
-                        s = Stopwatch.StartNew();
-                    if (mutators != null && mutators.Any())
-                        foreach (var mutate in mutators)
-                        {
-                            if (Logger.IsDebugEnabled)
-                                Logger.DebugFormat("Mutating incoming event {0} with mutator {1}", eventType.FullName, mutate.GetType().FullName);
-                            @event = mutate.MutateIncoming(@event, descriptor, position);
-                        }
-
-                    foreach (var uow in childBuilder.BuildAll<IEventUnitOfWork>())
+                    var success = false;
+                    var retry = 0;
+                    do
                     {
-                        uows.Push(uow);
-                        uow.Builder = childBuilder;
-                        uow.Begin();
-                    }
+                        var uows = new Stack<IEventUnitOfWork>();
 
-                    if (Logger.IsDebugEnabled)
-                    {
-                        s.Stop();
-                        Logger.DebugFormat("UOW.Begin for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
-                    }
-                    try
-                    {
+                        var mutators = childBuilder.BuildAll<IEventMutator>();
+
                         if (Logger.IsDebugEnabled)
-                            s.Restart();
+                            s = Stopwatch.StartNew();
+                        if (mutators != null && mutators.Any())
+                            foreach (var mutate in mutators)
+                            {
+                                if (Logger.IsDebugEnabled)
+                                    Logger.DebugFormat("Mutating incoming event {0} with mutator {1}", eventType.FullName, mutate.GetType().FullName);
+                                @event = mutate.MutateIncoming(@event, descriptor, position);
+                            }
 
-                        Action<Type> processor = (handler) =>
-                         {
-                             var instance = childBuilder.Build(handler);
-
-                             using (_handlerTimer.NewContext())
-                             {
-                                 var handlerRetries = 0;
-                                 var handlerSuccess = false;
-                                 do
-                                 {
-                                     try
-                                     {
-                                         if (Logger.IsDebugEnabled)
-                                             Logger.DebugFormat("Executing event {0} on handler {1}", eventType.FullName, handler.FullName);
-                                         var handerWatch = Stopwatch.StartNew();
-                                         handlerRetries++;
-                                         _handlerRegistry.InvokeHandle(instance, @event);
-                                         handerWatch.Stop();
-                                         handlerSuccess = true;
-                                         if (Logger.IsDebugEnabled)
-                                             Logger.DebugFormat("Executing event {0} on handler {1} took {2} ms", eventType.FullName, handler.FullName, handerWatch.ElapsedMilliseconds);
-                                     }
-                                     catch (RetryException e)
-                                     {
-                                         Logger.InfoFormat("Received retry signal while dispatching event {0} to {1}. Retry: {2}/3\nException: {3}", eventType.FullName, handler.FullName, handlerRetries, e);
-                                     }
-
-                                 } while (!handlerSuccess && handlerRetries <= 3);
-
-                                 if (!handlerSuccess)
-                                 {
-                                     Logger.ErrorFormat("Failed executing event {0} on handler {1}", eventType.FullName, handler.FullName);
-                                     throw new RetryException(String.Format("Failed executing event {0} on handler {1}", eventType.FullName, handler.FullName));
-                                 }
-                             }
-
-                         };
-
-                        // Run each handler in parallel (or not)
-                        if (_parallelHandlers)
-                            Parallel.ForEach(handlersToInvoke, _parallelOptions, processor);
-                        else
+                        foreach (var uow in childBuilder.BuildAll<IEventUnitOfWork>())
                         {
-                            foreach (var handler in handlersToInvoke)
-                                processor(handler);
+                            uows.Push(uow);
+                            uow.Builder = childBuilder;
+                            uow.Begin();
                         }
 
                         if (Logger.IsDebugEnabled)
                         {
                             s.Stop();
-                            Logger.DebugFormat("Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                            Logger.DebugFormat("UOW.Begin for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
                         }
-                    }
-                    catch (Exception e)
-                    {
-
-
-                        var trailingExceptions = new List<Exception>();
-                        while (uows.Count > 0)
-                        {
-                            var uow = uows.Pop();
-                            try
-                            {
-                                uow.End(e);
-                            }
-                            catch (Exception endException)
-                            {
-                                trailingExceptions.Add(endException);
-                            }
-                        }
-                        if (trailingExceptions.Any())
-                        {
-                            trailingExceptions.Insert(0, e);
-                            e = new System.AggregateException(trailingExceptions);
-                        }
-
-                        Logger.InfoFormat("Encountered an error while processing {0}. Retry {1}/{2}\nWill move to the delayed queue for future processing.\nPayload: {3}\nException details:\n{4}", eventType.FullName, retried ?? 0, _maxRetries, JsonConvert.SerializeObject(@event, _jsonSettings), e);
-
-                        _errorsMeter.Mark();
-                        if (retried >= _maxRetries && _maxRetries != -1)
-                        {
-                            var message = String.Format("Encountered an error while processing {0}.  Ran out of retries, dropping event.\nPayload: {3}\nException details:\n{4}", eventType.FullName, JsonConvert.SerializeObject(@event, _jsonSettings), e);
-                            if (_dropEventFatal)
-                            {
-                                Logger.Fatal(message);
-                                throw new SubscriptionCanceled(message);
-                            }
-
-                            Logger.Error(message);
-                            return;
-                        }
-
-                        QueueDelayedTask(new DelayedJob { Event = @event, Descriptor = descriptor, Position = position, Retry = (retried ?? 0) + 1, FailedAt = DateTime.UtcNow.Ticks });
-                        return;
-                    }
-
-                    // Failures when executing UOW.End `could` be transient (network or disk hicup)
-                    // A failure of 1 uow in a chain of 5 is a problem as it could create a mangled DB (partial update via one uow then crash)
-                    // So we'll just keep retrying the failing UOW forever until it succeeds.
-                    if (Logger.IsDebugEnabled)
-                        s.Restart();
-                    var success = false;
-                    var retry = 0;
-                    while (!success)
-                    {
                         try
                         {
-                            while (uows.Count > 0)
+                            if (Logger.IsDebugEnabled)
+                                s.Restart();
+
+                            Action<Type> processor = (handler) =>
+                             {
+                                 var instance = childBuilder.Build(handler);
+
+                                 using (_handlerTimer.NewContext())
+                                 {
+                                     var handlerRetries = 0;
+                                     var handlerSuccess = false;
+                                     do
+                                     {
+                                         try
+                                         {
+                                             if (Logger.IsDebugEnabled)
+                                                 Logger.DebugFormat("Executing event {0} on handler {1}", eventType.FullName, handler.FullName);
+                                             var handerWatch = Stopwatch.StartNew();
+                                             handlerRetries++;
+                                             _handlerRegistry.InvokeHandle(instance, @event);
+                                             handerWatch.Stop();
+                                             handlerSuccess = true;
+                                             if (Logger.IsDebugEnabled)
+                                                 Logger.DebugFormat("Executing event {0} on handler {1} took {2} ms", eventType.FullName, handler.FullName, handerWatch.ElapsedMilliseconds);
+                                         }
+                                         catch (RetryException e)
+                                         {
+                                             Logger.InfoFormat("Received retry signal while dispatching event {0} to {1}. Retry: {2}/3\nException: {3}", eventType.FullName, handler.FullName, handlerRetries, e);
+                                         }
+
+                                     } while (!handlerSuccess && handlerRetries <= 3);
+
+                                     if (!handlerSuccess)
+                                     {
+                                         Logger.ErrorFormat("Failed executing event {0} on handler {1}", eventType.FullName, handler.FullName);
+                                         throw new RetryException(String.Format("Failed executing event {0} on handler {1}", eventType.FullName, handler.FullName));
+                                     }
+                                 }
+
+                             };
+
+                            // Run each handler in parallel (or not)
+                            if (_parallelHandlers)
+                                Parallel.ForEach(handlersToInvoke, _parallelOptions, processor);
+                            else
                             {
-                                var uow = uows.Peek();
-                                uow.End();
-                                uows.Pop();
+                                foreach (var handler in handlersToInvoke)
+                                    processor(handler);
                             }
-                            success = true;
-                        }
-                        catch (RetryException e)
-                        {
-                            // Throwing this means the UOW is accepting the posibility there will be a partial update and wants to re-run the event
-                            Logger.InfoFormat("Received retry signal while processing event {0} will push to delayed queue\nException: {1}", eventType.FullName, e);
-                            QueueDelayedTask(new DelayedJob { Event = @event, Descriptor = descriptor, Position = position, Retry = (retried ?? 0) + 1, FailedAt = DateTime.UtcNow.Ticks });
-                            success = true;
+
+                            if (Logger.IsDebugEnabled)
+                            {
+                                s.Stop();
+                                Logger.DebugFormat("Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                            }
                         }
                         catch (Exception e)
                         {
-                            Logger.ErrorFormat("UOW.End failure while processing event {0} - retry {1}\nException:\n{2}", eventType.FullName, retry, e);
+
+
+                            var trailingExceptions = new List<Exception>();
+                            while (uows.Count > 0)
+                            {
+                                var uow = uows.Pop();
+                                try
+                                {
+                                    uow.End(e);
+                                }
+                                catch (Exception endException)
+                                {
+                                    trailingExceptions.Add(endException);
+                                }
+                            }
+                            if (trailingExceptions.Any())
+                            {
+                                trailingExceptions.Insert(0, e);
+                                e = new System.AggregateException(trailingExceptions);
+                            }
+
+                            Logger.InfoFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, _jsonSettings), e);
+
+                            _errorsMeter.Mark();
                             retry++;
-                            Thread.Sleep(50);
+                            Thread.Sleep(10);
+                            continue;
                         }
-                    }
-                    if (Logger.IsDebugEnabled)
+
+
+                        // Failures when executing UOW.End `could` be transient (network or disk hicup)
+                        // A failure of 1 uow in a chain of 5 is a problem as it could create a mangled DB (partial update via one uow then crash)
+                        // So we'll just keep retrying the failing UOW forever until it succeeds.
+                        if (Logger.IsDebugEnabled)
+                            s.Restart();
+                        var endSuccess = false;
+                        var endRetry = 0;
+                        while (!endSuccess)
+                        {
+                            try
+                            {
+                                while (uows.Count > 0)
+                                {
+                                    var uow = uows.Peek();
+                                    uow.End();
+                                    uows.Pop();
+                                }
+                                endSuccess = true;
+                            }
+                            catch (Exception e)
+                            {
+                                Logger.ErrorFormat("UOW.End failure while processing event {0} - retry {1}\nException:\n{2}", eventType.FullName, retry, e);
+                                endRetry++;
+                                Thread.Sleep(50);
+                            }
+                        }
+                        if (Logger.IsDebugEnabled)
+                        {
+                            s.Stop();
+                            Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                        }
+                        success = true;
+                    } while (!success && retry < _maxRetries);
+
+                    if (!success)
                     {
-                        s.Stop();
-                        Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                        var message = String.Format("Encountered an error while processing {0}.  Ran out of retries, dropping event.\nPayload: {3}", eventType.FullName, JsonConvert.SerializeObject(@event, _jsonSettings));
+                        if (_dropEventFatal)
+                        {
+                            Logger.Fatal(message);
+                            throw new SubscriptionCanceled(message);
+                        }
+
+                        Logger.Error(message);
+                        return;
                     }
+
                 }
             }
         }
