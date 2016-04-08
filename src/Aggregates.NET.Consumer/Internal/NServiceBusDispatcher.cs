@@ -262,7 +262,11 @@ namespace Aggregates.Internal
                                 e = new System.AggregateException(trailingExceptions);
                             }
 
-                            Logger.InfoFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, _jsonSettings), e);
+                            // Only log if the event has failed more than half max retries indicating a possible non-transient error
+                            if(retry > (_maxRetries / 2))
+                                Logger.InfoFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, _jsonSettings), e);
+                            else
+                                Logger.DebugFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, _jsonSettings), e);
 
                             _errorsMeter.Mark();
                             retry++;
@@ -292,7 +296,10 @@ namespace Aggregates.Internal
                             }
                             catch (Exception e)
                             {
-                                Logger.ErrorFormat("UOW.End failure while processing event {0} - retry {1}\nException:\n{2}", eventType.FullName, retry, e);
+                                if (endRetry > (_maxRetries / 2))
+                                    Logger.ErrorFormat("UOW.End failure while processing event {0} - retry {1}\nException:\n{2}", eventType.FullName, retry, e);
+                                else
+                                    Logger.DebugFormat("UOW.End failure while processing event {0} - retry {1}\nException:\n{2}", eventType.FullName, retry, e);
                                 endRetry++;
                                 Thread.Sleep(50);
                             }

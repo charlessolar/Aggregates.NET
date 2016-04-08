@@ -76,7 +76,6 @@ namespace Aggregates.Internal
                             item = _tasks.First.Value;
                             _tasks.RemoveFirst();
                         }
-
                         // Execute the task we pulled out of the queue
                         base.TryExecuteTask(item);
                     }
