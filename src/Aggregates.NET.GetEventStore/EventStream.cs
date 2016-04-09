@@ -110,14 +110,16 @@ namespace Aggregates.Internal
             });
         }
 
-        public void Commit(Guid commitId, IDictionary<String, String> commitHeaders)
+        public async Task Commit(Guid commitId, IDictionary<String, String> commitHeaders)
         {
             Logger.DebugFormat("Event stream {0} commiting events", this.StreamId);
-            foreach (var child in this._children.Values)
+
+            Parallel.ForEach(this._children.Values, async (child) =>
             {
                 Logger.DebugFormat("Event stream {0} commiting changes to child stream {1}", this.StreamId, child.StreamId);
-                child.Commit(commitId, commitHeaders);
-            }
+                await child.Commit(commitId, commitHeaders);
+            });
+            
 
             if (this._uncommitted.Count == 0)
             {
@@ -143,9 +145,9 @@ namespace Aggregates.Internal
             Logger.DebugFormat("Event stream {0} committing {1} events", this.StreamId, _uncommitted.Count);
             try
             {
-                _store.WriteEvents(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
+                await _store.WriteEvents(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
 
-                _snapshots.WriteSnapshots(this.Bucket, this.StreamId, _pendingShots, commitHeaders);
+                await _snapshots.WriteSnapshots(this.Bucket, this.StreamId, _pendingShots, commitHeaders);
 
                 ClearChanges();
             }

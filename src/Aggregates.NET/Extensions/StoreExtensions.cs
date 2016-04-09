@@ -53,11 +53,6 @@ namespace Aggregates.Extensions
             var name = type.Substring(type.LastIndexOf('.') + 1);
             return char.ToLower(name[0]) + name.Substring(1);
         }
-
-        public static T WaitForResult<T>(this Task<T> task)
-        {
-            task.Wait();
-            return task.Result;
-        }
+        
     }
 }

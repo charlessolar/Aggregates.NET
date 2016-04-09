@@ -31,7 +31,7 @@ namespace Aggregates.Internal
         private readonly ReadOnlySettings _settings;
         private readonly JsonSerializerSettings _jsonSettings;
         private readonly HashSet<Int32> _buckets;
-        private readonly ConcurrentDictionary<Int32, long> _seenBuckets;
+        private readonly IDictionary<Int32, long> _seenBuckets;
         private readonly System.Threading.Timer _bucketChecker;
         private readonly Int32 _bucketCount;
         private Int32? _adopting;
@@ -48,7 +48,7 @@ namespace Aggregates.Internal
             _settings = settings;
             _jsonSettings = jsonSettings;
             _buckets = new HashSet<Int32>();
-            _seenBuckets = new ConcurrentDictionary<Int32, long>();
+            _seenBuckets = new Dictionary<Int32, long>();
             _bucketCount = _settings.Get<Int32>("BucketCount");
 
             var period = TimeSpan.FromSeconds(_settings.Get<Int32>("BucketHeartbeats"));

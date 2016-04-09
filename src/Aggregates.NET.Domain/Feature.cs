@@ -28,9 +28,7 @@ namespace Aggregates
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
-        {
-            context.Container.ConfigureComponent<ExceptionFilter>(DependencyLifecycle.InstancePerCall);
-            
+        {            
             context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
@@ -60,9 +58,8 @@ namespace Aggregates
             }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register<ExceptionFilterRegistration>();
-            context.Pipeline.Register<BuilderInjectorRegistration>();
             context.Pipeline.Register<CommandUnitOfWorkRegistration>();
-            //context.Pipeline.Register<SafetyNetRegistration>();
+            //context.Pipeline.Register<TesterBehaviorRegistration>();
 
             // Register all query handlers in the container
             foreach (var handler in context.Settings.GetAvailableTypes().Where(IsQueryOrComputeHandler))

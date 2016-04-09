@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
@@ -29,7 +30,7 @@ namespace Aggregates.Internal
         private static Meter ConflictsResolved = Metric.Meter("Conflicts Resolved", Unit.Items);
         private static Meter WriteErrors = Metric.Meter("Event Write Errors", Unit.Errors);
 
-        protected readonly ConcurrentDictionary<String, T> _tracked = new ConcurrentDictionary<String, T>();
+        protected readonly IDictionary<String, T> _tracked = new Dictionary<String, T>();
 
         private Boolean _disposed;
 
@@ -40,10 +41,10 @@ namespace Aggregates.Internal
             _snapstore = _builder.Build<IStoreSnapshots>();
         }
 
-        void IRepository.Commit(Guid commitId, IDictionary<String, String> headers)
+        Task IRepository.Commit(Guid commitId, IDictionary<String, String> headers)
         {
             var written = 0;
-            foreach (var tracked in _tracked.Values )
+            Parallel.ForEach(_tracked.Values, async (tracked) =>
             {
                 var stream = tracked.Stream;
 
@@ -63,7 +64,7 @@ namespace Aggregates.Internal
                     try
                     {
                         count++;
-                        stream.Commit(commitId, headers);
+                        await stream.Commit(commitId, headers);
                         success = true;
                     }
                     catch (VersionException version)
@@ -90,7 +91,9 @@ namespace Aggregates.Internal
                         throw;
                     }
                 } while (!success && count < 5);
-            }
+
+            });
+            return Task.FromResult(true);
         }
 
         private IEventStream ResolveConflict(IEventStream stream)
@@ -135,7 +138,8 @@ namespace Aggregates.Internal
         public T Get(String bucket, String id)
         {
             var cacheId = String.Format("{0}.{1}", bucket, id);
-            return _tracked.GetOrAdd(cacheId, (key) =>
+            T root;
+            if(!_tracked.TryGetValue(cacheId, out root))
             {
                 var snapshot = GetSnapshot(bucket, id);
                 var stream = OpenStream(bucket, id, snapshot);
@@ -148,15 +152,17 @@ namespace Aggregates.Internal
                     throw new NotFoundException("Aggregate stream not found");
 
                 // Call the 'private' constructor
-                var root = Newup(stream, _builder);
+                root = Newup(stream, _builder);
 
                 if (snapshot != null && root is ISnapshotting)
                     ((ISnapshotting)root).RestoreSnapshot(snapshot.Payload);
 
                 (root as IEventSource).Hydrate(stream.Events.Select(e => e.Event));
 
-                return root;
-            });
+                _tracked[cacheId] = root;
+            }
+
+            return root;
         }
 
         public virtual T New<TId>(TId id)
@@ -177,7 +183,7 @@ namespace Aggregates.Internal
             var root = Newup(stream, _builder);
 
             var cacheId = String.Format("{0}.{1}", bucket, streamId);
-            _tracked.TryAdd(cacheId, root);
+            _tracked[cacheId] = root;
             return root;
         }
 
@@ -210,12 +216,12 @@ namespace Aggregates.Internal
         
         protected ISnapshot GetSnapshot(String bucket, String streamId)
         {
-            return _snapstore.GetSnapshot(bucket, streamId);
+            return _snapstore.GetSnapshot(bucket, streamId).Result;
         }
 
         protected IEventStream OpenStream(String bucket, String streamId, ISnapshot snapshot = null)
         {
-            return _store.GetStream<T>(bucket, streamId, snapshot?.Version + 1);
+            return _store.GetStream<T>(bucket, streamId, snapshot?.Version + 1).Result;
         }
         
     }

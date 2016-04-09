@@ -42,7 +42,7 @@ namespace Aggregates
         }
 
 
-        public IEventStream GetStream<T>(String bucket, String stream, Int32? start = null) where T : class, IEntity
+        public async Task<IEventStream> GetStream<T>(String bucket, String stream, Int32? start = null) where T : class, IEntity
         {
             Logger.DebugFormat("Getting stream '{0}' in bucket '{1}'", stream, bucket);
 
@@ -61,7 +61,7 @@ namespace Aggregates
             var sliceStart = start ?? StreamPosition.Start;
             do
             {
-                current = _client.ReadStreamEventsForwardAsync(streamId, sliceStart, readSize, false).WaitForResult();
+                current = await _client.ReadStreamEventsForwardAsync(streamId, sliceStart, readSize, false);
 
                 events.AddRange(current.Events);
                 sliceStart = current.NextEventNumber;
@@ -87,7 +87,7 @@ namespace Aggregates
             return eventstream;
         }
 
-        public void WriteEvents(String bucket, String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders)
+        public async Task WriteEvents(String bucket, String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders)
         {
             Logger.DebugFormat("Writing {0} events to stream id '{1}'.  Expected version: {2}", events.Count(), stream, expectedVersion);
             var streamId = String.Format("{0}.{1}", bucket, stream);
@@ -116,7 +116,7 @@ namespace Aggregates
 
             try
             {
-                _client.AppendToStreamAsync(streamId, expectedVersion, translatedEvents).Wait();
+                await _client.AppendToStreamAsync(streamId, expectedVersion, translatedEvents);
             }
             catch (global::System.AggregateException e)
             {

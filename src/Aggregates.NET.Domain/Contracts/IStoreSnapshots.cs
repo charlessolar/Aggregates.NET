@@ -9,7 +9,7 @@ namespace Aggregates.Contracts
 {
     public interface IStoreSnapshots
     {
-        ISnapshot GetSnapshot(String bucket, String stream);
-        void WriteSnapshots(String bucket, String stream, IEnumerable<ISnapshot> snapshots, IDictionary<String, String> commitHeaders);
+        Task<ISnapshot> GetSnapshot(String bucket, String stream);
+        Task WriteSnapshots(String bucket, String stream, IEnumerable<ISnapshot> snapshots, IDictionary<String, String> commitHeaders);
     }
 }

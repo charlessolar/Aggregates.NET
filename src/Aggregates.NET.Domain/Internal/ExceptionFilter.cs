@@ -10,12 +10,15 @@ using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
 using NServiceBus.Pipeline.Contexts;
 using NServiceBus.Logging;
+using Metrics;
 
 namespace Aggregates.Internal
 {
     internal class ExceptionFilter : IBehavior<IncomingContext>
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(CompetingSubscriber));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(ExceptionFilter));
+
+        private static Meter _errorsMeter = Metric.Meter("Business Exceptions", Unit.Errors);
         private readonly IBus _bus;
 
         public ExceptionFilter(IBus bus)
@@ -30,24 +33,25 @@ namespace Aggregates.Internal
                 try
                 {
                     next();
-                    
                     // Tell the sender the command was accepted
                     var acceptance = context.Builder.Build<Func<Accept>>();
-                    _bus.Reply(acceptance());
-
+                    _bus.Return(0);
                 }
                 catch (BusinessException e)
                 {
-                    Logger.InfoFormat("Command {0} was rejected\nException: {1}", context.IncomingLogicalMessage.Instance.GetType().FullName, e);
+                    _errorsMeter.Mark();
+                    Logger.InfoFormat("Command {0} was rejected\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, e);
                     // Tell the sender the command was rejected due to a business exception
                     var rejection = context.Builder.Build<Func<Exception, Reject>>();
                     _bus.Reply(rejection(e));
                     // Don't throw exception to NServicebus because we don't wish to retry this command
 
                 }
+                return;
+
             }
-            else
-                next();
+
+            next();
         }
     }
 
@@ -56,7 +60,7 @@ namespace Aggregates.Internal
         public ExceptionFilterRegistration()
             : base("ExceptionFilter", typeof(ExceptionFilter), "Filters [BusinessException] from processing failures")
         {
-            InsertBefore(WellKnownStep.InvokeHandlers);
+            InsertBefore(WellKnownStep.LoadHandlers);
 
         }
     }

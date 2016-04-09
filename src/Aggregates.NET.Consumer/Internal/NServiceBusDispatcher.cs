@@ -59,12 +59,12 @@ namespace Aggregates.Internal
         private Int32 _processingQueueSize;
         private readonly Int32 _maxQueueSize;
 
-        private Meter _eventsMeter = Metric.Meter("Events", Unit.Events);
-        private Metrics.Timer _eventsTimer = Metric.Timer("Event Duration", Unit.Events);
-        private Metrics.Timer _handlerTimer = Metric.Timer("Event Handler Duration", Unit.Events);
-        private Counter _queueSize = Metric.Counter("Event Queue Size", Unit.Events);
+        private static Meter _eventsMeter = Metric.Meter("Events", Unit.Events);
+        private static Metrics.Timer _eventsTimer = Metric.Timer("Event Duration", Unit.Events);
+        private static Metrics.Timer _handlerTimer = Metric.Timer("Event Handler Duration", Unit.Events);
+        private static Counter _queueSize = Metric.Counter("Event Queue Size", Unit.Events);
         
-        private Meter _errorsMeter = Metric.Meter("Event Errors", Unit.Errors);
+        private static Meter _errorsMeter = Metric.Meter("Event Errors", Unit.Errors);
 
         private void QueueTask(Job x)
         {
@@ -84,7 +84,7 @@ namespace Aggregates.Internal
             {
                 var dispatcher = (NServiceBusDispatcher)state;
                 dispatcher.Process(x.Event, x.Descriptor, x.Position);
-                dispatcher._queueSize.Decrement();
+                _queueSize.Decrement();
                 Interlocked.Decrement(ref dispatcher._processingQueueSize);
             }, state: this, creationOptions: TaskCreationOptions.None, cancellationToken: _cancelToken.Token, scheduler: _scheduler);
         }
@@ -130,7 +130,7 @@ namespace Aggregates.Internal
         }
 
         // Todo: all the logging and timing can be moved into a "Debug Dispatcher" which can be registered as the IDispatcher if the user wants
-        private void Process(Object @event, IEventDescriptor descriptor = null, long? position = null, int? retried = null)
+        private void Process(Object @event, IEventDescriptor descriptor = null, long? position = null)
         {
             // Use NSB internal handler registry to directly call Handle(@event)
             // This will prevent the event from being queued on MSMQ
@@ -142,7 +142,7 @@ namespace Aggregates.Internal
             using (_eventsTimer.NewContext())
             {
                 if (Logger.IsDebugEnabled)
-                    Logger.DebugFormat("Processing event {0} at position {1}.  Size of queue: {2}/{3} {4}", eventType.FullName, position, _processingQueueSize, _maxQueueSize, retried.HasValue ? $"Retry {retried}" : "");
+                    Logger.DebugFormat("Processing event {0} at position {1}.  Size of queue: {2}/{3}", eventType.FullName, position, _processingQueueSize, _maxQueueSize);
 
 
                 var handlersToInvoke = _invokeCache.GetOrAdd(eventType.FullName,
@@ -297,9 +297,9 @@ namespace Aggregates.Internal
                             catch (Exception e)
                             {
                                 if (endRetry > (_maxRetries / 2))
-                                    Logger.ErrorFormat("UOW.End failure while processing event {0} - retry {1}\nException:\n{2}", eventType.FullName, retry, e);
+                                    Logger.ErrorFormat("UOW.End failure while processing event {0} - retry {1}/{3}\nException:\n{2}", eventType.FullName, retry, e, _maxRetries);
                                 else
-                                    Logger.DebugFormat("UOW.End failure while processing event {0} - retry {1}\nException:\n{2}", eventType.FullName, retry, e);
+                                    Logger.DebugFormat("UOW.End failure while processing event {0} - retry {1}/{3}\nException:\n{2}", eventType.FullName, retry, e, _maxRetries);
                                 endRetry++;
                                 Thread.Sleep(50);
                             }

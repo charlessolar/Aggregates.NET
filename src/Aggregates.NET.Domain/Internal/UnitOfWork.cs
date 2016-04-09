@@ -15,6 +15,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
+using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
@@ -143,7 +144,7 @@ namespace Aggregates.Internal
             _timerContext.Dispose();
         }
 
-        private void Commit()
+        private Task Commit()
         {
 
             var commitId = Guid.NewGuid();
@@ -158,7 +159,7 @@ namespace Aggregates.Internal
             if (_workHeaders.TryGetValue(Defaults.CommitIdHeader, out messageId))
                 commitId = Guid.Parse(messageId);
 
-            foreach (var repo in _repositories.Values)
+            Parallel.ForEach(_repositories.Values, (repo) =>
             {
                 try
                 {
@@ -171,7 +172,8 @@ namespace Aggregates.Internal
                 {
                     throw new PersistenceException(e.Message, e);
                 }
-            }
+            });
+            return Task.FromResult(true);
         }
 
         public void MutateOutgoing(LogicalMessage message, TransportMessage transportMessage)

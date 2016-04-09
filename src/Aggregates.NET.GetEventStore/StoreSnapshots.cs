@@ -7,6 +7,7 @@ using EventStore.ClientAPI.Exceptions;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
+using NServiceBus.Settings;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,21 +21,27 @@ namespace Aggregates
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreSnapshots));
         private readonly IEventStoreConnection _client;
+        private readonly ReadOnlySettings _nsbSettings;
+        private readonly IStreamCache _cache;
+        private readonly Boolean _shouldCache;
         private readonly JsonSerializerSettings _settings;
 
-        public StoreSnapshots(IEventStoreConnection client, JsonSerializerSettings settings)
+        public StoreSnapshots(IEventStoreConnection client, ReadOnlySettings nsbSettings, IStreamCache cache, JsonSerializerSettings settings)
         {
             _client = client;
+            _nsbSettings = nsbSettings;
             _settings = settings;
+            _cache = cache;
+            _shouldCache = _nsbSettings.Get<Boolean>("ShouldCacheEntities");
         }
 
-        public ISnapshot GetSnapshot(String bucket, String stream)
+        public async Task<ISnapshot> GetSnapshot(String bucket, String stream)
         {
             Logger.DebugFormat("Getting snapshot for stream '{0}' in bucket '{1}'", stream, bucket);
 
             var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
 
-            var read = _client.ReadEventAsync(streamId, StreamPosition.End, false).WaitForResult();
+            var read = await _client.ReadEventAsync(streamId, StreamPosition.End, false);
             if (read.Status != EventReadStatus.Success || !read.Event.HasValue)
                 return null;
 
@@ -55,7 +62,7 @@ namespace Aggregates
         }
 
 
-        public void WriteSnapshots(String bucket, String stream, IEnumerable<ISnapshot> snapshots, IDictionary<String, String> commitHeaders)
+        public async Task WriteSnapshots(String bucket, String stream, IEnumerable<ISnapshot> snapshots, IDictionary<String, String> commitHeaders)
         {
             Logger.DebugFormat("Writing {0} snapshots to stream id '{1}' in bucket '{2}'", snapshots.Count(), stream, bucket);
             var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
@@ -80,7 +87,7 @@ namespace Aggregates
 
             try
             {
-                _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvents).Wait();
+                await _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvents);
             }
             catch (global::System.AggregateException e)
             {

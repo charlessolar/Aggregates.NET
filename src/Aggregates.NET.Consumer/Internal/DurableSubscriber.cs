@@ -46,8 +46,7 @@ namespace Aggregates.Internal
 
             var readSize = _settings.Get<Int32>("ReadSize");
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from position '{1}'", endpoint, saved);
-
-
+            
             _client.SubscribeToAllFrom(saved, false, (subscription, e) =>
             {
                 Logger.DebugFormat("Event appeared position {0}", e.OriginalPosition?.CommitPosition);
