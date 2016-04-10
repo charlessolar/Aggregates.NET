@@ -8,6 +8,7 @@ namespace Aggregates
 {
     public static class Defaults
     {
+        public static Guid Domain = Guid.NewGuid();
         public static String Bucket = "default";
         public static String MessageIdHeader = "Originating.NServiceBus.MessageId";
         public static String CommitIdHeader = "CommitId";

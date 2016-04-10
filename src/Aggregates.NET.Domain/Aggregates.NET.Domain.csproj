@@ -66,7 +66,6 @@
     <Compile Include="ICommandUnitOfWork.cs" />
     <Compile Include="IComputed.cs" />
     <Compile Include="IHandleComputed.cs" />
-    <Compile Include="Domain.cs" />
     <Compile Include="IBase.cs" />
     <Compile Include="Internal\CommandUnitOfWork.cs" />
     <Compile Include="Internal\MemoryStreamCache.cs" />

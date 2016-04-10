@@ -57,7 +57,7 @@ namespace Aggregates
                 // We don't need to publish events saved by other domain instances
                 String header = null;
                 Guid domain = Guid.Empty;
-                if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.DomainHeader, out header) || !Guid.TryParse(header, out domain) || domain != Domain.Current)
+                if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.DomainHeader, out header) || !Guid.TryParse(header, out domain) || domain != Defaults.Domain)
                     return;
 
                 var data = e.Event.Data.Deserialize(e.Event.EventType, _jsonSettings);

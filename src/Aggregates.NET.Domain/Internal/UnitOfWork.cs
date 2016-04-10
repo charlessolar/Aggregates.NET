@@ -222,7 +222,7 @@ namespace Aggregates.Internal
         {
             this.CurrentMessage = message;
 
-            _workHeaders[Defaults.DomainHeader] = Domain.Current.ToString();
+            _workHeaders[Defaults.DomainHeader] = Defaults.Domain.ToString();
 
             return message;
         }
@@ -231,7 +231,7 @@ namespace Aggregates.Internal
         public Object MutateIncoming(Object Event, IEventDescriptor Descriptor, long? Position)
         {
             this.CurrentMessage = Event;
-            _workHeaders[Defaults.DomainHeader] = Domain.Current.ToString();
+            _workHeaders[Defaults.DomainHeader] = Defaults.Domain.ToString();
 
             if (Descriptor == null) return Event; 
 
