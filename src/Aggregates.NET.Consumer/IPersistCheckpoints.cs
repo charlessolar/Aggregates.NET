@@ -9,8 +9,8 @@ namespace Aggregates
 {
     public interface IPersistCheckpoints
     {
-        Position Load(String endpoint);
+        Task<Position> Load(String endpoint);
 
-        void Save(String endpoint, long position);
+        Task Save(String endpoint, long position);
     }
 }

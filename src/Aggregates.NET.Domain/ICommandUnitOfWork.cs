@@ -11,7 +11,7 @@ namespace Aggregates
     {
         IBuilder Builder { get; set; }
 
-        void Begin();
-        void End(Exception ex = null);
+        Task Begin();
+        Task End(Exception ex = null);
     }
 }

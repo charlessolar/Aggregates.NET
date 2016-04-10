@@ -3,6 +3,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Caching;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,22 +11,20 @@ namespace Aggregates.Internal
 {
     public class MemoryStreamCache : IStreamCache
     {
-        private readonly static ConcurrentDictionary<String, IEventStream> _cache =
-            new ConcurrentDictionary<string, IEventStream>();
+        private readonly static MemoryCache _cache = new MemoryCache("EventStreams");
         
         public void Cache(String stream, IEventStream eventstream)
         {
-            _cache.TryAdd(stream, eventstream);
+            _cache.Set(stream, eventstream, new CacheItemPolicy { SlidingExpiration = TimeSpan.FromMinutes(5) });
         }
         public void Evict(String stream)
         {
-            IEventStream eventstream;
-            _cache.TryRemove(stream, out eventstream);
+            _cache.Remove(stream);
         }
         public IEventStream Retreive(String stream)
         {
             IEventStream eventstream = null;
-            _cache.TryGetValue(stream, out eventstream);
+            _cache.Get(stream);
             if (eventstream == null) return null;
 
             return eventstream.Clone();

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 using NServiceBus;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Unicast;
@@ -54,7 +53,6 @@ namespace Aggregates.Internal
         private readonly Boolean _dropEventFatal;
 
         private readonly CancellationTokenSource _cancelToken;
-        private readonly TaskScheduler _scheduler;
 
         private Int32 _processingQueueSize;
         private readonly Int32 _maxQueueSize;
@@ -80,13 +78,13 @@ namespace Aggregates.Internal
                     Logger.Debug(msg);
             }
 
-            Task.Factory.StartNew((state) =>
+            Task.Run(async () =>
             {
-                var dispatcher = (NServiceBusDispatcher)state;
-                dispatcher.Process(x.Event, x.Descriptor, x.Position);
+                await Process(x.Event, x.Descriptor, x.Position);
                 _queueSize.Decrement();
-                Interlocked.Decrement(ref dispatcher._processingQueueSize);
-            }, state: this, creationOptions: TaskCreationOptions.None, cancellationToken: _cancelToken.Token, scheduler: _scheduler);
+                Interlocked.Decrement(ref _processingQueueSize);
+            }, _cancelToken.Token);
+            
         }
 
         public NServiceBusDispatcher(IBuilder builder, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
@@ -103,14 +101,12 @@ namespace Aggregates.Internal
 
             _invokeCache = new ConcurrentDictionary<String, IList<Type>>();
 
-            var parallelism = settings.Get<Int32>("HandlerParallelism");
+            var parallelism = settings.Get<Int32>("Parallelism");
             _parallelOptions = new ParallelOptions
             {
                 MaxDegreeOfParallelism = parallelism,
             };
-
-            parallelism = settings.Get<Int32>("ProcessingParallelism");
-            _scheduler = new LimitedConcurrencyLevelTaskScheduler(parallelism);
+            
             _cancelToken = new CancellationTokenSource();
         }
 
@@ -130,7 +126,7 @@ namespace Aggregates.Internal
         }
 
         // Todo: all the logging and timing can be moved into a "Debug Dispatcher" which can be registered as the IDispatcher if the user wants
-        private void Process(Object @event, IEventDescriptor descriptor = null, long? position = null)
+        private Task Process(Object @event, IEventDescriptor descriptor = null, long? position = null)
         {
             // Use NSB internal handler registry to directly call Handle(@event)
             // This will prevent the event from being queued on MSMQ
@@ -155,26 +151,26 @@ namespace Aggregates.Internal
                     var retry = 0;
                     do
                     {
-                        var uows = new Stack<IEventUnitOfWork>();
+                        var uows = new ConcurrentStack<IEventUnitOfWork>();
 
                         var mutators = childBuilder.BuildAll<IEventMutator>();
 
                         if (Logger.IsDebugEnabled)
                             s = Stopwatch.StartNew();
                         if (mutators != null && mutators.Any())
-                            foreach (var mutate in mutators)
+                            Parallel.ForEach(mutators, _parallelOptions, mutate =>
                             {
                                 if (Logger.IsDebugEnabled)
                                     Logger.DebugFormat("Mutating incoming event {0} with mutator {1}", eventType.FullName, mutate.GetType().FullName);
                                 @event = mutate.MutateIncoming(@event, descriptor, position);
-                            }
+                            });
 
-                        foreach (var uow in childBuilder.BuildAll<IEventUnitOfWork>())
+                        Parallel.ForEach(childBuilder.BuildAll<IEventUnitOfWork>(), _parallelOptions, async uow =>
                         {
                             uows.Push(uow);
                             uow.Builder = childBuilder;
-                            uow.Begin();
-                        }
+                            await uow.Begin();
+                        });
 
                         if (Logger.IsDebugEnabled)
                         {
@@ -241,25 +237,23 @@ namespace Aggregates.Internal
                         }
                         catch (Exception e)
                         {
-
-
-                            var trailingExceptions = new List<Exception>();
-                            while (uows.Count > 0)
+                            var trailingExceptions = new ConcurrentBag<Exception>();
+                            Parallel.ForEach(uows.Generate(), _parallelOptions, async (uow) =>
                             {
-                                var uow = uows.Pop();
                                 try
                                 {
-                                    uow.End(e);
+                                    await uow.End(e);
                                 }
                                 catch (Exception endException)
                                 {
                                     trailingExceptions.Add(endException);
                                 }
-                            }
+                            });
                             if (trailingExceptions.Any())
                             {
-                                trailingExceptions.Insert(0, e);
-                                e = new System.AggregateException(trailingExceptions);
+                                var exceptions = trailingExceptions.ToList();
+                                exceptions.Insert(0, e);
+                                e = new System.AggregateException(exceptions);
                             }
 
                             // Only log if the event has failed more than half max retries indicating a possible non-transient error
@@ -286,12 +280,19 @@ namespace Aggregates.Internal
                         {
                             try
                             {
-                                while (uows.Count > 0)
+                                Parallel.ForEach(uows.Generate(), _parallelOptions, async (uow) =>
                                 {
-                                    var uow = uows.Peek();
-                                    uow.End();
-                                    uows.Pop();
-                                }
+                                    try
+                                    {
+                                        await uow.End();
+                                    }
+                                    catch
+                                    {
+                                        // If it failed it needs to go back on the stack
+                                        uows.Push(uow);
+                                        throw;
+                                    }
+                                });
                                 endSuccess = true;
                             }
                             catch (Exception e)
@@ -322,11 +323,11 @@ namespace Aggregates.Internal
                         }
 
                         Logger.Error(message);
-                        return;
                     }
 
                 }
             }
+            return Task.FromResult(true);
         }
 
 

@@ -109,17 +109,18 @@ namespace Aggregates.Internal
             return Compute<TComputed, TResponse>(result);
         }
 
-        void ICommandUnitOfWork.Begin()
+        Task ICommandUnitOfWork.Begin()
         {
             _commandsMeter.Mark();
             _commandsConcurrent.Increment();
             _timerContext = _commandsTimer.NewContext();
+            return Task.FromResult(true);
         }
 
-        void ICommandUnitOfWork.End(Exception ex)
+        async Task ICommandUnitOfWork.End(Exception ex)
         {
             if (ex == null)
-                Commit();
+                await Commit();
             else
                 _errorsMeter.Mark();
 
@@ -127,16 +128,17 @@ namespace Aggregates.Internal
             _timerContext.Dispose();
         }
 
-        void IEventUnitOfWork.Begin()
+        Task IEventUnitOfWork.Begin()
         {
             _eventsMeter.Mark();
             _eventsConcurrent.Increment();
             _timerContext = _eventsTimer.NewContext();
+            return Task.FromResult(true);
         }
-        void IEventUnitOfWork.End(Exception ex)
+        async Task IEventUnitOfWork.End(Exception ex)
         {
             if (ex == null)
-                Commit();
+                await Commit();
             else
                 _errorsMeter.Mark();
 
@@ -159,14 +161,14 @@ namespace Aggregates.Internal
             if (_workHeaders.TryGetValue(Defaults.CommitIdHeader, out messageId))
                 commitId = Guid.Parse(messageId);
 
-            Parallel.ForEach(_repositories.Values, (repo) =>
+            Parallel.ForEach(_repositories.Values, async (repo) =>
             {
                 try
                 {
                     // Insert all command headers into the commit
                     var headers = new Dictionary<String, String>(_workHeaders);
 
-                    repo.Commit(commitId, headers);
+                    await repo.Commit(commitId, headers);
                 }
                 catch (StorageException e)
                 {

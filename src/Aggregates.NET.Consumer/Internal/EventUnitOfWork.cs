@@ -26,15 +26,16 @@ namespace Aggregates.Internal
             _settings = settings;
         }
 
-        public void Begin()
+        public Task Begin()
         {
+            return Task.FromResult(true);
         }
 
-        public void End(Exception ex = null)
+        public async Task End(Exception ex = null)
         {
             if (ex != null) return;
             if(this.CurrentPosition.HasValue)
-                _checkpoints.Save(_settings.EndpointName(), CurrentPosition.Value);
+                await _checkpoints.Save(_settings.EndpointName(), CurrentPosition.Value);
         }
 
         public object MutateIncoming(object Event, IEventDescriptor Descriptor, long? Position)

@@ -42,7 +42,7 @@ namespace Aggregates.Internal
 
         public void SubscribeToAll(String endpoint)
         {
-            var saved = _store.Load(endpoint);
+            var saved = _store.Load(endpoint).Result;
 
             var readSize = _settings.Get<Int32>("ReadSize");
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from position '{1}'", endpoint, saved);
