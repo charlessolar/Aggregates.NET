@@ -41,6 +41,13 @@ namespace Aggregates
 
             var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
 
+            if (_shouldCache)
+            {
+                var cached = _cache.RetreiveSnap(streamId);
+                if (cached != null)
+                    return cached;
+            }
+
             var read = await _client.ReadEventAsync(streamId, StreamPosition.End, false);
             if (read.Status != EventReadStatus.Success || !read.Event.HasValue)
                 return null;
@@ -50,7 +57,7 @@ namespace Aggregates
             var descriptor = @event.Metadata.Deserialize(_settings);
             var data = @event.Data.Deserialize(@event.EventType, _settings);
 
-            return new Snapshot
+            var snapshot = new Snapshot
             {
                 EntityType = descriptor.EntityType,
                 Bucket = bucket,
@@ -59,6 +66,9 @@ namespace Aggregates
                 Version = descriptor.Version,
                 Payload = data
             };
+            if (_shouldCache)
+                _cache.CacheSnap(streamId, snapshot);
+            return snapshot;
         }
 
 
@@ -66,6 +76,9 @@ namespace Aggregates
         {
             Logger.DebugFormat("Writing {0} snapshots to stream id '{1}' in bucket '{2}'", snapshots.Count(), stream, bucket);
             var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
+
+            if (_shouldCache)
+                _cache.EvictSnap(streamId);
 
             var translatedEvents = snapshots.Select(e =>
             {

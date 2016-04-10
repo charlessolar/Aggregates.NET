@@ -12,5 +12,9 @@ namespace Aggregates.Contracts
         void Cache(String stream, IEventStream eventstream);
         void Evict(String stream);
         IEventStream Retreive(String stream);
+
+        void CacheSnap(String stream, ISnapshot snapshot);
+        void EvictSnap(String stream);
+        ISnapshot RetreiveSnap(String stream);
     }
 }

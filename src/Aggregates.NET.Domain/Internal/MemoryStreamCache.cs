@@ -11,7 +11,7 @@ namespace Aggregates.Internal
 {
     public class MemoryStreamCache : IStreamCache
     {
-        private readonly static MemoryCache _cache = new MemoryCache("EventStreams");
+        private readonly static MemoryCache _cache = new MemoryCache("Aggregates Cache");
         
         public void Cache(String stream, IEventStream eventstream)
         {
@@ -23,11 +23,24 @@ namespace Aggregates.Internal
         }
         public IEventStream Retreive(String stream)
         {
-            IEventStream eventstream = null;
-            _cache.Get(stream);
+            var eventstream = _cache.Get(stream) as IEventStream;
             if (eventstream == null) return null;
 
             return eventstream.Clone();
+        }
+        public void CacheSnap(String stream, ISnapshot snapshot)
+        {
+            _cache.Set(stream, snapshot, new CacheItemPolicy { SlidingExpiration = TimeSpan.FromMinutes(5) });
+        }
+        public void EvictSnap(String stream)
+        {
+            _cache.Remove(stream);
+        }
+        public ISnapshot RetreiveSnap(String stream)
+        {
+            var snap = _cache.Get(stream) as ISnapshot;
+
+            return snap;
         }
     }
 }
