@@ -114,7 +114,7 @@ namespace Aggregates.Internal
         {
             Logger.DebugFormat("Event stream {0} commiting events", this.StreamId);
 
-            Parallel.ForEach(this._children.Values, async (child) =>
+            await this._children.Values.ForEachAsync(2, async (child) =>
             {
                 Logger.DebugFormat("Event stream {0} commiting changes to child stream {1}", this.StreamId, child.StreamId);
                 await child.Commit(commitId, commitHeaders);

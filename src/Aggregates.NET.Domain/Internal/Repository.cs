@@ -1,5 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Exceptions;
+using Aggregates.Extensions;
 using Metrics;
 using NServiceBus;
 using NServiceBus.Logging;
@@ -41,10 +42,10 @@ namespace Aggregates.Internal
             _snapstore = _builder.Build<IStoreSnapshots>();
         }
 
-        Task IRepository.Commit(Guid commitId, IDictionary<String, String> headers)
+        async Task IRepository.Commit(Guid commitId, IDictionary<String, String> headers)
         {
             var written = 0;
-            Parallel.ForEach(_tracked.Values, async (tracked) =>
+            await _tracked.Values.ForEachAsync(4, async (tracked) =>
             {
                 var stream = tracked.Stream;
 
@@ -93,7 +94,6 @@ namespace Aggregates.Internal
                 } while (!success && count < 5);
 
             });
-            return Task.FromResult(true);
         }
 
         private IEventStream ResolveConflict(IEventStream stream)

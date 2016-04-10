@@ -126,7 +126,7 @@ namespace Aggregates.Internal
         }
 
         // Todo: all the logging and timing can be moved into a "Debug Dispatcher" which can be registered as the IDispatcher if the user wants
-        private Task Process(Object @event, IEventDescriptor descriptor = null, long? position = null)
+        private async Task Process(Object @event, IEventDescriptor descriptor = null, long? position = null)
         {
             // Use NSB internal handler registry to directly call Handle(@event)
             // This will prevent the event from being queued on MSMQ
@@ -165,7 +165,7 @@ namespace Aggregates.Internal
                                 @event = mutate.MutateIncoming(@event, descriptor, position);
                             });
 
-                        Parallel.ForEach(childBuilder.BuildAll<IEventUnitOfWork>(), _parallelOptions, async uow =>
+                        await childBuilder.BuildAll<IEventUnitOfWork>().ForEachAsync(2, async (uow) =>
                         {
                             uows.Push(uow);
                             uow.Builder = childBuilder;
@@ -220,7 +220,7 @@ namespace Aggregates.Internal
 
                              };
 
-                            // Run each handler in parallel (or not)
+                            // Run each handler in parallel (or not) (if handler ever is ASYNC can't use Parallel)
                             if (_parallelHandlers)
                                 Parallel.ForEach(handlersToInvoke, _parallelOptions, processor);
                             else
@@ -238,7 +238,7 @@ namespace Aggregates.Internal
                         catch (Exception e)
                         {
                             var trailingExceptions = new ConcurrentBag<Exception>();
-                            Parallel.ForEach(uows.Generate(), _parallelOptions, async (uow) =>
+                            await uows.Generate().ForEachAsync(2, async (uow) =>
                             {
                                 try
                                 {
@@ -280,7 +280,7 @@ namespace Aggregates.Internal
                         {
                             try
                             {
-                                Parallel.ForEach(uows.Generate(), _parallelOptions, async (uow) =>
+                                await uows.Generate().ForEachAsync(2, async (uow) =>
                                 {
                                     try
                                     {
@@ -327,7 +327,6 @@ namespace Aggregates.Internal
 
                 }
             }
-            return Task.FromResult(true);
         }
 
 

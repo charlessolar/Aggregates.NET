@@ -1,5 +1,6 @@
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
+using Aggregates.Extensions;
 using Aggregates.Internal;
 using Metrics;
 using NServiceBus;
@@ -146,7 +147,7 @@ namespace Aggregates.Internal
             _timerContext.Dispose();
         }
 
-        private Task Commit()
+        private async Task Commit()
         {
 
             var commitId = Guid.NewGuid();
@@ -161,7 +162,7 @@ namespace Aggregates.Internal
             if (_workHeaders.TryGetValue(Defaults.CommitIdHeader, out messageId))
                 commitId = Guid.Parse(messageId);
 
-            Parallel.ForEach(_repositories.Values, async (repo) =>
+            await _repositories.Values.ForEachAsync(2, async (repo) =>
             {
                 try
                 {
@@ -175,7 +176,6 @@ namespace Aggregates.Internal
                     throw new PersistenceException(e.Message, e);
                 }
             });
-            return Task.FromResult(true);
         }
 
         public void MutateOutgoing(LogicalMessage message, TransportMessage transportMessage)
