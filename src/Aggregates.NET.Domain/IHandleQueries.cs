@@ -9,6 +9,6 @@ namespace Aggregates
 {
     public interface IHandleQueries<TQuery, TResponse> where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
     {
-        IEnumerable<TResponse> Handle(TQuery query);
+        Task<IEnumerable<TResponse>> Handle(TQuery query);
     }
 }

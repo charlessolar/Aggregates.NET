@@ -31,11 +31,12 @@ namespace Aggregates.Internal
         private readonly ReadOnlySettings _settings;
         private readonly JsonSerializerSettings _jsonSettings;
         private readonly HashSet<Int32> _buckets;
-        private readonly ConcurrentDictionary<Int32, long> _seenBuckets;
+        private readonly IDictionary<Int32, long> _seenBuckets;
         private readonly System.Threading.Timer _bucketChecker;
         private readonly Int32 _bucketCount;
         private Int32? _adopting;
         private Int64? _adoptingPosition;
+        private Object _lock = new object();
 
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
@@ -48,7 +49,7 @@ namespace Aggregates.Internal
             _settings = settings;
             _jsonSettings = jsonSettings;
             _buckets = new HashSet<Int32>();
-            _seenBuckets = new ConcurrentDictionary<Int32, long>();
+            _seenBuckets = new Dictionary<Int32, long>();
             _bucketCount = _settings.Get<Int32>("BucketCount");
 
             var period = TimeSpan.FromSeconds(_settings.Get<Int32>("BucketHeartbeats"));
@@ -62,9 +63,12 @@ namespace Aggregates.Internal
                 var endpoint = consumer._settings.EndpointName();
 
                 var notSeenBuckets = new HashSet<Int32>(consumer._buckets);
-                var seenBuckets = new Dictionary<Int32, long>(consumer._seenBuckets);
-                consumer._seenBuckets.Clear();
-                
+                IDictionary<Int32, long> seenBuckets;
+                lock(_lock)
+                {
+                    seenBuckets = new Dictionary<Int32, long>(consumer._seenBuckets);
+                    consumer._seenBuckets.Clear();
+                }
 
                 foreach (var seen in seenBuckets)
                 {
@@ -214,7 +218,7 @@ namespace Aggregates.Internal
                     if (_buckets.Count >= handledBuckets || _seenBuckets.ContainsKey(bucket))
                     {
                         //Logger.DebugFormat("Event appeared position {0}... skipping", e.OriginalPosition?.CommitPosition);
-                        _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
+                        lock(_lock) _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
                         return;
                     }
                     else
@@ -228,13 +232,13 @@ namespace Aggregates.Internal
                         }
                         else
                         {
-                            _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
+                            lock(_lock) _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
                             return;
                         }
                     }
                 }
                 //Logger.DebugFormat("Event appeared position {0}... processing - bucket {1}", e.OriginalPosition?.CommitPosition, bucket);
-                _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
+                lock(_lock) _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
 
 
                 var descriptor = e.Event.Metadata.Deserialize(_jsonSettings);

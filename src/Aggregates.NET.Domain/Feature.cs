@@ -14,6 +14,7 @@ using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
+using NServiceBus.Pipeline;
 
 namespace Aggregates
 {
@@ -34,12 +35,7 @@ namespace Aggregates
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<Processor>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<MemoryStreamCache>(DependencyLifecycle.InstancePerCall);
-
-            context.Container.ConfigureComponent<Func<Accept>>(y =>
-            {
-                var eventFactory = y.Build<IMessageCreator>();
-                return () => { return eventFactory.CreateInstance<Accept>(); };
-            }, DependencyLifecycle.SingleInstance);
+            
 
             context.Container.ConfigureComponent<Func<String, Reject>>(y =>
             {
@@ -60,6 +56,7 @@ namespace Aggregates
             context.Pipeline.Register<ExceptionFilterRegistration>();
             context.Pipeline.Register<CommandUnitOfWorkRegistration>();
             context.Pipeline.Register<SafetyNetRegistration>();
+            context.Pipeline.Replace(WellKnownStep.InvokeHandlers, typeof(AsyncronizedInvoke), "Invokes the message handler with Task.Run");
             //context.Pipeline.Register<TesterBehaviorRegistration>();
 
             // Register all query handlers in the container

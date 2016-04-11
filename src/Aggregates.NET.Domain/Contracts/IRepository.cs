@@ -15,12 +15,12 @@ namespace Aggregates.Contracts
 
     public interface IRepository<T> : IRepository where T : class, IEntity
     {
-        T Get<TId>(TId id);
+        Task<T> Get<TId>(TId id);
 
-        T Get<TId>(String bucketId, TId id);
+        Task<T> Get<TId>(String bucketId, TId id);
 
-        T New<TId>(String bucketId, TId id);
+        Task<T> New<TId>(String bucketId, TId id);
 
-        T New<TId>(TId id);
+        Task<T> New<TId>(TId id);
     }
 }

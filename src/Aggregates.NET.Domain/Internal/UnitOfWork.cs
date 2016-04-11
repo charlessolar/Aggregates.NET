@@ -89,22 +89,22 @@ namespace Aggregates.Internal
 
             return (IRepository<T>)repository;
         }
-        public IEnumerable<TResponse> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
+        public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
             var processor = Builder.Build<IProcessor>();
             return processor.Process<TQuery, TResponse>(Builder, query);
         }
-        public IEnumerable<TResponse> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
+        public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
             var result = _mapper.CreateInstance(query);
             return Query<TQuery, TResponse>(result);
         }
-        public TResponse Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>
+        public Task<TResponse> Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>
         {
             var processor = Builder.Build<IProcessor>();
             return processor.Compute<TComputed, TResponse>(Builder, computed);
         }
-        public TResponse Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>
+        public Task<TResponse> Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>
         {
             var result = _mapper.CreateInstance(computed);
             return Compute<TComputed, TResponse>(result);

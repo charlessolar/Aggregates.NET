@@ -67,24 +67,24 @@ namespace Aggregates
 
             return (IEntityRepository<TId, TEntity>)(_repositories[type] = (IEntityRepository)_repoFactory.ForEntity<TId, TEntity>(Id, Stream, _builder));
         }
-        public IEnumerable<TResponse> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
+        public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
             var processor = _builder.Build<IProcessor>();
             return processor.Process<TQuery, TResponse>(_builder, query);
         }
-        public IEnumerable<TResponse> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
+        public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
             var result = (TQuery)FormatterServices.GetUninitializedObject(typeof(TQuery));
             query.Invoke(result);
             return Query<TQuery, TResponse>(result);
         }
 
-        public TResponse Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>
+        public Task<TResponse> Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>
         {
             var processor = _builder.Build<IProcessor>();
             return processor.Compute<TComputed, TResponse>(_builder, computed);
         }
-        public TResponse Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>
+        public Task<TResponse> Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>
         {
             var result = (TComputed)FormatterServices.GetUninitializedObject(typeof(TComputed));
             computed.Invoke(result);

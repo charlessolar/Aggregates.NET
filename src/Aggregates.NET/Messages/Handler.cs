@@ -8,10 +8,8 @@ using System.Threading.Tasks;
 namespace Aggregates.Messages
 {
     internal class Handler :
-        IHandleMessages<Accept>,
         IHandleMessages<Reject>
     {
-        public void Handle(Accept e) { }
-        public void Handle(Reject e) { }
+        public override Task Handle(Reject e) { return Task.FromResult(0); }
     }
 }

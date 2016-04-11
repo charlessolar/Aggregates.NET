@@ -11,8 +11,8 @@ namespace Aggregates.Contracts
 
     public interface IEntityRepository<TAggregateId, T> : IEntityRepository where T : class, IEntity
     {
-        T Get<TId>(TId id);
+        Task<T> Get<TId>(TId id);
 
-        T New<TId>(TId id);
+        Task<T> New<TId>(TId id);
     }
 }

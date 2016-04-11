@@ -9,8 +9,8 @@ namespace Aggregates.Contracts
 {
     public interface IProcessor
     {
-        IEnumerable<TResponse> Process<TQuery, TResponse>(IBuilder builder, TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>;
+        Task<IEnumerable<TResponse>> Process<TQuery, TResponse>(IBuilder builder, TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>;
 
-        TResponse Compute<TComputed, TResponse>(IBuilder builder, TComputed compute) where TComputed : IComputed<TResponse>;
+        Task<TResponse> Compute<TComputed, TResponse>(IBuilder builder, TComputed compute) where TComputed : IComputed<TResponse>;
     }
 }

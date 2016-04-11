@@ -34,7 +34,6 @@ namespace Aggregates.Internal
                 {
                     next();
                     // Tell the sender the command was accepted
-                    var acceptance = context.Builder.Build<Func<Accept>>();
                     _bus.Return(0);
                 }
                 catch (BusinessException e)

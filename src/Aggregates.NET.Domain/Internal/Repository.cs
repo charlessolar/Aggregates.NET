@@ -73,7 +73,7 @@ namespace Aggregates.Internal
                         try
                         {
                             //Logger.DebugFormat("Stream {0} entity {1} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName);
-                            stream = ResolveConflict(tracked.Stream);
+                            stream = await ResolveConflict(tracked.Stream);
                             ConflictsResolved.Mark();
                         }
                         catch
@@ -96,11 +96,11 @@ namespace Aggregates.Internal
             });
         }
 
-        private IEventStream ResolveConflict(IEventStream stream)
+        private async Task<IEventStream> ResolveConflict(IEventStream stream)
         {
             var uncommitted = stream.Uncommitted;
             // Get latest stream from store
-            var existing = Get(stream.Bucket, stream.StreamId);
+            var existing = await Get(stream.Bucket, stream.StreamId);
             // Hydrate the uncommitted events
             existing.Hydrate(uncommitted);
             // Success! Streams merged
@@ -123,26 +123,26 @@ namespace Aggregates.Internal
             _disposed = true;
         }
 
-        public virtual T Get<TId>(TId id)
+        public virtual Task<T> Get<TId>(TId id)
         {
             return Get<TId>(Defaults.Bucket, id);
         }
 
-        public T Get<TId>(String bucket, TId id)
+        public Task<T> Get<TId>(String bucket, TId id)
         {
             //Logger.DebugFormat("Retreiving aggregate id '{0}' from bucket '{1}' in store", id, bucket);
             var root = Get(bucket, id.ToString());
             (root as IEventSource<TId>).Id = id;
             return root;
         }
-        public T Get(String bucket, String id)
+        public async Task<T> Get(String bucket, String id)
         {
             var cacheId = String.Format("{0}.{1}", bucket, id);
             T root;
             if(!_tracked.TryGetValue(cacheId, out root))
             {
-                var snapshot = GetSnapshot(bucket, id);
-                var stream = OpenStream(bucket, id, snapshot);
+                var snapshot = await GetSnapshot(bucket, id);
+                var stream = await OpenStream(bucket, id, snapshot);
 
                 if (stream == null && snapshot == null)
                     throw new NotFoundException("Aggregate snapshot not found");
@@ -165,21 +165,21 @@ namespace Aggregates.Internal
             return root;
         }
 
-        public virtual T New<TId>(TId id)
+        public virtual Task<T> New<TId>(TId id)
         {
             return New<TId>(Defaults.Bucket, id);
         }
 
-        public T New<TId>(String bucket, TId id)
+        public Task<T> New<TId>(String bucket, TId id)
         {
             var root = New(bucket, id.ToString());
             (root as IEventSource<TId>).Id = id;
 
             return root;
         }
-        public T New(String bucket, String streamId)
+        public async Task<T> New(String bucket, String streamId)
         {
-            var stream = OpenStream(bucket, streamId);
+            var stream = await OpenStream(bucket, streamId);
             var root = Newup(stream, _builder);
 
             var cacheId = String.Format("{0}.{1}", bucket, streamId);
@@ -214,14 +214,14 @@ namespace Aggregates.Internal
             return root;
         }
         
-        protected ISnapshot GetSnapshot(String bucket, String streamId)
+        protected Task<ISnapshot> GetSnapshot(String bucket, String streamId)
         {
-            return _snapstore.GetSnapshot(bucket, streamId).Result;
+            return _snapstore.GetSnapshot(bucket, streamId);
         }
 
-        protected IEventStream OpenStream(String bucket, String streamId, ISnapshot snapshot = null)
+        protected Task<IEventStream> OpenStream(String bucket, String streamId, ISnapshot snapshot = null)
         {
-            return _store.GetStream<T>(bucket, streamId, snapshot?.Version + 1).Result;
+            return _store.GetStream<T>(bucket, streamId, snapshot?.Version + 1);
         }
         
     }

@@ -142,7 +142,7 @@ namespace Aggregates.Internal
 
 
                 var handlersToInvoke = _invokeCache.GetOrAdd(eventType.FullName,
-                    (key) => _handlerRegistry.GetHandlerTypes(eventType).ToList());
+                                                (key) => _handlerRegistry.GetHandlerTypes(eventType).ToList());
 
 
                 using (var childBuilder = _builder.CreateChildBuilder())
@@ -182,7 +182,7 @@ namespace Aggregates.Internal
                             //if (Logger.IsDebugEnabled)
                                 //s.Restart();
 
-                            Action<Type> processor = (handler) =>
+                            Action<Type> processor = async (handler) =>
                              {
                                  var instance = childBuilder.Build(handler);
 
@@ -198,7 +198,7 @@ namespace Aggregates.Internal
                                                  //Logger.DebugFormat("Executing event {0} on handler {1}", eventType.FullName, handler.FullName);
                                              //var handerWatch = Stopwatch.StartNew();
                                              handlerRetries++;
-                                             _handlerRegistry.InvokeHandle(instance, @event);
+                                             await Task.Run(() => _handlerRegistry.InvokeHandle(instance, @event));
                                              //handerWatch.Stop();
                                              handlerSuccess = true;
                                              //if (Logger.IsDebugEnabled)
@@ -209,7 +209,7 @@ namespace Aggregates.Internal
                                              Logger.InfoFormat("Received retry signal while dispatching event {0} to {1}. Retry: {2}/3\nException: {3}", eventType.FullName, handler.FullName, handlerRetries, e);
                                          }
 
-                                     } while (!handlerSuccess && handlerRetries <= 3);
+                                     } while (!handlerSuccess && handlerRetries <= _maxRetries);
 
                                      if (!handlerSuccess)
                                      {

@@ -8,6 +8,6 @@ namespace Aggregates
 {
     public interface IHandleComputed<TCompute, TResponse> where TCompute : IComputed<TResponse>
     {
-        TResponse Handle(TCompute compute);
+        Task<TResponse> Handle(TCompute compute);
     }
 }

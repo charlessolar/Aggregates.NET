@@ -13,7 +13,7 @@ namespace Aggregates.Internal
     public class Processor : IProcessor
     {
         [DebuggerStepThrough]
-        public IEnumerable<TResponse> Process<TQuery, TResponse>(IBuilder builder, TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
+        public Task<IEnumerable<TResponse>> Process<TQuery, TResponse>(IBuilder builder, TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
             var handlerType = typeof(IHandleQueries<,>).MakeGenericType(typeof(TQuery), typeof(TResponse));
 
@@ -22,7 +22,7 @@ namespace Aggregates.Internal
             return handler.Handle((dynamic)query);
         }
         [DebuggerStepThrough]
-        public TResponse Compute<TComputed, TResponse>(IBuilder builder, TComputed compute) where TComputed : IComputed<TResponse>
+        public Task<TResponse> Compute<TComputed, TResponse>(IBuilder builder, TComputed compute) where TComputed : IComputed<TResponse>
         {
             var handlerType = typeof(IHandleComputed<,>).MakeGenericType(typeof(TComputed), typeof(TResponse));
 

@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
@@ -32,12 +33,12 @@ namespace Aggregates.Internal
         }
 
 
-        public override T Get<TId>(TId id)
+        public override async Task<T> Get<TId>(TId id)
         {
             //Logger.DebugFormat("Retreiving entity id '{0}' from aggregate '{1}' in store", id, _aggregateId);
             var streamId = String.Format("{0}.{1}", _parentStream.StreamId, id);
 
-            var entity = Get(_parentStream.Bucket, streamId);
+            var entity = await Get(_parentStream.Bucket, streamId);
             (entity as IEventSource<TId>).Id = id;
             (entity as IEntity<TId, TAggregateId>).AggregateId = _aggregateId;
 
@@ -45,11 +46,11 @@ namespace Aggregates.Internal
             return entity;
         }
 
-        public override T New<TId>(TId id)
+        public override async Task<T> New<TId>(TId id)
         {
             var streamId = String.Format("{0}.{1}", _parentStream.StreamId, id);
 
-            var entity = New(_parentStream.Bucket, streamId);
+            var entity = await New(_parentStream.Bucket, streamId);
 
             try
             {
