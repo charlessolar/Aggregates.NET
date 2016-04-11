@@ -56,15 +56,16 @@ namespace Aggregates
             context.Pipeline.Register<ExceptionFilterRegistration>();
             context.Pipeline.Register<CommandUnitOfWorkRegistration>();
             context.Pipeline.Register<SafetyNetRegistration>();
+            context.Pipeline.Remove(WellKnownStep.LoadHandlers);
             context.Pipeline.Replace(WellKnownStep.InvokeHandlers, typeof(AsyncronizedInvoke), "Invokes the message handler with Task.Run");
             //context.Pipeline.Register<TesterBehaviorRegistration>();
 
-            // Register all query handlers in the container
-            foreach (var handler in context.Settings.GetAvailableTypes().Where(IsQueryOrComputeHandler))
+            // Register all query, computed, and message handlers in the container
+            foreach (var handler in context.Settings.GetAvailableTypes().Where(IsQueryOrComputeOrMessageHandler))
                 context.Container.ConfigureComponent(handler, DependencyLifecycle.InstancePerCall);
-            
+
         }
-        private static bool IsQueryOrComputeHandler(Type type)
+        private static bool IsQueryOrComputeOrMessageHandler(Type type)
         {
             if (type.IsAbstract || type.IsGenericTypeDefinition)
             {
@@ -74,7 +75,7 @@ namespace Aggregates
             return type.GetInterfaces()
                 .Where(@interface => @interface.IsGenericType)
                 .Select(@interface => @interface.GetGenericTypeDefinition())
-                .Any(genericTypeDef => genericTypeDef == typeof(IHandleQueries<,>) || genericTypeDef == typeof(IHandleComputed<,>));
+                .Any(genericTypeDef => genericTypeDef == typeof(IHandleQueries<,>) || genericTypeDef == typeof(IHandleComputed<,>) || genericTypeDef == typeof(IHandleMessagesAsync<>) || genericTypeDef == typeof(IHandleMessages<>));
         }
     }
 }

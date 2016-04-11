@@ -1,4 +1,6 @@
-﻿using NServiceBus.Pipeline;
+﻿using NServiceBus;
+using NServiceBus.ObjectBuilder;
+using NServiceBus.Pipeline;
 using NServiceBus.Pipeline.Contexts;
 using NServiceBus.Sagas;
 using System;
@@ -11,6 +13,7 @@ namespace Aggregates.Internal
 {
     internal class AsyncronizedInvoke : IBehavior<IncomingContext>
     {
+        public IBuilder Builder { get; set; }
         public void Invoke(IncomingContext context, Action next)
         {
             ActiveSagaInstance saga;
@@ -20,10 +23,21 @@ namespace Aggregates.Internal
                 next();
                 return;
             }
+            var messageToHandle = context.IncomingLogicalMessage;
 
-            var messageHandler = context.MessageHandler;
+            var handlerType = typeof(IHandleMessagesAsync<>).MakeGenericType(messageToHandle.MessageType);
+            dynamic handlers = Builder.BuildAll(handlerType);
 
-            Task.Run(() => messageHandler.Invocation(messageHandler.Instance, context.IncomingLogicalMessage.Instance));
+            foreach (var handler in handlers)
+                Task.Run(() => handler.Handle((dynamic)messageToHandle.Instance));
+
+            var syncHandlerType = typeof(IHandleMessages<>).MakeGenericType(messageToHandle.MessageType);
+            dynamic syncHandlers = Builder.BuildAll(syncHandlerType);
+
+            if(syncHandlers.Any())
+                foreach (var handler in syncHandlers)
+                    Task.Run(() => handler.Handle((dynamic)messageToHandle.Instance));
+
             next();
         }
     }

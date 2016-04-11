@@ -74,7 +74,7 @@
     <Compile Include="Extensions\DescriptorExtensions.cs" />
     <Compile Include="Extensions\DictionaryExtensions.cs" />
     <Compile Include="Extensions\StoreExtensions.cs" />
-    <Compile Include="IHandleMessages.cs" />
+    <Compile Include="IHandleMessagesAsync.cs" />
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />
     <Compile Include="Internal\LimitedConcurrencyLevelTaskScheduler.cs" />
