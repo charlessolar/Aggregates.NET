@@ -58,7 +58,7 @@ namespace Aggregates
 
         public IEntityRepository<TId, TEntity> For<TEntity>() where TEntity : class, IEntity
         {
-            //Logger.DebugFormat("Retreiving entity repository for type {0}", typeof(TEntity));
+            Logger.DebugFormat("Retreiving entity repository for type {0}", typeof(TEntity));
             var type = typeof(TEntity);
 
             IEntityRepository repository;
@@ -136,7 +136,7 @@ namespace Aggregates
             var route = _resolver.Resolve(this, eventType);
             if (route == null) return;
 
-            route(@event);
+            route(this, @event);
         }
     }
 
@@ -144,7 +144,7 @@ namespace Aggregates
     {
         void ISnapshotting.RestoreSnapshot(Object snapshot)
         {
-            //Logger.DebugFormat("Restoring snapshot to {0} id {1} version {2}", this.GetType().FullName, this.Id, this.Version);
+            Logger.DebugFormat("Restoring snapshot to {0} id {1} version {2}", this.GetType().FullName, this.Id, this.Version);
             RestoreSnapshot(snapshot as TMemento);
         }
 

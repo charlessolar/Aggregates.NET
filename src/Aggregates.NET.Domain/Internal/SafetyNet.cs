@@ -44,8 +44,8 @@ namespace Aggregates.Internal
                     retries++;
                     if (retries > (_maxRetries / 2))
                         Logger.InfoFormat("Caught exception - retry {0}/{1}\nException: {2}", retries, _maxRetries, exception);
-                    //else
-                        //Logger.DebugFormat("Caught exception - retry {0}/{1}\nException: {2}", retries, _maxRetries, exception);
+                    else
+                        Logger.DebugFormat("Caught exception - retry {0}/{1}\nException: {2}", retries, _maxRetries, exception);
                     Thread.Sleep(50);
                 }
             } while (!success && retries < _maxRetries);

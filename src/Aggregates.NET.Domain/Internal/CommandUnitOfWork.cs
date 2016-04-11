@@ -1,9 +1,12 @@
-﻿using Metrics;
+﻿using Aggregates.Extensions;
+using Metrics;
 using NServiceBus;
 using NServiceBus.Logging;
+using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
 using NServiceBus.Pipeline.Contexts;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -15,7 +18,7 @@ namespace Aggregates.Internal
     internal class TesterBehavior : IBehavior<IncomingContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(TesterBehavior));
-        
+
         private class StepObserver : IObserver<StepStarted>
         {
             private Guid ChainId = Guid.NewGuid();
@@ -39,7 +42,7 @@ namespace Aggregates.Internal
         {
             var observer = context.Get<IObservable<StepStarted>>("Diagnostics.Pipe");
             observer.Subscribe(new StepObserver());
-            
+
             next();
         }
     }
@@ -66,64 +69,70 @@ namespace Aggregates.Internal
         public void Invoke(IncomingContext context, Action next)
         {
             Stopwatch s = null;
-            var uows = new Stack<ICommandUnitOfWork>();
+            var uows = new ConcurrentStack<ICommandUnitOfWork>();
             try
             {
                 _commandsMeter.Mark();
                 using (_commandsTimer.NewContext())
                 {
-                    if (Logger.IsDebugEnabled)
-                        s = Stopwatch.StartNew();
-                    foreach (var uow in context.Builder.BuildAll<ICommandUnitOfWork>())
+                    context.Builder.BuildAll<ICommandUnitOfWork>().ForEachAsync(2, async (uow) =>
                     {
                         uows.Push(uow);
                         uow.Builder = context.Builder;
-                        uow.Begin();
-                    }
+                        await uow.Begin();
+                    }).Wait();
 
                     if (Logger.IsDebugEnabled)
-                    {
-                        s.Stop();
-                        //Logger.DebugFormat("UOW.Begin for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
-                    }
-                    if (Logger.IsDebugEnabled)
-                        s.Restart();
+                        s = Stopwatch.StartNew();
+
                     next();
 
                     if (Logger.IsDebugEnabled)
                     {
                         s.Stop();
-                        //Logger.DebugFormat("Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                        Logger.DebugFormat("Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
                         s.Restart();
                     }
 
-                    while (uows.Count > 0)
+                    uows.Generate().ForEachAsync(2, async (uow) =>
                     {
-                        uows.Pop().End();
-                    }
+                        try
+                        {
+                            await uow.End();
+                        }
+                        catch
+                        {
+                            // If it failed it needs to go back on the stack
+                            uows.Push(uow);
+                            throw;
+                        }
+                    }).Wait();
+                    Logger.Info("Finished UOW end");
                     if (Logger.IsDebugEnabled)
                     {
                         s.Stop();
-                        //Logger.DebugFormat("UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                        Logger.DebugFormat("UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
                     }
                 }
+
             }
-            catch (Exception e)
+            catch (System.AggregateException e)
             {
                 _errorsMeter.Mark();
                 var trailingExceptions = new List<Exception>();
-                while (uows.Count > 0)
+                uows.Generate().ForEachAsync(2, async (uow) =>
                 {
-                    var uow = uows.Pop();
                     try
                     {
-                        uow.End(e);
+                        await uow.End(e);
                     }
                     catch (Exception endException)
                     {
                         trailingExceptions.Add(endException);
                     }
-                }
+                }).Wait();
+
+
                 if (trailingExceptions.Any())
                 {
                     trailingExceptions.Insert(0, e);
@@ -139,7 +148,8 @@ namespace Aggregates.Internal
         public CommandUnitOfWorkRegistration()
             : base("CommandUnitOfWork", typeof(CommandUnitOfWork), "Begins and Ends command unit of work")
         {
-            InsertBefore(WellKnownStep.LoadHandlers);
+            InsertBefore(WellKnownStep.ExecuteUnitOfWork);
+            InsertAfter(WellKnownStep.CreateChildContainer);
         }
     }
 }

@@ -59,7 +59,7 @@ namespace Aggregates.Internal
         public ExceptionFilterRegistration()
             : base("ExceptionFilter", typeof(ExceptionFilter), "Filters [BusinessException] from processing failures")
         {
-            InsertBefore(WellKnownStep.LoadHandlers);
+            InsertAfter(WellKnownStep.ExecuteUnitOfWork);
 
         }
     }

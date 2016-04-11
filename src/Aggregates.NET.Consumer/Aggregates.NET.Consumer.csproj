@@ -71,6 +71,7 @@
     <Compile Include="IEventSubscriber.cs" />
     <Compile Include="IManageCompetes.cs" />
     <Compile Include="Internal\EventUnitOfWork.cs" />
+    <Compile Include="Internal\EventProcessor.cs" />
     <Compile Include="IPersistCheckpoints.cs" />
     <Compile Include="IEventUnitOfWork.cs" />
     <Compile Include="Internal\NServiceBusDispatcher.cs" />

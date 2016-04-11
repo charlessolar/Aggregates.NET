@@ -136,7 +136,7 @@ namespace Aggregates
 
         protected override void OnStart()
         {
-            //Logger.Debug("Starting event consumer");
+            Logger.Debug("Starting event consumer");
             _builder.Build<IEventSubscriber>().SubscribeToAll(_settings.EndpointName());
         }
     }

@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface IRouteResolver
+    public interface IInvokeObjects
     {
-        Action<IEventSource, Object> Resolve(IEventSource eventsource, Type eventType);
+        Func<Object, Object, Task> Invoker(object handler, Type messageType);
     }
 }

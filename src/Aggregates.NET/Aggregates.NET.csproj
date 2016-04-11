@@ -62,6 +62,7 @@
     <Compile Include="Attributes\ParallelAttribute.cs" />
     <Compile Include="Contracts\IEventDescriptor.cs" />
     <Compile Include="Contracts\IEventMutator.cs" />
+    <Compile Include="Contracts\IInvokeObjects.cs" />
     <Compile Include="Contracts\IWritableEvent.cs" />
     <Compile Include="Defaults.cs" />
     <Compile Include="Enumeration.cs" />
@@ -75,9 +76,9 @@
     <Compile Include="Extensions\DictionaryExtensions.cs" />
     <Compile Include="Extensions\StoreExtensions.cs" />
     <Compile Include="IHandleMessagesAsync.cs" />
+    <Compile Include="Internal\DefaultInvokeObjects.cs" />
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />
-    <Compile Include="Internal\LimitedConcurrencyLevelTaskScheduler.cs" />
     <Compile Include="Internal\WritableEvent.cs" />
     <Compile Include="Messages\Handler.cs" />
     <Compile Include="Messages\Reject.cs" />

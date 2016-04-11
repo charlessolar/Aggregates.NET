@@ -51,7 +51,7 @@ namespace Aggregates.Internal
 
                 if (tracked is ISnapshotting && (tracked as ISnapshotting).ShouldTakeSnapshot())
                 {
-                    //Logger.DebugFormat("Taking snapshot of {0} id {1} version {2}", tracked.GetType().FullName, tracked.StreamId, tracked.Version);
+                    Logger.DebugFormat("Taking snapshot of {0} id {1} version {2}", tracked.GetType().FullName, tracked.StreamId, tracked.Version);
                     var memento = (tracked as ISnapshotting).TakeSnapshot();
                     stream.AddSnapshot(memento, headers);
                 }
@@ -72,7 +72,7 @@ namespace Aggregates.Internal
                     {
                         try
                         {
-                            //Logger.DebugFormat("Stream {0} entity {1} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName);
+                            Logger.DebugFormat("Stream {0} entity {1} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName);
                             stream = await ResolveConflict(tracked.Stream);
                             ConflictsResolved.Mark();
                         }
@@ -128,10 +128,10 @@ namespace Aggregates.Internal
             return Get<TId>(Defaults.Bucket, id);
         }
 
-        public Task<T> Get<TId>(String bucket, TId id)
+        public async Task<T> Get<TId>(String bucket, TId id)
         {
-            //Logger.DebugFormat("Retreiving aggregate id '{0}' from bucket '{1}' in store", id, bucket);
-            var root = Get(bucket, id.ToString());
+            Logger.DebugFormat("Retreiving aggregate id '{0}' from bucket '{1}' in store", id, bucket);
+            var root = await Get(bucket, id.ToString());
             (root as IEventSource<TId>).Id = id;
             return root;
         }
@@ -170,9 +170,9 @@ namespace Aggregates.Internal
             return New<TId>(Defaults.Bucket, id);
         }
 
-        public Task<T> New<TId>(String bucket, TId id)
+        public async Task<T> New<TId>(String bucket, TId id)
         {
-            var root = New(bucket, id.ToString());
+            var root = await New(bucket, id.ToString());
             (root as IEventSource<TId>).Id = id;
 
             return root;

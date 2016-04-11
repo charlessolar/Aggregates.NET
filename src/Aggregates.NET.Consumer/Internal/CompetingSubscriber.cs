@@ -55,7 +55,7 @@ namespace Aggregates.Internal
             var period = TimeSpan.FromSeconds(_settings.Get<Int32>("BucketHeartbeats"));
             _bucketChecker = new System.Threading.Timer((state) =>
             {
-                //Logger.Debug("Processing compete heartbeats");
+                Logger.Debug("Processing compete heartbeats");
                 var handledBuckets = _settings.Get<Int32>("BucketsHandled");
                 var expiration = _settings.Get<Int32>("BucketExpiration");
 
@@ -76,7 +76,7 @@ namespace Aggregates.Internal
                     {
                         try
                         {
-                            //Logger.DebugFormat("Heartbeating bucket {0} position {1}", seen.Key, seen.Value);
+                            Logger.DebugFormat("Heartbeating bucket {0} position {1}", seen.Key, seen.Value);
                             consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value);
                         }
                         catch (DiscriminatorException)
@@ -92,7 +92,7 @@ namespace Aggregates.Internal
                         var lastBeat = consumer._competes.LastHeartbeat(endpoint, seen.Key);
                         if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
                         {
-                            //Logger.DebugFormat("Last beat on bucket {0} is {1} - it is {2} seconds old, adopting...", seen.Key, lastBeat, (DateTime.UtcNow - lastBeat.Value).TotalSeconds);
+                            Logger.DebugFormat("Last beat on bucket {0} is {1} - it is {2} seconds old, adopting...", seen.Key, lastBeat, (DateTime.UtcNow - lastBeat.Value).TotalSeconds);
                             // We saw new events but the consumer for this bucket has died, so we will adopt its bucket
                             AdoptBucket(consumer, endpoint, seen.Key);
                         }
@@ -101,7 +101,7 @@ namespace Aggregates.Internal
                     {
                         try
                         {
-                            //Logger.DebugFormat("Heartbeating adopted bucket {0} position {1}", seen.Key, consumer._adoptingPosition.Value);
+                            Logger.DebugFormat("Heartbeating adopted bucket {0} position {1}", seen.Key, consumer._adoptingPosition.Value);
                             consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, consumer._adoptingPosition.Value);
                         }
                         catch (DiscriminatorException)
@@ -121,7 +121,7 @@ namespace Aggregates.Internal
                 {
                     try
                     {
-                        //Logger.DebugFormat("Heartbeating unseen bucket {0}", bucket);
+                        Logger.DebugFormat("Heartbeating unseen bucket {0}", bucket);
                         consumer._competes.Heartbeat(endpoint, bucket, DateTime.UtcNow);
                     }
                     catch (DiscriminatorException)
@@ -160,7 +160,7 @@ namespace Aggregates.Internal
                 var eventBucket = Math.Abs(e.OriginalStreamId.GetHashCode() % consumer._bucketCount);
                 if (eventBucket != bucket) return;
 
-                //Logger.DebugFormat("Adopted event appeared position {0}... processing - bucket {1}", e.OriginalPosition?.CommitPosition);
+                Logger.DebugFormat("Adopted event appeared position {0}... processing - bucket {1}", e.OriginalPosition?.CommitPosition);
                 if (!e.OriginalPosition.HasValue) return;
 
                 var descriptor = e.Event.Metadata.Deserialize(consumer._jsonSettings);
@@ -217,13 +217,13 @@ namespace Aggregates.Internal
                     // If we are already handling enough buckets, or we've seen (and tried to claim) it before, ignore
                     if (_buckets.Count >= handledBuckets || _seenBuckets.ContainsKey(bucket))
                     {
-                        //Logger.DebugFormat("Event appeared position {0}... skipping", e.OriginalPosition?.CommitPosition);
+                        Logger.DebugFormat("Event appeared position {0}... skipping", e.OriginalPosition?.CommitPosition);
                         lock(_lock) _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
                         return;
                     }
                     else
                     {
-                        //Logger.DebugFormat("Attempting to claim bucket {0}", bucket);
+                        Logger.DebugFormat("Attempting to claim bucket {0}", bucket);
                         // Returns true if it claimed the bucket
                         if (_competes.CheckOrSave(endpoint, bucket, e.OriginalPosition.Value.CommitPosition))
                         {
@@ -237,7 +237,7 @@ namespace Aggregates.Internal
                         }
                     }
                 }
-                //Logger.DebugFormat("Event appeared position {0}... processing - bucket {1}", e.OriginalPosition?.CommitPosition, bucket);
+                Logger.DebugFormat("Event appeared position {0}... processing - bucket {1}", e.OriginalPosition?.CommitPosition, bucket);
                 lock(_lock) _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
 
 

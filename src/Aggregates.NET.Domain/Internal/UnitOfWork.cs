@@ -80,13 +80,15 @@ namespace Aggregates.Internal
 
         public IRepository<T> For<T>() where T : class, IAggregate
         {
-            //Logger.DebugFormat("Retreiving repository for type {0}", typeof(T));
+            Logger.DebugFormat("Retreiving repository for type {0}", typeof(T));
             var type = typeof(T);
 
             IRepository repository;
             if (!_repositories.TryGetValue(type, out repository))
-                _repositories[type] = repository = (IRepository)_repoFactory.ForAggregate<T>(Builder);
-
+            {
+                repository = (IRepository)_repoFactory.ForAggregate<T>(Builder);
+                lock(_repositories) _repositories[type] = repository;
+            }
             return (IRepository<T>)repository;
         }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>

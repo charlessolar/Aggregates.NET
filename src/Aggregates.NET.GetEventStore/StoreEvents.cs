@@ -44,7 +44,7 @@ namespace Aggregates
 
         public async Task<IEventStream> GetStream<T>(String bucket, String stream, Int32? start = null) where T : class, IEntity
         {
-            //Logger.DebugFormat("Getting stream '{0}' in bucket '{1}'", stream, bucket);
+            Logger.DebugFormat("Getting stream '{0}' in bucket '{1}'", stream, bucket);
 
             var streamId = String.Format("{0}.{1}", bucket, stream);
             var events = new List<ResolvedEvent>();
@@ -89,7 +89,7 @@ namespace Aggregates
 
         public async Task WriteEvents(String bucket, String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders)
         {
-            //Logger.DebugFormat("Writing {0} events to stream id '{1}'.  Expected version: {2}", events.Count(), stream, expectedVersion);
+            Logger.DebugFormat("Writing {0} events to stream id '{1}'.  Expected version: {2}", events.Count(), stream, expectedVersion);
             var streamId = String.Format("{0}.{1}", bucket, stream);
 
             if (_shouldCache)

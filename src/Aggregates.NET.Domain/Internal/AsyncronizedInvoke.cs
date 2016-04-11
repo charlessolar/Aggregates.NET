@@ -16,6 +16,7 @@ namespace Aggregates.Internal
         public IBuilder Builder { get; set; }
         public void Invoke(IncomingContext context, Action next)
         {
+
             ActiveSagaInstance saga;
 
             if (context.TryGet(out saga) && saga.NotFound && saga.SagaType == context.MessageHandler.Instance.GetType())
@@ -23,21 +24,10 @@ namespace Aggregates.Internal
                 next();
                 return;
             }
-            var messageToHandle = context.IncomingLogicalMessage;
 
-            var handlerType = typeof(IHandleMessagesAsync<>).MakeGenericType(messageToHandle.MessageType);
-            dynamic handlers = Builder.BuildAll(handlerType);
-
-            foreach (var handler in handlers)
-                Task.Run(() => handler.Handle((dynamic)messageToHandle.Instance));
-
-            var syncHandlerType = typeof(IHandleMessages<>).MakeGenericType(messageToHandle.MessageType);
-            dynamic syncHandlers = Builder.BuildAll(syncHandlerType);
-
-            if(syncHandlers.Any())
-                foreach (var handler in syncHandlers)
-                    Task.Run(() => handler.Handle((dynamic)messageToHandle.Instance));
-
+            var messageHandler = context.Get<AsyncMessageHandler>();
+            Task.Run((Func<Task>)(async () => await messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance))).Wait();
+            
             next();
         }
     }

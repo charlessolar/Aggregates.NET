@@ -69,6 +69,7 @@
     <Compile Include="IHandleComputed.cs" />
     <Compile Include="IBase.cs" />
     <Compile Include="Internal\AsyncronizedInvoke.cs" />
+    <Compile Include="Internal\AsyncronizedLoad.cs" />
     <Compile Include="Internal\CommandUnitOfWork.cs" />
     <Compile Include="Internal\MemoryStreamCache.cs" />
     <Compile Include="Internal\Processor.cs" />

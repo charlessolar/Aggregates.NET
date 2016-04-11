@@ -16,16 +16,16 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(DefaultRouteResolver));
 
-        private ConcurrentDictionary<Type, Action<Object>> _cache;
+        private ConcurrentDictionary<Type, Action<IEventSource, Object>> _cache;
         private IMessageMapper _mapper;
 
         public DefaultRouteResolver(IMessageMapper mapper)
         {
             _mapper = mapper;
-            _cache = new ConcurrentDictionary<Type, Action<Object>>();
+            _cache = new ConcurrentDictionary<Type, Action<IEventSource, Object>>();
         }
 
-        public Action<Object> Resolve<TId>(IEventSource<TId> eventsource, Type eventType)
+        public Action<IEventSource, Object> Resolve(IEventSource eventsource, Type eventType)
         {
             var mappedType = _mapper.GetMappedTypeFor(eventType);
 
@@ -44,9 +44,10 @@ namespace Aggregates.Internal
                 if (handleMethod == null)
                     return null;
 
-                Action<Object> action = m => handleMethod.Invoke(eventsource, new[] { m });
+                Action<IEventSource, Object> action = (es, m) => handleMethod.Invoke(es, new[] { m });
                 return action;
             });
         }
+
     }
 }
