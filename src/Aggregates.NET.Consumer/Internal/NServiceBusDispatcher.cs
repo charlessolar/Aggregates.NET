@@ -74,8 +74,8 @@ namespace Aggregates.Internal
                 var msg = String.Format("Queueing event {0} at position {1}.  Size of queue: {2}/{3}", x.Event.GetType().FullName, x.Position, _processingQueueSize, _maxQueueSize);
                 if (_processingQueueSize % 10 == 0)
                     Logger.Info(msg);
-                else
-                    Logger.Debug(msg);
+                //else
+                    //Logger.Debug(msg);
             }
 
             Task.Run(async () =>
@@ -132,13 +132,13 @@ namespace Aggregates.Internal
             // This will prevent the event from being queued on MSMQ
 
             var eventType = _mapper.GetMappedTypeFor(@event.GetType());
-            Stopwatch s = null;
+            //Stopwatch s = null;
 
             _eventsMeter.Mark();
             using (_eventsTimer.NewContext())
             {
-                if (Logger.IsDebugEnabled)
-                    Logger.DebugFormat("Processing event {0} at position {1}.  Size of queue: {2}/{3}", eventType.FullName, position, _processingQueueSize, _maxQueueSize);
+                //if (Logger.IsDebugEnabled)
+                    //Logger.DebugFormat("Processing event {0} at position {1}.  Size of queue: {2}/{3}", eventType.FullName, position, _processingQueueSize, _maxQueueSize);
 
 
                 var handlersToInvoke = _invokeCache.GetOrAdd(eventType.FullName,
@@ -155,13 +155,13 @@ namespace Aggregates.Internal
 
                         var mutators = childBuilder.BuildAll<IEventMutator>();
 
-                        if (Logger.IsDebugEnabled)
-                            s = Stopwatch.StartNew();
+                        //if (Logger.IsDebugEnabled)
+                        //    s = Stopwatch.StartNew();
                         if (mutators != null && mutators.Any())
                             Parallel.ForEach(mutators, _parallelOptions, mutate =>
                             {
-                                if (Logger.IsDebugEnabled)
-                                    Logger.DebugFormat("Mutating incoming event {0} with mutator {1}", eventType.FullName, mutate.GetType().FullName);
+                                //if (Logger.IsDebugEnabled)
+                                    //Logger.DebugFormat("Mutating incoming event {0} with mutator {1}", eventType.FullName, mutate.GetType().FullName);
                                 @event = mutate.MutateIncoming(@event, descriptor, position);
                             });
 
@@ -172,15 +172,15 @@ namespace Aggregates.Internal
                             await uow.Begin();
                         });
 
-                        if (Logger.IsDebugEnabled)
-                        {
-                            s.Stop();
-                            Logger.DebugFormat("UOW.Begin for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
-                        }
+                        //if (Logger.IsDebugEnabled)
+                        //{
+                        //    s.Stop();
+                            //Logger.DebugFormat("UOW.Begin for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                        //}
                         try
                         {
-                            if (Logger.IsDebugEnabled)
-                                s.Restart();
+                            //if (Logger.IsDebugEnabled)
+                                //s.Restart();
 
                             Action<Type> processor = (handler) =>
                              {
@@ -194,15 +194,15 @@ namespace Aggregates.Internal
                                      {
                                          try
                                          {
-                                             if (Logger.IsDebugEnabled)
-                                                 Logger.DebugFormat("Executing event {0} on handler {1}", eventType.FullName, handler.FullName);
-                                             var handerWatch = Stopwatch.StartNew();
+                                             //if (Logger.IsDebugEnabled)
+                                                 //Logger.DebugFormat("Executing event {0} on handler {1}", eventType.FullName, handler.FullName);
+                                             //var handerWatch = Stopwatch.StartNew();
                                              handlerRetries++;
                                              _handlerRegistry.InvokeHandle(instance, @event);
-                                             handerWatch.Stop();
+                                             //handerWatch.Stop();
                                              handlerSuccess = true;
-                                             if (Logger.IsDebugEnabled)
-                                                 Logger.DebugFormat("Executing event {0} on handler {1} took {2} ms", eventType.FullName, handler.FullName, handerWatch.ElapsedMilliseconds);
+                                             //if (Logger.IsDebugEnabled)
+                                                 //Logger.DebugFormat("Executing event {0} on handler {1} took {2} ms", eventType.FullName, handler.FullName, handerWatch.ElapsedMilliseconds);
                                          }
                                          catch (RetryException e)
                                          {
@@ -229,11 +229,11 @@ namespace Aggregates.Internal
                                     processor(handler);
                             }
 
-                            if (Logger.IsDebugEnabled)
-                            {
-                                s.Stop();
-                                Logger.DebugFormat("Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
-                            }
+                            //if (Logger.IsDebugEnabled)
+                            //{
+                            //    s.Stop();
+                                //Logger.DebugFormat("Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                            //}
                         }
                         catch (Exception e)
                         {
@@ -259,8 +259,8 @@ namespace Aggregates.Internal
                             // Only log if the event has failed more than half max retries indicating a possible non-transient error
                             if(retry > (_maxRetries / 2))
                                 Logger.InfoFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, _jsonSettings), e);
-                            else
-                                Logger.DebugFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, _jsonSettings), e);
+                            //else
+                                //Logger.DebugFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, _jsonSettings), e);
 
                             _errorsMeter.Mark();
                             retry++;
@@ -272,8 +272,8 @@ namespace Aggregates.Internal
                         // Failures when executing UOW.End `could` be transient (network or disk hicup)
                         // A failure of 1 uow in a chain of 5 is a problem as it could create a mangled DB (partial update via one uow then crash)
                         // So we'll just keep retrying the failing UOW forever until it succeeds.
-                        if (Logger.IsDebugEnabled)
-                            s.Restart();
+                        //if (Logger.IsDebugEnabled)
+                            //s.Restart();
                         var endSuccess = false;
                         var endRetry = 0;
                         while (!endSuccess)
@@ -299,17 +299,17 @@ namespace Aggregates.Internal
                             {
                                 if (endRetry > (_maxRetries / 2))
                                     Logger.ErrorFormat("UOW.End failure while processing event {0} - retry {1}/{3}\nException:\n{2}", eventType.FullName, retry, e, _maxRetries);
-                                else
-                                    Logger.DebugFormat("UOW.End failure while processing event {0} - retry {1}/{3}\nException:\n{2}", eventType.FullName, retry, e, _maxRetries);
+                                //else
+                                    //Logger.DebugFormat("UOW.End failure while processing event {0} - retry {1}/{3}\nException:\n{2}", eventType.FullName, retry, e, _maxRetries);
                                 endRetry++;
                                 Thread.Sleep(50);
                             }
                         }
-                        if (Logger.IsDebugEnabled)
-                        {
-                            s.Stop();
-                            Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
-                        }
+                        //if (Logger.IsDebugEnabled)
+                        //{
+                        //    s.Stop();
+                            //Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                        //}
                         success = true;
                     } while (!success && retry < _maxRetries);
 

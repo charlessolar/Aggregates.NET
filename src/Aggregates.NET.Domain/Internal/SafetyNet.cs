@@ -29,18 +29,23 @@ namespace Aggregates.Internal
             bool success = false;
             do
             {
+                Exception exception = null;
                 try
                 {
                     next();
                     success = true;
                 }
-                catch (NotFoundException) { }
-                catch (PersistenceException) { }
-                catch (AggregateException) { }
-                catch (ConflictingCommandException) { }
+                catch (NotFoundException e) { exception = e; }
+                catch (PersistenceException e) { exception = e; }
+                catch (AggregateException e) { exception = e; }
+                catch (ConflictingCommandException e) { exception = e; }
                 if (!success)
                 {
                     retries++;
+                    if (retries > (_maxRetries / 2))
+                        Logger.InfoFormat("Caught exception - retry {0}/{1}\nException: {2}", retries, _maxRetries, exception);
+                    //else
+                        //Logger.DebugFormat("Caught exception - retry {0}/{1}\nException: {2}", retries, _maxRetries, exception);
                     Thread.Sleep(50);
                 }
             } while (!success && retries < _maxRetries);

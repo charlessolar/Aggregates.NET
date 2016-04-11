@@ -84,7 +84,7 @@ namespace Aggregates.Internal
                     if (Logger.IsDebugEnabled)
                     {
                         s.Stop();
-                        Logger.DebugFormat("UOW.Begin for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                        //Logger.DebugFormat("UOW.Begin for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
                     }
                     if (Logger.IsDebugEnabled)
                         s.Restart();
@@ -93,7 +93,7 @@ namespace Aggregates.Internal
                     if (Logger.IsDebugEnabled)
                     {
                         s.Stop();
-                        Logger.DebugFormat("Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                        //Logger.DebugFormat("Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
                         s.Restart();
                     }
 
@@ -104,7 +104,7 @@ namespace Aggregates.Internal
                     if (Logger.IsDebugEnabled)
                     {
                         s.Stop();
-                        Logger.DebugFormat("UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                        //Logger.DebugFormat("UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
                     }
                 }
             }

@@ -80,7 +80,7 @@ namespace Aggregates.Internal
 
         public IRepository<T> For<T>() where T : class, IAggregate
         {
-            Logger.DebugFormat("Retreiving repository for type {0}", typeof(T));
+            //Logger.DebugFormat("Retreiving repository for type {0}", typeof(T));
             var type = typeof(T);
 
             IRepository repository;

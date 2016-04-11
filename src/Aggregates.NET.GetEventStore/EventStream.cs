@@ -90,7 +90,7 @@ namespace Aggregates.Internal
             if (mutators != null && mutators.Any())
                 foreach (var mutate in mutators)
                 {
-                    Logger.DebugFormat("Mutating outgoing event {0} with mutator {1}", @event.GetType().FullName, mutate.GetType().FullName);
+                    //Logger.DebugFormat("Mutating outgoing event {0} with mutator {1}", @event.GetType().FullName, mutate.GetType().FullName);
                     writable = mutate.MutateOutgoing(writable);
                 }
 
@@ -112,11 +112,11 @@ namespace Aggregates.Internal
 
         public async Task Commit(Guid commitId, IDictionary<String, String> commitHeaders)
         {
-            Logger.DebugFormat("Event stream {0} commiting events", this.StreamId);
+            //Logger.DebugFormat("Event stream {0} commiting events", this.StreamId);
 
             await this._children.Values.ForEachAsync(2, async (child) =>
             {
-                Logger.DebugFormat("Event stream {0} commiting changes to child stream {1}", this.StreamId, child.StreamId);
+                //Logger.DebugFormat("Event stream {0} commiting changes to child stream {1}", this.StreamId, child.StreamId);
                 await child.Commit(commitId, commitHeaders);
             });
             
@@ -142,7 +142,7 @@ namespace Aggregates.Internal
             if (oldCommits.Any(x => x == commitId))
                 throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
 
-            Logger.DebugFormat("Event stream {0} committing {1} events", this.StreamId, _uncommitted.Count);
+            //Logger.DebugFormat("Event stream {0} committing {1} events", this.StreamId, _uncommitted.Count);
             try
             {
                 await _store.WriteEvents(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
@@ -171,13 +171,13 @@ namespace Aggregates.Internal
 
         public void AddChild(IEventStream stream)
         {
-            Logger.DebugFormat("Event stream {0} adding child {1}", this.StreamId, stream.StreamId);
+            //Logger.DebugFormat("Event stream {0} adding child {1}", this.StreamId, stream.StreamId);
             this._children[stream.StreamId] = stream;
         }
 
         public void ClearChanges()
         {
-            Logger.DebugFormat("Event stream {0} clearing changes", this.StreamId);
+            //Logger.DebugFormat("Event stream {0} clearing changes", this.StreamId);
             this._uncommitted.Clear();
             this._pendingShots.Clear();
             this._children.Clear();
