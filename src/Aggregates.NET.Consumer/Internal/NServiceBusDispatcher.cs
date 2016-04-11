@@ -229,7 +229,7 @@ namespace Aggregates.Internal
 
                             // Run each handler in parallel (or not) (if handler ever is ASYNC can't use Parallel)
                             if (_parallelHandlers)
-                                handlers.ForEachAsync(_parallelOptions.MaxDegreeOfParallelism, processor);
+                                await handlers.ForEachAsync(_parallelOptions.MaxDegreeOfParallelism, processor);
                             else
                             {
                                 foreach (var handler in handlers)
