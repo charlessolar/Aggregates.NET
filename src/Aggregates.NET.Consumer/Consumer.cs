@@ -23,7 +23,7 @@ namespace Aggregates
 
             Defaults(s =>
             {
-                s.SetDefault("Parallelism", Environment.ProcessorCount);
+                s.SetDefault("Parallelism", Environment.ProcessorCount / 2);
                 s.SetDefault("ParallelHandlers", true);
                 s.SetDefault("ReadSize", 200);
                 s.SetDefault("MaxRetries", -1);
@@ -58,7 +58,7 @@ namespace Aggregates
 
             Defaults(s =>
             {
-                s.SetDefault("Parallelism", Environment.ProcessorCount);
+                s.SetDefault("Parallelism", Environment.ProcessorCount / 2);
                 s.SetDefault("ParallelHandlers", true);
                 s.SetDefault("ReadSize", 200);
                 s.SetDefault("MaxRetries", -1);
@@ -90,7 +90,7 @@ namespace Aggregates
 
             Defaults(s =>
             {
-                s.SetDefault("Parallelism", Environment.ProcessorCount);
+                s.SetDefault("Parallelism", Environment.ProcessorCount / 2);
                 s.SetDefault("ParallelHandlers", true);
                 s.SetDefault("ReadSize", 200);
                 s.SetDefault("MaxRetries", -1);
