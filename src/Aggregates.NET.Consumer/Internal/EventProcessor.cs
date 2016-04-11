@@ -51,13 +51,19 @@ namespace Aggregates.Internal
                 {
                     if (_tasks.Count == 0)
                     {
-                        Thread.Sleep(10);
-                        continue;
+                        item = null;
                     }
-
-                    // Get the next item from the queue
-                    item = _tasks.First.Value;
-                    _tasks.RemoveFirst();
+                    else
+                    {
+                        // Get the next item from the queue
+                        item = _tasks.First.Value;
+                        _tasks.RemoveFirst();
+                    }
+                }
+                if(item == null)
+                {
+                    Thread.Sleep(250);
+                    continue;
                 }
                 // Process the event
                 item().Wait();
