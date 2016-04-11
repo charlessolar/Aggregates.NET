@@ -107,7 +107,6 @@ namespace Aggregates.Internal
                             throw;
                         }
                     }).Wait();
-                    Logger.Info("Finished UOW end");
                     if (Logger.IsDebugEnabled)
                     {
                         s.Stop();
