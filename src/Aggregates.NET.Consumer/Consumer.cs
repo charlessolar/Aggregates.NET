@@ -35,6 +35,7 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             context.Container.ConfigureComponent<EventUnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
+            context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<DurableSubscriber>(DependencyLifecycle.SingleInstance);
 
@@ -70,6 +71,7 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<VolatileSubscriber>(DependencyLifecycle.SingleInstance);
 
             context.Container.ConfigureComponent(y =>
@@ -107,6 +109,7 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<CompetingSubscriber>(DependencyLifecycle.SingleInstance);
 
             context.Container.ConfigureComponent(y =>

@@ -29,6 +29,7 @@ namespace Aggregates.GetEventStore
             context.Container.ConfigureComponent<StoreEvents>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<StoreSnapshots>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<DomainSubscriber>(DependencyLifecycle.SingleInstance);
 
             context.Container.ConfigureComponent(y =>
