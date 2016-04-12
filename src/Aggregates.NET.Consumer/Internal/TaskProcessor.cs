@@ -7,9 +7,8 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public class EventProcessor : IDisposable
+    public class TaskProcessor : IDisposable
     {
-
         private static CancellationTokenSource _cancelToken = new CancellationTokenSource();
         private static LinkedList<Func<Task>> _tasks = new LinkedList<Func<Task>>(); // protected by lock(_tasks)
         private readonly List<Thread> _threads = new List<Thread>();
@@ -19,7 +18,7 @@ namespace Aggregates.Internal
         private readonly int _maxDegreeOfParallelism;
 
         // Creates a new instance with the specified degree of parallelism. 
-        public EventProcessor(int maxDegreeOfParallelism)
+        public TaskProcessor(int maxDegreeOfParallelism)
         {
             if (maxDegreeOfParallelism < 1) throw new ArgumentOutOfRangeException("maxDegreeOfParallelism");
             _maxDegreeOfParallelism = maxDegreeOfParallelism;
@@ -65,8 +64,12 @@ namespace Aggregates.Internal
                     Thread.Sleep(250);
                     continue;
                 }
-                // Process the event
-                item().Wait();
+                try
+                {
+                    // Process the event
+                    item().Wait();
+                }
+                catch (AggregateException) { }
             }            
         }
 

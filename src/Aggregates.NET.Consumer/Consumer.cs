@@ -48,6 +48,8 @@ namespace Aggregates
                     ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
                 };
             }, DependencyLifecycle.SingleInstance);
+
+            MessageScanner.Scan(context);
         }
     }
 
@@ -82,6 +84,8 @@ namespace Aggregates
                     ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
                 };
             }, DependencyLifecycle.SingleInstance);
+
+            MessageScanner.Scan(context);
         }
     }
     public class CompetingConsumer : Feature
@@ -120,6 +124,8 @@ namespace Aggregates
                     ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
                 };
             }, DependencyLifecycle.SingleInstance);
+
+            MessageScanner.Scan(context);
         }
     }
 
@@ -141,6 +147,28 @@ namespace Aggregates
         {
             Logger.Debug("Starting event consumer");
             _builder.Build<IEventSubscriber>().SubscribeToAll(_settings.EndpointName());
+        }
+    }
+
+    public static class MessageScanner
+    {
+        public static void Scan(FeatureConfigurationContext context)
+        {
+
+            foreach (var handler in context.Settings.GetAvailableTypes().Where(IsAsyncMessage))
+                context.Container.ConfigureComponent(handler, DependencyLifecycle.InstancePerCall);
+        }
+        private static bool IsAsyncMessage(Type type)
+        {
+            if (type.IsAbstract || type.IsGenericTypeDefinition)
+            {
+                return false;
+            }
+
+            return type.GetInterfaces()
+                .Where(@interface => @interface.IsGenericType)
+                .Select(@interface => @interface.GetGenericTypeDefinition())
+                .Any(genericTypeDef => genericTypeDef == typeof(IHandleMessagesAsync<>));
         }
     }
 }

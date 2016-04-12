@@ -40,6 +40,8 @@ namespace Aggregates.GetEventStore
                         ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
                     };
                 }, DependencyLifecycle.SingleInstance);
+
+            MessageScanner.Scan(context);
         }
         
     }

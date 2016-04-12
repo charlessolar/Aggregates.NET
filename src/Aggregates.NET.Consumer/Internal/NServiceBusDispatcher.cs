@@ -53,7 +53,7 @@ namespace Aggregates.Internal
         private readonly Int32 _maxRetries;
         private readonly Boolean _dropEventFatal;
 
-        private readonly EventProcessor _processor;
+        private readonly TaskProcessor _processor;
 
         private Int32 _processingQueueSize;
         private readonly Int32 _maxQueueSize;
@@ -109,7 +109,7 @@ namespace Aggregates.Internal
                 MaxDegreeOfParallelism = parallelism,
             };
 
-            _processor = new EventProcessor(parallelism);
+            _processor = new TaskProcessor(parallelism);
         }
 
 
