@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    internal class SafetyNet : IBehavior<IncomingContext>
+    public class SafetyNet : IBehavior<IncomingContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(SafetyNet));
         private readonly Int32 _maxRetries;
@@ -56,7 +56,7 @@ namespace Aggregates.Internal
         }
     }
 
-    internal class SafetyNetRegistration : RegisterStep
+    public class SafetyNetRegistration : RegisterStep
     {
         public SafetyNetRegistration()
             : base("SafetyNet", typeof(SafetyNet), "Inserts a safety net into the chain to catch Aggregates.NET exceptions for retrying")

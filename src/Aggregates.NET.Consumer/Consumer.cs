@@ -12,12 +12,13 @@ using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
 using Aggregates.Internal;
+using NServiceBus.Pipeline;
 
 namespace Aggregates
 {
-    public class DurableConsumer : Feature
+    public class ConsumerFeature : Feature
     {
-        public DurableConsumer()
+        public ConsumerFeature() : base()
         {
             RegisterStartupTask<ConsumerRunner>();
 
@@ -31,13 +32,11 @@ namespace Aggregates
                 s.SetDefault("MaxQueueSize", 10000);
             });
         }
-
         protected override void Setup(FeatureConfigurationContext context)
         {
             context.Container.ConfigureComponent<EventUnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
-            context.Container.ConfigureComponent<DurableSubscriber>(DependencyLifecycle.SingleInstance);
 
             context.Container.ConfigureComponent(y =>
             {
@@ -49,83 +48,55 @@ namespace Aggregates
                 };
             }, DependencyLifecycle.SingleInstance);
 
+
+            context.Pipeline.Replace(WellKnownStep.LoadHandlers, typeof(AsyncronizedLoad), "Loads the message handlers");
+            context.Pipeline.Replace(WellKnownStep.InvokeHandlers, typeof(AsyncronizedInvoke), "Invokes the message handler with Task.Run");
+            context.Pipeline.Register<SafetyNetRegistration>();
+
             MessageScanner.Scan(context);
         }
     }
 
-    public class VolatileConsumer : Feature
+    public class DurableConsumer : ConsumerFeature
     {
-        public VolatileConsumer()
+        public DurableConsumer() : base()
         {
-            RegisterStartupTask<ConsumerRunner>();
-
-            Defaults(s =>
-            {
-                s.SetDefault("Parallelism", Environment.ProcessorCount / 2);
-                s.SetDefault("ParallelHandlers", true);
-                s.SetDefault("ReadSize", 200);
-                s.SetDefault("MaxRetries", -1);
-                s.SetDefault("EventDropIsFatal", false);
-                s.SetDefault("MaxQueueSize", 10000);
-            });
         }
 
         protected override void Setup(FeatureConfigurationContext context)
         {
-            context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
-            context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
-            context.Container.ConfigureComponent<VolatileSubscriber>(DependencyLifecycle.SingleInstance);
-
-            context.Container.ConfigureComponent(y =>
-            {
-                return new JsonSerializerSettings
-                {
-                    Binder = new EventSerializationBinder(y.Build<IMessageMapper>()),
-                    ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
-                };
-            }, DependencyLifecycle.SingleInstance);
-
-            MessageScanner.Scan(context);
+            context.Container.ConfigureComponent<DurableSubscriber>(DependencyLifecycle.SingleInstance);
         }
     }
-    public class CompetingConsumer : Feature
-    {
-        public CompetingConsumer()
-        {
-            RegisterStartupTask<ConsumerRunner>();
 
+    public class VolatileConsumer : ConsumerFeature
+    {
+        public VolatileConsumer() : base()
+        {
+        }
+
+        protected override void Setup(FeatureConfigurationContext context)
+        {
+            context.Container.ConfigureComponent<VolatileSubscriber>(DependencyLifecycle.SingleInstance);
+        }
+    }
+    public class CompetingConsumer : ConsumerFeature
+    {
+        public CompetingConsumer() : base()
+        {
             Defaults(s =>
             {
-                s.SetDefault("Parallelism", Environment.ProcessorCount / 2);
-                s.SetDefault("ParallelHandlers", true);
-                s.SetDefault("ReadSize", 200);
-                s.SetDefault("MaxRetries", -1);
-                s.SetDefault("EventDropIsFatal", false);
                 s.SetDefault("HandledDomains", Int32.MaxValue);
                 s.SetDefault("BucketHeartbeats", 5);
                 s.SetDefault("BucketExpiration", 60);
                 s.SetDefault("BucketCount", 1);
                 s.SetDefault("BucketsHandled", 1);
-                s.SetDefault("MaxQueueSize", 10000);
             });
         }
 
         protected override void Setup(FeatureConfigurationContext context)
         {
-            context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
-            context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<CompetingSubscriber>(DependencyLifecycle.SingleInstance);
-
-            context.Container.ConfigureComponent(y =>
-            {
-                return new JsonSerializerSettings
-                {
-                    Binder = new EventSerializationBinder(y.Build<IMessageMapper>()),
-                    ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
-                };
-            }, DependencyLifecycle.SingleInstance);
-
-            MessageScanner.Scan(context);
         }
     }
 

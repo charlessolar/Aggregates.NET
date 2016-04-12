@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    internal class AsyncronizedLoad : IBehavior<IncomingContext>
+    public class AsyncronizedLoad : IBehavior<IncomingContext>
     {
         public IInvokeObjects ObjectInvoker { get; set; }
 
@@ -53,7 +53,7 @@ namespace Aggregates.Internal
         }
     }
 
-    internal class AsyncMessageHandler
+    public class AsyncMessageHandler
     {
         public dynamic Handler { get; set; }
         public Func<dynamic, object, Task> Invocation { get; set; }

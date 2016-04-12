@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    internal class AsyncronizedInvoke : IBehavior<IncomingContext>
+    public class AsyncronizedInvoke : IBehavior<IncomingContext>
     {
         public IBuilder Builder { get; set; }
         public void Invoke(IncomingContext context, Action next)
