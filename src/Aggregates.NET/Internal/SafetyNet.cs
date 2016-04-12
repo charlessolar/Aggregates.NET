@@ -61,6 +61,7 @@ namespace Aggregates.Internal
         public SafetyNetRegistration()
             : base("SafetyNet", typeof(SafetyNet), "Inserts a safety net into the chain to catch Aggregates.NET exceptions for retrying")
         {
+
             InsertBefore(WellKnownStep.ExecuteUnitOfWork);
         }
     }

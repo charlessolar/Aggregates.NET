@@ -58,7 +58,7 @@ namespace Aggregates
             context.Pipeline.Replace(WellKnownStep.InvokeHandlers, typeof(AsyncronizedInvoke), "Invokes the message handler with Task.Run");
             context.Pipeline.Register<ExceptionFilterRegistration>();
             context.Pipeline.Register<CommandUnitOfWorkRegistration>();
-            context.Pipeline.Register<SafetyNetRegistration>();
+            //context.Pipeline.Register<SafetyNetRegistration>();
             //context.Pipeline.Register<TesterBehaviorRegistration>();
 
             // Register all query, computed, and message handlers in the container

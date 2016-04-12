@@ -9,7 +9,7 @@ namespace Aggregates.GetEventStore
 {
     public class Feature : ConsumerFeature
     {
-        public Feature()
+        public Feature() : base()
         {
         }
 
