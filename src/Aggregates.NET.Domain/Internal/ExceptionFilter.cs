@@ -30,21 +30,31 @@ namespace Aggregates.Internal
         {
             if (context.IncomingLogicalMessage.Instance is ICommand)
             {
+                Exception exception = null;
                 try
                 {
                     next();
                     // Tell the sender the command was accepted
                     _bus.Return(0);
                 }
+                catch (System.AggregateException e)
+                {
+                    if (!e.InnerExceptions.Any(x => x is BusinessException))
+                        throw;
+
+                    exception = e;
+                }
                 catch (BusinessException e)
                 {
+                    exception = e;
+                }
+                if (exception != null)
+                {
                     _errorsMeter.Mark();
-                    Logger.InfoFormat("Command {0} was rejected\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, e);
+                    Logger.DebugFormat("Command {0} was rejected\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, exception);
                     // Tell the sender the command was rejected due to a business exception
                     var rejection = context.Builder.Build<Func<Exception, Reject>>();
-                    _bus.Reply(rejection(e));
-                    // Don't throw exception to NServicebus because we don't wish to retry this command
-
+                    _bus.Reply(rejection(exception));
                 }
                 return;
 
@@ -59,7 +69,7 @@ namespace Aggregates.Internal
         public ExceptionFilterRegistration()
             : base("ExceptionFilter", typeof(ExceptionFilter), "Filters [BusinessException] from processing failures")
         {
-            InsertAfter(WellKnownStep.ExecuteUnitOfWork);
+            InsertBefore(WellKnownStep.LoadHandlers);
 
         }
     }
