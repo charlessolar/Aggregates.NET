@@ -65,6 +65,7 @@ namespace Aggregates
 
         protected override void Setup(FeatureConfigurationContext context)
         {
+            base.Setup(context);
             context.Container.ConfigureComponent<DurableSubscriber>(DependencyLifecycle.SingleInstance);
         }
     }
@@ -77,6 +78,7 @@ namespace Aggregates
 
         protected override void Setup(FeatureConfigurationContext context)
         {
+            base.Setup(context);
             context.Container.ConfigureComponent<VolatileSubscriber>(DependencyLifecycle.SingleInstance);
         }
     }
@@ -96,6 +98,7 @@ namespace Aggregates
 
         protected override void Setup(FeatureConfigurationContext context)
         {
+            base.Setup(context);
             context.Container.ConfigureComponent<CompetingSubscriber>(DependencyLifecycle.SingleInstance);
         }
     }
