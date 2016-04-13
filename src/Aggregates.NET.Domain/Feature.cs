@@ -36,7 +36,12 @@ namespace Aggregates
             context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<Processor>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<MemoryStreamCache>(DependencyLifecycle.InstancePerCall);
-            
+
+            context.Container.ConfigureComponent<Func<Accept>>(y =>
+            {
+                var eventFactory = y.Build<IMessageCreator>();
+                return () => { return eventFactory.CreateInstance<Accept>(); };
+            }, DependencyLifecycle.SingleInstance);
 
             context.Container.ConfigureComponent<Func<String, Reject>>(y =>
             {

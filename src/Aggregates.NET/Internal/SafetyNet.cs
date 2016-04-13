@@ -34,7 +34,8 @@ namespace Aggregates.Internal
                 {
                     next();
                     success = true;
-                }catch(System.AggregateException e)
+                }
+                catch (System.AggregateException e)
                 {
                     if (!e.InnerExceptions.Any(x => x is NotFoundException || x is PersistenceException || x is AggregateException || x is ConflictingCommandException))
                         throw;

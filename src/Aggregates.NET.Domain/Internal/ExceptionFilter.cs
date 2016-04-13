@@ -11,6 +11,7 @@ using NServiceBus.Pipeline;
 using NServiceBus.Pipeline.Contexts;
 using NServiceBus.Logging;
 using Metrics;
+using Aggregates.Extensions;
 
 namespace Aggregates.Internal
 {
@@ -35,7 +36,8 @@ namespace Aggregates.Internal
                 {
                     next();
                     // Tell the sender the command was accepted
-                    _bus.Return(0);
+                    var accept = context.Builder.Build<Func<Accept>>();
+                    _bus.ReplyAsync(accept());
                 }
                 catch (System.AggregateException e)
                 {
@@ -54,7 +56,7 @@ namespace Aggregates.Internal
                     Logger.DebugFormat("Command {0} was rejected\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, exception);
                     // Tell the sender the command was rejected due to a business exception
                     var rejection = context.Builder.Build<Func<Exception, Reject>>();
-                    _bus.Reply(rejection(exception));
+                    _bus.ReplyAsync(rejection(exception));
                 }
                 return;
 
