@@ -104,10 +104,13 @@ namespace Aggregates
                     Version = e.Descriptor.Version,
                     Headers = e.Descriptor.Headers.Merge(commitHeaders)
                 };
-                
+
+                var mappedType = _mapper.GetMappedTypeFor(e.Event.GetType());
+
+
                 return new EventData(
                     e.EventId,
-                    _mapper.GetMappedTypeFor(e.Event.GetType()).AssemblyQualifiedName,
+                    mappedType.AssemblyQualifiedName,
                     true,
                     e.Event.Serialize(_settings).AsByteArray(),
                     descriptor.Serialize(_settings).AsByteArray()

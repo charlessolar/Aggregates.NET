@@ -32,7 +32,7 @@ namespace Aggregates.Extensions
             var resolved = Type.GetType(type, false);
             if (resolved == null) return null;
 
-            return JsonConvert.DeserializeObject(json, resolved, settings);
+            return JsonConvert.DeserializeObject(json, settings);
         }
 
         public static EventDescriptor Deserialize(this byte[] bytes, JsonSerializerSettings settings)

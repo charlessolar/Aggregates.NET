@@ -36,7 +36,16 @@ namespace Aggregates
             context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<Processor>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<MemoryStreamCache>(DependencyLifecycle.InstancePerCall);
-            
+
+            context.Container.ConfigureComponent(y =>
+            {
+                return new JsonSerializerSettings
+                {
+                    TypeNameHandling = TypeNameHandling.All,
+                    Binder = new EventSerializationBinder(y.Build<IMessageMapper>()),
+                    ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
+                };
+            }, DependencyLifecycle.SingleInstance);
 
             context.Container.ConfigureComponent<Func<String, Reject>>(y =>
             {

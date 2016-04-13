@@ -25,7 +25,6 @@ namespace Aggregates.Internal
         private readonly IDispatcher _dispatcher;
         private readonly ReadOnlySettings _settings;
         private readonly JsonSerializerSettings _jsonSettings;
-        private Meter _fullMeter = Metric.Meter("Queue Full Exceptions", Unit.Errors);
 
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }

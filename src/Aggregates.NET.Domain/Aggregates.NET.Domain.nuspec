@@ -20,6 +20,7 @@
         <dependency id="Metrics.NET" version="[0.2,1)" />
         <dependency id="Aggregates.NET" version="[0.2,0.3)" />
         <dependency id="Aggregates.NET.Consumer" version="[0.2,0.3)" />
+        <dependency id="Newtonsoft.Json" version="[7,9)" />
       </group>
     </dependencies>
   </metadata>

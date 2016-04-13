@@ -18,7 +18,7 @@ namespace Aggregates
         private readonly IMessageMapper _mapper;
         private readonly IMessageCreator _creator;
 
-        public EventContractResolver(IMessageMapper mapper, IMessageCreator creator)
+        public EventContractResolver(IMessageMapper mapper, IMessageCreator creator) : base(true)
         {
             _mapper = mapper;
             _creator = creator;
@@ -26,16 +26,16 @@ namespace Aggregates
 
         protected override JsonObjectContract CreateObjectContract(Type objectType)
         {
-            var mappedTypeFor = _mapper.GetMappedTypeFor(objectType);
+            if (objectType.IsInterface)
+            {
+                var mappedTypeFor = _mapper.GetMappedTypeFor(objectType);
+                var objectContract = base.CreateObjectContract(mappedTypeFor);
 
-            if (mappedTypeFor == null)
-                return base.CreateObjectContract(objectType);
+                objectContract.DefaultCreator = () => _creator.CreateInstance(mappedTypeFor);
 
-            var objectContract = base.CreateObjectContract(mappedTypeFor);
-
-            objectContract.DefaultCreator = () => _creator.CreateInstance(mappedTypeFor);
-
-            return objectContract;
+                return objectContract;
+            }
+            return base.CreateObjectContract(objectType);
         }
     }
 
@@ -58,5 +58,6 @@ namespace Aggregates
             typeName = mappedType.AssemblyQualifiedName;
         }
         
+
     }
 }
