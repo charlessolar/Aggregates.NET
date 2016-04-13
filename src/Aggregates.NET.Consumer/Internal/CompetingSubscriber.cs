@@ -5,6 +5,7 @@ using Metrics;
 using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Logging;
+using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
 using System;
@@ -41,16 +42,22 @@ namespace Aggregates.Internal
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public CompetingSubscriber(IEventStoreConnection client, IManageCompetes competes, IDispatcher dispatcher, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
+        public CompetingSubscriber(IEventStoreConnection client, IManageCompetes competes, IDispatcher dispatcher, ReadOnlySettings settings, IMessageMapper mapper)
         {
             _client = client;
             _competes = competes;
             _dispatcher = dispatcher;
             _settings = settings;
-            _jsonSettings = jsonSettings;
             _buckets = new HashSet<Int32>();
             _seenBuckets = new Dictionary<Int32, long>();
             _bucketCount = _settings.Get<Int32>("BucketCount");
+
+            _jsonSettings = new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All,
+                Binder = new EventSerializationBinder(mapper),
+                ContractResolver = new EventContractResolver(mapper)
+            };
 
             var period = TimeSpan.FromSeconds(_settings.Get<Int32>("BucketHeartbeats"));
             _bucketChecker = new System.Threading.Timer((state) =>

@@ -7,6 +7,7 @@ using NServiceBus.ObjectBuilder;
 using System.Threading;
 using NServiceBus.Settings;
 using Aggregates.Exceptions;
+using NServiceBus.MessageInterfaces;
 
 namespace Aggregates.Internal
 {
@@ -22,13 +23,18 @@ namespace Aggregates.Internal
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public VolatileSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
+        public VolatileSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, ReadOnlySettings settings, IMessageMapper mapper)
         {
             _builder = builder;
             _client = client;
             _dispatcher = dispatcher;
             _settings = settings;
-            _jsonSettings = jsonSettings;
+            _jsonSettings = new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All,
+                Binder = new EventSerializationBinder(mapper),
+                ContractResolver = new EventContractResolver(mapper)
+            };
         }
 
         public void SubscribeToAll(String endpoint)

@@ -13,6 +13,7 @@ using System.Threading;
 using Aggregates.Exceptions;
 using NServiceBus.Settings;
 using Aggregates.Contracts;
+using NServiceBus.MessageInterfaces;
 
 namespace Aggregates
 {
@@ -29,14 +30,19 @@ namespace Aggregates
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public DomainSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, IStreamCache cache, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
+        public DomainSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, IStreamCache cache, ReadOnlySettings settings, IMessageMapper mapper)
         {
             _builder = builder;
             _client = client;
             _dispatcher = dispatcher;
             _cache = cache;
             _settings = settings;
-            _jsonSettings = jsonSettings;
+            _jsonSettings = new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All,
+                Binder = new EventSerializationBinder(mapper),
+                ContractResolver = new EventContractResolver(mapper)
+            };
         }
 
         public void SubscribeToAll(String endpoint)

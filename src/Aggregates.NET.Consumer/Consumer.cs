@@ -36,17 +36,7 @@ namespace Aggregates
         {
             context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
-
-            context.Container.ConfigureComponent(y =>
-            {
-                return new JsonSerializerSettings
-                {
-                    TypeNameHandling = TypeNameHandling.All,
-                    Binder = new EventSerializationBinder(y.Build<IMessageMapper>()),
-                    ContractResolver = new EventContractResolver(y.Build<IMessageMapper>(), y.Build<IMessageCreator>())
-                };
-            }, DependencyLifecycle.SingleInstance);
-
+            
 
             context.Pipeline.Replace(WellKnownStep.LoadHandlers, typeof(AsyncronizedLoad), "Loads the message handlers");
             context.Pipeline.Replace(WellKnownStep.InvokeHandlers, typeof(AsyncronizedInvoke), "Invokes the message handler with Task.Run");

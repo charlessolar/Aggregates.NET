@@ -42,7 +42,7 @@ namespace Aggregates
         }
         public virtual bool Equals(SingleValueObject<T> other)
         {
-            return this.Value.Equals(other.Value);
+            return this.HasValue && this.Value.Equals(other.Value);
         }
 
         public override int GetHashCode()

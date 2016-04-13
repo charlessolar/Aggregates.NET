@@ -27,15 +27,13 @@ namespace Aggregates
         private readonly ReadOnlySettings _nsbSettings;
         private readonly IStreamCache _cache;
         private readonly Boolean _shouldCache;
-        private readonly JsonSerializerSettings _settings;
 
-        public StoreEvents(IEventStoreConnection client, IBuilder builder, IMessageMapper mapper, IStoreSnapshots snapshots, ReadOnlySettings nsbSettings, IStreamCache cache, JsonSerializerSettings settings)
+        public StoreEvents(IEventStoreConnection client, IBuilder builder, IMessageMapper mapper, IStoreSnapshots snapshots, ReadOnlySettings nsbSettings, IStreamCache cache)
         {
             _client = client;
             _mapper = mapper;
             _snapshots = snapshots;
             _nsbSettings = nsbSettings;
-            _settings = settings;
             _builder = builder;
             _cache = cache;
             _shouldCache = _nsbSettings.Get<Boolean>("ShouldCacheEntities");
@@ -57,6 +55,13 @@ namespace Aggregates
                     return cached;
             }
 
+            var settings = new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All,
+                Binder = new EventSerializationBinder(_mapper),
+                ContractResolver = new EventContractResolver(_mapper)
+            };
+
             StreamEventsSlice current;
             var sliceStart = start ?? StreamPosition.Start;
             do
@@ -69,8 +74,8 @@ namespace Aggregates
 
             var translatedEvents = events.Select(e =>
             {
-                var descriptor = e.Event.Metadata.Deserialize(_settings);
-                var data = e.Event.Data.Deserialize(e.Event.EventType, _settings);
+                var descriptor = e.Event.Metadata.Deserialize(settings);
+                var data = e.Event.Data.Deserialize(e.Event.EventType, settings);
 
                 return new Internal.WritableEvent
                 {
@@ -95,6 +100,12 @@ namespace Aggregates
             if (_shouldCache)
                 _cache.Evict(streamId);
 
+            var settings = new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All,
+                Binder = new EventSerializationBinder(_mapper)
+            };
+
             var translatedEvents = events.Select(e =>
             {
                 var descriptor = new EventDescriptor
@@ -112,8 +123,8 @@ namespace Aggregates
                     e.EventId,
                     mappedType.AssemblyQualifiedName,
                     true,
-                    e.Event.Serialize(_settings).AsByteArray(),
-                    descriptor.Serialize(_settings).AsByteArray()
+                    e.Event.Serialize(settings).AsByteArray(),
+                    descriptor.Serialize(settings).AsByteArray()
                     );
             });
 

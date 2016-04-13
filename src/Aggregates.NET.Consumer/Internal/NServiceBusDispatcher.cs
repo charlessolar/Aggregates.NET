@@ -47,7 +47,6 @@ namespace Aggregates.Internal
 
         private readonly ConcurrentDictionary<String, IList<Type>> _invokeCache;
         private readonly ParallelOptions _parallelOptions;
-        private readonly JsonSerializerSettings _jsonSettings;
 
         private readonly Boolean _parallelHandlers;
         private readonly Int32 _maxRetries;
@@ -95,7 +94,6 @@ namespace Aggregates.Internal
             _mapper = builder.Build<IMessageMapper>();
             _handlerRegistry = builder.Build<IMessageHandlerRegistry>();
             _objectInvoker = builder.Build<IInvokeObjects>();
-            _jsonSettings = jsonSettings;
             _parallelHandlers = settings.Get<Boolean>("ParallelHandlers");
             _maxRetries = settings.Get<Int32>("MaxRetries");
             _dropEventFatal = settings.Get<Boolean>("EventDropIsFatal");
@@ -265,9 +263,9 @@ namespace Aggregates.Internal
 
                             // Only log if the event has failed more than half max retries indicating a possible non-transient error
                             if (retry > (_maxRetries / 2))
-                                Logger.InfoFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, _jsonSettings), e);
+                                Logger.InfoFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event), e);
                             else
-                                Logger.DebugFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, _jsonSettings), e);
+                                Logger.DebugFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event), e);
 
                             _errorsMeter.Mark();
                             retry++;
@@ -322,7 +320,7 @@ namespace Aggregates.Internal
 
                     if (!success)
                     {
-                        var message = String.Format("Encountered an error while processing {0}.  Ran out of retries, dropping event.\nPayload: {3}", eventType.FullName, JsonConvert.SerializeObject(@event, _jsonSettings));
+                        var message = String.Format("Encountered an error while processing {0}.  Ran out of retries, dropping event.\nPayload: {3}", eventType.FullName, JsonConvert.SerializeObject(@event));
                         if (_dropEventFatal)
                         {
                             Logger.Fatal(message);
