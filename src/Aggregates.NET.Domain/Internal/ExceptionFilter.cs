@@ -37,7 +37,7 @@ namespace Aggregates.Internal
                     next();
                     // Tell the sender the command was accepted
                     var accept = context.Builder.Build<Func<Accept>>();
-                    _bus.ReplyAsync(accept());
+                    _bus.Reply(accept());
                 }
                 catch (System.AggregateException e)
                 {
@@ -56,7 +56,7 @@ namespace Aggregates.Internal
                     Logger.DebugFormat("Command {0} was rejected\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, exception);
                     // Tell the sender the command was rejected due to a business exception
                     var rejection = context.Builder.Build<Func<Exception, Reject>>();
-                    _bus.ReplyAsync(rejection(exception));
+                    _bus.Reply(rejection(exception));
                 }
                 return;
 

@@ -26,11 +26,13 @@ namespace Aggregates.Internal
             }
             
             var messageHandler = context.Get<AsyncMessageHandler>();
-            Task.Run((Func<Task>)(async () =>
-            {
-                var message = context.PhysicalMessage;
-                await messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance);
-            })).Wait();
+            messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance).Wait();
+
+            //Task.Run((Func<Task>)(async () =>
+            //{
+            //    var message = context.PhysicalMessage;
+            //    await messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance);
+            //})).Wait();
             
             next();
         }

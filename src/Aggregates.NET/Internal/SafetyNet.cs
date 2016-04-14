@@ -27,41 +27,34 @@ namespace Aggregates.Internal
             // Catch all our internal exceptions, retrying the command up to 5 times before giving up
             var retries = 0;
             bool success = false;
-            MessageRegistry.Add(context.PhysicalMessage);
-            try
+            do
             {
-                do
+                Exception exception = null;
+                try
                 {
-                    Exception exception = null;
-                    try
-                    {
-                        next();
-                        success = true;
-                    }
-                    catch (System.AggregateException e)
-                    {
-                        if (!e.InnerExceptions.Any(x => x is NotFoundException || x is PersistenceException || x is AggregateException || x is ConflictingCommandException))
-                            throw;
-                    }
-                    catch (NotFoundException e) { exception = e; }
-                    catch (PersistenceException e) { exception = e; }
-                    catch (AggregateException e) { exception = e; }
-                    catch (ConflictingCommandException e) { exception = e; }
-                    if (!success)
-                    {
-                        retries++;
-                        if (_maxRetries == -1 || retries > (_maxRetries / 2))
-                            Logger.InfoFormat("Caught exception - retry {0}/{1}\nException: {2}", retries, _maxRetries, exception);
-                        else
-                            Logger.DebugFormat("Caught exception - retry {0}/{1}\nException: {2}", retries, _maxRetries, exception);
-                        Thread.Sleep(50);
-                    }
-                } while (!success && (_maxRetries == -1 || retries < _maxRetries));
-            }
-            finally
-            {
-                MessageRegistry.Remove(context.PhysicalMessage);
-            }
+                    next();
+                    success = true;
+                }
+                catch (System.AggregateException e)
+                {
+                    if (!e.InnerExceptions.Any(x => x is NotFoundException || x is PersistenceException || x is AggregateException || x is ConflictingCommandException))
+                        throw;
+                }
+                catch (NotFoundException e) { exception = e; }
+                catch (PersistenceException e) { exception = e; }
+                catch (AggregateException e) { exception = e; }
+                catch (ConflictingCommandException e) { exception = e; }
+                if (!success)
+                {
+                    retries++;
+                    if (_maxRetries == -1 || retries > (_maxRetries / 2))
+                        Logger.InfoFormat("Caught exception - retry {0}/{1}\nException: {2}", retries, _maxRetries, exception);
+                    else
+                        Logger.DebugFormat("Caught exception - retry {0}/{1}\nException: {2}", retries, _maxRetries, exception);
+                    Thread.Sleep(50);
+                }
+            } while (!success && (_maxRetries == -1 || retries < _maxRetries));
+
         }
     }
 
