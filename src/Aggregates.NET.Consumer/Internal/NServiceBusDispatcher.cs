@@ -71,7 +71,8 @@ namespace Aggregates.Internal
 
             if (_processingQueueSize % 10 == 0 || Logger.IsDebugEnabled)
             {
-                var msg = String.Format("Queueing event {0} at position {1}.  Size of queue: {2}/{3}", x.Event.GetType().FullName, x.Position, _processingQueueSize, _maxQueueSize);
+                var eventType = _mapper.GetMappedTypeFor(x.Event.GetType());
+                var msg = String.Format("Queueing event {0} at position {1}.  Size of queue: {2}/{3}", eventType.FullName, x.Position, _processingQueueSize, _maxQueueSize);
                 if (_processingQueueSize % 10 == 0)
                     Logger.Info(msg);
                 else
