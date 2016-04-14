@@ -18,9 +18,9 @@ using NServiceBus.Pipeline;
 
 namespace Aggregates
 {
-    public class Feature : NServiceBus.Features.Feature
+    public class Domain : NServiceBus.Features.Feature
     {
-        public Feature()
+        public Domain()
         {
             Defaults(s =>
             {

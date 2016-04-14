@@ -102,7 +102,7 @@
     <Compile Include="Internal\Repository.cs" />
     <Compile Include="Internal\UnitOfWork.cs" />
     <Compile Include="IQueryResponse.cs" />
-    <Compile Include="Feature.cs" />
+    <Compile Include="Domain.cs" />
     <Compile Include="Internal\Snapshot.cs" />
     <Compile Include="IUnitOfWork.cs" />
     <Compile Include="ValueObject.cs" />
