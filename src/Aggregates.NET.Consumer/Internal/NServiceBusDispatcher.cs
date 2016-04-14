@@ -214,7 +214,7 @@ namespace Aggregates.Internal
                                              handlerRetries++;
                                          }
 
-                                     } while (!handlerSuccess && handlerRetries <= _maxRetries);
+                                     } while (!handlerSuccess && (_maxRetries == -1 || handlerRetries <= _maxRetries));
 
                                      if (!handlerSuccess)
                                      {
@@ -316,7 +316,7 @@ namespace Aggregates.Internal
                             Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
                         }
                         success = true;
-                    } while (!success && retry < _maxRetries);
+                    } while (!success && (_maxRetries == -1 || retry < _maxRetries));
 
                     if (!success)
                     {

@@ -28,7 +28,8 @@ namespace Aggregates.Internal
             var retries = 0;
             bool success = false;
             MessageRegistry.Add(context.PhysicalMessage);
-            try {
+            try
+            {
                 do
                 {
                     Exception exception = null;
@@ -49,13 +50,13 @@ namespace Aggregates.Internal
                     if (!success)
                     {
                         retries++;
-                        if (retries > (_maxRetries / 2))
+                        if (_maxRetries == -1 || retries > (_maxRetries / 2))
                             Logger.InfoFormat("Caught exception - retry {0}/{1}\nException: {2}", retries, _maxRetries, exception);
                         else
                             Logger.DebugFormat("Caught exception - retry {0}/{1}\nException: {2}", retries, _maxRetries, exception);
                         Thread.Sleep(50);
                     }
-                } while (!success && retries < _maxRetries);
+                } while (!success && (_maxRetries == -1 || retries < _maxRetries));
             }
             finally
             {
