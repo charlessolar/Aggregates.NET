@@ -16,7 +16,7 @@ using NServiceBus.Pipeline;
 
 namespace Aggregates
 {
-    public class ConsumerFeature : Feature
+    public class ConsumerFeature : Aggregates.Feature
     {
         public ConsumerFeature() : base()
         {
@@ -34,15 +34,10 @@ namespace Aggregates
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
+            base.Setup(context);
             context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
             
-
-            context.Pipeline.Replace(WellKnownStep.LoadHandlers, typeof(AsyncronizedLoad), "Loads the message handlers");
-            context.Pipeline.Replace(WellKnownStep.InvokeHandlers, typeof(AsyncronizedInvoke), "Invokes the message handler with Task.Run");
-            context.Pipeline.Register<SafetyNetRegistration>();
-
-            MessageScanner.Scan(context);
         }
     }
 
@@ -111,28 +106,6 @@ namespace Aggregates
         {
             Logger.Debug("Starting event consumer");
             _builder.Build<IEventSubscriber>().SubscribeToAll(_settings.EndpointName());
-        }
-    }
-
-    public static class MessageScanner
-    {
-        public static void Scan(FeatureConfigurationContext context)
-        {
-
-            foreach (var handler in context.Settings.GetAvailableTypes().Where(IsAsyncMessage))
-                context.Container.ConfigureComponent(handler, DependencyLifecycle.InstancePerCall);
-        }
-        private static bool IsAsyncMessage(Type type)
-        {
-            if (type.IsAbstract || type.IsGenericTypeDefinition)
-            {
-                return false;
-            }
-
-            return type.GetInterfaces()
-                .Where(@interface => @interface.IsGenericType)
-                .Select(@interface => @interface.GetGenericTypeDefinition())
-                .Any(genericTypeDef => genericTypeDef == typeof(IHandleMessagesAsync<>));
         }
     }
 }
