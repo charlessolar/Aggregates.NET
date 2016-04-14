@@ -33,39 +33,30 @@ namespace Aggregates.Internal
                 throw new InvalidOperationException(error);
             }
 
-            MessageRegistry.Add(context.PhysicalMessage);
 
-            try
+            foreach (var handler in handlers)
             {
-                foreach (var handler in handlers)
+                using (CreateSnapshotRegion(context))
                 {
-                    using (CreateSnapshotRegion(context))
+                    var lambda = ObjectInvoker.Invoker(handler, messageToHandle.MessageType);
+
+                    var loadedHandler = new AsyncMessageHandler
                     {
-                        var lambda = ObjectInvoker.Invoker(handler, messageToHandle.MessageType);
+                        Handler = handler,
+                        Invocation = lambda
+                    };
 
-                        var loadedHandler = new AsyncMessageHandler
-                        {
-                            Handler = handler,
-                            Invocation = lambda
-                        };
+                    context.Set(loadedHandler);
 
-                        context.Set(loadedHandler);
+                    next();
 
-                        next();
-
-                        if (context.HandlerInvocationAborted)
-                        {
-                            //if the chain was aborted skip the other handlers
-                            break;
-                        }
+                    if (context.HandlerInvocationAborted)
+                    {
+                        //if the chain was aborted skip the other handlers
+                        break;
                     }
                 }
             }
-            finally
-            {
-                MessageRegistry.Remove(context.PhysicalMessage);
-            }
-
 
         }
     }
