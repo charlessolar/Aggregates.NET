@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using NServiceBus;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
 using NServiceBus.Pipeline.Contexts;
@@ -8,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Aggregates.Internal
@@ -33,7 +35,6 @@ namespace Aggregates.Internal
                 throw new InvalidOperationException(error);
             }
 
-
             foreach (var handler in handlers)
             {
                 using (CreateSnapshotRegion(context))
@@ -58,12 +59,13 @@ namespace Aggregates.Internal
                 }
             }
 
+
         }
     }
 
     public class AsyncMessageHandler
     {
         public dynamic Handler { get; set; }
-        public Func<dynamic, object, Task> Invocation { get; set; }
+        public Func<dynamic, object, IHandleContext, Task> Invocation { get; set; }
     }
 }

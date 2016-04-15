@@ -8,6 +8,6 @@ namespace Aggregates.Contracts
 {
     public interface IInvokeObjects
     {
-        Func<Object, Object, Task> Invoker(object handler, Type messageType);
+        Func<Object, Object, IHandleContext, Task> Invoker(object handler, Type messageType);
     }
 }

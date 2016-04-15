@@ -8,6 +8,6 @@ namespace Aggregates
 {
     public interface IHandleMessagesAsync<TMessage>
     {
-        Task Handle(TMessage message);
+        Task Handle(TMessage message, IHandleContext context);
     }
 }

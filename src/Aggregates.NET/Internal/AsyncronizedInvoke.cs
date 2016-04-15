@@ -17,7 +17,7 @@ namespace Aggregates.Internal
     {
         private static ILog Logger = LogManager.GetLogger<AsyncronizedInvoke>();
         public IBuilder Builder { get; set; }
-        public PipelineExecutor Executor { get; set; }
+        public IBus Bus { get; set; }
         public void Invoke(IncomingContext context, Action next)
         {
             ActiveSagaInstance saga;
@@ -32,12 +32,9 @@ namespace Aggregates.Internal
             //messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance).Wait();
             Task.Run((Func<Task>)(async () =>
             {
-                MessageRegistry.Add(context.PhysicalMessage);
-
-                var message = context.PhysicalMessage;
-                await messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance);
-
-                MessageRegistry.Remove();
+                var handleContext = new HandleContext { Bus = Bus, Context = context };
+                await messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance, handleContext);
+                
             })).Wait();
 
             next();

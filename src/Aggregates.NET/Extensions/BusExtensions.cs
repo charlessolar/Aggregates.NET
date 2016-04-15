@@ -12,15 +12,15 @@ namespace Aggregates.Extensions
 {
     public static class BusExtensions
     {
-        public static void ReplyAsync(this IBus bus, object message)
+        public static void ReplyAsync(this IHandleContext context, object message)
         {
-            var incoming = MessageRegistry.Current;
-            bus.Send(incoming.ReplyToAddress, String.IsNullOrEmpty( incoming.CorrelationId ) ? incoming.Id : incoming.CorrelationId, message);
+            var incoming = context.Context.PhysicalMessage;
+            context.Bus.Send(incoming.ReplyToAddress, String.IsNullOrEmpty( incoming.CorrelationId ) ? incoming.Id : incoming.CorrelationId, message);
         }
-        public static void ReplyAsync<T>(this IBus bus, Action<T> message)
+        public static void ReplyAsync<T>(this IHandleContext context, Action<T> message)
         {
-            var incoming = MessageRegistry.Current;
-            bus.Send(incoming.ReplyToAddress, String.IsNullOrEmpty(incoming.CorrelationId) ? incoming.Id : incoming.CorrelationId, message);
+            var incoming = context.Context.PhysicalMessage;
+            context.Bus.Send(incoming.ReplyToAddress, String.IsNullOrEmpty(incoming.CorrelationId) ? incoming.Id : incoming.CorrelationId, message);
         }
     }
 }

@@ -11,7 +11,7 @@ namespace Aggregates.Messages
         IHandleMessagesAsync<Accept>,
         IHandleMessagesAsync<Reject>
     {
-        public Task Handle(Accept e) { return Task.FromResult(0); }
-        public Task Handle(Reject e) { return Task.FromResult(0); }
+        public Task Handle(Accept e, IHandleContext c) { return Task.FromResult(0); }
+        public Task Handle(Reject e, IHandleContext c) { return Task.FromResult(0); }
     }
 }
