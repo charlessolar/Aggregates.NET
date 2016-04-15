@@ -16,7 +16,6 @@ namespace Aggregates.Internal
     public class AsyncronizedInvoke : IBehavior<IncomingContext>
     {
         private static ILog Logger = LogManager.GetLogger<AsyncronizedInvoke>();
-        public IBuilder Builder { get; set; }
         public IBus Bus { get; set; }
         public void Invoke(IncomingContext context, Action next)
         {
@@ -29,12 +28,13 @@ namespace Aggregates.Internal
             }
 
             var messageHandler = context.Get<AsyncMessageHandler>();
-            //messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance).Wait();
+            //var handleContext = new HandleContext { Bus = Bus, Context = context };
+            //messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance, handleContext).Wait();
             Task.Run((Func<Task>)(async () =>
             {
                 var handleContext = new HandleContext { Bus = Bus, Context = context };
                 await messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance, handleContext);
-                
+
             })).Wait();
 
             next();
