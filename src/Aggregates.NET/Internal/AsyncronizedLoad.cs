@@ -1,5 +1,6 @@
 ﻿using Aggregates.Contracts;
 using NServiceBus;
+using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
 using NServiceBus.Pipeline.Contexts;
@@ -16,6 +17,7 @@ namespace Aggregates.Internal
 {
     public class AsyncronizedLoad : IBehavior<IncomingContext>
     {
+        private readonly ILog Logger = LogManager.GetLogger<AsyncronizedLoad>();
         public IInvokeObjects ObjectInvoker { get; set; }
 
         private static MethodInfo _snapshotRegion = typeof(IncomingContext).GetMethod("CreateSnapshotRegion", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -24,12 +26,13 @@ namespace Aggregates.Internal
         public void Invoke(IncomingContext context, Action next)
         {
             var messageToHandle = context.IncomingLogicalMessage;
+            var callbackInvoked = context.Get<bool>("NServiceBus.CallbackInvocationBehavior.CallbackWasInvoked");
 
             var handlerGenericType = typeof(IHandleMessagesAsync<>).MakeGenericType(messageToHandle.MessageType);
             List<dynamic> handlers = context.Builder.BuildAll(handlerGenericType).ToList();
 
 
-            if (handlers.Count == 0)
+            if (!callbackInvoked && !handlers.Any())
             {
                 var error = string.Format("No handlers could be found for message type: {0}", messageToHandle.MessageType);
                 throw new InvalidOperationException(error);

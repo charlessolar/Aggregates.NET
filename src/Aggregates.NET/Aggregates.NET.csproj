@@ -82,14 +82,12 @@
     <Compile Include="Internal\AsyncronizedInvoke.cs" />
     <Compile Include="Internal\AsyncronizedLoad.cs" />
     <Compile Include="Internal\HandleContext.cs" />
-    <Compile Include="Internal\MessageRegistry.cs" />
     <Compile Include="Internal\DefaultInvokeObjects.cs" />
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />
     <Compile Include="Internal\SafetyNet.cs" />
     <Compile Include="Internal\WritableEvent.cs" />
     <Compile Include="Messages\Accept.cs" />
-    <Compile Include="Messages\Handler.cs" />
     <Compile Include="Messages\Reject.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Specifications\AdHocSpecification.cs" />
