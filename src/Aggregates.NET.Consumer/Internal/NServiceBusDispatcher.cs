@@ -40,6 +40,7 @@ namespace Aggregates.Internal
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(NServiceBusDispatcher));
         private readonly IBuilder _builder;
+        private readonly IBus _bus;
         private readonly IMessageCreator _eventFactory;
         private readonly IMessageMapper _mapper;
         private readonly IMessageHandlerRegistry _handlerRegistry;
@@ -91,6 +92,7 @@ namespace Aggregates.Internal
         public NServiceBusDispatcher(IBuilder builder, ReadOnlySettings settings, JsonSerializerSettings jsonSettings)
         {
             _builder = builder;
+            _bus = builder.Build<IBus>();
             _eventFactory = builder.Build<IMessageCreator>();
             _mapper = builder.Build<IMessageMapper>();
             _handlerRegistry = builder.Build<IMessageHandlerRegistry>();
@@ -132,6 +134,12 @@ namespace Aggregates.Internal
 
             var eventType = _mapper.GetMappedTypeFor(@event.GetType());
             Stopwatch s = null;
+
+            var handleContext = new HandleContext
+            {
+                Bus = _bus,
+                EventDescriptor = descriptor
+            };
 
             using (_eventsTimer.NewContext())
             {
@@ -200,7 +208,7 @@ namespace Aggregates.Internal
                                              }
                                              var lambda = _objectInvoker.Invoker(handler, eventType);
 
-                                             await lambda(handler, @event);
+                                             await lambda(handler, @event, handleContext);
 
                                              if (Logger.IsDebugEnabled)
                                              {

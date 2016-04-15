@@ -1,4 +1,5 @@
-﻿using NServiceBus;
+﻿using Aggregates.Contracts;
+using NServiceBus;
 using NServiceBus.Pipeline.Contexts;
 using System;
 using System.Collections.Generic;
@@ -8,8 +9,9 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    class HandleContext : IHandleContext
+    public class HandleContext : IHandleContext
     {
+        public IEventDescriptor EventDescriptor { get; set; }
         public IncomingContext Context { get; set; }
         public IBus Bus { get; set; }
     }
