@@ -58,20 +58,10 @@ namespace Aggregates
                     });
                 };
             }, DependencyLifecycle.SingleInstance);
-            context.Container.ConfigureComponent<Func<Exception, Error>>(y =>
-            {
-                var eventFactory = y.Build<IMessageCreator>();
-                return (exception) => {
-                    return eventFactory.CreateInstance<Error>(e => {
-                        e.Exception = exception;
-                    });
-                };
-            }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Replace(WellKnownStep.LoadHandlers, typeof(AsyncronizedLoad), "Loads the message handlers");
             context.Pipeline.Replace(WellKnownStep.InvokeHandlers, typeof(AsyncronizedInvoke), "Invokes the message handler with Task.Run");
             context.Pipeline.Register<CommandAcceptorRegistration>();
-            context.Pipeline.Register<ExceptionRejectorRegistration>();
             context.Pipeline.Register<CommandUnitOfWorkRegistration>();
             //context.Pipeline.Register<SafetyNetRegistration>();
             //context.Pipeline.Register<TesterBehaviorRegistration>();

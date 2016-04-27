@@ -1,4 +1,5 @@
 ﻿using Aggregates.Internal;
+using Aggregates.Messages;
 using NServiceBus;
 using NServiceBus.Features;
 using NServiceBus.Pipeline;
@@ -27,6 +28,17 @@ namespace Aggregates
             context.Pipeline.Replace(WellKnownStep.LoadHandlers, typeof(AsyncronizedLoad), "Loads the message handlers");
             context.Pipeline.Replace(WellKnownStep.InvokeHandlers, typeof(AsyncronizedInvoke), "Invokes the message handler with Task.Run");
             context.Pipeline.Register<SafetyNetRegistration>();
+            context.Pipeline.Register<ExceptionRejectorRegistration>();
+
+            context.Container.ConfigureComponent<Func<Exception, Error>>(y =>
+            {
+                var eventFactory = y.Build<IMessageCreator>();
+                return (exception) => {
+                    return eventFactory.CreateInstance<Error>(e => {
+                        e.Exception = exception;
+                    });
+                };
+            }, DependencyLifecycle.SingleInstance);
 
             foreach (var handler in context.Settings.GetAvailableTypes().Where(IsAsyncMessage))
                 context.Container.ConfigureComponent(handler, DependencyLifecycle.InstancePerCall);

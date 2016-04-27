@@ -31,6 +31,7 @@ namespace Aggregates.Internal
 
             // Catch all our internal exceptions, retrying the command up to 5 times before giving up
             var retries = 0;
+            var exceptions = new List<Exception>();
             bool success = false;
             do
             {
@@ -52,6 +53,7 @@ namespace Aggregates.Internal
                 catch (ConflictingCommandException e) { exception = e; }
                 if (!success)
                 {
+                    exceptions.Add(exception);
                     retries++;
                     if (_maxRetries == -1 || retries > (_maxRetries / 2))
                         Logger.InfoFormat("Caught exception - retry {0}/{1}\nException: {2}", retries, _maxRetries, exception);
@@ -61,6 +63,10 @@ namespace Aggregates.Internal
                 }
             } while (!success && (_maxRetries == -1 || retries < _maxRetries));
 
+            if (!success)
+            {
+                throw new System.AggregateException(exceptions);
+            }
         }
     }
 
