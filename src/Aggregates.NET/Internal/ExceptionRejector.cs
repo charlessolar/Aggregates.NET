@@ -50,7 +50,7 @@ namespace Aggregates.Internal
         public ExceptionRejectorRegistration()
             : base("ExceptionRejector", typeof(ExceptionRejector), "Catches exceptions thrown while processing and reports to client via IReject")
         {
-            InsertAfter(WellKnownStep.ExecuteLogicalMessages);
+            InsertBefore(WellKnownStep.CreateChildContainer);
 
         }
     }
