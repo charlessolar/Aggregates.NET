@@ -88,6 +88,7 @@
     <Compile Include="Internal\SafetyNet.cs" />
     <Compile Include="Internal\WritableEvent.cs" />
     <Compile Include="Messages\Accept.cs" />
+    <Compile Include="Messages\Error.cs" />
     <Compile Include="Messages\Reject.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Specifications\AdHocSpecification.cs" />

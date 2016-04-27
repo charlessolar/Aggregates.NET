@@ -38,11 +38,11 @@ namespace Aggregates.Internal
                 try
                 {
                     next();
-                    success = true;
                 }
                 catch (System.AggregateException e)
                 {
-                    if (!e.InnerExceptions.Any(x => x is NotFoundException || x is PersistenceException || x is AggregateException || x is ConflictingCommandException))
+                    if (!(e.InnerException is NotFoundException || e.InnerException is PersistenceException || e.InnerException is AggregateException || e.InnerException is ConflictingCommandException) && 
+                            !e.InnerExceptions.Any(x => x is NotFoundException || x is PersistenceException || x is AggregateException || x is ConflictingCommandException))
                         throw;
                     exception = e;
                 }

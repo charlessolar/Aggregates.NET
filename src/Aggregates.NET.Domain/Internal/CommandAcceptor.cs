@@ -15,14 +15,14 @@ using Aggregates.Extensions;
 
 namespace Aggregates.Internal
 {
-    internal class ExceptionFilter : IBehavior<IncomingContext>
+    internal class CommandAcceptor : IBehavior<IncomingContext>
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(ExceptionFilter));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(CommandAcceptor));
 
         private static Meter _errorsMeter = Metric.Meter("Business Exceptions", Unit.Errors);
         private readonly IBus _bus;
 
-        public ExceptionFilter(IBus bus)
+        public CommandAcceptor(IBus bus)
         {
             _bus = bus;
         }
@@ -31,7 +31,7 @@ namespace Aggregates.Internal
         {
             if (context.IncomingLogicalMessage.Instance is ICommand)
             {
-                Exception exception = null;
+                System.Exception exception = null;
                 try
                 {
                     next();
@@ -41,7 +41,7 @@ namespace Aggregates.Internal
                 }
                 catch (System.AggregateException e)
                 {
-                    if (!e.InnerExceptions.Any(x => x is BusinessException))
+                    if (!(e.InnerException is BusinessException) && !e.InnerExceptions.Any(x => x is BusinessException))
                         throw;
 
                     exception = e;
@@ -66,10 +66,10 @@ namespace Aggregates.Internal
         }
     }
 
-    internal class ExceptionFilterRegistration : RegisterStep
+    internal class CommandAcceptorRegistration : RegisterStep
     {
-        public ExceptionFilterRegistration()
-            : base("ExceptionFilter", typeof(ExceptionFilter), "Filters [BusinessException] from processing failures")
+        public CommandAcceptorRegistration()
+            : base("ExceptionFilter", typeof(CommandAcceptor), "Filters [BusinessException] from processing failures")
         {
             InsertBefore(WellKnownStep.LoadHandlers);
 

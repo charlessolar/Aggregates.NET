@@ -73,6 +73,7 @@
     <Compile Include="IHandleComputed.cs" />
     <Compile Include="IBase.cs" />
     <Compile Include="Internal\CommandUnitOfWork.cs" />
+    <Compile Include="Internal\ExceptionRejector.cs" />
     <Compile Include="Internal\MemoryStreamCache.cs" />
     <Compile Include="Internal\Processor.cs" />
     <Compile Include="IQuery.cs" />
@@ -98,7 +99,7 @@
     <Compile Include="Internal\DefaultRepositoryFactory.cs" />
     <Compile Include="Internal\DefaultRouteResolver.cs" />
     <Compile Include="Internal\EntityRepository.cs" />
-    <Compile Include="Internal\ExceptionFilter.cs" />
+    <Compile Include="Internal\CommandAcceptor.cs" />
     <Compile Include="Internal\Repository.cs" />
     <Compile Include="Internal\UnitOfWork.cs" />
     <Compile Include="IQueryResponse.cs" />
