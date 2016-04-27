@@ -39,6 +39,7 @@ namespace Aggregates.Internal
                 try
                 {
                     next();
+                    success = true;
                 }
                 catch (System.AggregateException e)
                 {
