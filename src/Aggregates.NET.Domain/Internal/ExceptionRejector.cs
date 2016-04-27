@@ -17,7 +17,7 @@ namespace Aggregates.Internal
 {
     internal class ExceptionRejector : IBehavior<IncomingContext>
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(CommandAcceptor));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(ExceptionRejector));
 
         private static Meter _errorsMeter = Metric.Meter("Service Exceptions", Unit.Errors);
         private readonly IBus _bus;
@@ -48,7 +48,7 @@ namespace Aggregates.Internal
     internal class ExceptionRejectorRegistration : RegisterStep
     {
         public ExceptionRejectorRegistration()
-            : base("ExceptionRejector", typeof(CommandAcceptor), "Catches exceptions thrown while processing and reports to client via IReject")
+            : base("ExceptionRejector", typeof(ExceptionRejector), "Catches exceptions thrown while processing and reports to client via IReject")
         {
             InsertAfter(WellKnownStep.ExecuteLogicalMessages);
 

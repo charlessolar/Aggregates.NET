@@ -69,7 +69,7 @@ namespace Aggregates.Internal
     internal class CommandAcceptorRegistration : RegisterStep
     {
         public CommandAcceptorRegistration()
-            : base("ExceptionFilter", typeof(CommandAcceptor), "Filters [BusinessException] from processing failures")
+            : base("CommandAcceptor", typeof(CommandAcceptor), "Filters [BusinessException] from processing failures")
         {
             InsertBefore(WellKnownStep.LoadHandlers);
 
