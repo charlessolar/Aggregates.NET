@@ -27,7 +27,6 @@ namespace Aggregates
 
             context.Pipeline.Replace(WellKnownStep.LoadHandlers, typeof(AsyncronizedLoad), "Loads the message handlers");
             context.Pipeline.Replace(WellKnownStep.InvokeHandlers, typeof(AsyncronizedInvoke), "Invokes the message handler with Task.Run");
-            context.Pipeline.Register<SafetyNetRegistration>();
             context.Pipeline.Register<ExceptionRejectorRegistration>();
 
             context.Container.ConfigureComponent<Func<Exception, Error>>(y =>

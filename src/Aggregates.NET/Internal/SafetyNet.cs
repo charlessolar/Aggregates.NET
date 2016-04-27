@@ -17,6 +17,8 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(SafetyNet));
         private readonly Int32 _maxRetries;
+        
+        // NSB doesn't allow try/catch next repeating calls, the pipeline gets all messed up
 
         public SafetyNet(ReadOnlySettings settings)
         {
