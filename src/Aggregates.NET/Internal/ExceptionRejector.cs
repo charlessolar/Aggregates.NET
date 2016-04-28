@@ -36,7 +36,14 @@ namespace Aggregates.Internal
             catch (Exception e)
             {
                 _errorsMeter.Mark();
-                Logger.WarnFormat("Message {0} has faulted!\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, e);
+                try
+                {
+                    Logger.WarnFormat("Message {0} has faulted!\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, e);
+                }
+                catch (KeyNotFoundException)
+                {
+                    Logger.WarnFormat("Message [Unknown] has faulted!\nException: {0}", e);
+                }
                 // Tell the sender the command was not handled due to a service exception
                 var rejection = context.Builder.Build<Func<Exception, Error>>();
                 _bus.Reply(rejection(e));
