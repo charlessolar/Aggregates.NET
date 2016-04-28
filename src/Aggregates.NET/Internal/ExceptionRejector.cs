@@ -46,7 +46,8 @@ namespace Aggregates.Internal
                 }
                 // Tell the sender the command was not handled due to a service exception
                 var rejection = context.Builder.Build<Func<Exception, Error>>();
-                _bus.Reply(rejection(e));
+                // Wrap exception in our object which is serializable
+                _bus.Reply(rejection(new RejectedException(e)));
             }
 
         }
