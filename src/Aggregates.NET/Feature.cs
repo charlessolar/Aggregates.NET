@@ -38,6 +38,28 @@ namespace Aggregates
                         "Exception message: " + exception.Message + Environment.NewLine +
                         "Stack trace: " + exception.StackTrace + Environment.NewLine;
 
+                    if(exception.InnerException != null)
+                    {
+                        message += "---BEGIN InnerException--- " + Environment.NewLine +
+                           "Exception type " + exception.InnerException.GetType() + Environment.NewLine +
+                           "Exception message: " + exception.InnerException.Message + Environment.NewLine +
+                           "Stack trace: " + exception.InnerException.StackTrace + Environment.NewLine +
+                           "---END Inner Exception";
+                    }
+                    if(exception is System.AggregateException)
+                    {
+                        message += "---BEGIN Aggregate Exception---";
+                        var aggException = exception as System.AggregateException;
+                        foreach( var inner in aggException.InnerExceptions)
+                        {
+                            message += "---BEGIN InnerException--- " + Environment.NewLine +
+                               "Exception type " + inner.GetType() + Environment.NewLine +
+                               "Exception message: " + inner.Message + Environment.NewLine +
+                               "Stack trace: " + inner.StackTrace + Environment.NewLine +
+                               "---END Inner Exception";
+                        }
+                    }
+
                     return eventFactory.CreateInstance<Error>(e => {
                         e.Message = message;
                     });
