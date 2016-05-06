@@ -12,6 +12,7 @@ using NServiceBus.Pipeline.Contexts;
 using NServiceBus.Logging;
 using Metrics;
 using Aggregates.Extensions;
+using Newtonsoft.Json;
 
 namespace Aggregates.Internal
 {
@@ -45,9 +46,9 @@ namespace Aggregates.Internal
                     Logger.WarnFormat("Message [Unknown] has faulted!\nException: {0}", e);
                 }
                 // Tell the sender the command was not handled due to a service exception
-                var rejection = context.Builder.Build<Func<Exception, Error>>();
+                var rejection = context.Builder.Build<Func<Exception, String, Error>>();
                 // Wrap exception in our object which is serializable
-                _bus.Reply(rejection(e));
+                _bus.Reply(rejection(e, $"Rejected message {context.IncomingLogicalMessage.MessageType.FullName}\n Payload: {JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance)}"));
             }
 
         }

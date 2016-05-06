@@ -29,39 +29,46 @@ namespace Aggregates
             context.Pipeline.Replace(WellKnownStep.InvokeHandlers, typeof(AsyncronizedInvoke), "Invokes the message handler with Task.Run");
             context.Pipeline.Register<ExceptionRejectorRegistration>();
 
-            context.Container.ConfigureComponent<Func<Exception, Error>>(y =>
+            context.Container.ConfigureComponent<Func<Exception, String, Error>>(y =>
             {
                 var eventFactory = y.Build<IMessageCreator>();
-                return (exception) => {
-                    var message =
-                        "Exception type " + exception.GetType() + Environment.NewLine +
-                        "Exception message: " + exception.Message + Environment.NewLine +
-                        "Stack trace: " + exception.StackTrace + Environment.NewLine;
+                return (exception, message) => {
+                    var sb = new StringBuilder();
+                    if (!String.IsNullOrEmpty(message))
+                    {
+                        sb.AppendLine($"Error Message: {message}");
+                    }
+                    sb.AppendLine($"Exception type {exception.GetType()}");
+                    sb.AppendLine($"Exception message: {exception.Message}");
+                    sb.AppendLine($"Stack trace: {exception.StackTrace}");
+                    
 
                     if(exception.InnerException != null)
                     {
-                        message += "---BEGIN InnerException--- " + Environment.NewLine +
-                           "Exception type " + exception.InnerException.GetType() + Environment.NewLine +
-                           "Exception message: " + exception.InnerException.Message + Environment.NewLine +
-                           "Stack trace: " + exception.InnerException.StackTrace + Environment.NewLine +
-                           "---END Inner Exception";
+                        sb.AppendLine("---BEGIN Inner Exception--- ");
+                        sb.AppendLine($"Exception type {exception.InnerException.GetType()}");
+                        sb.AppendLine($"Exception message: {exception.InnerException.Message}");
+                        sb.AppendLine($"Stack trace: {exception.InnerException.StackTrace}");
+                        sb.AppendLine("---END Inner Exception---");
+                        
                     }
                     if(exception is System.AggregateException)
                     {
-                        message += "---BEGIN Aggregate Exception---";
+                        sb.AppendLine("---BEGIN Aggregate Exception---");
                         var aggException = exception as System.AggregateException;
                         foreach( var inner in aggException.InnerExceptions)
                         {
-                            message += "---BEGIN InnerException--- " + Environment.NewLine +
-                               "Exception type " + inner.GetType() + Environment.NewLine +
-                               "Exception message: " + inner.Message + Environment.NewLine +
-                               "Stack trace: " + inner.StackTrace + Environment.NewLine +
-                               "---END Inner Exception";
+
+                            sb.AppendLine("---BEGIN Inner Exception--- ");
+                            sb.AppendLine($"Exception type {inner.GetType()}");
+                            sb.AppendLine($"Exception message: {inner.Message}");
+                            sb.AppendLine($"Stack trace: {inner.StackTrace}");
+                            sb.AppendLine("---END Inner Exception---");
                         }
                     }
 
                     return eventFactory.CreateInstance<Error>(e => {
-                        e.Message = message;
+                        e.Message = sb.ToString();
                     });
                 };
             }, DependencyLifecycle.SingleInstance);
