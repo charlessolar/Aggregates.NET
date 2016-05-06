@@ -34,7 +34,8 @@ namespace Aggregates
                 var eventFactory = y.Build<IMessageCreator>();
                 return (exception) => {
                     return eventFactory.CreateInstance<Error>(e => {
-                        e.Exception = exception;
+                        e.Message = e.Message;
+                        e.Exception = e.ToString();
                     });
                 };
             }, DependencyLifecycle.SingleInstance);

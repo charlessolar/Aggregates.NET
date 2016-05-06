@@ -9,6 +9,7 @@ namespace Aggregates.Messages
 {
     public interface Error : IMessage
     {
-        Exception Exception { get; set; }
+        String Message { get; set; }
+        String Exception { get; set; }
     }
 }
