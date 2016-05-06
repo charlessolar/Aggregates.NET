@@ -10,6 +10,5 @@ namespace Aggregates.Messages
     public interface Error : IMessage
     {
         String Message { get; set; }
-        String Exception { get; set; }
     }
 }
