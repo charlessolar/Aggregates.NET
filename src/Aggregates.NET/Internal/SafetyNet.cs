@@ -26,10 +26,6 @@ namespace Aggregates.Internal
         }
         public void Invoke(IncomingContext context, Action next)
         {
-            // ReplyAsync can't access ReplyOptions which NSB used to determine (solely) if a message is a reply
-            // So this just fixes the outgoing message with the right intent if the Id != CorrelationId which almost always means the message is related to another aka a reply
-            if (context.PhysicalMessage.Id != context.PhysicalMessage.CorrelationId)
-                context.PhysicalMessage.MessageIntent = NServiceBus.MessageIntentEnum.Reply;
 
             // Catch all our internal exceptions, retrying the command up to 5 times before giving up
             var retries = 0;
