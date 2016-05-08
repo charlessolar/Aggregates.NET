@@ -329,7 +329,7 @@ namespace Aggregates.Internal
 
                     if (!success)
                     {
-                        var message = String.Format("Encountered an error while processing {0}.  Ran out of retries, dropping event.\nPayload: {3}", eventType.FullName, JsonConvert.SerializeObject(@event));
+                        var message = String.Format("Encountered an error while processing {0}.  Ran out of retries, dropping event.\nPayload: {1}", eventType.FullName, JsonConvert.SerializeObject(@event));
                         if (_dropEventFatal)
                         {
                             Logger.Fatal(message);
