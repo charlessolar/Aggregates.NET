@@ -52,6 +52,7 @@ namespace Aggregates.Internal
         private readonly Boolean _parallelHandlers;
         private readonly Int32 _maxRetries;
         private readonly Boolean _dropEventFatal;
+        private readonly Int32 _slowAlert;
 
         private readonly TaskProcessor _processor;
 
@@ -101,6 +102,7 @@ namespace Aggregates.Internal
             _maxRetries = settings.Get<Int32>("MaxRetries");
             _dropEventFatal = settings.Get<Boolean>("EventDropIsFatal");
             _maxQueueSize = settings.Get<Int32>("MaxQueueSize");
+            _slowAlert = settings.Get<Int32>("SlowAlertThreshold");
 
             _invokeCache = new ConcurrentDictionary<String, IList<Type>>();
 
@@ -133,7 +135,7 @@ namespace Aggregates.Internal
         {
 
             var eventType = _mapper.GetMappedTypeFor(@event.GetType());
-            Stopwatch s = null;
+            Stopwatch s = new Stopwatch();
 
             var handleContext = new HandleContext
             {
@@ -164,7 +166,7 @@ namespace Aggregates.Internal
                         var mutators = childBuilder.BuildAll<IEventMutator>();
 
                         if (Logger.IsDebugEnabled)
-                            s = Stopwatch.StartNew();
+                            s.Restart();
                         if (mutators != null && mutators.Any())
                             Parallel.ForEach(mutators, _parallelOptions, mutate =>
                             {
@@ -200,20 +202,23 @@ namespace Aggregates.Internal
                                      {
                                          try
                                          {
-                                             Stopwatch handlerWatch = null;
+                                             Stopwatch handlerWatch = Stopwatch.StartNew();
                                              if (Logger.IsDebugEnabled)
                                              {
                                                  Logger.DebugFormat("Executing event {0} on handler {1}", eventType.FullName, handler.GetType().FullName);
-                                                 handlerWatch = Stopwatch.StartNew();
                                              }
                                              var lambda = _objectInvoker.Invoker(handler, eventType);
 
                                              await lambda(handler, @event, handleContext);
 
+                                             handlerWatch.Stop();
                                              if (Logger.IsDebugEnabled)
                                              {
-                                                 handlerWatch.Stop();
                                                  Logger.DebugFormat("Executing event {0} on handler {1} took {2} ms", eventType.FullName, handler.GetType().FullName, handlerWatch.ElapsedMilliseconds);
+                                             }
+                                             if (handlerWatch.ElapsedMilliseconds > _slowAlert)
+                                             {
+                                                 Logger.WarnFormat(" - SLOW ALERT - Executing event {0} on handler {1} took {2} ms", eventType.FullName, handler.GetType().FullName, handlerWatch.ElapsedMilliseconds);
                                              }
                                              handlerSuccess = true;
                                          }
@@ -286,8 +291,8 @@ namespace Aggregates.Internal
                         // Failures when executing UOW.End `could` be transient (network or disk hicup)
                         // A failure of 1 uow in a chain of 5 is a problem as it could create a mangled DB (partial update via one uow then crash)
                         // So we'll just keep retrying the failing UOW forever until it succeeds.
-                        if (Logger.IsDebugEnabled)
-                            s.Restart();
+
+                        s.Restart();
                         var endSuccess = false;
                         var endRetry = 0;
                         while (!endSuccess)
@@ -319,10 +324,14 @@ namespace Aggregates.Internal
                                 Thread.Sleep(50);
                             }
                         }
+                        s.Stop();
                         if (Logger.IsDebugEnabled)
                         {
-                            s.Stop();
                             Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                        }
+                        if(s.ElapsedMilliseconds > _slowAlert)
+                        {
+                            Logger.WarnFormat(" - SLOW ALERT - UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
                         }
                         success = true;
                     } while (!success && (_maxRetries == -1 || retry < _maxRetries));

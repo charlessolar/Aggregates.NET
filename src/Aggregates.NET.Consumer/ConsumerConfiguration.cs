@@ -44,10 +44,6 @@ namespace Aggregates
         {
             settings.GetSettings().Set("ParallelHandlers", Parrallel);
         }
-        public static void MaxEventRetries(this ExposeSettings settings, Int32 Max)
-        {
-            settings.GetSettings().Set("MaxRetries", Max);
-        }
         public static void EventDropIsFatal(this ExposeSettings settings, Boolean Fatal)
         {
             settings.GetSettings().Set("EventDropIsFatal", Fatal);

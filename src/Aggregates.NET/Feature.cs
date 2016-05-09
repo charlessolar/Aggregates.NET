@@ -18,6 +18,7 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("MaxRetries", 10);
+                s.SetDefault("SlowAlertThreshold", 500);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
