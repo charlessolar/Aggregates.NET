@@ -47,7 +47,7 @@ namespace Aggregates.Internal
                 }
                 if(s.ElapsedMilliseconds > _slowAlert)
                 {
-                    Logger.DebugFormat(" - SLOW ALERT - Executing message {0} on handler {1} took {2} ms", context.IncomingLogicalMessage.MessageType.FullName, messageHandler.Handler.GetType().FullName, s.ElapsedMilliseconds);
+                    Logger.WarnFormat(" - SLOW ALERT - Executing message {0} on handler {1} took {2} ms", context.IncomingLogicalMessage.MessageType.FullName, messageHandler.Handler.GetType().FullName, s.ElapsedMilliseconds);
                 }
             })).Wait();
 
