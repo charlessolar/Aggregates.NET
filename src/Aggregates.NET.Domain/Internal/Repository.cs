@@ -149,7 +149,7 @@ namespace Aggregates.Internal
 
                 // Get requires the stream exists
                 if (stream.StreamVersion == -1)
-                    throw new NotFoundException("Aggregate stream {id} in bucket {bucket} not found");
+                    throw new NotFoundException($"Aggregate stream {id} in bucket {bucket} not found");
 
                 // Call the 'private' constructor
                 root = Newup(stream, _builder);
