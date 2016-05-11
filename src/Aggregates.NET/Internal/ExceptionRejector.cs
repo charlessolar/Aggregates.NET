@@ -13,6 +13,7 @@ using NServiceBus.Logging;
 using Metrics;
 using Aggregates.Extensions;
 using Newtonsoft.Json;
+using NServiceBus.Settings;
 
 namespace Aggregates.Internal
 {
@@ -22,10 +23,14 @@ namespace Aggregates.Internal
 
         private static Meter _errorsMeter = Metric.Meter("Message Faults", Unit.Errors);
         private readonly IBus _bus;
+        private readonly ReadOnlySettings _settings;
+        private readonly Int32 _maxRetries;
 
-        public ExceptionRejector(IBus bus)
+        public ExceptionRejector(IBus bus, ReadOnlySettings settings)
         {
             _bus = bus;
+            _settings = settings;
+            _maxRetries = _settings.Get<Int32>("MaxRetries");
         }
 
         public void Invoke(IncomingContext context, Action next)
@@ -41,6 +46,10 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
+                if (GetNumberOfFirstLevelRetries(context.PhysicalMessage) < _maxRetries)
+                    return;
+                
+
                 _errorsMeter.Mark();
                 try
                 {
@@ -56,6 +65,19 @@ namespace Aggregates.Internal
                 _bus.Reply(rejection(e, $"Rejected message {context.IncomingLogicalMessage.MessageType.FullName}\n Payload: {JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance)}"));
             }
 
+        }
+        static int GetNumberOfFirstLevelRetries(TransportMessage message)
+        {
+            string value;
+            if (message.Headers.TryGetValue(Headers.Retries, out value))
+            {
+                int i;
+                if (int.TryParse(value, out i))
+                {
+                    return i;
+                }
+            }
+            return 0;
         }
     }
 

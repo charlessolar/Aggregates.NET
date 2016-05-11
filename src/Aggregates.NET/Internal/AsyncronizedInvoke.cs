@@ -18,11 +18,20 @@ namespace Aggregates.Internal
     public class AsyncronizedInvoke : IBehavior<IncomingContext>
     {
         private static ILog Logger = LogManager.GetLogger<AsyncronizedInvoke>();
-        public IBus Bus { get; set; }
-        public ReadOnlySettings Settings { get; set; }
+        private readonly IBus _bus;
+        private readonly ReadOnlySettings _settings;
+        private readonly Int32 _slowAlert;
+
+
+        public AsyncronizedInvoke(IBus bus, ReadOnlySettings settings)
+        {
+            _bus = bus;
+            _settings = settings;
+            _slowAlert = _settings.Get<Int32>("SlowAlertThreshold");
+        }
+
         public void Invoke(IncomingContext context, Action next)
         {
-            var _slowAlert = Settings.Get<Int32>("SlowAlertThreshold");
             ActiveSagaInstance saga;
 
             if (context.TryGet(out saga) && saga.NotFound && saga.SagaType == context.MessageHandler.Instance.GetType())
@@ -38,7 +47,7 @@ namespace Aggregates.Internal
             {
                 var s = Stopwatch.StartNew();
 
-                var handleContext = new HandleContext { Bus = Bus, Context = context };
+                var handleContext = new HandleContext { Bus = _bus, Context = context };
                 await messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance, handleContext);
 
                 if (Logger.IsDebugEnabled)

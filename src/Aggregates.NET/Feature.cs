@@ -1,6 +1,8 @@
 ﻿using Aggregates.Internal;
 using Aggregates.Messages;
 using NServiceBus;
+using NServiceBus.Config;
+using NServiceBus.Config.ConfigurationSource;
 using NServiceBus.Features;
 using NServiceBus.Pipeline;
 using System;
@@ -11,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public class Feature : NServiceBus.Features.Feature
+    public class Feature : NServiceBus.Features.Feature, IProvideConfiguration<TransportConfig>
     {
         public Feature()
         {
@@ -20,6 +22,14 @@ namespace Aggregates
                 s.SetDefault("MaxRetries", 10);
                 s.SetDefault("SlowAlertThreshold", 500);
             });
+        }
+        public TransportConfig GetConfiguration()
+        {
+            // Set a large amount of retries, when MaxRetries is hit ExceptionRejector will stop processing the message
+            return new TransportConfig
+            {
+                MaxRetries = 999
+            };
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
