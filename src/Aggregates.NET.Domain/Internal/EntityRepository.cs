@@ -35,7 +35,7 @@ namespace Aggregates.Internal
 
         public override async Task<T> Get<TId>(TId id)
         {
-            Logger.DebugFormat("Retreiving entity id '{0}' from aggregate '{1}' in store", id, _aggregateId);
+            Logger.DebugFormat("Retreiving entity id [{0}] from aggregate [{1}] in store", id, _aggregateId);
             var streamId = String.Format("{0}.{1}", _parentStream.StreamId, id);
 
             var entity = await Get(_parentStream.Bucket, streamId);

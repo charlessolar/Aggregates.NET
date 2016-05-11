@@ -12,6 +12,8 @@ using NServiceBus.Pipeline.Contexts;
 using NServiceBus.Logging;
 using Metrics;
 using Aggregates.Extensions;
+using Newtonsoft.Json;
+using NServiceBus.Settings;
 
 namespace Aggregates.Internal
 {
@@ -19,29 +21,66 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(ExceptionRejector));
 
-        private static Meter _errorsMeter = Metric.Meter("Service Exceptions", Unit.Errors);
+        private static Meter _errorsMeter = Metric.Meter("Message Faults", Unit.Errors);
         private readonly IBus _bus;
+        private readonly ReadOnlySettings _settings;
+        private readonly Int32 _maxRetries;
 
-        public ExceptionRejector(IBus bus)
+        public ExceptionRejector(IBus bus, ReadOnlySettings settings)
         {
             _bus = bus;
+            _settings = settings;
+            _maxRetries = _settings.Get<Int32>("MaxRetries");
         }
 
         public void Invoke(IncomingContext context, Action next)
         {
+            // ReplyAsync can't access ReplyOptions which NSB used to determine (solely) if a message is a reply
+            // So this just fixes the outgoing message with the right intent if the Id != CorrelationId which almost always means the message is related to another aka a reply
+            if (context.PhysicalMessage.Id != context.PhysicalMessage.CorrelationId)
+                context.PhysicalMessage.MessageIntent = NServiceBus.MessageIntentEnum.Reply;
+
             try
             {
                 next();
             }
             catch (Exception e)
             {
+                if (GetNumberOfFirstLevelRetries(context.PhysicalMessage) < _maxRetries)
+                {
+                    Logger.WarnFormat("Message {0} has faulted! {1} times", context.IncomingLogicalMessage.MessageType.FullName, GetNumberOfFirstLevelRetries(context.PhysicalMessage));
+                    throw;
+                }
+                
+
                 _errorsMeter.Mark();
-                Logger.WarnFormat("Command {0} has faulted!\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, e);
+                try
+                {
+                    Logger.WarnFormat("Message {0} has faulted!\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, e);
+                }
+                catch (KeyNotFoundException)
+                {
+                    Logger.WarnFormat("Message [Unknown] has faulted!\nException: {0}", e);
+                }
                 // Tell the sender the command was not handled due to a service exception
-                var rejection = context.Builder.Build<Func<Exception, Error>>();
-                _bus.Reply(rejection(e));
+                var rejection = context.Builder.Build<Func<Exception, String, Error>>();
+                // Wrap exception in our object which is serializable
+                _bus.Reply(rejection(e, $"Rejected message {context.IncomingLogicalMessage.MessageType.FullName}\n Payload: {JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance)}"));
             }
 
+        }
+        static int GetNumberOfFirstLevelRetries(TransportMessage message)
+        {
+            string value;
+            if (message.Headers.TryGetValue(Headers.Retries, out value))
+            {
+                int i;
+                if (int.TryParse(value, out i))
+                {
+                    return i;
+                }
+            }
+            return 0;
         }
     }
 
@@ -50,7 +89,7 @@ namespace Aggregates.Internal
         public ExceptionRejectorRegistration()
             : base("ExceptionRejector", typeof(ExceptionRejector), "Catches exceptions thrown while processing and reports to client via IReject")
         {
-            InsertAfter(WellKnownStep.ExecuteLogicalMessages);
+            InsertBefore(WellKnownStep.CreateChildContainer);
 
         }
     }

@@ -5,6 +5,7 @@ using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
 using NServiceBus.Pipeline.Contexts;
+using NServiceBus.Settings;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -66,9 +67,17 @@ namespace Aggregates.Internal
 
         private static Meter _errorsMeter = Metric.Meter("Command Errors", Unit.Errors);
 
+        private readonly ReadOnlySettings _settings;
+        private readonly Int32 _slowAlert;
+        public CommandUnitOfWork(IBus bus, ReadOnlySettings settings)
+        {
+            _settings = settings;
+            _slowAlert = _settings.Get<Int32>("SlowAlertThreshold");
+        }
+
         public void Invoke(IncomingContext context, Action next)
         {
-            Stopwatch s = null;
+            Stopwatch s = new Stopwatch();
             var uows = new ConcurrentStack<ICommandUnitOfWork>();
             try
             {
@@ -83,7 +92,7 @@ namespace Aggregates.Internal
                     }).Wait();
 
                     if (Logger.IsDebugEnabled)
-                        s = Stopwatch.StartNew();
+                        s.Restart();
 
                     next();
 
@@ -91,9 +100,9 @@ namespace Aggregates.Internal
                     {
                         s.Stop();
                         Logger.DebugFormat("Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
-                        s.Restart();
-                    }
 
+                    }
+                    s.Restart();
                     uows.Generate().ForEachAsync(2, async (uow) =>
                     {
                         try
@@ -107,10 +116,14 @@ namespace Aggregates.Internal
                             throw;
                         }
                     }).Wait();
+                    s.Stop();
                     if (Logger.IsDebugEnabled)
                     {
-                        s.Stop();
                         Logger.DebugFormat("UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                    }
+                    if (s.ElapsedMilliseconds > _slowAlert)
+                    {
+                        Logger.WarnFormat(" - SLOW ALERT - UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
                     }
                 }
 

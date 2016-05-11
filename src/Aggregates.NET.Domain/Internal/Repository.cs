@@ -51,7 +51,7 @@ namespace Aggregates.Internal
 
                 if (tracked is ISnapshotting && (tracked as ISnapshotting).ShouldTakeSnapshot())
                 {
-                    Logger.DebugFormat("Taking snapshot of {0} id {1} version {2}", tracked.GetType().FullName, tracked.StreamId, tracked.Version);
+                    Logger.DebugFormat("Taking snapshot of {0} id [{1}] version {2}", tracked.GetType().FullName, tracked.StreamId, tracked.Version);
                     var memento = (tracked as ISnapshotting).TakeSnapshot();
                     stream.AddSnapshot(memento, headers);
                 }
@@ -72,19 +72,19 @@ namespace Aggregates.Internal
                     {
                         try
                         {
-                            Logger.DebugFormat("Stream {0} entity {1} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName);
+                            Logger.DebugFormat("Stream [{0}] entity {1} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName);
                             stream = await ResolveConflict(tracked.Stream);
                             ConflictsResolved.Mark();
                         }
                         catch
                         {
-                            Logger.ErrorFormat("Stream {0} entity {1} has version conflicts with store - FAILED to resolve", tracked.StreamId, tracked.GetType().FullName);
+                            Logger.ErrorFormat("Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve", tracked.StreamId, tracked.GetType().FullName);
                             throw new ConflictingCommandException("Could not resolve conflicting events", version);
                         }
                     }
                     catch (DuplicateCommitException)
                     {
-                        Logger.WarnFormat("Detected a possible double commit for stream: {0} bucket {1}", stream.StreamId, stream.Bucket);
+                        Logger.WarnFormat("Detected a possible double commit for stream: [{0}] bucket [{1}]", stream.StreamId, stream.Bucket);
                     }
                     catch
                     {
@@ -130,7 +130,7 @@ namespace Aggregates.Internal
 
         public async Task<T> Get<TId>(String bucket, TId id)
         {
-            Logger.DebugFormat("Retreiving aggregate id '{0}' from bucket '{1}' in store", id, bucket);
+            Logger.DebugFormat("Retreiving aggregate id [{0}] from bucket [{1}] in store", id, bucket);
             var root = await Get(bucket, id.ToString());
             (root as IEventSource<TId>).Id = id;
             return root;
@@ -145,11 +145,11 @@ namespace Aggregates.Internal
                 var stream = await OpenStream(bucket, id, snapshot);
 
                 if (stream == null && snapshot == null)
-                    throw new NotFoundException($"Aggregate snapshot in stream {id} bucket {bucket} not found");
+                    throw new NotFoundException($"Aggregate snapshot in stream [{id}] bucket [{bucket}] not found");
 
                 // Get requires the stream exists
                 if (stream.StreamVersion == -1)
-                    throw new NotFoundException($"Aggregate stream {id} in bucket {bucket} not found");
+                    throw new NotFoundException($"Aggregate stream [{id}] in bucket [{bucket}] not found");
 
                 // Call the 'private' constructor
                 root = Newup(stream, _builder);

@@ -86,7 +86,6 @@
     <Compile Include="IHandleMessagesAsync.cs" />
     <Compile Include="Internal\AsyncronizedInvoke.cs" />
     <Compile Include="Internal\AsyncronizedLoad.cs" />
-    <Compile Include="Internal\ExceptionRejector.cs" />
     <Compile Include="Internal\HandleContext.cs" />
     <Compile Include="Internal\DefaultInvokeObjects.cs" />
     <Compile Include="Internal\EventContractResolver.cs" />
