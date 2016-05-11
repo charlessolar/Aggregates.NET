@@ -47,7 +47,7 @@ namespace Aggregates.Internal
             catch (Exception e)
             {
                 if (GetNumberOfFirstLevelRetries(context.PhysicalMessage) < _maxRetries)
-                    return;
+                    throw;
                 
 
                 _errorsMeter.Mark();
