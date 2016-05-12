@@ -48,7 +48,7 @@ namespace Aggregates.Internal
             {
                 if (GetNumberOfFirstLevelRetries(context.PhysicalMessage) < _maxRetries)
                 {
-                    Logger.WarnFormat("Message {0} has faulted! {1} times", context.IncomingLogicalMessage.MessageType.FullName, GetNumberOfFirstLevelRetries(context.PhysicalMessage));
+                    Logger.WarnFormat("Message {2} type {0} has faulted! {1} times", context.IncomingLogicalMessage.MessageType.FullName, GetNumberOfFirstLevelRetries(context.PhysicalMessage), context.PhysicalMessage.Id);
                     throw;
                 }
                 
@@ -56,11 +56,11 @@ namespace Aggregates.Internal
                 _errorsMeter.Mark();
                 try
                 {
-                    Logger.WarnFormat("Message {0} has faulted!\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, e);
+                    Logger.WarnFormat("Message {2} type {0} has faulted!\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, e, context.PhysicalMessage.Id);
                 }
                 catch (KeyNotFoundException)
                 {
-                    Logger.WarnFormat("Message [Unknown] has faulted!\nException: {0}", e);
+                    Logger.WarnFormat("Message {1} [Unknown] has faulted!\nException: {0}", e, context.PhysicalMessage.Id);
                 }
                 // Tell the sender the command was not handled due to a service exception
                 var rejection = context.Builder.Build<Func<Exception, String, Error>>();
