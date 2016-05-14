@@ -44,8 +44,6 @@ namespace Aggregates.Internal
             }
 
             var messageHandler = context.Get<AsyncMessageHandler>();
-            //var handleContext = new HandleContext { Bus = Bus, Context = context };
-            //messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance, handleContext).Wait();
             Task.Run((Func<Task>)(async () =>
             {
                 var s = Stopwatch.StartNew();

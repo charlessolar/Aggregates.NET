@@ -29,6 +29,7 @@ namespace Aggregates.Internal
             : base("AggregatesFixSendIntent", typeof(FixSendIntent), "Fixes outgoing message's intent when using ReplyAsync")
         {
             InsertAfter(WellKnownStep.CreatePhysicalMessage);
+            InsertBefore(WellKnownStep.SerializeMessage);
 
         }
     }
