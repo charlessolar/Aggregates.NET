@@ -139,6 +139,7 @@ namespace Aggregates.Internal
 
             var handleContext = new HandleContext
             {
+                Mapper = _mapper,
                 Bus = _bus,
                 EventDescriptor = descriptor
             };
@@ -329,7 +330,7 @@ namespace Aggregates.Internal
                         {
                             Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
                         }
-                        if(s.ElapsedMilliseconds > _slowAlert)
+                        if (s.ElapsedMilliseconds > _slowAlert)
                         {
                             Logger.WarnFormat(" - SLOW ALERT - UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
                         }

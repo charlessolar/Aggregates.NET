@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public class AsyncronizedLoad : IBehavior<IncomingContext>
+    class AsyncronizedLoad : IBehavior<IncomingContext>
     {
         public IInvokeObjects ObjectInvoker { get; set; }
 

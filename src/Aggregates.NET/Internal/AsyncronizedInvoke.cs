@@ -1,6 +1,7 @@
 ﻿
 using NServiceBus;
 using NServiceBus.Logging;
+using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
 using NServiceBus.Pipeline.Contexts;
@@ -15,18 +16,20 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public class AsyncronizedInvoke : IBehavior<IncomingContext>
+    class AsyncronizedInvoke : IBehavior<IncomingContext>
     {
         private static ILog Logger = LogManager.GetLogger<AsyncronizedInvoke>();
         private readonly IBus _bus;
         private readonly ReadOnlySettings _settings;
+        private readonly IMessageMapper _mapper;
         private readonly Int32 _slowAlert;
 
 
-        public AsyncronizedInvoke(IBus bus, ReadOnlySettings settings)
+        public AsyncronizedInvoke(IBus bus, ReadOnlySettings settings, IMessageMapper mapper)
         {
             _bus = bus;
             _settings = settings;
+            _mapper = mapper;
             _slowAlert = _settings.Get<Int32>("SlowAlertThreshold");
         }
 
@@ -47,7 +50,7 @@ namespace Aggregates.Internal
             {
                 var s = Stopwatch.StartNew();
 
-                var handleContext = new HandleContext { Bus = _bus, Context = context };
+                var handleContext = new HandleContext { Bus = _bus, Context = context, Mapper = _mapper };
                 await messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance, handleContext);
 
                 if (Logger.IsDebugEnabled)

@@ -1,5 +1,6 @@
 ﻿using Aggregates.Contracts;
 using NServiceBus;
+using NServiceBus.MessageInterfaces;
 using NServiceBus.Pipeline.Contexts;
 using System;
 using System.Collections.Generic;
@@ -14,5 +15,6 @@ namespace Aggregates.Internal
         public IEventDescriptor EventDescriptor { get; set; }
         public IncomingContext Context { get; set; }
         public IBus Bus { get; set; }
+        public IMessageMapper Mapper { get; set; }
     }
 }

@@ -15,12 +15,12 @@ namespace Aggregates.Extensions
         public static void ReplyAsync(this IHandleContext context, object message)
         {
             var incoming = context.Context.PhysicalMessage;
+            context.Bus.SetMessageHeader(message, "$.Aggregates.Replying", "1");
             context.Bus.Send(incoming.ReplyToAddress, String.IsNullOrEmpty(incoming.CorrelationId) ? incoming.Id : incoming.CorrelationId, message);
         }
         public static void ReplyAsync<T>(this IHandleContext context, Action<T> message)
         {
-            var incoming = context.Context.PhysicalMessage;
-            context.Bus.Send(incoming.ReplyToAddress, String.IsNullOrEmpty(incoming.CorrelationId) ? incoming.Id : incoming.CorrelationId, message);
+            context.ReplyAsync(context.Mapper.CreateInstance(message));
         }
         public static void PublishAsync<T>(this IHandleContext context, Action<T> message)
         {

@@ -36,7 +36,8 @@ namespace Aggregates
             base.Setup(context);
             context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
-            
+
+            context.Pipeline.Register<FixSendIntentRegistration>();
         }
     }
 
