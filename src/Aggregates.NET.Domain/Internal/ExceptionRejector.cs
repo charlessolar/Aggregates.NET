@@ -67,7 +67,7 @@ namespace Aggregates.Internal
         static int GetNumberOfFirstLevelRetries(TransportMessage message)
         {
             string value;
-            if (message.Headers.TryGetValue(Headers.Retries, out value))
+            if (message.Headers.TryGetValue(Headers.FLRetries, out value))
             {
                 int i;
                 if (int.TryParse(value, out i))

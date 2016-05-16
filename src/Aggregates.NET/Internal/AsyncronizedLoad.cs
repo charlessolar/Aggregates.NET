@@ -31,7 +31,7 @@ namespace Aggregates.Internal
             List<dynamic> handlers = context.Builder.BuildAll(handlerGenericType).ToList();
 
 
-            if (!callbackInvoked && !handlers.Any())
+            if (!callbackInvoked && !handlers.Any() && context.PhysicalMessage.MessageIntent != MessageIntentEnum.Reply)
             {
                 var error = string.Format("No handlers could be found for message type: {0}", messageToHandle.MessageType);
                 throw new InvalidOperationException(error);
