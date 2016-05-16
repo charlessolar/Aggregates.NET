@@ -284,7 +284,7 @@ namespace Aggregates.Internal
 
                             _errorsMeter.Mark();
                             retry++;
-                            Thread.Sleep(10);
+                            Thread.Sleep(150);
                             continue;
                         }
 
@@ -322,7 +322,7 @@ namespace Aggregates.Internal
                                 else
                                     Logger.DebugFormat("UOW.End failure while processing event {0} - retry {1}/{3}\nException:\n{2}", eventType.FullName, retry, e, _maxRetries);
                                 endRetry++;
-                                Thread.Sleep(50);
+                                Thread.Sleep(75);
                             }
                         }
                         s.Stop();

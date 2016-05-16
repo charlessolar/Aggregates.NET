@@ -20,12 +20,11 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CommandAcceptor));
 
         private static Meter _errorsMeter = Metric.Meter("Business Exceptions", Unit.Errors);
-        private readonly IBus _bus;
 
-        public CommandAcceptor(IBus bus)
-        {
-            _bus = bus;
-        }
+        public IBus _bus;
+        public Func<Accept> Acceptance;
+        public Func<Exception, Reject> Rejection;
+        
 
         public void Invoke(IncomingContext context, Action next)
         {
@@ -36,8 +35,7 @@ namespace Aggregates.Internal
                 {
                     next();
                     // Tell the sender the command was accepted
-                    var accept = context.Builder.Build<Func<Accept>>();
-                    _bus.Reply(accept());
+                    _bus.Reply(Acceptance());
                 }
                 catch (System.AggregateException e)
                 {
@@ -53,10 +51,9 @@ namespace Aggregates.Internal
                 if (exception != null)
                 {
                     _errorsMeter.Mark();
-                    Logger.DebugFormat("Command {0} was rejected\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, exception);
+                    Logger.InfoFormat("Command {0} was rejected\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, exception);
                     // Tell the sender the command was rejected due to a business exception
-                    var rejection = context.Builder.Build<Func<Exception, Reject>>();
-                    _bus.Reply(rejection(exception));
+                    _bus.Reply(Rejection(exception));
                 }
                 return;
 
