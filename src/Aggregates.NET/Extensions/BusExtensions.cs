@@ -16,7 +16,13 @@ namespace Aggregates.Extensions
         {
             var incoming = context.Context.PhysicalMessage;
             context.Bus.SetMessageHeader(message, "$.Aggregates.Replying", "1");
-            context.Bus.Send(incoming.ReplyToAddress, String.IsNullOrEmpty(incoming.CorrelationId) ? incoming.Id : incoming.CorrelationId, message);
+            var replyTo = incoming.ReplyToAddress.ToString();
+            // Special case if using RabbitMq - replies need to be sent to the CallbackQueue NOT the primary queue
+            if (context.Context.PhysicalMessage.Headers.ContainsKey("NServiceBus.RabbitMQ.CallbackQueue"))
+                replyTo = context.Context.PhysicalMessage.Headers["NServiceBus.RabbitMQ.CallbackQueue"];
+            
+
+            context.Bus.Send(Address.Parse(replyTo), String.IsNullOrEmpty(incoming.CorrelationId) ? incoming.Id : incoming.CorrelationId, message);
         }
         public static void ReplyAsync<T>(this IHandleContext context, Action<T> message)
         {
