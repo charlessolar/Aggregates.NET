@@ -21,6 +21,7 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(ExceptionRejector));
 
+        private static IDictionary<String, Int32> _retryRegistry = new Dictionary<String, Int32>();
         private static Meter _errorsMeter = Metric.Meter("Message Faults", Unit.Errors);
         private readonly IBus _bus;
         private readonly ReadOnlySettings _settings;
@@ -35,20 +36,28 @@ namespace Aggregates.Internal
 
         public void Invoke(IncomingContext context, Action next)
         {
+            var messageId = context.PhysicalMessage.Id;
             try
             {
+                if(_retryRegistry.ContainsKey(messageId))
+                    context.PhysicalMessage.Headers[Headers.Retries] = _retryRegistry[messageId].ToString();
+
                 next();
+                _retryRegistry.Remove(context.PhysicalMessage.Id);
             }
             catch (Exception e)
             {
-                var numberOfRetries = GetNumberOfFirstLevelRetries(context.PhysicalMessage) + 1;
-                context.PhysicalMessage.Headers[Headers.Retries] = numberOfRetries.ToString();
+                var numberOfRetries = 0;
+                _retryRegistry.TryGetValue(messageId, out numberOfRetries);
+                    
                 if (numberOfRetries < _maxRetries)
                 {
-                    Logger.WarnFormat("Message {2} type {0} has faulted! {1} times", context.IncomingLogicalMessage.MessageType.FullName, GetNumberOfFirstLevelRetries(context.PhysicalMessage), context.PhysicalMessage.Id);
+                    Logger.WarnFormat("Message {2} type {0} has faulted! {1} times", context.IncomingLogicalMessage.MessageType.FullName, numberOfRetries, context.PhysicalMessage.Id);
+                    _retryRegistry[messageId] = numberOfRetries + 1;
                     throw;
                 }
-                
+                _retryRegistry.Remove(messageId);
+
 
                 _errorsMeter.Mark();
                 try
@@ -68,14 +77,10 @@ namespace Aggregates.Internal
         }
         static int GetNumberOfFirstLevelRetries(TransportMessage message)
         {
-            string value;
-            if (message.Headers.TryGetValue(Headers.Retries, out value))
+            Int32 value;
+            if (_retryRegistry.TryGetValue(message.Id, out value))
             {
-                int i;
-                if (int.TryParse(value, out i))
-                {
-                    return i;
-                }
+                return value;
             }
             return 0;
         }
