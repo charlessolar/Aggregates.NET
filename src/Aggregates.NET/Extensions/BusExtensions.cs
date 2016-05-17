@@ -46,6 +46,16 @@ namespace Aggregates.Extensions
             // All commands get a response so we'll need to register a callback
             return bus.Send(command).AsCommandResult();
         }
+        public static Task Command(this IBus bus, string destination, ICommand command)
+        {
+            // All commands get a response so we'll need to register a callback
+            return bus.Send(destination, command).AsCommandResult();
+        }
+        public static Task Command(this IBus bus, Address destination, ICommand command)
+        {
+            // All commands get a response so we'll need to register a callback
+            return bus.Send(destination, command).AsCommandResult();
+        }
         public static void ReplyAsync(this IHandleContext context, object message)
         {
             var incoming = context.Context.PhysicalMessage;
