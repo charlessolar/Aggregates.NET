@@ -20,8 +20,11 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CommandAcceptor));
 
         private static Meter _errorsMeter = Metric.Meter("Business Exceptions", Unit.Errors);
-
-        public IBus _bus;
+        private readonly IBus _bus;
+        public CommandAcceptor(IBus bus)
+        {
+            _bus = bus;
+        }
         
 
         public void Invoke(IncomingContext context, Action next)
