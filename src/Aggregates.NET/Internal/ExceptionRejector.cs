@@ -41,7 +41,9 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
-                if (GetNumberOfFirstLevelRetries(context.PhysicalMessage) < _maxRetries)
+                var numberOfRetries = GetNumberOfFirstLevelRetries(context.PhysicalMessage) + 1;
+                context.PhysicalMessage.Headers[Headers.Retries] = numberOfRetries.ToString();
+                if (numberOfRetries < _maxRetries)
                 {
                     Logger.WarnFormat("Message {2} type {0} has faulted! {1} times", context.IncomingLogicalMessage.MessageType.FullName, GetNumberOfFirstLevelRetries(context.PhysicalMessage), context.PhysicalMessage.Id);
                     throw;
@@ -67,7 +69,7 @@ namespace Aggregates.Internal
         static int GetNumberOfFirstLevelRetries(TransportMessage message)
         {
             string value;
-            if (message.Headers.TryGetValue(Headers.FLRetries, out value))
+            if (message.Headers.TryGetValue(Headers.Retries, out value))
             {
                 int i;
                 if (int.TryParse(value, out i))

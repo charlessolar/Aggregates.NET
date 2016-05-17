@@ -114,7 +114,6 @@ namespace Aggregates
 
             context.Pipeline.Register<CommandAcceptorRegistration>();
             context.Pipeline.Register<CommandUnitOfWorkRegistration>();
-            context.Pipeline.Register<ExceptionRejectorRegistration>();
             //context.Pipeline.Register<SafetyNetRegistration>();
             //context.Pipeline.Register<TesterBehaviorRegistration>();
 

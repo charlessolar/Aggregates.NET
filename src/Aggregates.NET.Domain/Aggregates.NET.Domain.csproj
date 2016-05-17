@@ -73,7 +73,6 @@
     <Compile Include="IHandleComputed.cs" />
     <Compile Include="IBase.cs" />
     <Compile Include="Internal\CommandUnitOfWork.cs" />
-    <Compile Include="Internal\ExceptionRejector.cs" />
     <Compile Include="Internal\MemoryStreamCache.cs" />
     <Compile Include="Internal\Processor.cs" />
     <Compile Include="IQuery.cs" />
