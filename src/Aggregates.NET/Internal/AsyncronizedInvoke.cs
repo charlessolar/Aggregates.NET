@@ -13,6 +13,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Aggregates.Extensions;
 
 namespace Aggregates.Internal
 {
@@ -31,6 +32,7 @@ namespace Aggregates.Internal
             _settings = settings;
             _mapper = mapper;
             _slowAlert = _settings.Get<Int32>("SlowAlertThreshold");
+            
         }
 
         public void Invoke(IncomingContext context, Action next)

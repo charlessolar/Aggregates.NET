@@ -72,6 +72,7 @@
     <Compile Include="Defaults.cs" />
     <Compile Include="Enumeration.cs" />
     <Compile Include="Exceptions\AggregateException.cs" />
+    <Compile Include="Exceptions\CommandRejectedException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
     <Compile Include="Exceptions\DuplicateCommitException.cs" />
     <Compile Include="Exceptions\NotFoundException.cs" />
