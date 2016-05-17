@@ -75,15 +75,6 @@ namespace Aggregates.Internal
             }
 
         }
-        static int GetNumberOfFirstLevelRetries(TransportMessage message)
-        {
-            Int32 value;
-            if (_retryRegistry.TryGetValue(message.Id, out value))
-            {
-                return value;
-            }
-            return 0;
-        }
     }
 
     internal class ExceptionRejectorRegistration : RegisterStep
