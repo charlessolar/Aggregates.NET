@@ -56,6 +56,78 @@ namespace Aggregates.Extensions
             // All commands get a response so we'll need to register a callback
             return bus.Send(destination, command).AsCommandResult();
         }
+        public static Task Command(this IBus bus, Action<ICommand> command)
+        {
+            // All commands get a response so we'll need to register a callback
+            return bus.Send(command).AsCommandResult();
+        }
+        public static Task Command(this IBus bus, string destination, Action<ICommand> command)
+        {
+            // All commands get a response so we'll need to register a callback
+            return bus.Send(destination, command).AsCommandResult();
+        }
+        public static Task Command(this IBus bus, Address destination, Action<ICommand> command)
+        {
+            // All commands get a response so we'll need to register a callback
+            return bus.Send(destination, command).AsCommandResult();
+        }
+
+        /// <summary>
+        /// Send the command, don't care if its rejected
+        /// </summary>
+        /// <param name="bus"></param>
+        /// <param name="command"></param>
+        /// <returns></returns>
+        public static async Task PassiveCommand(this IBus bus, Action<ICommand> command)
+        {
+            try
+            {
+                await bus.Send(command).AsCommandResult();
+            }
+            catch (CommandRejectedException) { }
+        }
+        public static async Task PassiveCommand(this IBus bus, ICommand command)
+        {
+            try
+            {
+                await bus.Send(command).AsCommandResult();
+            }
+            catch (CommandRejectedException) { }
+        }
+        public static async Task PassiveCommand(this IBus bus, string destination, Action<ICommand> command)
+        {
+            try
+            {
+                await bus.Send(destination, command).AsCommandResult();
+            }
+            catch (CommandRejectedException) { }
+        }
+        public static async Task PassiveCommand(this IBus bus, Address destination, Action<ICommand> command)
+        {
+            try
+            {
+                await bus.Send(destination, command).AsCommandResult();
+            }
+            catch (CommandRejectedException) { }
+        }
+        public static async Task PassiveCommand(this IBus bus, string destination, ICommand command)
+        {
+            try
+            {
+                await bus.Send(destination, command).AsCommandResult();
+            }
+            catch (CommandRejectedException) { }
+        }
+        public static async Task PassiveCommand(this IBus bus, Address destination, ICommand command)
+        {
+            try
+            {
+                await bus.Send(destination, command).AsCommandResult();
+            }
+            catch (CommandRejectedException) { }
+        }
+
+
         public static void ReplyAsync(this IHandleContext context, object message)
         {
             var incoming = context.Context.PhysicalMessage;
