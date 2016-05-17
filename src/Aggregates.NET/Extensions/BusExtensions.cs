@@ -56,17 +56,17 @@ namespace Aggregates.Extensions
             // All commands get a response so we'll need to register a callback
             return bus.Send(destination, command).AsCommandResult();
         }
-        public static Task Command(this IBus bus, Action<ICommand> command)
+        public static Task Command<TCommand>(this IBus bus, Action<TCommand> command) where TCommand : ICommand
         {
             // All commands get a response so we'll need to register a callback
             return bus.Send(command).AsCommandResult();
         }
-        public static Task Command(this IBus bus, string destination, Action<ICommand> command)
+        public static Task Command<TCommand>(this IBus bus, string destination, Action<TCommand> command) where TCommand : ICommand
         {
             // All commands get a response so we'll need to register a callback
             return bus.Send(destination, command).AsCommandResult();
         }
-        public static Task Command(this IBus bus, Address destination, Action<ICommand> command)
+        public static Task Command<TCommand>(this IBus bus, Address destination, Action<TCommand> command) where TCommand : ICommand
         {
             // All commands get a response so we'll need to register a callback
             return bus.Send(destination, command).AsCommandResult();
@@ -78,7 +78,7 @@ namespace Aggregates.Extensions
         /// <param name="bus"></param>
         /// <param name="command"></param>
         /// <returns></returns>
-        public static async Task PassiveCommand(this IBus bus, Action<ICommand> command)
+        public static async Task PassiveCommand<TCommand>(this IBus bus, Action<TCommand> command) where TCommand : ICommand
         {
             try
             {
@@ -94,7 +94,7 @@ namespace Aggregates.Extensions
             }
             catch (CommandRejectedException) { }
         }
-        public static async Task PassiveCommand(this IBus bus, string destination, Action<ICommand> command)
+        public static async Task PassiveCommand<TCommand>(this IBus bus, string destination, Action<TCommand> command) where TCommand : ICommand
         {
             try
             {
@@ -102,7 +102,7 @@ namespace Aggregates.Extensions
             }
             catch (CommandRejectedException) { }
         }
-        public static async Task PassiveCommand(this IBus bus, Address destination, Action<ICommand> command)
+        public static async Task PassiveCommand<TCommand>(this IBus bus, Address destination, Action<TCommand> command) where TCommand : ICommand
         {
             try
             {
