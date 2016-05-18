@@ -12,13 +12,13 @@ namespace Aggregates
 
     public static class ConsumerConfiguration
     {
-        public static void SetHandlerParallelism( this ExposeSettings settings, Int32 Parallelism)
+        public static void UseParallelHandlers( this ExposeSettings settings, Boolean Parallel)
         {
-            settings.GetSettings().Set("HandlerParallelism", Parallelism);
+            settings.GetSettings().Set("ParallelHandlers", Parallel);
         }
-        public static void SetProcessingParallelism(this ExposeSettings settings, Int32 Parallelism)
+        public static void SetParallelism(this ExposeSettings settings, Int32 Parallelism)
         {
-            settings.GetSettings().Set("ProcessingParallelism", Parallelism);
+            settings.GetSettings().Set("Parallelism", Parallelism);
         }
         public static void SetBucketHeartbeats(this ExposeSettings settings, Int32 Seconds)
         {
