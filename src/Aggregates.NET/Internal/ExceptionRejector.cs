@@ -14,6 +14,7 @@ using Metrics;
 using Aggregates.Extensions;
 using Newtonsoft.Json;
 using NServiceBus.Settings;
+using System.Threading;
 
 namespace Aggregates.Internal
 {
@@ -54,6 +55,7 @@ namespace Aggregates.Internal
                 {
                     Logger.WarnFormat("Message {2} type {0} has faulted! {1} times", context.IncomingLogicalMessage.MessageType.FullName, numberOfRetries, context.PhysicalMessage.Id);
                     _retryRegistry[messageId] = numberOfRetries + 1;
+                    Thread.Sleep(75);
                     throw;
                 }
                 _retryRegistry.Remove(messageId);

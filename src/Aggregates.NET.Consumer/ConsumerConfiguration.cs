@@ -12,10 +12,6 @@ namespace Aggregates
 
     public static class ConsumerConfiguration
     {
-        public static void UseParallelHandlers( this ExposeSettings settings, Boolean Parallel)
-        {
-            settings.GetSettings().Set("ParallelHandlers", Parallel);
-        }
         public static void SetParallelism(this ExposeSettings settings, Int32 Parallelism)
         {
             settings.GetSettings().Set("Parallelism", Parallelism);
