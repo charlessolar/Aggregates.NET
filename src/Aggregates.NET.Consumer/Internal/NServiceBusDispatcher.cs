@@ -254,6 +254,30 @@ namespace Aggregates.Internal
                                 s.Stop();
                                 Logger.DebugFormat("Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
                             }
+
+                            s.Restart();
+                            await uows.Generate().ForEachAsync(2, async (uow) =>
+                            {
+                                try
+                                {
+                                    await uow.End();
+                                }
+                                catch
+                                {
+                                    // If it failed it needs to go back on the stack
+                                    uows.Push(uow);
+                                    throw;
+                                }
+                            });
+                            s.Stop();
+                            if (Logger.IsDebugEnabled)
+                            {
+                                Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                            }
+                            if (s.ElapsedMilliseconds > _slowAlert)
+                            {
+                                Logger.WarnFormat(" - SLOW ALERT - UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                            }
                         }
                         catch (Exception e)
                         {
@@ -276,9 +300,9 @@ namespace Aggregates.Internal
                                 e = new System.AggregateException(exceptions);
                             }
 
-                            // Only log if the event has failed more than half max retries indicating a possible non-transient error
+                            // Only log if the event has failed more than half max retries indicating a non-transient error
                             if (retry > (_maxRetries / 2))
-                                Logger.InfoFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event), e);
+                                Logger.WarnFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event), e);
                             else
                                 Logger.DebugFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event), e);
 
@@ -287,53 +311,7 @@ namespace Aggregates.Internal
                             Thread.Sleep(150);
                             continue;
                         }
-
-
-                        // Failures when executing UOW.End `could` be transient (network or disk hicup)
-                        // A failure of 1 uow in a chain of 5 is a problem as it could create a mangled DB (partial update via one uow then crash)
-                        // So we'll just keep retrying the failing UOW forever until it succeeds.
-
-                        s.Restart();
-                        var endSuccess = false;
-                        var endRetry = 0;
-                        while (!endSuccess)
-                        {
-                            try
-                            {
-                                await uows.Generate().ForEachAsync(2, async (uow) =>
-                                {
-                                    try
-                                    {
-                                        await uow.End();
-                                    }
-                                    catch
-                                    {
-                                        // If it failed it needs to go back on the stack
-                                        uows.Push(uow);
-                                        throw;
-                                    }
-                                });
-                                endSuccess = true;
-                            }
-                            catch (Exception e)
-                            {
-                                if (endRetry > (_maxRetries / 2))
-                                    Logger.ErrorFormat("UOW.End failure while processing event {0} - retry {1}/{3}\nException:\n{2}", eventType.FullName, retry, e, _maxRetries);
-                                else
-                                    Logger.DebugFormat("UOW.End failure while processing event {0} - retry {1}/{3}\nException:\n{2}", eventType.FullName, retry, e, _maxRetries);
-                                endRetry++;
-                                Thread.Sleep(75);
-                            }
-                        }
-                        s.Stop();
-                        if (Logger.IsDebugEnabled)
-                        {
-                            Logger.DebugFormat("UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
-                        }
-                        if (s.ElapsedMilliseconds > _slowAlert)
-                        {
-                            Logger.WarnFormat(" - SLOW ALERT - UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
-                        }
+                        
                         success = true;
                     } while (!success && (_maxRetries == -1 || retry < _maxRetries));
 

@@ -26,6 +26,8 @@ namespace Aggregates.Internal
             for (var i = 0; i < maxDegreeOfParallelism; i++)
             {
                 var thread = new Thread(DoWork);
+                thread.IsBackground = true;
+                
                 _threads.Add(thread);
                 thread.Start();
             }
