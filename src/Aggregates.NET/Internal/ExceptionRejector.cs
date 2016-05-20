@@ -65,15 +65,15 @@ namespace Aggregates.Internal
                 try
                 {
                     Logger.ErrorFormat("Message {2} type {0} has faulted!\nHeaders: {3}\nPayload: {4}\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, e, context.PhysicalMessage.Id, JsonConvert.SerializeObject(context.PhysicalMessage.Headers), JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance));
+                    // Tell the sender the command was not handled due to a service exception
+                    var rejection = context.Builder.Build<Func<Exception, String, Error>>();
+                    // Wrap exception in our object which is serializable
+                    _bus.Reply(rejection(e, $"Rejected message {context.IncomingLogicalMessage.MessageType.FullName}\n Payload: {JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance)}"));
                 }
                 catch (KeyNotFoundException)
                 {
                     Logger.ErrorFormat("Message {1} [Unknown] has faulted!\nHeaders: {2}\nException: {0}", e, context.PhysicalMessage.Id, JsonConvert.SerializeObject(context.PhysicalMessage.Headers));
                 }
-                // Tell the sender the command was not handled due to a service exception
-                var rejection = context.Builder.Build<Func<Exception, String, Error>>();
-                // Wrap exception in our object which is serializable
-                _bus.Reply(rejection(e, $"Rejected message {context.IncomingLogicalMessage.MessageType.FullName}\n Payload: {JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance)}"));
             }
 
         }

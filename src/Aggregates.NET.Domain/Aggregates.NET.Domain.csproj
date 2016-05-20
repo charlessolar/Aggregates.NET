@@ -92,7 +92,6 @@
     <Compile Include="Contracts\ISnapshotting.cs" />
     <Compile Include="Contracts\IStoreEvents.cs" />
     <Compile Include="Entity.cs" />
-    <Compile Include="Exceptions\BusinessException.cs" />
     <Compile Include="Exceptions\StorageException.cs" />
     <Compile Include="Exceptions\VersionException.cs" />
     <Compile Include="Internal\DefaultRepositoryFactory.cs" />
@@ -120,6 +119,9 @@
       <Project>{ec7040e2-7a13-4447-900d-6ed57328e5df}</Project>
       <Name>Aggregates.NET</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Messages\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

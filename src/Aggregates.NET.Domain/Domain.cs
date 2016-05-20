@@ -17,6 +17,7 @@ using NServiceBus.Settings;
 using NServiceBus.Pipeline;
 using NServiceBus.Config.ConfigurationSource;
 using NServiceBus.Config;
+using Aggregates.Exceptions;
 
 namespace Aggregates
 {
@@ -57,7 +58,7 @@ namespace Aggregates
                 var eventFactory = y.Build<IMessageCreator>();
                 return (message) => { return eventFactory.CreateInstance<Reject>(e => { e.Message = message; }); };
             }, DependencyLifecycle.SingleInstance);
-            context.Container.ConfigureComponent<Func<Exception, Reject>>(y =>
+            context.Container.ConfigureComponent<Func<BusinessException, Reject>>(y =>
             {
                 var eventFactory = y.Build<IMessageCreator>();
                 return (exception) => {
@@ -68,49 +69,6 @@ namespace Aggregates
                 };
             }, DependencyLifecycle.SingleInstance);
 
-            context.Container.ConfigureComponent<Func<Exception, String, Error>>(y =>
-            {
-                var eventFactory = y.Build<IMessageCreator>();
-                return (exception, message) => {
-                    var sb = new StringBuilder();
-                    if (!String.IsNullOrEmpty(message))
-                    {
-                        sb.AppendLine($"Error Message: {message}");
-                    }
-                    sb.AppendLine($"Exception type {exception.GetType()}");
-                    sb.AppendLine($"Exception message: {exception.Message}");
-                    sb.AppendLine($"Stack trace: {exception.StackTrace}");
-
-
-                    if (exception.InnerException != null)
-                    {
-                        sb.AppendLine("---BEGIN Inner Exception--- ");
-                        sb.AppendLine($"Exception type {exception.InnerException.GetType()}");
-                        sb.AppendLine($"Exception message: {exception.InnerException.Message}");
-                        sb.AppendLine($"Stack trace: {exception.InnerException.StackTrace}");
-                        sb.AppendLine("---END Inner Exception---");
-
-                    }
-                    if (exception is System.AggregateException)
-                    {
-                        sb.AppendLine("---BEGIN Aggregate Exception---");
-                        var aggException = exception as System.AggregateException;
-                        foreach (var inner in aggException.InnerExceptions)
-                        {
-
-                            sb.AppendLine("---BEGIN Inner Exception--- ");
-                            sb.AppendLine($"Exception type {inner.GetType()}");
-                            sb.AppendLine($"Exception message: {inner.Message}");
-                            sb.AppendLine($"Stack trace: {inner.StackTrace}");
-                            sb.AppendLine("---END Inner Exception---");
-                        }
-                    }
-
-                    return eventFactory.CreateInstance<Error>(e => {
-                        e.Message = sb.ToString();
-                    });
-                };
-            }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register<CommandAcceptorRegistration>();
             context.Pipeline.Register<CommandUnitOfWorkRegistration>();
