@@ -31,7 +31,7 @@ namespace Aggregates.Internal
         {
             if (context.IncomingLogicalMessage.Instance is ICommand)
             {
-                System.Exception exception = null;
+                BusinessException exception = null;
                 try
                 {
                     next();
@@ -41,21 +41,22 @@ namespace Aggregates.Internal
                 }
                 catch (System.AggregateException e)
                 {
-                    if (!(e.InnerException is BusinessException) && !e.InnerExceptions.Any(x => x is BusinessException))
+                    if (!(e is BusinessException) && !(e.InnerException is BusinessException) && !e.InnerExceptions.OfType<BusinessException>().Any())
                         throw;
 
-                    exception = e;
-                }
-                catch (BusinessException e)
-                {
-                    exception = e;
+                    if (e is BusinessException)
+                        exception = e as BusinessException;
+                    else if (e.InnerException is BusinessException)
+                        exception = e.InnerException as BusinessException;
+                    else
+                        exception = new BusinessException(e.Message, e.InnerExceptions.OfType<BusinessException>());
                 }
                 if (exception != null)
                 {
                     _errorsMeter.Mark();
                     Logger.DebugFormat("Command {0} was rejected\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, exception);
                     // Tell the sender the command was rejected due to a business exception
-                    var rejection = context.Builder.Build<Func<Exception, Reject>>();
+                    var rejection = context.Builder.Build<Func<BusinessException, Reject>>();
                     _bus.Reply(rejection(exception));
                 }
                 return;

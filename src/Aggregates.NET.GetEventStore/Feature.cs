@@ -7,15 +7,14 @@ using Aggregates.Internal;
 
 namespace Aggregates.GetEventStore
 {
-    public class Feature : ConsumerFeature
+    public class Feature : NServiceBus.Features.Feature
     {
-        public Feature() : base()
+        public Feature()
         {
         }
 
         protected override void Setup(FeatureConfigurationContext context)
         {
-            base.Setup(context);
             context.Container.ConfigureComponent<StoreEvents>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<StoreSnapshots>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DomainSubscriber>(DependencyLifecycle.SingleInstance);
