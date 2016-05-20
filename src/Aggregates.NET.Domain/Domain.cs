@@ -39,7 +39,9 @@ namespace Aggregates
             };
         }
         protected override void Setup(FeatureConfigurationContext context)
-        {            
+        {
+            base.Setup(context);
+
             context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.SingleInstance);
