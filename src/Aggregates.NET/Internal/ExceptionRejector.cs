@@ -59,9 +59,11 @@ namespace Aggregates.Internal
                     throw;
                 }
                 _retryRegistry.Remove(messageId);
-
-
+                
                 _errorsMeter.Mark();
+
+                // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth
+                if (context.PhysicalMessage.MessageIntent != MessageIntentEnum.Send) return;
                 try
                 {
                     Logger.ErrorFormat("Message {2} type {0} has faulted!\nHeaders: {3}\nPayload: {4}\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, e, context.PhysicalMessage.Id, JsonConvert.SerializeObject(context.PhysicalMessage.Headers), JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance));
