@@ -21,7 +21,7 @@ using Aggregates.Exceptions;
 
 namespace Aggregates
 {
-    public class Domain : Aggregates.Feature, IProvideConfiguration<TransportConfig>
+    public class Domain : ConsumerFeature, IProvideConfiguration<TransportConfig>
     {
         public Domain() : base()
         {
