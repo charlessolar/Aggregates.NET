@@ -126,7 +126,7 @@ namespace Aggregates
                     e.Event.Serialize(settings).AsByteArray(),
                     descriptor.Serialize(settings).AsByteArray()
                     );
-            });
+            }).ToList();
 
             try
             {
