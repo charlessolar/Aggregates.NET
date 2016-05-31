@@ -11,6 +11,7 @@ namespace Aggregates
     public interface IUnitOfWork : IDisposable,  IMutateTransportMessages, IMessageMutator
     {
         IRepository<T> For<T>() where T : class, IAggregate;
+        IEntityRepository<TAggregateId, TEntity> For<TAggregateId, TEntity>(IEntity<TAggregateId> parent) where TEntity : class, IEntity;
 
         Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>;
         Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>;

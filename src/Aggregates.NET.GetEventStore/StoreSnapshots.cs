@@ -96,7 +96,7 @@ namespace Aggregates
                     e.Payload.Serialize(_settings).AsByteArray(),
                     descriptor.Serialize(_settings).AsByteArray()
                     );
-            });
+            }).ToList();
 
             try
             {

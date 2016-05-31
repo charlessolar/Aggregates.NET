@@ -41,8 +41,7 @@ namespace Aggregates.Internal
             var entity = await Get(_parentStream.Bucket, streamId);
             (entity as IEventSource<TId>).Id = id;
             (entity as IEntity<TId, TAggregateId>).AggregateId = _aggregateId;
-
-            this._parentStream.AddChild(entity.Stream);
+            
             return entity;
         }
 
@@ -63,7 +62,6 @@ namespace Aggregates.Internal
                 Logger.Error(message);
                 throw new ArgumentException(message);
             }
-            this._parentStream.AddChild(entity.Stream);
             return entity;
         }
 

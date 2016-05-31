@@ -33,6 +33,7 @@ namespace Aggregates.Internal
         private bool _disposed;
         private IDictionary<String, String> _workHeaders;
         private IDictionary<Type, IRepository> _repositories;
+        private IDictionary<Type, IEntityRepository> _entityRepositories;
 
         private Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
         private Timer _commandsTimer = Metric.Timer("Commands Duration", Unit.Commands);
@@ -52,6 +53,7 @@ namespace Aggregates.Internal
             _repoFactory = repoFactory;
             _mapper = mapper;
             _repositories = new Dictionary<Type, IRepository>();
+            _entityRepositories = new Dictionary<Type, IEntityRepository>();
             _workHeaders = new Dictionary<String, String>();
         }
 
@@ -75,6 +77,15 @@ namespace Aggregates.Internal
 
                 _repositories.Clear();
             }
+            lock (_entityRepositories)
+            {
+                foreach (var repo in _entityRepositories.Values)
+                {
+                    repo.Dispose();
+                }
+
+                _entityRepositories.Clear();
+            }
             _disposed = true;
         }
 
@@ -90,6 +101,17 @@ namespace Aggregates.Internal
                 lock(_repositories) _repositories[type] = repository;
             }
             return (IRepository<T>)repository;
+        }
+        public IEntityRepository<TAggregateId, TEntity> For<TAggregateId, TEntity>(IEntity<TAggregateId> parent) where TEntity : class, IEntity
+        {
+            Logger.DebugFormat("Retreiving entity repository for type {0}", typeof(TEntity));
+            var type = typeof(TEntity);
+
+            IEntityRepository repository;
+            if (_entityRepositories.TryGetValue(type, out repository))
+                return (IEntityRepository<TAggregateId, TEntity>)repository;
+
+            return (IEntityRepository<TAggregateId, TEntity>)(_entityRepositories[type] = (IEntityRepository)_repoFactory.ForEntity<TAggregateId, TEntity>(parent.Id, parent.Stream, Builder));
         }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
@@ -165,6 +187,20 @@ namespace Aggregates.Internal
                 commitId = Guid.Parse(messageId);
 
             await _repositories.Values.ForEachAsync(2, async (repo) =>
+            {
+                try
+                {
+                    // Insert all command headers into the commit
+                    var headers = new Dictionary<String, String>(_workHeaders);
+
+                    await repo.Commit(commitId, headers);
+                }
+                catch (StorageException e)
+                {
+                    throw new PersistenceException(e.Message, e);
+                }
+            });
+            await _entityRepositories.Values.ForEachAsync(2, async (repo) =>
             {
                 try
                 {

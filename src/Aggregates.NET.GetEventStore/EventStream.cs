@@ -47,7 +47,6 @@ namespace Aggregates.Internal
         private IEnumerable<IWritableEvent> _committed;
         private IList<IWritableEvent> _uncommitted;
         private IList<ISnapshot> _pendingShots;
-        private IDictionary<String, IEventStream> _children;
 
         public EventStream(IBuilder builder, IStoreEvents store, IStoreSnapshots snapshots, String bucket, String streamId, Int32 streamVersion, IEnumerable<IWritableEvent> events)
         {
@@ -61,7 +60,6 @@ namespace Aggregates.Internal
             this._committed = events.ToList();
             this._uncommitted = new List<IWritableEvent>();
             this._pendingShots = new List<ISnapshot>();
-            this._children = new Dictionary<String, IEventStream>();
 
             if (events == null || events.Count() == 0) return;
         }
@@ -113,13 +111,7 @@ namespace Aggregates.Internal
         public async Task Commit(Guid commitId, IDictionary<String, String> commitHeaders)
         {
             Logger.DebugFormat("Event stream {0} commiting events", this.StreamId);
-
-            await this._children.Values.ForEachAsync(2, async (child) =>
-            {
-                Logger.DebugFormat("Event stream {0} commiting changes to child stream {1}", this.StreamId, child.StreamId);
-                await child.Commit(commitId, commitHeaders);
-            });
-            
+                    
 
             if (this._uncommitted.Count == 0)
             {
@@ -168,19 +160,13 @@ namespace Aggregates.Internal
                 throw new PersistenceException(e.Message, e);
             }
         }
-
-        public void AddChild(IEventStream stream)
-        {
-            Logger.DebugFormat("Event stream {0} adding child {1}", this.StreamId, stream.StreamId);
-            this._children[stream.StreamId] = stream;
-        }
+        
 
         public void ClearChanges()
         {
             Logger.DebugFormat("Event stream {0} clearing changes", this.StreamId);
             this._uncommitted.Clear();
             this._pendingShots.Clear();
-            this._children.Clear();
         }
     }
 }

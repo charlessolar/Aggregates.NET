@@ -58,14 +58,9 @@ namespace Aggregates
 
         public IEntityRepository<TId, TEntity> For<TEntity>() where TEntity : class, IEntity
         {
-            Logger.DebugFormat("Retreiving entity repository for type {0}", typeof(TEntity));
-            var type = typeof(TEntity);
-
-            IEntityRepository repository;
-            if (_repositories.TryGetValue(type, out repository))
-                return (IEntityRepository<TId, TEntity>)repository;
-
-            return (IEntityRepository<TId, TEntity>)(_repositories[type] = (IEntityRepository)_repoFactory.ForEntity<TId, TEntity>(Id, Stream, _builder));
+            // Get current UOW
+            var uow = _builder.Build<IUnitOfWork>();
+            return uow.For<TId, TEntity>(this);
         }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {

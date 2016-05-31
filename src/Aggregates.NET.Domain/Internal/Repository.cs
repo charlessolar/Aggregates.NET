@@ -30,7 +30,7 @@ namespace Aggregates.Internal
         private static Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Events);
         private static Meter ConflictsResolved = Metric.Meter("Conflicts Resolved", Unit.Items);
         private static Meter WriteErrors = Metric.Meter("Event Write Errors", Unit.Errors);
-
+        
         protected readonly IDictionary<String, T> _tracked = new Dictionary<String, T>();
 
         private Boolean _disposed;
