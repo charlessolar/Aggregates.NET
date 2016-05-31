@@ -55,7 +55,7 @@ namespace Aggregates
             var @event = read.Event.Value.Event;
 
             var descriptor = @event.Metadata.Deserialize(_settings);
-            var data = @event.Data.Deserialize(@event.EventType, _settings);
+            var data = @event.Data.Deserialize(descriptor.EntityType, _settings);
 
             var snapshot = new Snapshot
             {
