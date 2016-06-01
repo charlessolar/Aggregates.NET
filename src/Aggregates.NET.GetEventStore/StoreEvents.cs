@@ -108,6 +108,7 @@ namespace Aggregates
 
             var translatedEvents = events.Select(e =>
             {
+
                 var descriptor = new EventDescriptor
                 {
                     EntityType = e.Descriptor.EntityType,

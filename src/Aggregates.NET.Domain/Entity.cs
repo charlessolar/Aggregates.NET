@@ -139,7 +139,6 @@ namespace Aggregates
     {
         void ISnapshotting.RestoreSnapshot(Object snapshot)
         {
-            Logger.DebugFormat("Restoring snapshot to {0} id {1} version {2}", this.GetType().FullName, this.Id, this.Version);
             RestoreSnapshot(snapshot as TMemento);
         }
 

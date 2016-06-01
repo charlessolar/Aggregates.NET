@@ -8,15 +8,12 @@ namespace Aggregates.Extensions
 {
     public static class DictionaryExtensions
     {
-        public static IDictionary<T, U> Merge<T, U>(this IDictionary<T, U> first, IDictionary<T, U> second) where U : ICloneable
+        public static IDictionary<T, U> Merge<T, U>(this IDictionary<T, U> first, IDictionary<T, U> second)
         {
-            var result = new Dictionary<T, U>();
-
-            foreach (var item in first)
-                result[item.Key] = (U)item.Value.Clone();
-
+            var result = new Dictionary<T, U>(first);
+            
             foreach (var item in second)
-                result[item.Key] = (U)item.Value.Clone();
+                result[item.Key] = item.Value;
             return result;
         }
     }

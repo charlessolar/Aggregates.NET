@@ -17,7 +17,7 @@ namespace Aggregates.Extensions
             result["EntityType"] = descriptor.EntityType;
             result["Timestamp"] = descriptor.Timestamp.ToString();
 
-            return descriptor.Headers.ToDictionary(k => k.Key, v => v.Value).Merge(result);
+            return descriptor.Headers.Merge(result);
         }
     }
 }

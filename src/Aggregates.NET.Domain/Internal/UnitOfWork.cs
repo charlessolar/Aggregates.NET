@@ -177,22 +177,27 @@ namespace Aggregates.Internal
             var commitId = Guid.NewGuid();
             String messageId;
 
-            // Attempt to get MessageId from NServicebus headers
-            // If we maintain a good CommitId convention it should solve the message idempotentcy issue (assuming the storage they choose supports it)
-            if (_workHeaders.TryGetValue(Defaults.MessageIdHeader, out messageId))
-                commitId = Guid.Parse(messageId);
+            try
+            {
+                // Attempt to get MessageId from NServicebus headers
+                // If we maintain a good CommitId convention it should solve the message idempotentcy issue (assuming the storage they choose supports it)
+                if (_workHeaders.TryGetValue(Defaults.MessageIdHeader, out messageId))
+                    commitId = Guid.Parse(messageId);
 
-            // Allow the user to send a CommitId along with his message if he wants
-            if (_workHeaders.TryGetValue(Defaults.CommitIdHeader, out messageId))
-                commitId = Guid.Parse(messageId);
+                // Allow the user to send a CommitId along with his message if he wants
+                if (_workHeaders.TryGetValue(Defaults.CommitIdHeader, out messageId))
+                    commitId = Guid.Parse(messageId);
+            }
+            catch (FormatException) { }
 
+            // Insert all command headers into the commit
+            var headers = new Dictionary<String, String>(_workHeaders);
+
+            Logger.DebugFormat("Starting commit id {0}", commitId);
             await _repositories.Values.ForEachAsync(2, async (repo) =>
             {
                 try
                 {
-                    // Insert all command headers into the commit
-                    var headers = new Dictionary<String, String>(_workHeaders);
-
                     await repo.Commit(commitId, headers);
                 }
                 catch (StorageException e)
@@ -204,9 +209,6 @@ namespace Aggregates.Internal
             {
                 try
                 {
-                    // Insert all command headers into the commit
-                    var headers = new Dictionary<String, String>(_workHeaders);
-
                     await repo.Commit(commitId, headers);
                 }
                 catch (StorageException e)
@@ -214,6 +216,7 @@ namespace Aggregates.Internal
                     throw new PersistenceException(e.Message, e);
                 }
             });
+            Logger.DebugFormat("Commit id {0} complete", commitId);
         }
 
         public void MutateOutgoing(LogicalMessage message, TransportMessage transportMessage)

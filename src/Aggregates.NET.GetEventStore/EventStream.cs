@@ -124,6 +124,7 @@ namespace Aggregates.Internal
 
             commitHeaders[CommitHeader] = commitId.ToString();
 
+            // Do a quick check if any event in the current stream has the same commit id indicating the effects of this command have already been recorded
             var oldCommits = Events.Select(x =>
             {
                 String temp;

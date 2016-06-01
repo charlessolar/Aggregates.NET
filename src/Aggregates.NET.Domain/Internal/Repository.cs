@@ -18,7 +18,7 @@ namespace Aggregates.Internal
     // inspired / taken from NEventStore.CommonDomain
     // https://github.com/NEventStore/NEventStore/blob/master/src/NEventStore/CommonDomain/Persistence/EventStore/EventStoreRepository.cs
 
-        // Todo: The hoops we jump through to support <TId> can be simplified by just using an Id class with implicit converters from string, int, guid, etc.
+    // Todo: The hoops we jump through to support <TId> can be simplified by just using an Id class with implicit converters from string, int, guid, etc.
 
     public class Repository<T> : IRepository<T> where T : class, IEntity
     {
@@ -30,7 +30,7 @@ namespace Aggregates.Internal
         private static Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Events);
         private static Meter ConflictsResolved = Metric.Meter("Conflicts Resolved", Unit.Items);
         private static Meter WriteErrors = Metric.Meter("Event Write Errors", Unit.Errors);
-        
+
         protected readonly IDictionary<String, T> _tracked = new Dictionary<String, T>();
 
         private Boolean _disposed;
@@ -42,11 +42,13 @@ namespace Aggregates.Internal
             _snapstore = _builder.Build<IStoreSnapshots>();
         }
 
-        async Task IRepository.Commit(Guid commitId, IDictionary<String, String> headers)
+        async Task IRepository.Commit(Guid commitId, IDictionary<String, String> commitHeaders)
         {
             var written = 0;
             await _tracked.Values.ForEachAsync(4, async (tracked) =>
             {
+                var headers = new Dictionary<String, String>(commitHeaders);
+
                 var stream = tracked.Stream;
 
                 if (tracked is ISnapshotting && (tracked as ISnapshotting).ShouldTakeSnapshot())
@@ -57,6 +59,7 @@ namespace Aggregates.Internal
                 }
 
                 written += stream.Uncommitted.Count();
+
 
                 var count = 0;
                 var success = false;
@@ -72,8 +75,9 @@ namespace Aggregates.Internal
                     {
                         try
                         {
-                            Logger.DebugFormat("Stream [{0}] entity {1} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName);
+                            Logger.DebugFormat("Stream [{0}] entity {1} version {2} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
                             stream = await ResolveConflict(tracked.Stream);
+                            Logger.DebugFormat("Stream [{0}] entity {1} version {2} has version conflicts with store - successfully resolved", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
                             ConflictsResolved.Mark();
                         }
                         catch
@@ -84,7 +88,9 @@ namespace Aggregates.Internal
                     }
                     catch (DuplicateCommitException)
                     {
+                        WriteErrors.Mark();
                         Logger.WarnFormat("Detected a possible double commit for stream: [{0}] bucket [{1}]", stream.StreamId, stream.Bucket);
+                        throw;
                     }
                     catch
                     {
@@ -100,7 +106,7 @@ namespace Aggregates.Internal
         {
             var uncommitted = stream.Uncommitted;
             // Get latest stream from store
-            var existing = await Get(stream.Bucket, stream.StreamId);
+            var existing = await GetUncached(stream.Bucket, stream.StreamId);
             // Hydrate the uncommitted events
             existing.Hydrate(uncommitted);
             // Success! Streams merged
@@ -139,28 +145,34 @@ namespace Aggregates.Internal
         {
             var cacheId = String.Format("{0}.{1}", bucket, id);
             T root;
-            if(!_tracked.TryGetValue(cacheId, out root))
+            if (!_tracked.TryGetValue(cacheId, out root))
+                _tracked[cacheId] = root = await GetUncached(bucket, id);
+
+            return root;
+        }
+        private async Task<T> GetUncached(String bucket, string id)
+        {
+            T root;
+            var snapshot = await GetSnapshot(bucket, id);
+            var stream = await OpenStream(bucket, id, snapshot);
+
+            if (stream == null && snapshot == null)
+                throw new NotFoundException($"Aggregate snapshot in stream [{id}] bucket [{bucket}] not found");
+
+            // Get requires the stream exists
+            if (stream.StreamVersion == -1)
+                throw new NotFoundException($"Aggregate stream [{id}] in bucket [{bucket}] not found");
+
+            // Call the 'private' constructor
+            root = Newup(stream, _builder);
+
+            if (snapshot != null && root is ISnapshotting)
             {
-                var snapshot = await GetSnapshot(bucket, id);
-                var stream = await OpenStream(bucket, id, snapshot);
-
-                if (stream == null && snapshot == null)
-                    throw new NotFoundException($"Aggregate snapshot in stream [{id}] bucket [{bucket}] not found");
-
-                // Get requires the stream exists
-                if (stream.StreamVersion == -1)
-                    throw new NotFoundException($"Aggregate stream [{id}] in bucket [{bucket}] not found");
-
-                // Call the 'private' constructor
-                root = Newup(stream, _builder);
-
-                if (snapshot != null && root is ISnapshotting)
-                    ((ISnapshotting)root).RestoreSnapshot(snapshot.Payload);
+                Logger.DebugFormat("Restoring snapshot version {0} to stream id [{1}] bucket [{2}] version {3}", snapshot.Version, id, bucket, stream.StreamVersion);
+                ((ISnapshotting)root).RestoreSnapshot(snapshot.Payload);
+            }
 
                 (root as IEventSource).Hydrate(stream.Events.Select(e => e.Event));
-
-                _tracked[cacheId] = root;
-            }
 
             return root;
         }
@@ -213,7 +225,7 @@ namespace Aggregates.Internal
 
             return root;
         }
-        
+
         protected Task<ISnapshot> GetSnapshot(String bucket, String streamId)
         {
             return _snapstore.GetSnapshot(bucket, streamId);
@@ -223,6 +235,6 @@ namespace Aggregates.Internal
         {
             return _store.GetStream<T>(bucket, streamId, snapshot?.Version + 1);
         }
-        
+
     }
 }
