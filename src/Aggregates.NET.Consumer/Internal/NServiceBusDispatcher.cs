@@ -312,23 +312,23 @@ namespace Aggregates.Internal
                             Thread.Sleep(150);
                             continue;
                         }
+                    }
+                    success = true;
+                } while (!success && (_maxRetries == -1 || retry < _maxRetries));
 
-                        success = true;
-                    } while (!success && (_maxRetries == -1 || retry < _maxRetries)) ;
-
-                    if (!success)
+                if (!success)
+                {
+                    var message = String.Format("Encountered an error while processing {0}.  Ran out of retries, dropping event.\nPayload: {1}", eventType.FullName, JsonConvert.SerializeObject(@event));
+                    if (_dropEventFatal)
                     {
-                        var message = String.Format("Encountered an error while processing {0}.  Ran out of retries, dropping event.\nPayload: {1}", eventType.FullName, JsonConvert.SerializeObject(@event));
-                        if (_dropEventFatal)
-                        {
-                            Logger.Fatal(message);
-                            throw new SubscriptionCanceled(message);
-                        }
-
-                        Logger.Error(message);
+                        Logger.Fatal(message);
+                        throw new SubscriptionCanceled(message);
                     }
 
+                    Logger.Error(message);
                 }
+
+
             }
             _eventsMeter.Mark();
         }
