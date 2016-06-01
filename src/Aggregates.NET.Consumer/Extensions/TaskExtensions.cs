@@ -18,10 +18,7 @@ namespace Aggregates.Extensions
                 {
                     using (partition)
                         while (partition.MoveNext())
-                            await body(partition.Current).ContinueWith(t =>
-                            {
-                                //observe exceptions
-                            });
+                            await body(partition.Current);
 
                 }));
         }
