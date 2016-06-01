@@ -150,18 +150,19 @@ namespace Aggregates.Internal
                     Logger.DebugFormat("Processing event {0} at position {1}.  Size of queue: {2}/{3}", eventType.FullName, position, _processingQueueSize, _maxQueueSize);
 
 
-                using (var childBuilder = _builder.CreateChildBuilder())
+                var success = false;
+                var retry = 0;
+                do
                 {
-                    var handlerGenericType = typeof(IHandleMessagesAsync<>).MakeGenericType(eventType);
-                    List<dynamic> handlers = childBuilder.BuildAll(handlerGenericType).ToList();
 
-                    if (handlers.Count == 0)
-                        return;
-
-                    var success = false;
-                    var retry = 0;
-                    do
+                    using (var childBuilder = _builder.CreateChildBuilder())
                     {
+                        var handlerGenericType = typeof(IHandleMessagesAsync<>).MakeGenericType(eventType);
+                        List<dynamic> handlers = childBuilder.BuildAll(handlerGenericType).ToList();
+
+                        if (handlers.Count == 0)
+                            return;
+
                         var uows = new ConcurrentStack<IEventUnitOfWork>();
 
                         var mutators = childBuilder.BuildAll<IEventMutator>();
@@ -311,9 +312,9 @@ namespace Aggregates.Internal
                             Thread.Sleep(150);
                             continue;
                         }
-                        
+
                         success = true;
-                    } while (!success && (_maxRetries == -1 || retry < _maxRetries));
+                    } while (!success && (_maxRetries == -1 || retry < _maxRetries)) ;
 
                     if (!success)
                     {
