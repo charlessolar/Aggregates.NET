@@ -20,7 +20,7 @@ namespace Aggregates.Internal
         public Func<Object, Object, IHandleContext, Task> Invoker(Object handler, Type messageType)
         {
             var handlerType = handler.GetType();
-            var key = $"{handlerType.FullName}+{messageType.Name}";
+            var key = $"{handlerType.FullName}+{messageType.FullName}";
             return _cache.GetOrAdd(key, (k) =>
             {
 

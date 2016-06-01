@@ -113,7 +113,7 @@ namespace Aggregates
                     EntityType = e.Descriptor.EntityType,
                     Timestamp = e.Descriptor.Timestamp,
                     Version = e.Descriptor.Version,
-                    Headers = e.Descriptor.Headers.Merge(commitHeaders)
+                    Headers = commitHeaders.Merge(e.Descriptor.Headers)
                 };
 
                 var mappedType = _mapper.GetMappedTypeFor(e.Event.GetType());
