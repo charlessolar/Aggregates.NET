@@ -153,6 +153,7 @@ namespace Aggregates.Internal
             {
                 var consumer = (CompetingSubscriber)state;
                 var endpoint = consumer._settings.EndpointName();
+                var expiration = _settings.Get<Int32>("BucketExpiration");
 
                 var openBuckets = consumer._bucketCount;
 
@@ -161,7 +162,7 @@ namespace Aggregates.Internal
                 Parallel.For(0, consumer._bucketCount, idx =>
                 {
                     var lastBeat = consumer._competes.LastHeartbeat(endpoint, idx);
-                    if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value) < period)
+                    if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds < expiration)
                         Interlocked.Decrement(ref openBuckets);
                 });
 
