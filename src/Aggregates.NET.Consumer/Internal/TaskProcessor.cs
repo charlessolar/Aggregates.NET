@@ -54,11 +54,13 @@ namespace Aggregates.Internal
             {
                 Logger.Warn("** Pausing event processing **");
                 _pauseEvent.Reset();
+                _paused = true;
             }
             else if(!Pause && _paused)
             {
                 Logger.Warn("** Resuming event processing **");
                 _pauseEvent.Set();
+                _paused = false;
             }
         }
         

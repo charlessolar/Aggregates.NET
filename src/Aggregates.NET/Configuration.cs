@@ -9,7 +9,7 @@ namespace Aggregates
 {
     public static class Configuration
     {
-        public static void MaxEventRetries(this ExposeSettings settings, Int32 Max)
+        public static void MaxRetries(this ExposeSettings settings, Int32 Max)
         {
             settings.GetSettings().Set("MaxRetries", Max);
         }
