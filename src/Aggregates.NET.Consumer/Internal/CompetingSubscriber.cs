@@ -37,6 +37,7 @@ namespace Aggregates.Internal
         private readonly System.Threading.Timer _bucketPause;
         private readonly Int32 _bucketCount;
         private Boolean _pauseOnFreeBucket;
+        private Boolean _pausedArmed;
         private Int32? _adopting;
         private Int64? _adoptingPosition;
         private Object _lock = new object();
@@ -152,7 +153,6 @@ namespace Aggregates.Internal
             {
                 var consumer = (CompetingSubscriber)state;
                 var endpoint = consumer._settings.EndpointName();
-                var expiration = _settings.Get<Int32>("BucketExpiration");
 
                 var openBuckets = consumer._bucketCount;
 
@@ -161,16 +161,29 @@ namespace Aggregates.Internal
                 Parallel.For(0, consumer._bucketCount, idx =>
                 {
                     var lastBeat = consumer._competes.LastHeartbeat(endpoint, idx);
-                    if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds < expiration)
-                        openBuckets--;
+                    if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value) < period)
+                        Interlocked.Decrement(ref openBuckets);
                 });
 
-                if (openBuckets != 0)
-                    Logger.WarnFormat("Detected {0} free buckets", openBuckets);
+                if (openBuckets != 0 && _pausedArmed == false)
+                {
+                    Logger.WarnFormat("Detected {0} free buckets - pause ARMED", openBuckets);
+                    _pausedArmed = true;
+                }
+                else if(openBuckets != 0 && _pausedArmed == true)
+                {
+                    Logger.WarnFormat("Detected {0} free buckets - PAUSING", openBuckets);
+                    consumer._dispatcher.Pause(true);
+                }
+                else
+                {
+                    _pausedArmed = false;
+                    consumer._dispatcher.Pause(false);
+                }
                 
-                consumer._dispatcher.Pause((openBuckets != 0));
 
-            }, this, period, period);
+            }, this, TimeSpan.FromSeconds(period.Seconds / 2), period);
+            // Set open check to not run at the same moment as heartbeating
         }
         public void Dispose()
         {
