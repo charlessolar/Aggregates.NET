@@ -54,6 +54,8 @@ namespace Aggregates.Internal
             _seenBuckets = new Dictionary<Int32, long>();
             _bucketCount = _settings.Get<Int32>("BucketCount");
             _pauseOnFreeBucket = _settings.Get<Boolean>("PauseOnFreeBuckets");
+            // Start paused initially if enabled
+            dispatcher.Pause(_pauseOnFreeBucket);
 
             _jsonSettings = new JsonSerializerSettings
             {
@@ -163,6 +165,9 @@ namespace Aggregates.Internal
                         openBuckets--;
                 });
 
+                if (openBuckets != 0)
+                    Logger.WarnFormat("Detected {0} free buckets", openBuckets);
+                
                 consumer._dispatcher.Pause((openBuckets != 0));
 
             }, this, period, period);

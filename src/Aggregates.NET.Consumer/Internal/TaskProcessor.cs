@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NServiceBus.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,6 +10,8 @@ namespace Aggregates.Internal
 {
     public class TaskProcessor : IDisposable
     {
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(TaskProcessor));
+
         private static CancellationTokenSource _cancelToken = new CancellationTokenSource();
         private static ManualResetEvent _pauseEvent = new ManualResetEvent(true);
         private static LinkedList<Func<Task>> _tasks = new LinkedList<Func<Task>>(); // protected by lock(_tasks)
@@ -46,9 +49,15 @@ namespace Aggregates.Internal
         public void Pause(Boolean Pause)
         {
             if (Pause)
+            {
+                Logger.Warn("Pausing event processing");
                 _pauseEvent.Reset();
+            }
             else
+            {
+                Logger.Warn("Resuming event processing");
                 _pauseEvent.Set();
+            }
         }
         
         private static void DoWork()
