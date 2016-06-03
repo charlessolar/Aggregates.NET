@@ -191,7 +191,8 @@ namespace Aggregates.Internal
             var lastPosition = consumer._competes.LastPosition(endpoint, bucket);
             consumer._adoptingPosition = lastPosition;
 
-            consumer._client.SubscribeToAllFrom(new Position(lastPosition, lastPosition), false, (subscription, e) =>
+            var settings = new CatchUpSubscriptionSettings(readSize * 5, readSize, false, false);
+            consumer._client.SubscribeToAllFrom(new Position(lastPosition, lastPosition), settings, (subscription, e) =>
             {
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
@@ -231,7 +232,7 @@ namespace Aggregates.Internal
                 consumer._adoptingPosition = null;
                 subscription.Stop();
                 Logger.WarnFormat("While adopting bucket {0} the subscription dropped for reason: {1}.  Exception: {2}", bucket, reason, e);
-            }, readBatchSize: readSize);
+            });
         }
 
         public void SubscribeToAll(String endpoint)
@@ -242,7 +243,8 @@ namespace Aggregates.Internal
 
             // Start competing subscribers from the start, if they are picking up a new bucket they need to start from the begining
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from START", endpoint);
-            _client.SubscribeToAllFrom(Position.Start, false, (subscription, e) =>
+            var settings = new CatchUpSubscriptionSettings(readSize * 5, readSize, false, false);
+            _client.SubscribeToAllFrom(Position.Start, settings, (subscription, e) =>
             {
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
@@ -309,7 +311,7 @@ namespace Aggregates.Internal
                 ProcessingLive = false;
                 if (Dropped != null)
                     Dropped.Invoke(reason.ToString(), e);
-            }, readBatchSize: readSize);
+            });
         }
 
     }

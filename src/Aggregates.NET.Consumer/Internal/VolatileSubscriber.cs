@@ -41,7 +41,9 @@ namespace Aggregates.Internal
         {
             var readSize = _settings.Get<Int32>("ReadSize");
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from END", endpoint);
-            _client.SubscribeToAllFrom(Position.End, false, (subscription, e) =>
+
+            var settings = new CatchUpSubscriptionSettings(readSize * 5, readSize, false, false);
+            _client.SubscribeToAllFrom(Position.End, settings, (subscription, e) =>
             {
                 Logger.DebugFormat("Event appeared position {0}", e.OriginalPosition?.CommitPosition);
                 // Unsure if we need to care about events from eventstore currently
@@ -73,7 +75,7 @@ namespace Aggregates.Internal
                 ProcessingLive = false;
                 if (Dropped != null)
                     Dropped.Invoke(reason.ToString(), e);
-            }, readBatchSize: readSize);
+            });
         }
     }
 }

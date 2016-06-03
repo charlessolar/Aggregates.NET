@@ -305,14 +305,14 @@ namespace Aggregates.Internal
                             }
 
                             // Only log if the event has failed more than half max retries indicating a non-transient error
-                            if (retry > (_maxRetries / 2))
+                            if ((_maxRetries != -1 && retry > (_maxRetries / 2)) || (_maxRetries == -1 && (retry % 3) == 0))
                                 Logger.WarnFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event), e);
                             else
                                 Logger.DebugFormat("Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event), e);
 
                             _errorsMeter.Mark();
                             retry++;
-                            Thread.Sleep(150);
+                            Thread.Sleep(150 * retry);
                             continue;
                         }
                     }

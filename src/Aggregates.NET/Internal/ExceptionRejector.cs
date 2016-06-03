@@ -40,7 +40,7 @@ namespace Aggregates.Internal
             var messageId = context.PhysicalMessage.Id;
             try
             {
-                if(_retryRegistry.ContainsKey(messageId))
+                if (_retryRegistry.ContainsKey(messageId))
                     context.PhysicalMessage.Headers[Headers.Retries] = _retryRegistry[messageId].ToString();
 
                 next();
@@ -50,16 +50,16 @@ namespace Aggregates.Internal
             {
                 var numberOfRetries = 0;
                 _retryRegistry.TryGetValue(messageId, out numberOfRetries);
-                    
-                if (numberOfRetries < _maxRetries)
+
+                if (numberOfRetries < _maxRetries || _maxRetries == -1)
                 {
-                    Logger.WarnFormat("Message {2} type {0} has faulted! {1} times", context.IncomingLogicalMessage.MessageType.FullName, numberOfRetries, context.PhysicalMessage.Id);
+                    Logger.WarnFormat("Message {3} type {0} has faulted! {1}/{2} times", context.IncomingLogicalMessage.MessageType.FullName, numberOfRetries, _maxRetries, context.PhysicalMessage.Id);
                     _retryRegistry[messageId] = numberOfRetries + 1;
-                    Thread.Sleep(75);
+                    Thread.Sleep(75 * numberOfRetries);
                     throw;
                 }
                 _retryRegistry.Remove(messageId);
-                
+
                 _errorsMeter.Mark();
 
                 // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth

@@ -16,6 +16,7 @@ namespace Aggregates.Internal
         private static ManualResetEvent _pauseEvent = new ManualResetEvent(true);
         private static LinkedList<Func<Task>> _tasks = new LinkedList<Func<Task>>(); // protected by lock(_tasks)
         private readonly List<Thread> _threads = new List<Thread>();
+        private Boolean _paused;
         // The list of tasks to be executed 
 
         // The maximum concurrency level allowed by this scheduler. 
@@ -24,6 +25,7 @@ namespace Aggregates.Internal
         // Creates a new instance with the specified degree of parallelism. 
         public TaskProcessor(int maxDegreeOfParallelism)
         {
+            _paused = false;
             if (maxDegreeOfParallelism < 1) throw new ArgumentOutOfRangeException("maxDegreeOfParallelism");
             _maxDegreeOfParallelism = maxDegreeOfParallelism;
 
@@ -48,14 +50,14 @@ namespace Aggregates.Internal
 
         public void Pause(Boolean Pause)
         {
-            if (Pause)
+            if (Pause && !_paused)
             {
-                Logger.Warn("Pausing event processing");
+                Logger.Warn("** Pausing event processing **");
                 _pauseEvent.Reset();
             }
-            else
+            else if(!Pause && _paused)
             {
-                Logger.Warn("Resuming event processing");
+                Logger.Warn("** Resuming event processing **");
                 _pauseEvent.Set();
             }
         }
