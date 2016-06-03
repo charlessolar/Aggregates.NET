@@ -33,8 +33,11 @@ namespace Aggregates.Internal
         private readonly JsonSerializerSettings _jsonSettings;
         private readonly HashSet<Int32> _buckets;
         private readonly IDictionary<Int32, long> _seenBuckets;
-        private readonly System.Threading.Timer _bucketChecker;
+        private readonly System.Threading.Timer _bucketHeartbeats;
+        private readonly System.Threading.Timer _bucketPause;
         private readonly Int32 _bucketCount;
+        private Boolean _pauseOnFreeBucket;
+        private Boolean _paused;
         private Int32? _adopting;
         private Int64? _adoptingPosition;
         private Object _lock = new object();
@@ -51,6 +54,9 @@ namespace Aggregates.Internal
             _buckets = new HashSet<Int32>();
             _seenBuckets = new Dictionary<Int32, long>();
             _bucketCount = _settings.Get<Int32>("BucketCount");
+            _pauseOnFreeBucket = _settings.Get<Boolean>("PauseOnFreeBuckets");
+            // Start paused initially (if set)
+            _paused = _pauseOnFreeBucket;
 
             _jsonSettings = new JsonSerializerSettings
             {
@@ -60,7 +66,7 @@ namespace Aggregates.Internal
             };
 
             var period = TimeSpan.FromSeconds(_settings.Get<Int32>("BucketHeartbeats"));
-            _bucketChecker = new System.Threading.Timer((state) =>
+            _bucketHeartbeats = new System.Threading.Timer((state) =>
             {
                 Logger.Debug("Processing compete heartbeats");
                 var handledBuckets = _settings.Get<Int32>("BucketsHandled");
@@ -140,10 +146,33 @@ namespace Aggregates.Internal
                 }
 
             }, this, period, period);
+
+            if (!_pauseOnFreeBucket) return;
+
+            _bucketPause = new System.Threading.Timer(state =>
+            {
+                var consumer = (CompetingSubscriber)state;
+                var endpoint = consumer._settings.EndpointName();
+                var expiration = _settings.Get<Int32>("BucketExpiration");
+
+                var openBuckets = consumer._bucketCount;
+
+                // Check that all buckets are being watched
+
+                Parallel.For(0, consumer._bucketCount, idx =>
+                {
+                    var lastBeat = consumer._competes.LastHeartbeat(endpoint, idx);
+                    if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds < expiration)
+                        openBuckets--;
+                });
+
+                consumer._paused = (openBuckets != 0);
+
+            }, this, period, period);
         }
         public void Dispose()
         {
-            this._bucketChecker.Dispose();
+            this._bucketHeartbeats.Dispose();
         }
 
         private static void AdoptBucket(CompetingSubscriber consumer, String endpoint, Int32 bucket)
@@ -215,6 +244,8 @@ namespace Aggregates.Internal
             {
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
+
+
                 var bucket = Math.Abs(e.OriginalStreamId.GetHashCode() % _bucketCount);
 
                 if (!e.OriginalPosition.HasValue) return;
@@ -255,6 +286,9 @@ namespace Aggregates.Internal
 
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position or snapshots)
                 if (data == null) return;
+
+                while (_paused)
+                    Thread.Sleep(100);
 
                 try
                 {

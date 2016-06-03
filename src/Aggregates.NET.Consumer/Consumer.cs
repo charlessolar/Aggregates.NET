@@ -73,11 +73,11 @@ namespace Aggregates
         {
             Defaults(s =>
             {
-                s.SetDefault("HandledDomains", Int32.MaxValue);
                 s.SetDefault("BucketHeartbeats", 5);
-                s.SetDefault("BucketExpiration", 60);
+                s.SetDefault("BucketExpiration", 20);
                 s.SetDefault("BucketCount", 1);
                 s.SetDefault("BucketsHandled", 1);
+                s.SetDefault("PauseOnFreeBuckets", true);
             });
         }
 

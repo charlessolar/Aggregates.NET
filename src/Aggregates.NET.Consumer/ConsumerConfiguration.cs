@@ -48,5 +48,13 @@ namespace Aggregates
         {
             settings.GetSettings().Set("MaxQueueSize", Size);
         }
+        /// <summary>
+        /// When true, application will not consume events unless ALL buckets are claimed
+        /// Recommended unless you don't care about ordering
+        /// </summary>
+        public static void PauseOnFreeBuckets(this ExposeSettings settings, Boolean Pause)
+        {
+            settings.GetSettings().Set("PauseOnFreeBuckets", Pause);
+        }
     }
 }
