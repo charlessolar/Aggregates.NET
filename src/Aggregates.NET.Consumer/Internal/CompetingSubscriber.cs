@@ -37,7 +37,6 @@ namespace Aggregates.Internal
         private readonly System.Threading.Timer _bucketPause;
         private readonly Int32 _bucketCount;
         private Boolean _pauseOnFreeBucket;
-        private Boolean _paused;
         private Int32? _adopting;
         private Int64? _adoptingPosition;
         private Object _lock = new object();
@@ -55,8 +54,6 @@ namespace Aggregates.Internal
             _seenBuckets = new Dictionary<Int32, long>();
             _bucketCount = _settings.Get<Int32>("BucketCount");
             _pauseOnFreeBucket = _settings.Get<Boolean>("PauseOnFreeBuckets");
-            // Start paused initially (if set)
-            _paused = _pauseOnFreeBucket;
 
             _jsonSettings = new JsonSerializerSettings
             {
@@ -166,7 +163,7 @@ namespace Aggregates.Internal
                         openBuckets--;
                 });
 
-                consumer._paused = (openBuckets != 0);
+                consumer._dispatcher.Pause((openBuckets != 0));
 
             }, this, period, period);
         }
@@ -286,10 +283,7 @@ namespace Aggregates.Internal
 
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position or snapshots)
                 if (data == null) return;
-
-                while (_paused)
-                    Thread.Sleep(100);
-
+                
                 try
                 {
                     _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);

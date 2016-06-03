@@ -115,7 +115,10 @@ namespace Aggregates.Internal
             _processor = new TaskProcessor(parallelism);
         }
 
-
+        public void Pause(Boolean paused)
+        {
+            _processor.Pause(paused);
+        }
 
         public void Dispatch(Object @event, IEventDescriptor descriptor = null, long? position = null)
         {

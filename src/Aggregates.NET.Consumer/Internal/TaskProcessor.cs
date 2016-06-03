@@ -10,6 +10,7 @@ namespace Aggregates.Internal
     public class TaskProcessor : IDisposable
     {
         private static CancellationTokenSource _cancelToken = new CancellationTokenSource();
+        private static ManualResetEvent _pauseEvent = new ManualResetEvent(true);
         private static LinkedList<Func<Task>> _tasks = new LinkedList<Func<Task>>(); // protected by lock(_tasks)
         private readonly List<Thread> _threads = new List<Thread>();
         // The list of tasks to be executed 
@@ -42,11 +43,20 @@ namespace Aggregates.Internal
                 _tasks.AddLast(task);
         }
 
-        // Inform the ThreadPool that there's work to be executed for this scheduler. 
+        public void Pause(Boolean Pause)
+        {
+            if (Pause)
+                _pauseEvent.Reset();
+            else
+                _pauseEvent.Set();
+        }
+        
         private static void DoWork()
         {
             while (!_cancelToken.IsCancellationRequested)
             {
+                _pauseEvent.WaitOne(Timeout.Infinite);
+
                 Func<Task> item;
                 lock (_tasks)
                 {
