@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Aggregates.Internal
@@ -67,7 +68,6 @@ namespace Aggregates.Internal
                 {
                     try
                     {
-                        count++;
                         await stream.Commit(commitId, headers);
                         success = true;
                     }
@@ -86,6 +86,11 @@ namespace Aggregates.Internal
                             throw new ConflictingCommandException("Could not resolve conflicting events", version);
                         }
                     }
+                    catch (PersistenceException e)
+                    {
+                        WriteErrors.Mark();
+                        Logger.WarnFormat("Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", stream.StreamId, stream.Bucket, e);
+                    }
                     catch (DuplicateCommitException)
                     {
                         WriteErrors.Mark();
@@ -96,6 +101,11 @@ namespace Aggregates.Internal
                     {
                         WriteErrors.Mark();
                         throw;
+                    }
+                    if (!success)
+                    {
+                        count++;
+                        Thread.Sleep(150 * count);
                     }
                 } while (!success && count < 5);
 

@@ -20,7 +20,6 @@ namespace Aggregates.Contracts
         void AddSnapshot(Object memento, IDictionary<String, String> headers);
         Task Commit(Guid commitId, IDictionary<String, String> commitHeaders);
         
-        void ClearChanges();
         IEventStream Clone();
     }
 }

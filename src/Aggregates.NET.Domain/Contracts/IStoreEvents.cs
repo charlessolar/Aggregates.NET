@@ -11,5 +11,7 @@ namespace Aggregates.Contracts
         Task<IEventStream> GetStream<T>(String bucket, String stream, Int32? start = null) where T : class, IEntity;
 
         Task WriteEvents(String bucket, String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders);
+
+        Task AppendEvents(String bucket, String stream, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders);
     }
 }

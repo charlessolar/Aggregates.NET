@@ -98,14 +98,8 @@ namespace Aggregates
                     );
             }).ToList();
 
-            try
-            {
-                await _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvents);
-            }
-            catch (global::System.AggregateException e)
-            {
-                throw e.InnerException;
-            }
+            
+            await _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvents);
         }
         
     }

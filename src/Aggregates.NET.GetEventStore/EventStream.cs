@@ -46,6 +46,7 @@ namespace Aggregates.Internal
         private Int32 _version;
         private IEnumerable<IWritableEvent> _committed;
         private IList<IWritableEvent> _uncommitted;
+        private IList<IWritableEvent> _outofband;
         private IList<ISnapshot> _pendingShots;
 
         public EventStream(IBuilder builder, IStoreEvents store, IStoreSnapshots snapshots, String bucket, String streamId, Int32 streamVersion, IEnumerable<IWritableEvent> events)
@@ -59,6 +60,7 @@ namespace Aggregates.Internal
             this._version = streamVersion;
             this._committed = events.ToList();
             this._uncommitted = new List<IWritableEvent>();
+            this._outofband = new List<IWritableEvent>();
             this._pendingShots = new List<ISnapshot>();
 
             if (events == null || events.Count() == 0) return;
@@ -69,8 +71,9 @@ namespace Aggregates.Internal
             return new EventStream<T>(_builder, _store, _snapshots, Bucket, StreamId, _streamVersion, _committed);
         }
 
-        public void Add(Object @event, IDictionary<String, String> headers)
+        private IWritableEvent makeWritableEvent(Object @event, IDictionary<String, String> headers)
         {
+
             IWritableEvent writable = new WritableEvent
             {
                 Descriptor = new EventDescriptor
@@ -91,8 +94,17 @@ namespace Aggregates.Internal
                     Logger.DebugFormat("Mutating outgoing event {0} with mutator {1}", @event.GetType().FullName, mutate.GetType().FullName);
                     writable = mutate.MutateOutgoing(writable);
                 }
+            return writable;
+        }
 
-            _uncommitted.Add(writable);
+        public void AddOutOfBand(Object @event, IDictionary<String, String> headers)
+        {
+            _outofband.Add(makeWritableEvent(@event,headers));
+        }
+
+        public void Add(Object @event, IDictionary<String, String> headers)
+        {
+            _uncommitted.Add(makeWritableEvent(@event, headers));
         }
 
         public void AddSnapshot(Object memento, IDictionary<String, String> headers)
@@ -112,13 +124,7 @@ namespace Aggregates.Internal
         {
             Logger.DebugFormat("Event stream {0} commiting events", this.StreamId);
                     
-
-            if (this._uncommitted.Count == 0)
-            {
-                ClearChanges();
-                return;
-            }
-
+            
             if (commitHeaders == null)
                 commitHeaders = new Dictionary<String, String>();
 
@@ -135,14 +141,26 @@ namespace Aggregates.Internal
             if (oldCommits.Any(x => x == commitId))
                 throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
 
-            Logger.DebugFormat("Event stream {0} committing {1} events", this.StreamId, _uncommitted.Count);
             try
             {
-                await _store.WriteEvents(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
-
-                await _snapshots.WriteSnapshots(this.Bucket, this.StreamId, _pendingShots, commitHeaders);
-
-                ClearChanges();
+                if (_uncommitted.Any())
+                {
+                    Logger.DebugFormat("Event stream {0} committing {1} events", this.StreamId, _uncommitted.Count);
+                    await _store.WriteEvents(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
+                    this._uncommitted.Clear();
+                }
+                if (_pendingShots.Any())
+                {
+                    Logger.DebugFormat("Event stream {0} committing {1} snapshots", this.StreamId, _pendingShots.Count);
+                    await _snapshots.WriteSnapshots(this.Bucket, this.StreamId, _pendingShots, commitHeaders);
+                    this._pendingShots.Clear();
+                }
+                if (_outofband.Any())
+                {
+                    Logger.DebugFormat("Event stream {0} committing {1} out of band events", this.StreamId, _pendingShots.Count);
+                    await _store.AppendEvents(this.Bucket + ".OOB", this.StreamId, _outofband, commitHeaders);
+                    this._outofband.Clear();
+                }
             }
             catch (WrongExpectedVersionException e)
             {
@@ -162,12 +180,6 @@ namespace Aggregates.Internal
             }
         }
         
-
-        public void ClearChanges()
-        {
-            Logger.DebugFormat("Event stream {0} clearing changes", this.StreamId);
-            this._uncommitted.Clear();
-            this._pendingShots.Clear();
-        }
+        
     }
 }

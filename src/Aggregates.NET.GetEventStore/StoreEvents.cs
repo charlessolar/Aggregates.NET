@@ -92,6 +92,43 @@ namespace Aggregates
             return eventstream;
         }
 
+        public async Task AppendEvents(String bucket, String stream, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders)
+        {
+            Logger.DebugFormat("Appending {0} events to stream id '{1}'.  Expected version: ANY", events.Count(), stream);
+            var streamId = String.Format("{0}.{1}", bucket, stream);
+
+            var settings = new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All,
+                Binder = new EventSerializationBinder(_mapper)
+            };
+
+            var translatedEvents = events.Select(e =>
+            {
+
+                var descriptor = new EventDescriptor
+                {
+                    EntityType = e.Descriptor.EntityType,
+                    Timestamp = e.Descriptor.Timestamp,
+                    Version = e.Descriptor.Version,
+                    Headers = commitHeaders.Merge(e.Descriptor.Headers)
+                };
+
+                var mappedType = _mapper.GetMappedTypeFor(e.Event.GetType());
+
+
+                return new EventData(
+                    e.EventId,
+                    mappedType.AssemblyQualifiedName,
+                    true,
+                    e.Event.Serialize(settings).AsByteArray(),
+                    descriptor.Serialize(settings).AsByteArray()
+                    );
+            }).ToList();
+
+            await _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvents);
+        }
+
         public async Task WriteEvents(String bucket, String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders)
         {
             Logger.DebugFormat("Writing {0} events to stream id '{1}'.  Expected version: {2}", events.Count(), stream, expectedVersion);
@@ -129,14 +166,7 @@ namespace Aggregates
                     );
             }).ToList();
 
-            try
-            {
-                await _client.AppendToStreamAsync(streamId, expectedVersion, translatedEvents);
-            }
-            catch (global::System.AggregateException e)
-            {
-                throw e.InnerException;
-            }
+            await _client.AppendToStreamAsync(streamId, expectedVersion, translatedEvents);
         }
     }
 }

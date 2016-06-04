@@ -95,7 +95,7 @@ namespace Aggregates
         void IEventSource.Hydrate(IEnumerable<object> events)
         {
             foreach (var @event in events)
-                Raise(@event);
+                Route(@event);
         }
 
         void IEventSource.Apply<TEvent>(Action<TEvent> action)
@@ -103,18 +103,39 @@ namespace Aggregates
             Apply(action);
         }
 
+        /// <summary>
+        /// Apply an event to the current object's eventstream
+        /// </summary>
+        /// <typeparam name="TEvent"></typeparam>
+        /// <param name="action"></param>
         protected void Apply<TEvent>(Action<TEvent> action) where TEvent : IEvent
         {
             var @event = _eventFactory.CreateInstance(action);
 
-            Raise(@event);
+            Route(@event);
 
             // Todo: Fill with user headers or something
             var headers = new Dictionary<String, String>();
             Stream.Add(@event, headers);
         }
+        /// <summary>
+        /// Issues an event, but do not save to object's eventstream.  It will be stored under a general events system stream
+        /// </summary>
+        /// <typeparam name="TEvent"></typeparam>
+        /// <param name="action"></param>
+        protected void Raise<TEvent>(Action<TEvent> action) where TEvent : IEvent
+        {
+            var @event = _eventFactory.CreateInstance(action);
 
-        private void Raise(object @event)
+            var headers = new Dictionary<String, String>();
+            headers["Version"] = this.Version.ToString();
+            headers["Bucket"] = this.Bucket;
+            headers["StreamId"] = this.StreamId;
+
+
+        }
+
+        private void Route(object @event)
         {
             if (@event == null) return;
 
