@@ -205,7 +205,7 @@ namespace Aggregates.Internal
             var lastPosition = consumer._competes.LastPosition(endpoint, bucket);
             consumer._adoptingPosition = lastPosition;
 
-            var settings = new CatchUpSubscriptionSettings(readSize * 5, readSize, false, false);
+            var settings = new CatchUpSubscriptionSettings(readSize * readSize, readSize, false, false);
             consumer._client.SubscribeToAllFrom(new Position(lastPosition, lastPosition), settings, (subscription, e) =>
             {
                 // Unsure if we need to care about events from eventstore currently
@@ -257,7 +257,7 @@ namespace Aggregates.Internal
 
             // Start competing subscribers from the start, if they are picking up a new bucket they need to start from the begining
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from START", endpoint);
-            var settings = new CatchUpSubscriptionSettings(readSize * 5, readSize, false, false);
+            var settings = new CatchUpSubscriptionSettings(readSize * readSize, readSize, false, false);
             _client.SubscribeToAllFrom(Position.Start, settings, (subscription, e) =>
             {
                 // Unsure if we need to care about events from eventstore currently

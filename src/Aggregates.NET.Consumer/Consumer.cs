@@ -13,6 +13,7 @@ using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
 using Aggregates.Internal;
 using NServiceBus.Pipeline;
+using System.Threading;
 
 namespace Aggregates
 {
@@ -94,6 +95,8 @@ namespace Aggregates
         private readonly IBuilder _builder;
         private readonly ReadOnlySettings _settings;
         private readonly Configure _configure;
+        private Int32 _retryCount;
+        private DateTime? _lastFailure;
 
         public ConsumerRunner(IBuilder builder, ReadOnlySettings settings, Configure configure)
         {
@@ -102,10 +105,30 @@ namespace Aggregates
             _configure = configure;
         }
 
+        private TimeSpan CalculateSleep()
+        {
+            if (_lastFailure.HasValue)
+            {
+                var lastSleep = (1 << _retryCount);
+                if ((DateTime.UtcNow - _lastFailure.Value).TotalSeconds > (lastSleep * 5))
+                    _retryCount = 0;
+            }
+            _retryCount++;
+            _lastFailure = DateTime.UtcNow;
+            // 8 seconds minimum sleep
+            return TimeSpan.FromSeconds(1 << (_retryCount + 2));
+        }
+
         protected override void OnStart()
         {
             Logger.Debug("Starting event consumer");
-            _builder.Build<IEventSubscriber>().SubscribeToAll(_settings.EndpointName());
+            var subscriber = _builder.Build<IEventSubscriber>();
+            subscriber.SubscribeToAll(_settings.EndpointName());
+            subscriber.Dropped = (reason, ex) =>
+            {
+                Thread.Sleep(CalculateSleep());
+                subscriber.SubscribeToAll(_settings.EndpointName());
+            };
         }
     }
 }

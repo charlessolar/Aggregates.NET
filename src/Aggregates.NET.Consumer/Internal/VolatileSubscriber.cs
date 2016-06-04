@@ -42,7 +42,7 @@ namespace Aggregates.Internal
             var readSize = _settings.Get<Int32>("ReadSize");
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from END", endpoint);
 
-            var settings = new CatchUpSubscriptionSettings(readSize * 5, readSize, false, false);
+            var settings = new CatchUpSubscriptionSettings(readSize * readSize, readSize, false, false);
             _client.SubscribeToAllFrom(Position.End, settings, (subscription, e) =>
             {
                 Logger.DebugFormat("Event appeared position {0}", e.OriginalPosition?.CommitPosition);

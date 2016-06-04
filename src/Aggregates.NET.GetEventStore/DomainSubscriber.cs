@@ -50,7 +50,7 @@ namespace Aggregates
             var readSize = _settings.Get<Int32>("ReadSize");
             Logger.InfoFormat("Endpoint '{0}' subscribing to all events from END", endpoint);
 
-            var settings = new CatchUpSubscriptionSettings(readSize * 5, readSize, false, false);
+            var settings = new CatchUpSubscriptionSettings(readSize * readSize, readSize, false, false);
             _client.SubscribeToAllFrom(Position.End, settings, (subscription, e) =>
             {
                 // Unsure if we need to care about events from eventstore currently
