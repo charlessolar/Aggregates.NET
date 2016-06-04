@@ -35,7 +35,7 @@ namespace Aggregates.Internal
         {
             get
             {
-                return this._uncommitted;
+                return this._uncommitted.Concat(this._outofband);
             }
         }
 

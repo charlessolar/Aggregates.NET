@@ -133,6 +133,7 @@ namespace Aggregates
             headers["StreamId"] = this.StreamId;
 
 
+            Stream.AddOutOfBand(@event, headers);
         }
 
         private void Route(object @event)

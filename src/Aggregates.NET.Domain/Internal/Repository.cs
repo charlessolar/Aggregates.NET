@@ -51,15 +51,15 @@ namespace Aggregates.Internal
                 var headers = new Dictionary<String, String>(commitHeaders);
 
                 var stream = tracked.Stream;
-
-                if (tracked is ISnapshotting && (tracked as ISnapshotting).ShouldTakeSnapshot())
+                
+                if (stream.StreamVersion != stream.CommitVersion && tracked is ISnapshotting && (tracked as ISnapshotting).ShouldTakeSnapshot())
                 {
                     Logger.DebugFormat("Taking snapshot of {0} id [{1}] version {2}", tracked.GetType().FullName, tracked.StreamId, tracked.Version);
                     var memento = (tracked as ISnapshotting).TakeSnapshot();
                     stream.AddSnapshot(memento, headers);
                 }
 
-                written += stream.Uncommitted.Count();
+                Interlocked.Add(ref written, stream.Uncommitted.Count());
 
 
                 var count = 0;
@@ -110,13 +110,14 @@ namespace Aggregates.Internal
                 } while (!success && count < 5);
 
             });
+            WrittenEvents.Update(written);
         }
 
         private async Task<IEventStream> ResolveConflict(IEventStream stream)
         {
             var uncommitted = stream.Uncommitted;
             // Get latest stream from store
-            var existing = await GetUncached(stream.Bucket, stream.StreamId);
+            var existing = await GetUntracked(stream.Bucket, stream.StreamId);
             // Hydrate the uncommitted events
             existing.Hydrate(uncommitted);
             // Success! Streams merged
@@ -156,11 +157,11 @@ namespace Aggregates.Internal
             var cacheId = String.Format("{0}.{1}", bucket, id);
             T root;
             if (!_tracked.TryGetValue(cacheId, out root))
-                _tracked[cacheId] = root = await GetUncached(bucket, id);
+                _tracked[cacheId] = root = await GetUntracked(bucket, id);
 
             return root;
         }
-        private async Task<T> GetUncached(String bucket, string id)
+        private async Task<T> GetUntracked(String bucket, string id)
         {
             T root;
             var snapshot = await GetSnapshot(bucket, id);

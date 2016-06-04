@@ -17,6 +17,7 @@ namespace Aggregates.Contracts
         IEnumerable<IWritableEvent> Uncommitted { get; }
 
         void Add(Object @event, IDictionary<String, String> headers);
+        void AddOutOfBand(Object @event, IDictionary<String, String> headers);
         void AddSnapshot(Object memento, IDictionary<String, String> headers);
         Task Commit(Guid commitId, IDictionary<String, String> commitHeaders);
         
