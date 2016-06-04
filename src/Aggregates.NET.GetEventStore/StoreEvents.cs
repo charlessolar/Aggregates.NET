@@ -4,6 +4,7 @@ using Aggregates.Extensions;
 using Aggregates.Internal;
 using EventStore.ClientAPI;
 using EventStore.ClientAPI.Exceptions;
+using Metrics;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
@@ -19,6 +20,9 @@ namespace Aggregates
 {
     public class StoreEvents : IStoreEvents
     {
+        private static Meter _hitMeter = Metric.Meter("Stream Cache Hits", Unit.Events);
+        private static Meter _missMeter = Metric.Meter("Stream Cache Misses", Unit.Events);
+
         private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreEvents));
         private readonly IEventStoreConnection _client;
         private readonly IMessageMapper _mapper;
@@ -53,9 +57,11 @@ namespace Aggregates
                 var cached = _cache.Retreive(streamId);
                 if (cached != null)
                 {
+                    _hitMeter.Mark();
                     Logger.DebugFormat("Found stream [{0}] bucket [{1}] in cache", stream, bucket);
                     return cached;
                 }
+                _missMeter.Mark();
             }
 
             var settings = new JsonSerializerSettings

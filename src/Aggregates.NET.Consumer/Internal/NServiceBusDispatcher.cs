@@ -58,6 +58,7 @@ namespace Aggregates.Internal
 
         private Int32 _processingQueueSize;
         private readonly Int32 _maxQueueSize;
+        private DateTime? _warned;
 
         private static Meter _eventsMeter = Metric.Meter("Events", Unit.Events);
         private static Metrics.Timer _eventsTimer = Metric.Timer("Event Duration", Unit.Events);
@@ -75,7 +76,22 @@ namespace Aggregates.Internal
             {
                 var eventType = _mapper.GetMappedTypeFor(x.Event.GetType());
                 var msg = String.Format("Queueing event {0} at position {1}.  Size of queue: {2}/{3}", eventType.FullName, x.Position, _processingQueueSize, _maxQueueSize);
-                if (_processingQueueSize % 10 == 0)
+                if (_processingQueueSize > (_maxQueueSize / 2))
+                {
+                    if (!_warned.HasValue)
+                    {
+                        Logger.WarnFormat("Processing queue size growing large - slowing down the rate which we read from event store...");
+                        _warned = DateTime.UtcNow;
+                    }
+                    // Progressively wait longer and longer as the queue size grows
+                    Thread.Sleep(TimeSpan.FromMilliseconds(_processingQueueSize));
+                }
+                else if (_warned.HasValue && (DateTime.UtcNow - _warned.Value).TotalSeconds > 30)
+                    _warned = null;
+
+                if (_processingQueueSize % 1000 == 0)
+                    Logger.Warn(msg);
+                else if (_processingQueueSize % 10 == 0)
                     Logger.Info(msg);
                 else
                     Logger.Debug(msg);
