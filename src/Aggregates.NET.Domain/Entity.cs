@@ -128,7 +128,6 @@ namespace Aggregates
             var @event = _eventFactory.CreateInstance(action);
 
             var headers = new Dictionary<String, String>();
-            headers["Version"] = this.Version.ToString();
             headers["Bucket"] = this.Bucket;
             headers["StreamId"] = this.StreamId;
 

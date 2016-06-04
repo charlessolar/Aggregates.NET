@@ -69,7 +69,7 @@ namespace Aggregates.Internal
             return new EventStream<T>(_builder, _store, _snapshots, Bucket, StreamId, _streamVersion, _committed);
         }
 
-        private IWritableEvent makeWritableEvent(Object @event, IDictionary<String, String> headers)
+        private IWritableEvent makeWritableEvent(Object @event, IDictionary<String, String> headers, Boolean version = true)
         {
 
             IWritableEvent writable = new WritableEvent
@@ -78,7 +78,7 @@ namespace Aggregates.Internal
                 {
                     EntityType = typeof(T).AssemblyQualifiedName,
                     Timestamp = DateTime.UtcNow,
-                    Version = this.StreamVersion + 1,
+                    Version = version ? this.StreamVersion + 1 : this.StreamVersion,
                     Headers = headers
                 },
                 Event = @event,
@@ -97,7 +97,7 @@ namespace Aggregates.Internal
 
         public void AddOutOfBand(Object @event, IDictionary<String, String> headers)
         {
-            _outofband.Add(makeWritableEvent(@event, headers));
+            _outofband.Add(makeWritableEvent(@event, headers, false));
         }
 
         public void Add(Object @event, IDictionary<String, String> headers)
@@ -128,21 +128,22 @@ namespace Aggregates.Internal
 
             commitHeaders[CommitHeader] = commitId.ToString();
 
-            // Do a quick check if any event in the current stream has the same commit id indicating the effects of this command have already been recorded
-            var oldCommits = Events.Select(x =>
-            {
-                String temp;
-                if (!x.Descriptor.Headers.TryGetValue(CommitHeader, out temp))
-                    return Guid.Empty;
-                return Guid.Parse(temp);
-            });
-            if (oldCommits.Any(x => x == commitId))
-                throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
 
             try
             {
                 if (_uncommitted.Any())
                 {
+                    // Do a quick check if any event in the current stream has the same commit id indicating the effects of this command have already been recorded
+                    var oldCommits = this._committed.Select(x =>
+                    {
+                        String temp;
+                        if (!x.Descriptor.Headers.TryGetValue(CommitHeader, out temp))
+                            return Guid.Empty;
+                        return Guid.Parse(temp);
+                    });
+                    if (oldCommits.Any(x => x == commitId))
+                        throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
+
                     Logger.DebugFormat("Event stream {0} committing {1} events", this.StreamId, _uncommitted.Count);
                     await _store.WriteEvents(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
                     this._uncommitted.Clear();

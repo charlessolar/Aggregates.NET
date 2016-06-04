@@ -37,7 +37,7 @@ namespace Aggregates
 
         public async Task<ISnapshot> GetSnapshot(String bucket, String stream)
         {
-            Logger.DebugFormat("Getting snapshot for stream '{0}' in bucket '{1}'", stream, bucket);
+            Logger.DebugFormat("Getting snapshot for stream [{0}] in bucket [{1}]", stream, bucket);
 
             var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
 
@@ -74,7 +74,7 @@ namespace Aggregates
 
         public async Task WriteSnapshots(String bucket, String stream, IEnumerable<ISnapshot> snapshots, IDictionary<String, String> commitHeaders)
         {
-            Logger.DebugFormat("Writing {0} snapshots to stream id '{1}' in bucket '{2}'", snapshots.Count(), stream, bucket);
+            Logger.DebugFormat("Writing {0} snapshots to stream id [{1}] in bucket [{2}]", snapshots.Count(), stream, bucket);
             var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
 
             if (_shouldCache)
