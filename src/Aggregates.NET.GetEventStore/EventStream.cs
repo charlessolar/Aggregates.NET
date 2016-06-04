@@ -43,7 +43,6 @@ namespace Aggregates.Internal
         private readonly IStoreSnapshots _snapshots;
         private readonly IBuilder _builder;
         private readonly Int32 _streamVersion;
-        private Int32 _version;
         private IEnumerable<IWritableEvent> _committed;
         private IList<IWritableEvent> _uncommitted;
         private IList<IWritableEvent> _outofband;
@@ -57,7 +56,6 @@ namespace Aggregates.Internal
             this.Bucket = bucket;
             this.StreamId = streamId;
             this._streamVersion = streamVersion;
-            this._version = streamVersion;
             this._committed = events.ToList();
             this._uncommitted = new List<IWritableEvent>();
             this._outofband = new List<IWritableEvent>();
@@ -80,7 +78,7 @@ namespace Aggregates.Internal
                 {
                     EntityType = typeof(T).AssemblyQualifiedName,
                     Timestamp = DateTime.UtcNow,
-                    Version = ++this._version,
+                    Version = this.StreamVersion + 1,
                     Headers = headers
                 },
                 Event = @event,
@@ -99,7 +97,7 @@ namespace Aggregates.Internal
 
         public void AddOutOfBand(Object @event, IDictionary<String, String> headers)
         {
-            _outofband.Add(makeWritableEvent(@event,headers));
+            _outofband.Add(makeWritableEvent(@event, headers));
         }
 
         public void Add(Object @event, IDictionary<String, String> headers)
@@ -123,8 +121,8 @@ namespace Aggregates.Internal
         public async Task Commit(Guid commitId, IDictionary<String, String> commitHeaders)
         {
             Logger.DebugFormat("Event stream {0} commiting events", this.StreamId);
-                    
-            
+
+
             if (commitHeaders == null)
                 commitHeaders = new Dictionary<String, String>();
 
@@ -179,7 +177,7 @@ namespace Aggregates.Internal
                 throw new PersistenceException(e.Message, e);
             }
         }
-        
-        
+
+
     }
 }
