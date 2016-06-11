@@ -25,24 +25,25 @@ Current features include -
 - Aggregate Roots
 - Entities
 - Value Objects
+- Snapshotting
 - Specifications
-- Multithreaded event dispatching (NEW)
+- Multithreaded event dispatching
 - Type safe Unit of Work and Repository pattern
 - Automatic saving and publishing of domain events
+- Out of band events (events saved outside of an event stream)
+- Scalable event consumers via competing consumer
+- Async event and message handling (in NSB 5!)
 - Message idempotency
+- Automatic conflict resolution (when possible)
 - NO internal IOC container (NServicebus used for resolutions)
 - [Thorough sample](https://github.com/volak/DDD.Enterprise.Example)
 
-Planned future features -
-
-- Automatic conflict resolution (when possible)
-- Automatic validation using specifications
-- Projections configuration
 
 Status
 ------
 
-Aggregates.NET packages are starting to get published to the world.  The project is completely under test and can be integrated into NServicebus and Eventstore seemlessly.  Future versions of Aggregates.NET will be automatically published so keep checking back for latest features!
+Aggregates.NET is still under development but I personally am using it in 2 projects so its very usable.  Expect fairly often updates via Nuget as I tend to add and fix things when the issue pops up.  Sometimes the packages have a bug or some small issue but I always fix it right away. 
+I do not have any plans yet for 'stable' releases so only use the library is you are comfortable with beta builds.
 
 Nuget
 -----
