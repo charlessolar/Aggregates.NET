@@ -91,7 +91,7 @@ namespace Aggregates.Internal
 
                 if (_processingQueueSize % 1000 == 0)
                     Logger.Warn(msg);
-                else if (_processingQueueSize % 10 == 0)
+                else if (_processingQueueSize % 100 == 0)
                     Logger.Info(msg);
                 else
                     Logger.Debug(msg);

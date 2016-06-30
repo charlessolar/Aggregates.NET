@@ -213,7 +213,7 @@ namespace Aggregates.Internal
                 var eventBucket = Math.Abs(e.OriginalStreamId.GetHashCode() % consumer._bucketCount);
                 if (eventBucket != bucket) return;
 
-                Logger.DebugFormat("Adopted event appeared position {0}... processing - bucket {1}", e.OriginalPosition?.CommitPosition);
+                Logger.DebugFormat("Adopted event appeared position {0}... processing - bucket {1}", e.OriginalPosition?.CommitPosition, bucket);
                 if (!e.OriginalPosition.HasValue) return;
 
                 var descriptor = e.Event.Metadata.Deserialize(consumer._jsonSettings);
