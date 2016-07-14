@@ -40,7 +40,7 @@ namespace Aggregates.Internal
                         Logger.DebugFormat("Mutating outgoing command {0} with mutator {1}", context.OutgoingLogicalMessage.MessageType.FullName, mutator.GetType().FullName);
                         mutated = mutator.MutateOutgoing(mutated);
                     }
-                context.Set("NServiceBus.OutgoingLogicalMessageKey", mutated);
+                context.OutgoingLogicalMessage.UpdateMessageInstance(mutated);
             }
 
             next();
@@ -52,6 +52,7 @@ namespace Aggregates.Internal
         public MutateOutgoingCommandsRegistration()
             : base("MutateOutgoingCommands", typeof(MutateOutgoingCommands), "Running command mutators for outgoing messages")
         {
+            InsertAfter(WellKnownStep.MutateOutgoingMessages);
             InsertBefore(WellKnownStep.CreatePhysicalMessage);
         }
     }
