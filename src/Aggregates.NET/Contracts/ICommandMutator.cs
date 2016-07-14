@@ -1,4 +1,5 @@
 ﻿using NServiceBus;
+using NServiceBus.ObjectBuilder;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,5 +12,7 @@ namespace Aggregates.Contracts
     {
         ICommand MutateIncoming(ICommand command);
         ICommand MutateOutgoing(ICommand command);
+
+        IBuilder Builder { get; set; }
     }
 }

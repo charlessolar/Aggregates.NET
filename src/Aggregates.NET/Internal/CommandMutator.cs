@@ -14,18 +14,14 @@ namespace Aggregates.Internal
     public class CommandMutator : IMessageMutator
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CommandMutator));
-        private readonly IBuilder _builder;
-
-        public CommandMutator(IBuilder builder)
-        {
-            _builder = builder;
-        }
+        public IBuilder Builder { get; set; }
+        
 
         public object MutateOutgoing(object message)
         {
             if(message is ICommand)
             {
-                var mutators = _builder.BuildAll<ICommandMutator>();
+                var mutators = Builder.BuildAll<ICommandMutator>();
                 if (mutators != null && mutators.Any())
                     foreach (var mutator in mutators)
                     {
@@ -41,7 +37,7 @@ namespace Aggregates.Internal
         {
             if(message is ICommand)
             {
-                var mutators = _builder.BuildAll<ICommandMutator>();
+                var mutators = Builder.BuildAll<ICommandMutator>();
                 foreach (var mutator in mutators)
                 {
                     //if (Logger.IsDebugEnabled)

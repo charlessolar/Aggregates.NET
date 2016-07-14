@@ -1,4 +1,5 @@
-﻿using Aggregates.Extensions;
+﻿using Aggregates.Contracts;
+using Aggregates.Extensions;
 using Metrics;
 using NServiceBus;
 using NServiceBus.Logging;
@@ -84,6 +85,10 @@ namespace Aggregates.Internal
                 _commandsMeter.Mark();
                 using (_commandsTimer.NewContext())
                 {
+                    // Insert the child builder into commandMutator so the mutating has the current CurrentMessage unit of work instance (if it needs)
+                    var commandMutator = context.Builder.Build<ICommandMutator>();
+                    commandMutator.Builder = context.Builder;
+
                     context.Builder.BuildAll<ICommandUnitOfWork>().ForEachAsync(2, async (uow) =>
                     {
                         uows.Push(uow);

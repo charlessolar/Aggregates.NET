@@ -266,7 +266,7 @@ namespace Aggregates.Internal
             this.CurrentMessage = message;
 
             _workHeaders[Defaults.DomainHeader] = Defaults.Domain.ToString();
-
+            
             return message;
         }
 
