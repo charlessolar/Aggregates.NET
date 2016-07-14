@@ -189,12 +189,11 @@ namespace Aggregates.Internal
                         if (Logger.IsDebugEnabled)
                             s.Restart();
                         if (mutators != null && mutators.Any())
-                            Parallel.ForEach(mutators, _parallelOptions, mutate =>
-                            {
+                            foreach( var mutator in mutators) { 
                                 //if (Logger.IsDebugEnabled)
-                                Logger.DebugFormat("Mutating incoming event {0} with mutator {1}", eventType.FullName, mutate.GetType().FullName);
-                                @event = mutate.MutateIncoming(@event, descriptor, position);
-                            });
+                                Logger.DebugFormat("Mutating incoming event {0} with mutator {1}", eventType.FullName, mutator.GetType().FullName);
+                                @event = mutator.MutateIncoming(@event, descriptor, position);
+                            }
 
                         await childBuilder.BuildAll<IEventUnitOfWork>().ForEachAsync(2, async (uow) =>
                         {

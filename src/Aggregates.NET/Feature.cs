@@ -26,6 +26,7 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<CommandMutator>(DependencyLifecycle.InstancePerCall);
 
 
             context.Pipeline.Replace(WellKnownStep.LoadHandlers, typeof(AsyncronizedLoad), "Loads the message handlers");
