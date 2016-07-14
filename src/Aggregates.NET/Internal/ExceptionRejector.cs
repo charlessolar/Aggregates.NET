@@ -53,7 +53,14 @@ namespace Aggregates.Internal
 
                 if (numberOfRetries < _maxRetries || _maxRetries == -1)
                 {
-                    Logger.WarnFormat("Message {3} type {0} has faulted! {1}/{2} times", context.IncomingLogicalMessage.MessageType.FullName, numberOfRetries, _maxRetries, context.PhysicalMessage.Id);
+                    try
+                    {
+                        Logger.WarnFormat("Message {3} type [{0}] has faulted! {1}/{2} times", context.IncomingLogicalMessage.MessageType.FullName, numberOfRetries, _maxRetries, context.PhysicalMessage.Id);
+                    }
+                    catch (KeyNotFoundException)
+                    {
+                        Logger.WarnFormat("Message {3} type [{0}] has faulted! {1}/{2} times\nBody: {4}", "UNKNOWN", numberOfRetries, _maxRetries, context.PhysicalMessage.Id, Encoding.UTF8.GetString(context.PhysicalMessage.Body));
+                    }
                     _retryRegistry[messageId] = numberOfRetries + 1;
                     Thread.Sleep(75 * numberOfRetries);
                     throw;
@@ -66,7 +73,7 @@ namespace Aggregates.Internal
                 if (context.PhysicalMessage.MessageIntent != MessageIntentEnum.Send) return;
                 try
                 {
-                    Logger.ErrorFormat("Message {2} type {0} has faulted!\nHeaders: {3}\nPayload: {4}\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, e, context.PhysicalMessage.Id, JsonConvert.SerializeObject(context.PhysicalMessage.Headers), JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance));
+                    Logger.ErrorFormat("Message {2} type [{0}] has faulted!\nHeaders: {3}\nPayload: {4}\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, e, context.PhysicalMessage.Id, JsonConvert.SerializeObject(context.PhysicalMessage.Headers), JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance));
                     // Tell the sender the command was not handled due to a service exception
                     var rejection = context.Builder.Build<Func<Exception, String, Error>>();
                     // Wrap exception in our object which is serializable
@@ -74,7 +81,7 @@ namespace Aggregates.Internal
                 }
                 catch (KeyNotFoundException)
                 {
-                    Logger.ErrorFormat("Message {1} [Unknown] has faulted!\nHeaders: {2}\nException: {0}", e, context.PhysicalMessage.Id, JsonConvert.SerializeObject(context.PhysicalMessage.Headers));
+                    Logger.ErrorFormat("Message {1} type [Unknown] has faulted!\nHeaders: {2}\nException: {0}", e, context.PhysicalMessage.Id, JsonConvert.SerializeObject(context.PhysicalMessage.Headers));
                 }
             }
 

@@ -40,7 +40,7 @@ namespace Aggregates.Internal
                         Logger.DebugFormat("Mutating outgoing command {0} with mutator {1}", context.OutgoingLogicalMessage.MessageType.FullName, mutator.GetType().FullName);
                         mutated = mutator.MutateOutgoing(mutated);
                     }
-                context.Set("OutgoingLogicalMessage", mutated);
+                context.Set("NServiceBus.OutgoingLogicalMessageKey", mutated);
             }
 
             next();
