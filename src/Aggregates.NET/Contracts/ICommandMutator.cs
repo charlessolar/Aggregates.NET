@@ -12,7 +12,5 @@ namespace Aggregates.Contracts
     {
         ICommand MutateIncoming(ICommand command);
         ICommand MutateOutgoing(ICommand command);
-
-        IBuilder Builder { get; set; }
     }
 }

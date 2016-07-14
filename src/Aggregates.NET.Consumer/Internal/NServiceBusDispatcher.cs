@@ -183,14 +183,10 @@ namespace Aggregates.Internal
                             return;
 
                         var uows = new ConcurrentStack<IEventUnitOfWork>();
-                        
-                        // Insert the child builder into commandMutator so the mutating has the current CurrentMessage unit of work instance (if it needs)
-                        var commandMutator = childBuilder.Build<ICommandMutator>();
-                        commandMutator.Builder = childBuilder;
 
-                        var mutators = childBuilder.BuildAll<IEventMutator>();
                         if (Logger.IsDebugEnabled)
                             s.Restart();
+                        var mutators = childBuilder.BuildAll<IEventMutator>();
                         if (mutators != null && mutators.Any())
                             foreach( var mutator in mutators) { 
                                 //if (Logger.IsDebugEnabled)
