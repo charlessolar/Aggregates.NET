@@ -59,6 +59,7 @@ namespace Aggregates.Internal
         private Int32 _processingQueueSize;
         private readonly Int32 _maxQueueSize;
         private DateTime? _warned;
+        private HashSet<String> _noHandlers;
 
         private static Meter _eventsMeter = Metric.Meter("Events", Unit.Events);
         private static Metrics.Timer _eventsTimer = Metric.Timer("Event Duration", Unit.Events);
@@ -119,6 +120,7 @@ namespace Aggregates.Internal
             _dropEventFatal = settings.Get<Boolean>("EventDropIsFatal");
             _maxQueueSize = settings.Get<Int32>("MaxQueueSize");
             _slowAlert = settings.Get<Int32>("SlowAlertThreshold");
+            _noHandlers = new HashSet<string>();
 
             _invokeCache = new ConcurrentDictionary<String, IList<Type>>();
 
@@ -141,6 +143,7 @@ namespace Aggregates.Internal
             if (_processingQueueSize >= _maxQueueSize)
                 throw new SubscriptionCanceled("Processing queue overflow, too many items waiting to be processed");
 
+
             QueueTask(new Job
             {
                 Event = @event,
@@ -154,6 +157,11 @@ namespace Aggregates.Internal
         {
 
             var eventType = _mapper.GetMappedTypeFor(@event.GetType());
+
+            // No handlers contains event types which have no recorded handlers on this consumer.  
+            if (_noHandlers.Contains(eventType.FullName))
+                return;
+
             Stopwatch s = new Stopwatch();
 
             var handleContext = new HandleContext
@@ -180,7 +188,11 @@ namespace Aggregates.Internal
                         List<dynamic> handlers = childBuilder.BuildAll(handlerGenericType).ToList();
 
                         if (handlers.Count == 0)
+                        {
+                            // If no handlers for event type, store it and future events of this type will be discarded sooner
+                            _noHandlers.Add(eventType.FullName);
                             return;
+                        }
 
                         var uows = new ConcurrentStack<IEventUnitOfWork>();
 

@@ -32,6 +32,7 @@ namespace Aggregates
             context.Pipeline.Replace(WellKnownStep.InvokeHandlers, typeof(AsyncronizedInvoke), "Invokes the message handler with Task.Run");
 
             context.Pipeline.Register<ExceptionRejectorRegistration>();
+            context.Pipeline.Register<MutateOutgoingCommandsRegistration>();
 
             foreach (var handler in context.Settings.GetAvailableTypes().Where(IsAsyncMessage))
                 context.Container.ConfigureComponent(handler, DependencyLifecycle.InstancePerCall);

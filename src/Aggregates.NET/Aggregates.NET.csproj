@@ -94,6 +94,7 @@
     <Compile Include="Internal\DefaultInvokeObjects.cs" />
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />
+    <Compile Include="Internal\MutateOutgoingCommands.cs" />
     <Compile Include="Internal\SafetyNet.cs" />
     <Compile Include="Internal\WritableEvent.cs" />
     <Compile Include="Messages\Accept.cs" />
