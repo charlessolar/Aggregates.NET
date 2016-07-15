@@ -59,7 +59,7 @@ namespace Aggregates
                 {
                     _hitMeter.Mark();
                     Logger.DebugFormat("Found stream [{0}] bucket [{1}] in cache", stream, bucket);
-                    return cached;
+                    return new Internal.EventStream<T>(cached, Builder, this, _snapshots);
                 }
                 _missMeter.Mark();
             }

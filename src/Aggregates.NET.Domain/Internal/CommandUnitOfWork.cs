@@ -85,51 +85,49 @@ namespace Aggregates.Internal
                 _commandsMeter.Mark();
                 using (_commandsTimer.NewContext())
                 {
-                    using (var childBuilder = context.Builder.CreateChildBuilder())
+                    context.Builder.BuildAll<ICommandUnitOfWork>().ForEachAsync(2, async (uow) =>
                     {
-                        context.Builder.BuildAll<ICommandUnitOfWork>().ForEachAsync(2, async (uow) =>
-                        {
-                            uows.Push(uow);
-                            uow.Builder = childBuilder;
-                            await uow.Begin();
-                        }).Wait();
+                        uows.Push(uow);
+                        uow.Builder = context.Builder;
+                        await uow.Begin();
+                    }).Wait();
 
-                        if (Logger.IsDebugEnabled)
-                            s.Restart();
-
-                        next();
-
-                        if (Logger.IsDebugEnabled)
-                        {
-                            s.Stop();
-                            Logger.DebugFormat("Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
-
-                        }
+                    if (Logger.IsDebugEnabled)
                         s.Restart();
-                        uows.Generate().ForEachAsync(2, async (uow) =>
+
+                    next();
+
+                    if (Logger.IsDebugEnabled)
+                    {
+                        s.Stop();
+                        Logger.DebugFormat("Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+
+                    }
+                    s.Restart();
+                    uows.Generate().ForEachAsync(2, async (uow) =>
+                    {
+                        try
                         {
-                            try
-                            {
-                                await uow.End();
-                            }
-                            catch
-                            {
+                            await uow.End();
+                        }
+                        catch
+                        {
                                 // If it failed it needs to go back on the stack
                                 uows.Push(uow);
-                                throw;
-                            }
-                        }).Wait();
-                        s.Stop();
-                        if (Logger.IsDebugEnabled)
-                        {
-                            Logger.DebugFormat("UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                            throw;
                         }
-                        if (s.ElapsedMilliseconds > _slowAlert)
-                        {
-                            Logger.WarnFormat(" - SLOW ALERT - UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
-                        }
+                    }).Wait();
+                    s.Stop();
+                    if (Logger.IsDebugEnabled)
+                    {
+                        Logger.DebugFormat("UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                    }
+                    if (s.ElapsedMilliseconds > _slowAlert)
+                    {
+                        Logger.WarnFormat(" - SLOW ALERT - UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
                     }
                 }
+
 
             }
             catch (System.AggregateException e)

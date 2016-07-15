@@ -60,13 +60,28 @@ namespace Aggregates.Internal
             this._uncommitted = new List<IWritableEvent>();
             this._outofband = new List<IWritableEvent>();
             this._pendingShots = new List<ISnapshot>();
+            
+        }
 
-            if (events == null || events.Count() == 0) return;
+        // Special constructor for building from a cached instance
+        internal EventStream(IEventStream clone, IBuilder builder, IStoreEvents store, IStoreSnapshots snapshots)
+        {
+            this._store = store;
+            this._snapshots = snapshots;
+            this._builder = builder;
+            this.Bucket = clone.Bucket;
+            this.StreamId = clone.StreamId;
+            this._streamVersion = clone.StreamVersion;
+            this._committed = clone.Events.ToList();
+            this._uncommitted = new List<IWritableEvent>();
+            this._outofband = new List<IWritableEvent>();
+            this._pendingShots = new List<ISnapshot>();
+            
         }
 
         public IEventStream Clone()
         {
-            return new EventStream<T>(_builder, _store, _snapshots, Bucket, StreamId, _streamVersion, _committed);
+            return new EventStream<T>(null, null, null, Bucket, StreamId, _streamVersion, _committed);
         }
 
         private IWritableEvent makeWritableEvent(Object @event, IDictionary<String, String> headers, Boolean version = true)
