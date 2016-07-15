@@ -28,8 +28,10 @@ namespace Aggregates.Internal
             _aggregateId = aggregateId;
             _parentStream = parentStream;
             _builder = builder;
-            _store = _builder.Build<IStoreEvents>();
             _snapstore = _builder.Build<IStoreSnapshots>();
+            _store = _builder.Build<IStoreEvents>();
+            _store.Builder = _builder;
+
         }
 
 

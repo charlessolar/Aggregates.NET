@@ -27,18 +27,18 @@ namespace Aggregates
         private readonly IEventStoreConnection _client;
         private readonly IMessageMapper _mapper;
         private readonly IStoreSnapshots _snapshots;
-        private readonly IBuilder _builder;
         private readonly ReadOnlySettings _nsbSettings;
         private readonly IStreamCache _cache;
         private readonly Boolean _shouldCache;
 
-        public StoreEvents(IEventStoreConnection client, IBuilder builder, IMessageMapper mapper, IStoreSnapshots snapshots, ReadOnlySettings nsbSettings, IStreamCache cache)
+        public IBuilder Builder { get; set; }
+
+        public StoreEvents(IEventStoreConnection client, IMessageMapper mapper, IStoreSnapshots snapshots, ReadOnlySettings nsbSettings, IStreamCache cache)
         {
             _client = client;
             _mapper = mapper;
             _snapshots = snapshots;
             _nsbSettings = nsbSettings;
-            _builder = builder;
             _cache = cache;
             _shouldCache = _nsbSettings.Get<Boolean>("ShouldCacheEntities");
         }
@@ -94,7 +94,7 @@ namespace Aggregates
                 };
             });
             
-            var eventstream = new Internal.EventStream<T>(_builder, this, _snapshots, bucket, stream, current.LastEventNumber, translatedEvents);
+            var eventstream = new Internal.EventStream<T>(Builder, this, _snapshots, bucket, stream, current.LastEventNumber, translatedEvents);
             if(_shouldCache)
                 _cache.Cache(streamId, eventstream.Clone());
 

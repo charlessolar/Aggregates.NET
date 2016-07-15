@@ -39,8 +39,9 @@ namespace Aggregates.Internal
         public Repository(IBuilder builder)
         {
             _builder = builder;
-            _store = _builder.Build<IStoreEvents>();
             _snapstore = _builder.Build<IStoreSnapshots>();
+            _store = _builder.Build<IStoreEvents>();
+            _store.Builder = _builder;
         }
 
         async Task IRepository.Commit(Guid commitId, IDictionary<String, String> commitHeaders)
