@@ -17,6 +17,7 @@ namespace Aggregates.Internal
         public long? CurrentPosition { get; private set; }
 
         public IBuilder Builder { get; set; }
+        public Int32 Retries { get; set; }
 
         private readonly IPersistCheckpoints _checkpoints;
         private readonly ReadOnlySettings _settings;

@@ -47,6 +47,7 @@ namespace Aggregates.Internal
         private Meter _eventErrorsMeter = Metric.Meter("Event Errors", Unit.Errors);
 
         public IBuilder Builder { get; set; }
+        public Int32 Retries { get; set; }
 
         public UnitOfWork(IRepositoryFactory repoFactory, IMessageMapper mapper)
         {

@@ -52,7 +52,7 @@ namespace Aggregates.Internal
                 var headers = new Dictionary<String, String>(commitHeaders);
 
                 var stream = tracked.Stream;
-                
+
                 if (stream.StreamVersion != stream.CommitVersion && tracked is ISnapshotting && (tracked as ISnapshotting).ShouldTakeSnapshot())
                 {
                     Logger.DebugFormat("Taking snapshot of {0} id [{1}] version {2}", tracked.GetType().FullName, tracked.StreamId, tracked.Version);
@@ -106,7 +106,7 @@ namespace Aggregates.Internal
                     if (!success)
                     {
                         count++;
-                        Thread.Sleep(150 * count);
+                        Thread.Sleep(75 * (count / 2));
                     }
                 } while (!success && count < 5);
 

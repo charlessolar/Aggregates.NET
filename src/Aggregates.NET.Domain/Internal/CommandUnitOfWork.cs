@@ -89,6 +89,11 @@ namespace Aggregates.Internal
                     {
                         uows.Push(uow);
                         uow.Builder = context.Builder;
+
+                        var retries = 0;
+                        context.TryGet<Int32>("AggregatesNet.Retries", out retries);
+                        uow.Retries = retries;
+
                         await uow.Begin();
                     }).Wait();
 
@@ -112,8 +117,8 @@ namespace Aggregates.Internal
                         }
                         catch
                         {
-                                // If it failed it needs to go back on the stack
-                                uows.Push(uow);
+                            // If it failed it needs to go back on the stack
+                            uows.Push(uow);
                             throw;
                         }
                     }).Wait();

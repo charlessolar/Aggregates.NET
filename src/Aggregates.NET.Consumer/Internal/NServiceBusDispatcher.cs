@@ -85,7 +85,7 @@ namespace Aggregates.Internal
                         _warned = DateTime.UtcNow;
                     }
                     // Progressively wait longer and longer as the queue size grows
-                    Thread.Sleep(TimeSpan.FromMilliseconds(_processingQueueSize));
+                    Thread.Sleep(TimeSpan.FromMilliseconds(_processingQueueSize / 2));
                 }
                 else if (_warned.HasValue && (DateTime.UtcNow - _warned.Value).TotalSeconds > 30)
                     _warned = null;
@@ -200,7 +200,8 @@ namespace Aggregates.Internal
                             s.Restart();
                         var mutators = childBuilder.BuildAll<IEventMutator>();
                         if (mutators != null && mutators.Any())
-                            foreach( var mutator in mutators) { 
+                            foreach (var mutator in mutators)
+                            {
                                 //if (Logger.IsDebugEnabled)
                                 Logger.DebugFormat("Mutating incoming event {0} with mutator {1}", eventType.FullName, mutator.GetType().FullName);
                                 @event = mutator.MutateIncoming(@event, descriptor, position);
@@ -210,6 +211,7 @@ namespace Aggregates.Internal
                         {
                             uows.Push(uow);
                             uow.Builder = childBuilder;
+                            uow.Retries = retry;
                             await uow.Begin();
                         });
 
@@ -338,7 +340,7 @@ namespace Aggregates.Internal
 
                             _errorsMeter.Mark();
                             retry++;
-                            Thread.Sleep(150 * retry);
+                            Thread.Sleep(75 * (retry / 2));
                             continue;
                         }
                     }

@@ -41,7 +41,10 @@ namespace Aggregates.Internal
             try
             {
                 if (_retryRegistry.ContainsKey(messageId))
+                {
                     context.PhysicalMessage.Headers[Headers.Retries] = _retryRegistry[messageId].ToString();
+                    context.Set<Int32>("AggregatesNet.Retries", _retryRegistry[messageId]);
+                }
 
                 next();
                 _retryRegistry.Remove(context.PhysicalMessage.Id);
@@ -55,14 +58,14 @@ namespace Aggregates.Internal
                 {
                     try
                     {
-                        Logger.WarnFormat("Message {3} type [{0}] has faulted! {1}/{2} times", context.IncomingLogicalMessage.MessageType.FullName, numberOfRetries, _maxRetries, context.PhysicalMessage.Id);
+                        Logger.WarnFormat("Message {3} type [{0}] has faulted! {1}/{2} times\nBody: {4}", context.IncomingLogicalMessage.MessageType.FullName, numberOfRetries, _maxRetries, context.PhysicalMessage.Id, Encoding.UTF8.GetString(context.PhysicalMessage.Body));
                     }
                     catch (KeyNotFoundException)
                     {
                         Logger.WarnFormat("Message {3} type [{0}] has faulted! {1}/{2} times\nBody: {4}", "UNKNOWN", numberOfRetries, _maxRetries, context.PhysicalMessage.Id, Encoding.UTF8.GetString(context.PhysicalMessage.Body));
                     }
                     _retryRegistry[messageId] = numberOfRetries + 1;
-                    Thread.Sleep(75 * numberOfRetries);
+                    Thread.Sleep(75 * (numberOfRetries / 2));
                     throw;
                 }
                 _retryRegistry.Remove(messageId);

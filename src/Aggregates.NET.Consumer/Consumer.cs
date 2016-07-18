@@ -116,7 +116,7 @@ namespace Aggregates
             _retryCount++;
             _lastFailure = DateTime.UtcNow;
             // 8 seconds minimum sleep
-            return TimeSpan.FromSeconds(1 << (_retryCount + 2));
+            return TimeSpan.FromSeconds(1 << ((_retryCount / 2) + 2));
         }
 
         protected override void OnStart()
