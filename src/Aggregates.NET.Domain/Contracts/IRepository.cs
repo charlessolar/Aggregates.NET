@@ -16,11 +16,11 @@ namespace Aggregates.Contracts
     public interface IRepository<T> : IRepository where T : class, IEventSource
     {
         Task<T> Get<TId>(TId id);
-
         Task<T> Get<TId>(String bucketId, TId id);
+        Task<T> TryGet<TId>(TId id);
+        Task<T> TryGet<TId>(String bucketId, TId id);
 
         Task<T> New<TId>(String bucketId, TId id);
-
         Task<T> New<TId>(TId id);
     }
 }

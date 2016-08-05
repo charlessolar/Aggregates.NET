@@ -32,6 +32,15 @@ namespace Aggregates.Internal
 
         }
 
+        public override Task<T> TryGet<TId>(TId id)
+        {
+            try
+            {
+                return Get<TId>(id);
+            }
+            catch (NotFoundException) { }
+            return null;
+        }
 
         public override async Task<T> Get<TId>(TId id)
         {

@@ -141,6 +141,25 @@ namespace Aggregates.Internal
             _disposed = true;
         }
 
+        public virtual Task<T> TryGet<TId>(TId id)
+        {
+            try
+            {
+                return Get<TId>(id);
+            }
+            catch (NotFoundException) { }
+            return null;
+        }
+        public Task<T> TryGet<TId>(String bucket, TId id)
+        {
+            try
+            {
+                return Get<TId>(bucket, id);
+            }
+            catch (NotFoundException) { }
+            return null;
+        }
+
         public virtual Task<T> Get<TId>(TId id)
         {
             return Get<TId>(Defaults.Bucket, id);
