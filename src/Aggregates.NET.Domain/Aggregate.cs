@@ -1,4 +1,5 @@
 using Aggregates.Contracts;
+using Aggregates.Internal;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
@@ -8,12 +9,12 @@ using System.Collections.Generic;
 
 namespace Aggregates
 {
-    public abstract class Aggregate<TId> : Entity<TId, TId>, IAggregate<TId>, INeedStream, INeedRepositoryFactory
+    public abstract class Aggregate<TThis, TId> : Base<TThis, TId>, IAggregate<TId>, INeedStream, INeedRepositoryFactory where TThis : Aggregate<TThis, TId>
     {
-        internal new static readonly ILog Logger = LogManager.GetLogger(typeof(Aggregate<>));
+        internal new static readonly ILog Logger = LogManager.GetLogger(typeof(Aggregate<,>));
     }
 
-    public abstract class AggregateWithMemento<TId, TMemento> : Aggregate<TId>, ISnapshotting where TMemento : class, IMemento<TId>
+    public abstract class AggregateWithMemento<TThis, TId, TMemento> : Aggregate<TThis, TId>, ISnapshotting where TMemento : class, IMemento<TId> where TThis : AggregateWithMemento<TThis, TId, TMemento>
     {
         void ISnapshotting.RestoreSnapshot(Object snapshot)
         {

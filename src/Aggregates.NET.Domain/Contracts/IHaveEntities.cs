@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface IHaveEntities<TAggregateId>
+    public interface IHaveEntities<TBase, TId> where TBase : class, IBase<TId>
     {
-        IEntityRepository<TAggregateId, T> For<T>() where T : class, IEntity;
+        IEntityRepository<TBase, TId, T> For<T>() where T : class, IEntity;
     }
 }

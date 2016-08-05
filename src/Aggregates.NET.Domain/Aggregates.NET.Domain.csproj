@@ -72,6 +72,7 @@
     <Compile Include="IComputed.cs" />
     <Compile Include="IHandleComputed.cs" />
     <Compile Include="IBase.cs" />
+    <Compile Include="Internal\Base.cs" />
     <Compile Include="Internal\CommandUnitOfWork.cs" />
     <Compile Include="Internal\MemoryStreamCache.cs" />
     <Compile Include="Internal\MutateIncomingCommands.cs" />

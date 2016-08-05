@@ -24,13 +24,14 @@ Current features include -
 
 - Aggregate Roots
 - Entities
+- Children entities of entities (infinite parenthood)
 - Value Objects
 - Snapshotting
 - Specifications
 - Multithreaded event dispatching
 - Type safe Unit of Work and Repository pattern
 - Automatic saving and publishing of domain events
-- Out of band events (events saved outside of an event stream)
+- Out of band events (events saved outside of an object's event stream)
 - Scalable event consumers via competing consumer
 - Async event and message handling (in NSB 5!)
 - Message idempotency

@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface IAggregate : IEntity
+    public interface IAggregate : IEventSource
     {
     }
 
-    public interface IAggregate<TId> : IAggregate, IEntity<TId>
+    public interface IAggregate<TId> : IAggregate, IBase<TId>
     {
     }
 }

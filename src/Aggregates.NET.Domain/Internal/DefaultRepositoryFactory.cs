@@ -16,10 +16,10 @@ namespace Aggregates.Internal
             return (IRepository<T>)Activator.CreateInstance(repoType, builder);
         }
 
-        public IEntityRepository<TAggregateId, T> ForEntity<TAggregateId, T>(TAggregateId aggregateId, IEventStream aggregateStream, IBuilder builder) where T : class, IEntity
+        public IEntityRepository<TParent, TParentId, T> ForEntity<TParent, TParentId, T>(TParent parent, IBuilder builder) where T : class, IEntity where TParent : class, IBase<TParentId>
         {
-            var repoType = typeof(EntityRepository<,>).MakeGenericType(typeof(TAggregateId), typeof(T));
-            return (IEntityRepository<TAggregateId, T>)Activator.CreateInstance(repoType, aggregateId, aggregateStream, builder);
+            var repoType = typeof(EntityRepository<,,>).MakeGenericType(typeof(TParent), typeof(TParentId), typeof(T));
+            return (IEntityRepository<TParent, TParentId, T>)Activator.CreateInstance(repoType, parent, builder);
         }
     }
 }

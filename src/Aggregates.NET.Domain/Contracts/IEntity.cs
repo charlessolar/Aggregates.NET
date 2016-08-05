@@ -6,14 +6,12 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface IEntity : IEventSource, IEventRouter
+    public interface IEntity : IEventSource
     {
     }
-
-    public interface IEntity<TId> : IEntity, IEventSource<TId>, IHaveEntities<TId> { }
-
-    public interface IEntity<TId, TAggregateId> : IEntity<TId>
+    
+    public interface IEntity<TId, TParent, TParentId> : IEntity where TParent : class, IBase<TParentId>
     {
-        TAggregateId AggregateId { get; set; }
+        TParent Parent { get; set; }
     }
 }

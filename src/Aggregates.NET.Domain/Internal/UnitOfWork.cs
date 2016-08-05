@@ -33,7 +33,7 @@ namespace Aggregates.Internal
         private bool _disposed;
         private IDictionary<String, String> _workHeaders;
         private IDictionary<Type, IRepository> _repositories;
-        private IDictionary<Type, IEntityRepository> _entityRepositories;
+        private IDictionary<String, IEntityRepository> _entityRepositories;
 
         private Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
         private Timer _commandsTimer = Metric.Timer("Commands Duration", Unit.Commands);
@@ -54,7 +54,7 @@ namespace Aggregates.Internal
             _repoFactory = repoFactory;
             _mapper = mapper;
             _repositories = new Dictionary<Type, IRepository>();
-            _entityRepositories = new Dictionary<Type, IEntityRepository>();
+            _entityRepositories = new Dictionary<String, IEntityRepository>();
             _workHeaders = new Dictionary<String, String>();
         }
 
@@ -103,16 +103,16 @@ namespace Aggregates.Internal
             }
             return (IRepository<T>)repository;
         }
-        public IEntityRepository<TAggregateId, TEntity> For<TAggregateId, TEntity>(IEntity<TAggregateId> parent) where TEntity : class, IEntity
+        public IEntityRepository<TParent, TParentId, TEntity> For<TParent, TParentId, TEntity>(TParent parent) where TEntity : class, IEntity where TParent : class, IBase<TParentId>
         {
             Logger.DebugFormat("Retreiving entity repository for type {0}", typeof(TEntity));
-            var type = typeof(TEntity);
+            var key = $"{parent.StreamId}:{typeof(TEntity).FullName}";
 
             IEntityRepository repository;
-            if (_entityRepositories.TryGetValue(type, out repository))
-                return (IEntityRepository<TAggregateId, TEntity>)repository;
+            if (_entityRepositories.TryGetValue(key, out repository))
+                return (IEntityRepository<TParent, TParentId, TEntity>)repository;
 
-            return (IEntityRepository<TAggregateId, TEntity>)(_entityRepositories[type] = (IEntityRepository)_repoFactory.ForEntity<TAggregateId, TEntity>(parent.Id, parent.Stream, Builder));
+            return (IEntityRepository<TParent, TParentId, TEntity>)(_entityRepositories[key] = (IEntityRepository)_repoFactory.ForEntity<TParent, TParentId, TEntity>(parent, Builder));
         }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {

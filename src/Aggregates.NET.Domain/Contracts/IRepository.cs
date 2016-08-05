@@ -13,7 +13,7 @@ namespace Aggregates.Contracts
         Task Commit(Guid commitId, IDictionary<String, String> headers);
     }
 
-    public interface IRepository<T> : IRepository where T : class, IEntity
+    public interface IRepository<T> : IRepository where T : class, IEventSource
     {
         Task<T> Get<TId>(TId id);
 

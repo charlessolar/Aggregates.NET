@@ -9,7 +9,7 @@ namespace Aggregates.Contracts
 {
     public interface IEntityRepository : IRepository { }
 
-    public interface IEntityRepository<TAggregateId, T> : IEntityRepository where T : class, IEntity
+    public interface IEntityRepository<TParent, TParentId, T> : IEntityRepository where T : class, IEntity where TParent : class, IBase<TParentId>
     {
         Task<T> Get<TId>(TId id);
 
