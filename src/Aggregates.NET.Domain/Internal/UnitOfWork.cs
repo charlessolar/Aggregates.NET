@@ -114,6 +114,19 @@ namespace Aggregates.Internal
 
             return (IEntityRepository<TParent, TParentId, TEntity>)(_entityRepositories[key] = (IEntityRepository)_repoFactory.ForEntity<TParent, TParentId, TEntity>(parent, Builder));
         }
+        public IPocoRepository<T> Poco<T>() where T : class, new()
+        {
+            Logger.DebugFormat("Retreiving poco repository for type {0}", typeof(T));
+            var type = typeof(T);
+
+            IRepository repository;
+            if (!_repositories.TryGetValue(type, out repository))
+            {
+                repository = (IRepository)_repoFactory.ForPoco<T>();
+                lock (_repositories) _repositories[type] = repository;
+            }
+            return (IPocoRepository<T>)repository;
+        }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
             var processor = Builder.Build<IProcessor>();

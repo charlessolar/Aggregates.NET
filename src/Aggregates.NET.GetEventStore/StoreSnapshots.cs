@@ -43,7 +43,7 @@ namespace Aggregates
 
             if (_shouldCache)
             {
-                var cached = _cache.RetreiveSnap(streamId);
+                var cached = _cache.Retreive(streamId) as ISnapshot;
                 if (cached != null)
                     return cached;
             }
@@ -67,7 +67,7 @@ namespace Aggregates
                 Payload = data
             };
             if (_shouldCache)
-                _cache.CacheSnap(streamId, snapshot);
+                _cache.Cache(streamId, snapshot);
             return snapshot;
         }
 
@@ -78,7 +78,7 @@ namespace Aggregates
             var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
 
             if (_shouldCache)
-                _cache.EvictSnap(streamId);
+                _cache.Evict(streamId);
 
             var translatedEvents = snapshots.Select(e =>
             {

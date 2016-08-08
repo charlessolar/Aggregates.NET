@@ -15,7 +15,11 @@ namespace Aggregates.Internal
             var repoType = typeof(Repository<>).MakeGenericType(typeof(T));
             return (IRepository<T>)Activator.CreateInstance(repoType, builder);
         }
-
+        public IPocoRepository<T> ForPoco<T>() where T : class, new()
+        {
+            var repoType = typeof(PocoRepository<>).MakeGenericType(typeof(T));
+            return (IPocoRepository<T>)Activator.CreateInstance(repoType);
+        }
         public IEntityRepository<TParent, TParentId, T> ForEntity<TParent, TParentId, T>(TParent parent, IBuilder builder) where T : class, IEntity where TParent : class, IBase<TParentId>
         {
             var repoType = typeof(EntityRepository<,,>).MakeGenericType(typeof(TParent), typeof(TParentId), typeof(T));

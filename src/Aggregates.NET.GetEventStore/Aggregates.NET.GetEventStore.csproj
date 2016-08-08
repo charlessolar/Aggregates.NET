@@ -64,6 +64,7 @@
     <Compile Include="Feature.cs" />
     <Compile Include="StoreEvents.cs" />
     <Compile Include="StoreExtensions.cs" />
+    <Compile Include="StorePocos.cs" />
     <Compile Include="StoreSnapshots.cs" />
   </ItemGroup>
   <ItemGroup>

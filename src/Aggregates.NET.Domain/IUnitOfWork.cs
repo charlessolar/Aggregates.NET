@@ -12,6 +12,8 @@ namespace Aggregates
     {
         IRepository<T> For<T>() where T : class, IAggregate;
         IEntityRepository<TParent, TParentId, TEntity> For<TParent, TParentId, TEntity>(TParent parent) where TEntity : class, IEntity where TParent : class, IBase<TParentId>;
+        IPocoRepository<T> Poco<T>() where T : class, new();
+
 
         Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>;
         Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>;

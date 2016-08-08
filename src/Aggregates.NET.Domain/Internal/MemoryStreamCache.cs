@@ -13,34 +13,20 @@ namespace Aggregates.Internal
     {
         private readonly static MemoryCache _cache = new MemoryCache("Aggregates Cache");
         
-        public void Cache(String stream, IEventStream eventstream)
+        public void Cache(String stream, object cached)
         {
-            _cache.Set(stream, eventstream, new CacheItemPolicy { SlidingExpiration = TimeSpan.FromMinutes(5) });
+            _cache.Set(stream, cached, new CacheItemPolicy { SlidingExpiration = TimeSpan.FromMinutes(5) });
         }
         public void Evict(String stream)
         {
             _cache.Remove(stream);
         }
-        public IEventStream Retreive(String stream)
+        public object Retreive(String stream)
         {
-            var eventstream = _cache.Get(stream) as IEventStream;
-            if (eventstream == null) return null;
+            var cached = _cache.Get(stream);
+            if (cached == null) return null;
 
-            return eventstream.Clone();
-        }
-        public void CacheSnap(String stream, ISnapshot snapshot)
-        {
-            _cache.Set(stream, snapshot, new CacheItemPolicy { SlidingExpiration = TimeSpan.FromMinutes(5) });
-        }
-        public void EvictSnap(String stream)
-        {
-            _cache.Remove(stream);
-        }
-        public ISnapshot RetreiveSnap(String stream)
-        {
-            var snap = _cache.Get(stream) as ISnapshot;
-
-            return snap;
+            return cached;
         }
     }
 }

@@ -67,6 +67,8 @@
     <Compile Include="Contracts\IEventStream.cs" />
     <Compile Include="Contracts\IHaveEntities.cs" />
     <Compile Include="Contracts\INeedProcessor.cs" />
+    <Compile Include="Contracts\IPocoRepository.cs" />
+    <Compile Include="Contracts\IStorePocos.cs" />
     <Compile Include="Contracts\IStreamCache.cs" />
     <Compile Include="ICommandUnitOfWork.cs" />
     <Compile Include="IComputed.cs" />
@@ -76,6 +78,7 @@
     <Compile Include="Internal\CommandUnitOfWork.cs" />
     <Compile Include="Internal\MemoryStreamCache.cs" />
     <Compile Include="Internal\MutateIncomingCommands.cs" />
+    <Compile Include="Internal\PocoRepository.cs" />
     <Compile Include="Internal\Processor.cs" />
     <Compile Include="IQuery.cs" />
     <Compile Include="Contracts\IProcessor.cs" />

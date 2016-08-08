@@ -54,7 +54,7 @@ namespace Aggregates
             var readSize = _nsbSettings.Get<Int32>("ReadSize");
             if(_shouldCache)
             {
-                var cached = _cache.Retreive(streamId);
+                var cached = _cache.Retreive(streamId) as IEventStream;
                 if (cached != null)
                 {
                     _hitMeter.Mark();
@@ -105,6 +105,9 @@ namespace Aggregates
         {
             Logger.DebugFormat("Writing {0} events to stream id [{1}] bucket [{2}].  Expected version: ANY", events.Count(), stream, bucket);
             var streamId = String.Format("{0}.{1}", bucket, stream);
+
+            if (_shouldCache)
+                _cache.Evict(streamId);
 
             var settings = new JsonSerializerSettings
             {
