@@ -6,6 +6,7 @@ using Metrics;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
+using NServiceBus.MessageMutator;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.ObjectBuilder.Common;
 using NServiceBus.Pipeline.Contexts;
@@ -20,7 +21,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public class UnitOfWork : IUnitOfWork, ICommandUnitOfWork, IEventUnitOfWork, IEventMutator
+    public class UnitOfWork : IUnitOfWork, ICommandUnitOfWork, IEventUnitOfWork, IEventMutator, IMutateTransportMessages, IMessageMutator
     {
         public static String PrefixHeader = "Originating";
         public static String NotFound = "<NOT FOUND>";
@@ -34,6 +35,7 @@ namespace Aggregates.Internal
         private IDictionary<String, String> _workHeaders;
         private IDictionary<Type, IRepository> _repositories;
         private IDictionary<String, IEntityRepository> _entityRepositories;
+        private IDictionary<String, IRepository> _pocoRepositories;
 
         private Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
         private Timer _commandsTimer = Metric.Timer("Commands Duration", Unit.Commands);
@@ -55,6 +57,7 @@ namespace Aggregates.Internal
             _mapper = mapper;
             _repositories = new Dictionary<Type, IRepository>();
             _entityRepositories = new Dictionary<String, IEntityRepository>();
+            _pocoRepositories = new Dictionary<String, IRepository>();
             _workHeaders = new Dictionary<String, String>();
         }
 
@@ -87,6 +90,15 @@ namespace Aggregates.Internal
 
                 _entityRepositories.Clear();
             }
+            lock (_pocoRepositories)
+            {
+                foreach (var repo in _pocoRepositories.Values)
+                {
+                    repo.Dispose();
+                }
+
+                _pocoRepositories.Clear();
+            }
             _disposed = true;
         }
 
@@ -117,15 +129,26 @@ namespace Aggregates.Internal
         public IPocoRepository<T> Poco<T>() where T : class, new()
         {
             Logger.DebugFormat("Retreiving poco repository for type {0}", typeof(T));
-            var type = typeof(T);
+            var key = $"{typeof(T).FullName}";
 
             IRepository repository;
-            if (!_repositories.TryGetValue(type, out repository))
+            if (!_pocoRepositories.TryGetValue(key, out repository))
             {
                 repository = (IRepository)_repoFactory.ForPoco<T>();
-                lock (_repositories) _repositories[type] = repository;
+                lock (_repositories) _pocoRepositories[key] = repository;
             }
             return (IPocoRepository<T>)repository;
+        }
+        public IPocoRepository<TParent, TParentId, T> Poco<TParent, TParentId, T>(TParent parent) where T : class, new() where TParent : class, IBase<TParentId>
+        {
+            Logger.DebugFormat("Retreiving poco repository for type {0}", typeof(T));
+            var key = $"{parent.StreamId}:{typeof(T).FullName}";
+
+            IRepository repository;
+            if (_pocoRepositories.TryGetValue(key, out repository))
+                return (IPocoRepository<TParent, TParentId, T>)repository;
+
+            return (IPocoRepository<TParent, TParentId, T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<TParent, TParentId, T>(parent));
         }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {

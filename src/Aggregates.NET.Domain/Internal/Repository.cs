@@ -145,13 +145,15 @@ namespace Aggregates.Internal
         {
             try
             {
-                return Get<TId>(id);
+                return TryGet<TId>(Defaults.Bucket, id);
             }
             catch (NotFoundException) { }
             return null;
         }
         public Task<T> TryGet<TId>(String bucket, TId id)
         {
+            if (id == null) return null;
+            if (typeof(TId) == typeof(String) && String.IsNullOrEmpty(id as String)) return null;
             try
             {
                 return Get<TId>(bucket, id);

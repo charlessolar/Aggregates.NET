@@ -16,4 +16,7 @@ namespace Aggregates.Contracts
         Task<T> New<TId>(String bucketId, TId id);
         Task<T> New<TId>(TId id);
     }
+    public interface IPocoRepository<TBase, TBaseId, T> : IRepository where TBase : IBase<TBaseId> where T : class, new()
+    {
+    }
 }

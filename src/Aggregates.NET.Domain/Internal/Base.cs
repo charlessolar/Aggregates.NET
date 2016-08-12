@@ -57,6 +57,12 @@ namespace Aggregates.Internal
             var uow = _builder.Build<IUnitOfWork>();
             return uow.For<TThis, TId, TEntity>(this as TThis);
         }
+        public IPocoRepository<TThis, TId, T> Poco<T>() where T : class, new()
+        {
+            // Get current UOW
+            var uow = _builder.Build<IUnitOfWork>();
+            return uow.Poco<TThis, TId, T>(this as TThis);
+        }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
             var processor = _builder.Build<IProcessor>();

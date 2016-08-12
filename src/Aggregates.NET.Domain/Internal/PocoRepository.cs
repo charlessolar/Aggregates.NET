@@ -13,9 +13,65 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
+    public class PocoRepository<TParent, TParentId, T> : PocoRepository<T>, IPocoRepository<TParent, TParentId, T> where TParent : class, IBase<TParentId> where T : class, new()
+    {
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(PocoRepository<,,>));
+
+        private readonly TParent _parent;
+
+        public PocoRepository(TParent parent, IBuilder builder)
+            : base(builder)
+        {
+            _parent = parent;
+        }
+        public override Task<T> TryGet<TId>(TId id)
+        {
+            if (id == null) return null;
+            if (typeof(TId) == typeof(String) && String.IsNullOrEmpty(id as String)) return null;
+            try
+            {
+                return Get<TId>(id);
+            }
+            catch (NotFoundException) { }
+            return null;
+        }
+
+        public override async Task<T> Get<TId>(TId id)
+        {
+            Logger.DebugFormat("Retreiving entity id [{0}] from parent {2} [{1}] in store", id, _parent.StreamId, typeof(TParent).FullName);
+            var streamId = String.Format("{0}.{1}", _parent.StreamId, id);
+
+            var entity = await Get(_parent.Bucket, streamId);
+            (entity as IEventSource<TId>).Id = id;
+            (entity as IEntity<TId, TParent, TParentId>).Parent = _parent;
+
+            return entity;
+        }
+
+        public override async Task<T> New<TId>(TId id)
+        {
+            var streamId = String.Format("{0}.{1}", _parent.StreamId, id);
+
+            var entity = await New(_parent.Bucket, streamId);
+
+            try
+            {
+                (entity as IEventSource<TId>).Id = id;
+                (entity as IEntity<TId, TParent, TParentId>).Parent = _parent;
+            }
+            catch (NullReferenceException)
+            {
+                var message = String.Format("Failed to new up entity {0}, could not set parent id! Information we have indicated entity has id type <{1}> with parent id type <{2}> - please review that this is true", typeof(T).FullName, typeof(TId).FullName, typeof(TParentId).FullName);
+                Logger.Error(message);
+                throw new ArgumentException(message);
+            }
+            return entity;
+        }
+    }
+
     public class PocoRepository<T> : IPocoRepository<T> where T : class, new()
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(Repository<>));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(PocoRepository<>));
         private readonly IStorePocos _store;
         private readonly IBuilder _builder;
 

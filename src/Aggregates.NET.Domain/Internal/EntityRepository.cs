@@ -34,6 +34,8 @@ namespace Aggregates.Internal
 
         public override Task<T> TryGet<TId>(TId id)
         {
+            if (id == null) return null;
+            if (typeof(TId) == typeof(String) && String.IsNullOrEmpty(id as String)) return null;
             try
             {
                 return Get<TId>(id);
