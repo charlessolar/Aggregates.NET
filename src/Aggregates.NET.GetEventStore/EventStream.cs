@@ -48,7 +48,7 @@ namespace Aggregates.Internal
         private IList<IWritableEvent> _outofband;
         private IList<ISnapshot> _pendingShots;
 
-        public EventStream(IBuilder builder, IStoreEvents store, IStoreSnapshots snapshots, String bucket, String streamId, IEnumerable<IWritableEvent> events)
+        public EventStream(IBuilder builder, IStoreEvents store, IStoreSnapshots snapshots, String bucket, String streamId, Int32 streamVersion, IEnumerable<IWritableEvent> events)
         {
             this._store = store;
             this._snapshots = snapshots;
@@ -56,7 +56,7 @@ namespace Aggregates.Internal
             this.Bucket = bucket;
             this.StreamId = streamId;
             this._committed = events.ToList();
-            this._streamVersion = events.Last().Descriptor.Version;
+            this._streamVersion = streamVersion;
             this._uncommitted = new List<IWritableEvent>();
             this._outofband = new List<IWritableEvent>();
             this._pendingShots = new List<ISnapshot>();
@@ -81,7 +81,7 @@ namespace Aggregates.Internal
 
         public IEventStream Clone()
         {
-            return new EventStream<T>(null, null, null, Bucket, StreamId, _committed);
+            return new EventStream<T>(null, null, null, Bucket, StreamId, StreamVersion, _committed);
         }
         public IEnumerable<IWritableEvent> AllEvents(Boolean? backwards)
         {

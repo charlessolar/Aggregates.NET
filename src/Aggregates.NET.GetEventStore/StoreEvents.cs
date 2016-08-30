@@ -94,7 +94,7 @@ namespace Aggregates
                 };
             });
 
-            var eventstream = new Internal.EventStream<T>(Builder, this, _snapshots, bucket, stream, translatedEvents);
+            var eventstream = new Internal.EventStream<T>(Builder, this, _snapshots, bucket, stream, current.LastEventNumber, translatedEvents);
             if (_shouldCache)
                 _cache.Cache(streamId, eventstream.Clone());
 
