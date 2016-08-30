@@ -9,7 +9,7 @@ namespace Aggregates.Extensions
 {
     public static class StreamExtensions
     {
-        public static IEnumerable<T> AllEvents<T>(IEventStream stream, Boolean? backwards)
+        public static IEnumerable<T> AllEvents<T>(this IEventStream stream, Boolean? backwards)
         {
             foreach( var @event in stream.AllEvents(backwards))
             {
@@ -17,7 +17,7 @@ namespace Aggregates.Extensions
                     yield return (T)@event.Event;
             }
         }
-        public static IEnumerable<T> OOBEvents<T>(IEventStream stream, Boolean? backwards)
+        public static IEnumerable<T> OOBEvents<T>(this IEventStream stream, Boolean? backwards)
         {
             foreach (var @event in stream.OOBEvents(backwards))
             {
