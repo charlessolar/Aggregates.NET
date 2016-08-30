@@ -70,6 +70,7 @@
     <Compile Include="Contracts\IPocoRepository.cs" />
     <Compile Include="Contracts\IStorePocos.cs" />
     <Compile Include="Contracts\IStreamCache.cs" />
+    <Compile Include="Extensions\StreamExtensions.cs" />
     <Compile Include="ICommandUnitOfWork.cs" />
     <Compile Include="IComputed.cs" />
     <Compile Include="IHandleComputed.cs" />

@@ -87,7 +87,6 @@ namespace Aggregates.Internal
         {
             if (backwards == true)
                 return _store.GetEventsBackwards(this.Bucket, this.StreamId);
-
             return _store.GetEvents(this.Bucket, this.StreamId, 0);
         }
         public IEnumerable<IWritableEvent> OOBEvents(Boolean? backwards)
