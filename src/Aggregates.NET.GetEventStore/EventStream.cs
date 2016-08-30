@@ -83,18 +83,18 @@ namespace Aggregates.Internal
         {
             return new EventStream<T>(null, null, null, Bucket, StreamId, _committed);
         }
-        public Task<IEnumerable<IWritableEvent>> AllEvents(Int32? readSize, Boolean? backwards)
+        public IEnumerable<IWritableEvent> AllEvents(Boolean? backwards)
         {
             if (backwards == true)
-                return _store.GetEventsBackwards(this.Bucket, this.StreamId, readSize);
+                return _store.GetEventsBackwards(this.Bucket, this.StreamId);
 
             return _store.GetEvents(this.Bucket, this.StreamId, 0);
         }
-        public Task<IEnumerable<IWritableEvent>> OOBEvents(Int32? readSize, Boolean? backwards)
+        public IEnumerable<IWritableEvent> OOBEvents(Boolean? backwards)
         {
             if (backwards == true)
-                return _store.GetEventsBackwards(this.Bucket + ".OOB", this.StreamId, readSize);
-            return _store.GetEvents(this.Bucket + ".OOB", this.StreamId, 0, readSize);
+                return _store.GetEventsBackwards(this.Bucket + ".OOB", this.StreamId);
+            return _store.GetEvents(this.Bucket + ".OOB", this.StreamId, 0);
         }
 
         private IWritableEvent makeWritableEvent(Object @event, IDictionary<String, String> headers, Boolean version = true)

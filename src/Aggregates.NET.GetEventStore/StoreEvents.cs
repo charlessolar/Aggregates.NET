@@ -49,8 +49,10 @@ namespace Aggregates
             Logger.DebugFormat("Getting stream [{0}] in bucket [{1}]", stream, bucket);
 
             var streamId = String.Format("{0}.{1}", bucket, stream);
+            var events = new List<ResolvedEvent>();
 
-            if(_shouldCache)
+            var readSize = _nsbSettings.Get<Int32>("ReadSize");
+            if (_shouldCache)
             {
                 var cached = _cache.Retreive(streamId) as IEventStream;
                 if (cached != null)
@@ -62,15 +64,45 @@ namespace Aggregates
                 _missMeter.Mark();
             }
 
-            var events = await GetEvents(bucket, stream, start);
-            var eventstream = new Internal.EventStream<T>(Builder, this, _snapshots, bucket, stream, events);
-            if(_shouldCache)
+            var settings = new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All,
+                Binder = new EventSerializationBinder(_mapper),
+                ContractResolver = new EventContractResolver(_mapper)
+            };
+
+            StreamEventsSlice current;
+            var sliceStart = start ?? StreamPosition.Start;
+            do
+            {
+                current = await _client.ReadStreamEventsForwardAsync(streamId, sliceStart, readSize, false);
+
+                events.AddRange(current.Events);
+                sliceStart = current.NextEventNumber;
+            } while (!current.IsEndOfStream);
+
+            var translatedEvents = events.Select(e =>
+            {
+                var descriptor = e.Event.Metadata.Deserialize(settings);
+                var data = e.Event.Data.Deserialize(e.Event.EventType, settings);
+
+                return new Internal.WritableEvent
+                {
+                    Descriptor = descriptor,
+                    Event = data,
+                    EventId = e.Event.EventId
+                };
+            });
+
+            var eventstream = new Internal.EventStream<T>(Builder, this, _snapshots, bucket, stream, translatedEvents);
+            if (_shouldCache)
                 _cache.Cache(streamId, eventstream.Clone());
 
             return eventstream;
         }
 
-        public async Task<IEnumerable<IWritableEvent>> GetEvents(String bucket, String stream, Int32? start = null, Int32? readUntil = null)
+        // C# doesn't support async yield and I don't want to import all of Rx
+        public IEnumerable<IWritableEvent> GetEvents(String bucket, String stream, Int32? start = null, Int32? readUntil = null)
         {
             Logger.DebugFormat("Getting events from stream [{0}] in bucket [{1}]", stream, bucket);
 
@@ -83,13 +115,12 @@ namespace Aggregates
                 Binder = new EventSerializationBinder(_mapper),
                 ContractResolver = new EventContractResolver(_mapper)
             };
-
-            var events = new List<IWritableEvent>();
+            
             StreamEventsSlice current;
             var sliceStart = start ?? StreamPosition.Start;
             do
             {
-                current = await _client.ReadStreamEventsForwardAsync(streamId, sliceStart, readSize, false);
+                current = _client.ReadStreamEventsForwardAsync(streamId, sliceStart, readSize, false).Result;
 
                 foreach (var e in current.Events)
                 {
@@ -99,12 +130,12 @@ namespace Aggregates
                     var descriptor = e.Event.Metadata.Deserialize(settings);
                     var data = e.Event.Data.Deserialize(e.Event.EventType, settings);
 
-                    events.Add(new Internal.WritableEvent
+                    yield return new Internal.WritableEvent
                     {
                         Descriptor = descriptor,
                         Event = data,
                         EventId = e.Event.EventId
-                    });                    
+                    };        
                 }
 
                 if (readUntil.HasValue && current.LastEventNumber >= readUntil)
@@ -112,10 +143,9 @@ namespace Aggregates
                 
                 sliceStart = current.NextEventNumber;
             } while (!current.IsEndOfStream);
-
-            return events;
+            
         }
-        public async Task<IEnumerable<IWritableEvent>> GetEventsBackwards(String bucket, String stream, Int32? readUntil = null)
+        public IEnumerable<IWritableEvent> GetEventsBackwards(String bucket, String stream, Int32? readUntil = null)
         {
             Logger.DebugFormat("Getting events backward from stream [{0}] in bucket [{1}]", stream, bucket);
 
@@ -128,13 +158,12 @@ namespace Aggregates
                 Binder = new EventSerializationBinder(_mapper),
                 ContractResolver = new EventContractResolver(_mapper)
             };
-
-            var events = new List<IWritableEvent>();
+            
             StreamEventsSlice current;
             var sliceStart = StreamPosition.End;
             do
             {
-                current = await _client.ReadStreamEventsBackwardAsync(streamId, sliceStart, readSize, false);
+                current = _client.ReadStreamEventsBackwardAsync(streamId, sliceStart, readSize, false).Result;
 
                 foreach (var e in current.Events)
                 {
@@ -144,12 +173,12 @@ namespace Aggregates
                     var descriptor = e.Event.Metadata.Deserialize(settings);
                     var data = e.Event.Data.Deserialize(e.Event.EventType, settings);
 
-                    events.Add(new Internal.WritableEvent
+                    yield return new Internal.WritableEvent
                     {
                         Descriptor = descriptor,
                         Event = data,
                         EventId = e.Event.EventId
-                    });
+                    };
                 }
 
                 if (readUntil.HasValue && current.LastEventNumber <= readUntil)
@@ -157,8 +186,6 @@ namespace Aggregates
 
                 sliceStart = current.NextEventNumber;
             } while (!current.IsEndOfStream);
-
-            return events;
         }
 
         public async Task AppendEvents(String bucket, String stream, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders)

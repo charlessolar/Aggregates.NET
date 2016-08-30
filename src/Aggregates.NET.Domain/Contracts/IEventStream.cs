@@ -25,11 +25,11 @@ namespace Aggregates.Contracts
         /// <summary>
         /// Gets all events for the stream from the store regardless of current snapshot 
         /// </summary>
-        Task<IEnumerable<IWritableEvent>> AllEvents(Int32? readSize, Boolean? backwards);
+        IEnumerable<IWritableEvent> AllEvents(Boolean? backwards);
         /// <summary>
         /// Gets all OOB events for the stream from the store
         /// </summary>
-        Task<IEnumerable<IWritableEvent>> OOBEvents(Int32? readSize, Boolean? backwards);
+        IEnumerable<IWritableEvent> OOBEvents(Boolean? backwards);
 
         void Add(Object @event, IDictionary<String, String> headers);
         void AddOutOfBand(Object @event, IDictionary<String, String> headers);
