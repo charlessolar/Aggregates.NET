@@ -32,18 +32,18 @@ namespace Aggregates.Internal
 
         }
 
-        public override Task<T> TryGet<TId>(TId id)
+        public override async Task<T> TryGet<TId>(TId id)
         {
             if (id == null) return null;
             if (typeof(TId) == typeof(String) && String.IsNullOrEmpty(id as String)) return null;
             try
             {
-                return Get<TId>(id);
+                return await Get<TId>(id);
             }
             catch (NotFoundException) { }
             catch (System.AggregateException e)
             {
-                if (!(e.InnerException is NotFoundException || e.InnerExceptions.Any(x => x is NotFoundException)))
+                if (!(e.InnerException is NotFoundException) && !e.InnerExceptions.Any(x => x is NotFoundException))
                     throw;
             }
             return null;

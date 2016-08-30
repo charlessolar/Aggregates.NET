@@ -143,30 +143,20 @@ namespace Aggregates.Internal
 
         public virtual Task<T> TryGet<TId>(TId id)
         {
-            try
-            {
-                return TryGet<TId>(Defaults.Bucket, id);
-            }
-            catch (NotFoundException) { }
-            catch (System.AggregateException e)
-            {
-                if (!(e.InnerException is NotFoundException || e.InnerExceptions.Any(x => x is NotFoundException)))
-                    throw;
-            }
-            return null;
+            return TryGet<TId>(Defaults.Bucket, id);
         }
-        public Task<T> TryGet<TId>(String bucket, TId id)
+        public async Task<T> TryGet<TId>(String bucket, TId id)
         {
             if (id == null) return null;
             if (typeof(TId) == typeof(String) && String.IsNullOrEmpty(id as String)) return null;
             try
             {
-                return Get<TId>(bucket, id);
+                return await Get<TId>(bucket, id);
             }
             catch (NotFoundException) { }
             catch (System.AggregateException e)
             {
-                if (!(e.InnerException is NotFoundException || e.InnerExceptions.Any(x => x is NotFoundException)))
+                if (!(e.InnerException is NotFoundException) && !e.InnerExceptions.Any(x => x is NotFoundException))
                     throw;
             }
             return null;
