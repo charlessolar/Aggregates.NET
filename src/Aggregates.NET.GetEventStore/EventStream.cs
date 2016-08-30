@@ -33,7 +33,7 @@ namespace Aggregates.Internal
         }
         public IEnumerable<IWritableEvent> Uncommitted
         {
-            get
+             get
             {
                 return this._uncommitted.Concat(this._outofband);
             }
@@ -48,15 +48,15 @@ namespace Aggregates.Internal
         private IList<IWritableEvent> _outofband;
         private IList<ISnapshot> _pendingShots;
 
-        public EventStream(IBuilder builder, IStoreEvents store, IStoreSnapshots snapshots, String bucket, String streamId, Int32 streamVersion, IEnumerable<IWritableEvent> events)
+        public EventStream(IBuilder builder, IStoreEvents store, IStoreSnapshots snapshots, String bucket, String streamId, IEnumerable<IWritableEvent> events)
         {
             this._store = store;
             this._snapshots = snapshots;
             this._builder = builder;
             this.Bucket = bucket;
             this.StreamId = streamId;
-            this._streamVersion = streamVersion;
             this._committed = events.ToList();
+            this._streamVersion = events.Last().Descriptor.Version;
             this._uncommitted = new List<IWritableEvent>();
             this._outofband = new List<IWritableEvent>();
             this._pendingShots = new List<ISnapshot>();
@@ -81,7 +81,20 @@ namespace Aggregates.Internal
 
         public IEventStream Clone()
         {
-            return new EventStream<T>(null, null, null, Bucket, StreamId, _streamVersion, _committed);
+            return new EventStream<T>(null, null, null, Bucket, StreamId, _committed);
+        }
+        public Task<IEnumerable<IWritableEvent>> AllEvents(Int32? readSize, Boolean? backwards)
+        {
+            if (backwards == true)
+                return _store.GetEventsBackwards(this.Bucket, this.StreamId, readSize);
+
+            return _store.GetEvents(this.Bucket, this.StreamId, 0);
+        }
+        public Task<IEnumerable<IWritableEvent>> OOBEvents(Int32? readSize, Boolean? backwards)
+        {
+            if (backwards == true)
+                return _store.GetEventsBackwards(this.Bucket + ".OOB", this.StreamId, readSize);
+            return _store.GetEvents(this.Bucket + ".OOB", this.StreamId, 0, readSize);
         }
 
         private IWritableEvent makeWritableEvent(Object @event, IDictionary<String, String> headers, Boolean version = true)
