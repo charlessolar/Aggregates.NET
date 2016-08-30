@@ -44,7 +44,7 @@ namespace Aggregates
         }
 
 
-        public async Task<IEventStream> GetStream<T>(String bucket, String stream, Int32? start = null) where T : class, IEntity
+        public async Task<IEventStream> GetStream<T>(String bucket, String stream, Int32? start = null) where T : class, IEventSource
         {
             Logger.DebugFormat("Getting stream [{0}] in bucket [{1}]", stream, bucket);
 

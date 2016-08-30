@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 namespace Aggregates.Internal
 {
 
-    public class EventStream<T> : IEventStream where T : class, IEntity
+    public class EventStream<T> : IEventStream where T : class, IEventSource
     {
         private static String CommitHeader = "CommitId";
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventStream<>));
