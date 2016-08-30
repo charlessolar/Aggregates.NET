@@ -41,6 +41,11 @@ namespace Aggregates.Internal
                 return Get<TId>(id);
             }
             catch (NotFoundException) { }
+            catch (System.AggregateException e)
+            {
+                if (!(e.InnerException is NotFoundException || e.InnerExceptions.Any(x => x is NotFoundException)))
+                    throw;
+            }
             return null;
         }
 

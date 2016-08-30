@@ -148,6 +148,11 @@ namespace Aggregates.Internal
                 return TryGet<TId>(Defaults.Bucket, id);
             }
             catch (NotFoundException) { }
+            catch (System.AggregateException e)
+            {
+                if (!(e.InnerException is NotFoundException || e.InnerExceptions.Any(x => x is NotFoundException)))
+                    throw;
+            }
             return null;
         }
         public Task<T> TryGet<TId>(String bucket, TId id)
@@ -159,6 +164,11 @@ namespace Aggregates.Internal
                 return Get<TId>(bucket, id);
             }
             catch (NotFoundException) { }
+            catch (System.AggregateException e)
+            {
+                if (!(e.InnerException is NotFoundException || e.InnerExceptions.Any(x => x is NotFoundException)))
+                    throw;
+            }
             return null;
         }
 
