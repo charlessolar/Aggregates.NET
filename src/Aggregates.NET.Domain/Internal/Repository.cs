@@ -169,7 +169,7 @@ namespace Aggregates.Internal
 
         public async Task<T> Get<TId>(String bucket, TId id)
         {
-            Logger.DebugFormat("Retreiving aggregate id [{0}] from bucket [{1}] in store", id, bucket);
+            Logger.DebugFormat("Retreiving aggregate id [{0}] in bucket [{1}] for type {2} in store", id, bucket, typeof(T).FullName);
             var root = await Get(bucket, id.ToString());
             (root as IEventSource<TId>).Id = id;
             return root;
@@ -183,25 +183,25 @@ namespace Aggregates.Internal
 
             return root;
         }
-        private async Task<T> GetUntracked(String bucket, string id)
+        private async Task<T> GetUntracked(String bucket, string streamId)
         {
             T root;
-            var snapshot = await GetSnapshot(bucket, id);
-            var stream = await OpenStream(bucket, id, snapshot);
+            var snapshot = await GetSnapshot(bucket, streamId);
+            var stream = await OpenStream(bucket, streamId, snapshot);
 
             if (stream == null && snapshot == null)
-                throw new NotFoundException($"Aggregate snapshot in stream [{id}] bucket [{bucket}] not found");
+                throw new NotFoundException($"Aggregate snapshot in stream [{streamId}] bucket [{bucket}] type {typeof(T).FullName} not found");
 
             // Get requires the stream exists
             if (stream.StreamVersion == -1)
-                throw new NotFoundException($"Aggregate stream [{id}] in bucket [{bucket}] not found");
+                throw new NotFoundException($"Aggregate stream [{streamId}] in bucket [{bucket}] type {typeof(T).FullName} not found");
 
             // Call the 'private' constructor
             root = Newup(stream, _builder);
 
             if (snapshot != null && root is ISnapshotting)
             {
-                Logger.DebugFormat("Restoring snapshot version {0} to stream id [{1}] bucket [{2}] version {3}", snapshot.Version, id, bucket, stream.StreamVersion);
+                Logger.DebugFormat("Restoring snapshot version {0} to stream id [{1}] bucket [{2}] version {3}", snapshot.Version, streamId, bucket, stream.StreamVersion);
                 ((ISnapshotting)root).RestoreSnapshot(snapshot.Payload);
             }
 
@@ -224,6 +224,7 @@ namespace Aggregates.Internal
         }
         public async Task<T> New(String bucket, String streamId)
         {
+            Logger.DebugFormat("Creating new stream id [{0}] in bucket [{1}] for type {2} in store", streamId, bucket, typeof(T).FullName);
             var stream = await OpenStream(bucket, streamId);
             var root = Newup(stream, _builder);
 
@@ -261,7 +262,7 @@ namespace Aggregates.Internal
 
         protected Task<ISnapshot> GetSnapshot(String bucket, String streamId)
         {
-            return _snapstore.GetSnapshot(bucket, streamId);
+            return _snapstore.GetSnapshot<T>(bucket, streamId);
         }
 
         protected Task<IEventStream> OpenStream(String bucket, String streamId, ISnapshot snapshot = null)

@@ -25,6 +25,7 @@ namespace Aggregates
         private readonly IStreamCache _cache;
         private readonly Boolean _shouldCache;
         private readonly JsonSerializerSettings _settings;
+        private readonly StreamIdGenerator _streamGen;
 
         public StoreSnapshots(IEventStoreConnection client, ReadOnlySettings nsbSettings, IStreamCache cache, JsonSerializerSettings settings)
         {
@@ -33,22 +34,23 @@ namespace Aggregates
             _settings = settings;
             _cache = cache;
             _shouldCache = _nsbSettings.Get<Boolean>("ShouldCacheEntities");
+            _streamGen = _nsbSettings.Get<StreamIdGenerator>("StreamGenerator");
         }
 
-        public async Task<ISnapshot> GetSnapshot(String bucket, String stream)
+        public async Task<ISnapshot> GetSnapshot<T>(String bucket, String streamId) where T : class, IEventSource
         {
-            Logger.DebugFormat("Getting snapshot for stream [{0}] in bucket [{1}]", stream, bucket);
+            Logger.DebugFormat("Getting snapshot for stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
 
-            var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
+            var streamName = $"{_streamGen(typeof(T), bucket, streamId)}.snapshots";
 
             if (_shouldCache)
             {
-                var cached = _cache.Retreive(streamId) as ISnapshot;
+                var cached = _cache.Retreive(streamName) as ISnapshot;
                 if (cached != null)
                     return cached;
             }
 
-            var read = await _client.ReadEventAsync(streamId, StreamPosition.End, false);
+            var read = await _client.ReadEventAsync(streamName, StreamPosition.End, false);
             if (read.Status != EventReadStatus.Success || !read.Event.HasValue)
                 return null;
 
@@ -56,29 +58,29 @@ namespace Aggregates
 
             var descriptor = @event.Metadata.Deserialize(_settings);
             var data = @event.Data.Deserialize(descriptor.EntityType, _settings);
-
+            
             var snapshot = new Snapshot
             {
                 EntityType = descriptor.EntityType,
                 Bucket = bucket,
-                Stream = stream,
+                Stream = streamId,
                 Timestamp = descriptor.Timestamp,
                 Version = descriptor.Version,
                 Payload = data
             };
             if (_shouldCache)
-                _cache.Cache(streamId, snapshot);
+                _cache.Cache(streamName, snapshot);
             return snapshot;
         }
 
 
-        public async Task WriteSnapshots(String bucket, String stream, IEnumerable<ISnapshot> snapshots, IDictionary<String, String> commitHeaders)
+        public async Task WriteSnapshots<T>(String bucket, String streamId, IEnumerable<ISnapshot> snapshots, IDictionary<String, String> commitHeaders) where T : class, IEventSource
         {
-            Logger.DebugFormat("Writing {0} snapshots to stream id [{1}] in bucket [{2}]", snapshots.Count(), stream, bucket);
-            var streamId = String.Format("{0}.{1}.{2}", bucket, stream, "snapshots");
+            Logger.DebugFormat("Writing {0} snapshots to stream id [{1}] in bucket [{2}] for type {2}", snapshots.Count(), streamId, bucket, typeof(T).FullName);
+            var streamName = $"{_streamGen(typeof(T), bucket, streamId)}.snapshots";
 
             if (_shouldCache)
-                _cache.Evict(streamId);
+                _cache.Evict(streamName);
 
             var translatedEvents = snapshots.Select(e =>
             {
@@ -99,7 +101,7 @@ namespace Aggregates
             }).ToList();
 
             
-            await _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvents);
+            await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents);
         }
         
     }

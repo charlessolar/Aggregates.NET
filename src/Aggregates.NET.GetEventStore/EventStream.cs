@@ -86,14 +86,14 @@ namespace Aggregates.Internal
         public IEnumerable<IWritableEvent> AllEvents(Boolean? backwards)
         {
             if (backwards == true)
-                return _store.GetEventsBackwards(this.Bucket, this.StreamId);
-            return _store.GetEvents(this.Bucket, this.StreamId, 0);
+                return _store.GetEventsBackwards<T>(this.Bucket, this.StreamId);
+            return _store.GetEvents<T>(this.Bucket, this.StreamId, 0);
         }
         public IEnumerable<IWritableEvent> OOBEvents(Boolean? backwards)
         {
             if (backwards == true)
-                return _store.GetEventsBackwards(this.Bucket + ".OOB", this.StreamId);
-            return _store.GetEvents(this.Bucket + ".OOB", this.StreamId, 0);
+                return _store.GetEventsBackwards<T>(this.Bucket + ".OOB", this.StreamId);
+            return _store.GetEvents<T>(this.Bucket + ".OOB", this.StreamId, 0);
         }
 
         private IWritableEvent makeWritableEvent(Object @event, IDictionary<String, String> headers, Boolean version = true)
@@ -172,19 +172,19 @@ namespace Aggregates.Internal
                         throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
 
                     Logger.DebugFormat("Event stream {0} committing {1} events", this.StreamId, _uncommitted.Count);
-                    await _store.WriteEvents(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
+                    await _store.WriteEvents<T>(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
                     this._uncommitted.Clear();
                 }
                 if (_pendingShots.Any())
                 {
                     Logger.DebugFormat("Event stream {0} committing {1} snapshots", this.StreamId, _pendingShots.Count);
-                    await _snapshots.WriteSnapshots(this.Bucket, this.StreamId, _pendingShots, commitHeaders);
+                    await _snapshots.WriteSnapshots<T>(this.Bucket, this.StreamId, _pendingShots, commitHeaders);
                     this._pendingShots.Clear();
                 }
                 if (_outofband.Any())
                 {
                     Logger.DebugFormat("Event stream {0} committing {1} out of band events", this.StreamId, _pendingShots.Count);
-                    await _store.AppendEvents(this.Bucket + ".OOB", this.StreamId, _outofband, commitHeaders);
+                    await _store.AppendEvents<T>(this.Bucket + ".OOB", this.StreamId, _outofband, commitHeaders);
                     this._outofband.Clear();
                 }
             }

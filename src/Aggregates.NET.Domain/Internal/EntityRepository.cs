@@ -52,9 +52,8 @@ namespace Aggregates.Internal
         public override async Task<T> Get<TId>(TId id)
         {
             Logger.DebugFormat("Retreiving entity id [{0}] from parent {2} [{1}] in store", id, _parent.StreamId, typeof(TParent).FullName);
-            var streamId = String.Format("{0}.{1}", _parent.StreamId, id);
 
-            var entity = await Get(_parent.Bucket, streamId);
+            var entity = await Get(_parent.Bucket, id);
             (entity as IEventSource<TId>).Id = id;
             (entity as IEntity<TId, TParent, TParentId>).Parent = _parent;
             
@@ -63,9 +62,8 @@ namespace Aggregates.Internal
 
         public override async Task<T> New<TId>(TId id)
         {
-            var streamId = String.Format("{0}.{1}", _parent.StreamId, id);
 
-            var entity = await New(_parent.Bucket, streamId);
+            var entity = await New(_parent.Bucket, id);
 
             try
             {

@@ -9,13 +9,13 @@ namespace Aggregates.Contracts
 {
     public interface IStoreEvents
     {
-        Task<IEventStream> GetStream<T>(String bucket, String stream, Int32? start = null) where T : class, IEventSource;
-        IEnumerable<IWritableEvent> GetEvents(String bucket, String stream, Int32? start = null, Int32? readUntil = null);
-        IEnumerable<IWritableEvent> GetEventsBackwards(String bucket, String stream, Int32? readUntil = null);
+        Task<IEventStream> GetStream<T>(String bucket, String streamId, Int32? start = null) where T : class, IEventSource;
+        IEnumerable<IWritableEvent> GetEvents<T>(String bucket, String streamId, Int32? start = null, Int32? readUntil = null) where T : class, IEventSource;
+        IEnumerable<IWritableEvent> GetEventsBackwards<T>(String bucket, String streamId, Int32? readUntil = null) where T : class, IEventSource;
 
-        Task WriteEvents(String bucket, String stream, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders);
+        Task WriteEvents<T>(String bucket, String streamId, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders) where T : class, IEventSource;
 
-        Task AppendEvents(String bucket, String stream, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders);
+        Task AppendEvents<T>(String bucket, String streamId, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders) where T : class, IEventSource;
 
         IBuilder Builder { get; set; }
     }

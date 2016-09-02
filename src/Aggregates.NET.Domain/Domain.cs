@@ -28,6 +28,7 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("ShouldCacheEntities", false);
+                s.SetDefault("StreamGenerator", new StreamIdGenerator((type, bucket, stream) => $"{bucket}.{type.FullName}.{stream}"));
             });
         }
         public TransportConfig GetConfiguration()
