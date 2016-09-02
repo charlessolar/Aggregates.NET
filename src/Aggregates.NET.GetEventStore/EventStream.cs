@@ -4,6 +4,7 @@ using Aggregates.Extensions;
 using EventStore.ClientAPI;
 using EventStore.ClientAPI.Exceptions;
 using Newtonsoft.Json;
+using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
 using System;
@@ -48,10 +49,10 @@ namespace Aggregates.Internal
         private IList<IWritableEvent> _outofband;
         private IList<ISnapshot> _pendingShots;
 
-        public EventStream(IBuilder builder, IStoreEvents store, IStoreSnapshots snapshots, String bucket, String streamId, Int32 streamVersion, IEnumerable<IWritableEvent> events)
+        public EventStream(IBuilder builder, IStoreEvents store, String bucket, String streamId, Int32 streamVersion, IEnumerable<IWritableEvent> events)
         {
             this._store = store;
-            this._snapshots = snapshots;
+            this._snapshots = builder.Build<IStoreSnapshots>();
             this._builder = builder;
             this.Bucket = bucket;
             this.StreamId = streamId;
@@ -64,10 +65,10 @@ namespace Aggregates.Internal
         }
 
         // Special constructor for building from a cached instance
-        internal EventStream(IEventStream clone, IBuilder builder, IStoreEvents store, IStoreSnapshots snapshots)
+        internal EventStream(IEventStream clone, IBuilder builder, IStoreEvents store)
         {
             this._store = store;
-            this._snapshots = snapshots;
+            this._snapshots = builder.Build<IStoreSnapshots>();
             this._builder = builder;
             this.Bucket = clone.Bucket;
             this.StreamId = clone.StreamId;
@@ -81,7 +82,7 @@ namespace Aggregates.Internal
 
         public IEventStream Clone()
         {
-            return new EventStream<T>(null, null, null, Bucket, StreamId, StreamVersion, _committed);
+            return new EventStream<T>(null, null, Bucket, StreamId, StreamVersion, _committed);
         }
         public IEnumerable<IWritableEvent> AllEvents(Boolean? backwards)
         {
@@ -96,7 +97,7 @@ namespace Aggregates.Internal
             return _store.GetEvents<T>(this.Bucket + ".OOB", this.StreamId, 0);
         }
 
-        private IWritableEvent makeWritableEvent(Object @event, IDictionary<String, String> headers, Boolean version = true)
+        private IWritableEvent makeWritableEvent(IEvent @event, IDictionary<String, String> headers, Boolean version = true)
         {
 
             IWritableEvent writable = new WritableEvent
@@ -122,12 +123,12 @@ namespace Aggregates.Internal
             return writable;
         }
 
-        public void AddOutOfBand(Object @event, IDictionary<String, String> headers)
+        public void AddOutOfBand(IEvent @event, IDictionary<String, String> headers)
         {
             _outofband.Add(makeWritableEvent(@event, headers, false));
         }
 
-        public void Add(Object @event, IDictionary<String, String> headers)
+        public void Add(IEvent @event, IDictionary<String, String> headers)
         {
             _uncommitted.Add(makeWritableEvent(@event, headers));
         }
@@ -155,6 +156,7 @@ namespace Aggregates.Internal
 
             commitHeaders[CommitHeader] = commitId.ToString();
 
+            var oobPublishers = this._builder.BuildAll<IOOBPublisher>();
 
             try
             {
@@ -183,8 +185,16 @@ namespace Aggregates.Internal
                 }
                 if (_outofband.Any())
                 {
-                    Logger.DebugFormat("Event stream {0} committing {1} out of band events", this.StreamId, _pendingShots.Count);
-                    await _store.AppendEvents<T>(this.Bucket + ".OOB", this.StreamId, _outofband, commitHeaders);
+                    if (!oobPublishers.Any())
+                        Logger.WarnFormat("OOB events were used on stream {0} but no publishers have been defined!");
+                    else
+                    {
+                        foreach( var oob in oobPublishers)
+                        {
+                            Logger.DebugFormat("Event stream {0} publishing {1} out of band events to {2}", this.StreamId, _pendingShots.Count, oob.GetType().Name);
+                            await oob.Publish<T>(this.Bucket, this.StreamId, _outofband, commitHeaders);
+                        }
+                    }
                     this._outofband.Clear();
                 }
             }

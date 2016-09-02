@@ -6,6 +6,7 @@ using EventStore.ClientAPI;
 using EventStore.ClientAPI.Exceptions;
 using Metrics;
 using Newtonsoft.Json;
+using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
@@ -26,7 +27,6 @@ namespace Aggregates
         private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreEvents));
         private readonly IEventStoreConnection _client;
         private readonly IMessageMapper _mapper;
-        private readonly IStoreSnapshots _snapshots;
         private readonly ReadOnlySettings _nsbSettings;
         private readonly IStreamCache _cache;
         private readonly Boolean _shouldCache;
@@ -34,11 +34,10 @@ namespace Aggregates
 
         public IBuilder Builder { get; set; }
 
-        public StoreEvents(IEventStoreConnection client, IMessageMapper mapper, IStoreSnapshots snapshots, ReadOnlySettings nsbSettings, IStreamCache cache)
+        public StoreEvents(IEventStoreConnection client, IMessageMapper mapper, ReadOnlySettings nsbSettings, IStreamCache cache)
         {
             _client = client;
             _mapper = mapper;
-            _snapshots = snapshots;
             _nsbSettings = nsbSettings;
             _cache = cache;
             _shouldCache = _nsbSettings.Get<Boolean>("ShouldCacheEntities");
@@ -61,7 +60,7 @@ namespace Aggregates
                 {
                     _hitMeter.Mark();
                     Logger.DebugFormat("Found stream [{0}] bucket [{1}] in cache", streamId, bucket);
-                    return new Internal.EventStream<T>(cached, Builder, this, _snapshots);
+                    return new Internal.EventStream<T>(cached, Builder, this);
                 }
                 _missMeter.Mark();
             }
@@ -88,15 +87,18 @@ namespace Aggregates
                 var descriptor = e.Event.Metadata.Deserialize(settings);
                 var data = e.Event.Data.Deserialize(e.Event.EventType, settings);
 
+                var @event = data as IEvent;
+                if (@event == null)
+                    throw new InvalidOperationException($"Event type {e.Event.EventType} on stream {streamName} does not inherit from IEvent and therefore cannot be read");
                 return new Internal.WritableEvent
                 {
                     Descriptor = descriptor,
-                    Event = data,
+                    Event = @event,
                     EventId = e.Event.EventId
                 };
             });
 
-            var eventstream = new Internal.EventStream<T>(Builder, this, _snapshots, bucket, streamId, current.LastEventNumber, translatedEvents);
+            var eventstream = new Internal.EventStream<T>(Builder, this, bucket, streamId, current.LastEventNumber, translatedEvents);
             if (_shouldCache)
                 _cache.Cache(streamName, eventstream.Clone());
 
@@ -132,12 +134,15 @@ namespace Aggregates
                     var descriptor = e.Event.Metadata.Deserialize(settings);
                     var data = e.Event.Data.Deserialize(e.Event.EventType, settings);
 
+                    var @event = data as IEvent;
+                    if (@event == null)
+                        throw new InvalidOperationException($"Event type {e.Event.EventType} on stream {streamName} does not inherit from IEvent and therefore cannot be read");
                     yield return new Internal.WritableEvent
                     {
                         Descriptor = descriptor,
-                        Event = data,
+                        Event = @event,
                         EventId = e.Event.EventId
-                    };        
+                    };
                 }
 
                 if (readUntil.HasValue && current.LastEventNumber >= readUntil)
@@ -175,10 +180,13 @@ namespace Aggregates
                     var descriptor = e.Event.Metadata.Deserialize(settings);
                     var data = e.Event.Data.Deserialize(e.Event.EventType, settings);
 
+                    var @event = data as IEvent;
+                    if (@event == null)
+                        throw new InvalidOperationException($"Event type {e.Event.EventType} on stream {streamName} does not inherit from IEvent and therefore cannot be read");
                     yield return new Internal.WritableEvent
                     {
                         Descriptor = descriptor,
-                        Event = data,
+                        Event = @event,
                         EventId = e.Event.EventId
                     };
                 }

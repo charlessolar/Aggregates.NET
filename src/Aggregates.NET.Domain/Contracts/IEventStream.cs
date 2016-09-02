@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NServiceBus;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -31,8 +32,8 @@ namespace Aggregates.Contracts
         /// </summary>
         IEnumerable<IWritableEvent> OOBEvents(Boolean? backwards);
 
-        void Add(Object @event, IDictionary<String, String> headers);
-        void AddOutOfBand(Object @event, IDictionary<String, String> headers);
+        void Add(IEvent @event, IDictionary<String, String> headers);
+        void AddOutOfBand(IEvent @event, IDictionary<String, String> headers);
         void AddSnapshot(Object memento, IDictionary<String, String> headers);
         Task Commit(Guid commitId, IDictionary<String, String> commitHeaders);
         

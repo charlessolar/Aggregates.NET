@@ -49,6 +49,7 @@ namespace Aggregates
             context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<Processor>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<MemoryStreamCache>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<DefaultOOBPublisher>(DependencyLifecycle.InstancePerCall);
 
             context.Container.ConfigureComponent<Func<Accept>>(y =>
             {
