@@ -203,9 +203,7 @@ namespace Aggregates.Internal
                         }
 
                         var uows = new ConcurrentStack<IEventUnitOfWork>();
-
-                        if (Logger.IsDebugEnabled)
-                            s.Restart();
+                        
                         var mutators = childBuilder.BuildAll<IEventMutator>();
                         if (mutators != null && mutators.Any())
                             foreach (var mutator in mutators)
@@ -222,16 +220,10 @@ namespace Aggregates.Internal
                             uow.Retries = retry;
                             await uow.Begin();
                         });
-
-                        if (Logger.IsDebugEnabled)
-                        {
-                            s.Stop();
-                            Logger.WriteFormat(LogLevel.Debug, "UOW.Begin for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
-                        }
+                        
                         try
                         {
-                            if (Logger.IsDebugEnabled)
-                                s.Restart();
+                            s.Restart();
 
                             Func<dynamic, Task> processor = async (handler) =>
                              {
@@ -253,13 +245,13 @@ namespace Aggregates.Internal
                                              await lambda(handler, @event, handleContext);
 
                                              handlerWatch.Stop();
-                                             if (Logger.IsDebugEnabled)
-                                             {
-                                                 Logger.WriteFormat(LogLevel.Debug, "Executing event {0} on handler {1} took {2} ms", eventType.FullName, ((object)handler).GetType().FullName, handlerWatch.ElapsedMilliseconds);
-                                             }
                                              if (handlerWatch.ElapsedMilliseconds > _slowAlert)
                                              {
                                                  Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Executing event {0} on handler {1} took {2} ms", eventType.FullName, ((object)handler).GetType().FullName, handlerWatch.ElapsedMilliseconds);
+                                             }
+                                             else if (Logger.IsDebugEnabled)
+                                             {
+                                                 Logger.WriteFormat(LogLevel.Debug, "Executing event {0} on handler {1} took {2} ms", eventType.FullName, ((object)handler).GetType().FullName, handlerWatch.ElapsedMilliseconds);
                                              }
                                              handlerSuccess = true;
                                          }
@@ -289,11 +281,16 @@ namespace Aggregates.Internal
                                     await processor(handler);
                             }
 
-                            if (Logger.IsDebugEnabled)
+                            s.Stop();
+                            if (s.ElapsedMilliseconds > _slowAlert)
                             {
-                                s.Stop();
-                                Logger.WriteFormat(LogLevel.Debug, "Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                                Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                                if (!SlowEventTypes.Contains(eventType.FullName))
+                                    SlowEventTypes.Add(eventType.FullName);
                             }
+                            else if (Logger.IsDebugEnabled)
+                                Logger.WriteFormat(LogLevel.Debug, "Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                            
 
                             s.Restart();
                             await uows.Generate().ForEachAsync(2, async (uow) =>
@@ -317,9 +314,8 @@ namespace Aggregates.Internal
                                     SlowEventTypes.Add(eventType.FullName);
                             }
                             else if (Logger.IsDebugEnabled)
-                            {
                                 Logger.WriteFormat(LogLevel.Debug, "UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
-                            }
+                            
                         }
                         catch (Exception e)
                         {
@@ -370,7 +366,7 @@ namespace Aggregates.Internal
                 }
 
 
-                if (SlowEventTypes.Contains(eventType.FullName))
+                if (SlowEventTypes.Contains(eventType.FullName) && Defaults.MinimumLogging.Value.HasValue)
                 {
                     Logger.WriteFormat(LogLevel.Info, "Finished processing command {0} verbosely - resetting log level", eventType.FullName);
                     Defaults.MinimumLogging.Value = null;

@@ -68,18 +68,21 @@ namespace Aggregates.Internal
 
                         await uow.Begin();
                     }).Wait();
-
-                    if (Logger.IsDebugEnabled)
-                        s.Restart();
+                    
+                    s.Restart();
 
                     next();
 
-                    if (Logger.IsDebugEnabled)
+                    s.Stop();
+                    if (s.ElapsedMilliseconds > _slowAlert)
                     {
-                        s.Stop();
-                        Logger.WriteFormat(LogLevel.Debug, "Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
-
+                        Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                        if (!SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
+                            SlowEventTypes.Add(context.IncomingLogicalMessage.MessageType.FullName);
                     }
+                    else if (Logger.IsDebugEnabled)
+                        Logger.WriteFormat(LogLevel.Debug, "Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                
                     s.Restart();
                     uows.Generate().ForEachAsync(2, async (uow) =>
                     {
@@ -111,6 +114,7 @@ namespace Aggregates.Internal
             }
             catch (System.AggregateException e)
             {
+                Logger.WriteFormat(LogLevel.Warn, "Caught exception '{0}' while executing command", e.Message);
                 _errorsMeter.Mark();
                 var trailingExceptions = new List<Exception>();
                 uows.Generate().ForEachAsync(2, async (uow) =>
@@ -137,7 +141,7 @@ namespace Aggregates.Internal
             {
                 try
                 {
-                    if (SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
+                    if (SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName) && Defaults.MinimumLogging.Value.HasValue)
                     {
                         Logger.WriteFormat(LogLevel.Info, "Finished processing command {0} verbosely - resetting log level", context.IncomingLogicalMessage.MessageType.FullName);
                         Defaults.MinimumLogging.Value = null;
