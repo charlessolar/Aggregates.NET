@@ -181,9 +181,7 @@ namespace Aggregates.Internal
 
             using (_eventsTimer.NewContext())
             {
-                if (Logger.IsDebugEnabled)
-                    Logger.WriteFormat(LogLevel.Debug, "Processing event {0} at position {1}.  Size of queue: {2}/{3}", eventType.FullName, position, _processingQueueSize, _maxQueueSize);
-
+                Logger.WriteFormat(LogLevel.Debug, "Processing event {0} at position {1}.  Size of queue: {2}/{3}", eventType.FullName, position, _processingQueueSize, _maxQueueSize);
 
                 var success = false;
                 var retry = 0;
@@ -216,7 +214,6 @@ namespace Aggregates.Internal
                         if (mutators != null && mutators.Any())
                             foreach (var mutator in mutators)
                             {
-                                //if (Logger.IsDebugEnabled)
                                 Logger.WriteFormat(LogLevel.Debug, "Mutating incoming event {0} with mutator {1}", eventType.FullName, mutator.GetType().FullName);
                                 @event = mutator.MutateIncoming(@event, descriptor, position);
                             }
@@ -236,23 +233,18 @@ namespace Aggregates.Internal
                                          try
                                          {
                                              Stopwatch handlerWatch = Stopwatch.StartNew();
-                                             if (Logger.IsDebugEnabled)
-                                             {
-                                                 Logger.WriteFormat(LogLevel.Debug, "Executing event {0} on handler {1}", eventType.FullName, ((object)handler).GetType().FullName);
-                                             }
+                                             Logger.WriteFormat(LogLevel.Debug, "Executing event {0} on handler {1}", eventType.FullName, ((object)handler).GetType().FullName);
+                                             
                                              var lambda = _objectInvoker.Invoker(handler, eventType);
 
                                              await lambda(handler, @event, handleContext);
 
                                              handlerWatch.Stop();
                                              if (handlerWatch.ElapsedMilliseconds > _slowAlert)
-                                             {
                                                  Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Executing event {0} on handler {1} took {2} ms", eventType.FullName, ((object)handler).GetType().FullName, handlerWatch.ElapsedMilliseconds);
-                                             }
-                                             else if (Logger.IsDebugEnabled)
-                                             {
+                                             else
                                                  Logger.WriteFormat(LogLevel.Debug, "Executing event {0} on handler {1} took {2} ms", eventType.FullName, ((object)handler).GetType().FullName, handlerWatch.ElapsedMilliseconds);
-                                             }
+                                             
                                              handlerSuccess = true;
                                          }
                                          catch (RetryException e)
@@ -288,7 +280,7 @@ namespace Aggregates.Internal
                                 if (!SlowEventTypes.Contains(eventType.FullName))
                                     SlowEventTypes.Add(eventType.FullName);
                             }
-                            else if (Logger.IsDebugEnabled)
+                            else
                                 Logger.WriteFormat(LogLevel.Debug, "Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
                             
 
@@ -309,7 +301,7 @@ namespace Aggregates.Internal
                             s.Stop();
                             if (s.ElapsedMilliseconds > _slowAlert)
                                 Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
-                            else if (Logger.IsDebugEnabled)
+                            else
                                 Logger.WriteFormat(LogLevel.Debug, "UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
                             
                         }

@@ -148,7 +148,7 @@ namespace Aggregates.Internal
 
         public async Task Commit(Guid commitId, IDictionary<String, String> commitHeaders)
         {
-            Logger.WriteFormat(LogLevel.Debug, "Event stream {0} commiting events", this.StreamId);
+            Logger.WriteFormat(LogLevel.Debug, "Event stream [{0}] in bucket [{1}] for type {2} commiting {3} events", this.StreamId, this.Bucket, typeof(T).FullName, this.Uncommitted.Count());
 
 
             if (commitHeaders == null)

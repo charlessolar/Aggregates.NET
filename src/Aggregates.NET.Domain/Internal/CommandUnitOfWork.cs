@@ -80,7 +80,7 @@ namespace Aggregates.Internal
                         if (!SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
                             SlowEventTypes.Add(context.IncomingLogicalMessage.MessageType.FullName);
                     }
-                    else if (Logger.IsDebugEnabled)
+                    else
                         Logger.WriteFormat(LogLevel.Debug, "Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
                 
                     s.Restart();
@@ -100,7 +100,7 @@ namespace Aggregates.Internal
                     s.Stop();
                     if (s.ElapsedMilliseconds > _slowAlert)
                         Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
-                    else if (Logger.IsDebugEnabled)
+                    else
                         Logger.WriteFormat(LogLevel.Debug, "UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
                     
                 }
