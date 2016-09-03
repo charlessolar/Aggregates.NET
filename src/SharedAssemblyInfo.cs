@@ -7,4 +7,4 @@ using System.Runtime.CompilerServices;
 [assembly: AssemblyVersion("0.3.0.0")]
 [assembly: AssemblyFileVersion("0.3.0.0")]
 [assembly: AssemblyInformationalVersion("0.3.0.0-alpha")]
-[assembly: InternalsVisibleTo("Aggregates.NET.Unit")]
+[assembly: InternalsVisibleTo("Aggregates.NET.UnitTests")]

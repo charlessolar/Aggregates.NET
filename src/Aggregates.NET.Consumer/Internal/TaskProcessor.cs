@@ -1,4 +1,5 @@
-﻿using NServiceBus.Logging;
+﻿using Aggregates.Extensions;
+using NServiceBus.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -52,13 +53,13 @@ namespace Aggregates.Internal
         {
             if (Pause && !_paused)
             {
-                Logger.Warn("** Pausing event processing **");
+                Logger.Write(LogLevel.Warn, "** Pausing event processing **");
                 _pauseEvent.Reset();
                 _paused = true;
             }
             else if(!Pause && _paused)
             {
-                Logger.Warn("** Resuming event processing **");
+                Logger.Write(LogLevel.Warn, "** Resuming event processing **");
                 _pauseEvent.Set();
                 _paused = false;
             }

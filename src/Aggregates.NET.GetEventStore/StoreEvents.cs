@@ -47,7 +47,7 @@ namespace Aggregates
 
         public async Task<IEventStream> GetStream<T>(String bucket, String streamId, Int32? start = null) where T : class, IEventSource
         {
-            Logger.DebugFormat("Getting stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
+            Logger.WriteFormat(LogLevel.Debug, "Getting stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
             
             var streamName = _streamGen(typeof(T), bucket, streamId);
             var events = new List<ResolvedEvent>();
@@ -59,7 +59,7 @@ namespace Aggregates
                 if (cached != null)
                 {
                     _hitMeter.Mark();
-                    Logger.DebugFormat("Found stream [{0}] bucket [{1}] in cache", streamId, bucket);
+                    Logger.WriteFormat(LogLevel.Debug, "Found stream [{0}] bucket [{1}] in cache", streamId, bucket);
                     return new Internal.EventStream<T>(cached, Builder, this);
                 }
                 _missMeter.Mark();
@@ -108,7 +108,7 @@ namespace Aggregates
         // C# doesn't support async yield and I don't want to import all of Rx
         public IEnumerable<IWritableEvent> GetEvents<T>(String bucket, String streamId, Int32? start = null, Int32? readUntil = null) where T : class, IEventSource
         {
-            Logger.DebugFormat("Getting events from stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
+            Logger.WriteFormat(LogLevel.Debug, "Getting events from stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
 
             var streamName = _streamGen(typeof(T), bucket, streamId);
             var readSize = _nsbSettings.Get<Int32>("ReadSize");
@@ -154,7 +154,7 @@ namespace Aggregates
         }
         public IEnumerable<IWritableEvent> GetEventsBackwards<T>(String bucket, String streamId, Int32? readUntil = null) where T : class, IEventSource
         {
-            Logger.DebugFormat("Getting events backward from stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
+            Logger.WriteFormat(LogLevel.Debug, "Getting events backward from stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
 
             var streamName = _streamGen(typeof(T), bucket, streamId);
             var readSize = _nsbSettings.Get<Int32>("ReadSize");
@@ -200,7 +200,7 @@ namespace Aggregates
 
         public async Task AppendEvents<T>(String bucket, String streamId, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders) where T : class, IEventSource
         {
-            Logger.DebugFormat("Writing {0} events to stream id [{1}] bucket [{2}] for type {3}.  Expected version: ANY", events.Count(), streamId, bucket, typeof(T).FullName);
+            Logger.WriteFormat(LogLevel.Debug, "Writing {0} events to stream id [{1}] bucket [{2}] for type {3}.  Expected version: ANY", events.Count(), streamId, bucket, typeof(T).FullName);
             var streamName = _streamGen(typeof(T), bucket, streamId);
 
             if (_shouldCache)
@@ -240,7 +240,7 @@ namespace Aggregates
 
         public async Task WriteEvents<T>(String bucket, String streamId, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders) where T : class, IEventSource
         {
-            Logger.DebugFormat("Writing {0} events to stream id [{1}] bucket [{2}] for type {2}.  Expected version: {3}", events.Count(), streamId, bucket, expectedVersion, typeof(T).FullName);
+            Logger.WriteFormat(LogLevel.Debug, "Writing {0} events to stream id [{1}] bucket [{2}] for type {2}.  Expected version: {3}", events.Count(), streamId, bucket, expectedVersion, typeof(T).FullName);
             var streamName = _streamGen(typeof(T), bucket, streamId);
 
             if (_shouldCache)

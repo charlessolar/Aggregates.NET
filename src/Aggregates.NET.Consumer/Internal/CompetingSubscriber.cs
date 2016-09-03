@@ -68,7 +68,7 @@ namespace Aggregates.Internal
             var period = TimeSpan.FromSeconds(_settings.Get<Int32>("BucketHeartbeats"));
             _bucketHeartbeats = new System.Threading.Timer((state) =>
             {
-                Logger.Debug("Processing compete heartbeats");
+                Logger.Write(LogLevel.Debug, "Processing compete heartbeats");
                 var handledBuckets = _settings.Get<Int32>("BucketsHandled");
                 var expiration = _settings.Get<Int32>("BucketExpiration");
 
@@ -89,14 +89,14 @@ namespace Aggregates.Internal
                     {
                         try
                         {
-                            Logger.DebugFormat("Heartbeating bucket {0} position {1}", seen.Key, seen.Value);
+                            Logger.WriteFormat(LogLevel.Debug, "Heartbeating bucket {0} position {1}", seen.Key, seen.Value);
                             consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value);
                         }
                         catch (DiscriminatorException)
                         {
                             // someone else took over the bucket
                             consumer._buckets.Remove(seen.Key);
-                            Logger.InfoFormat("Lost claim on bucket {0}.  Total claimed: {1}/{2}", seen.Key, consumer._buckets.Count, handledBuckets);
+                            Logger.WriteFormat(LogLevel.Info, "Lost claim on bucket {0}.  Total claimed: {1}/{2}", seen.Key, consumer._buckets.Count, handledBuckets);
                         }
                         notSeenBuckets.Remove(seen.Key);
                     }
@@ -105,7 +105,7 @@ namespace Aggregates.Internal
                         var lastBeat = consumer._competes.LastHeartbeat(endpoint, seen.Key);
                         if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
                         {
-                            Logger.DebugFormat("Last beat on bucket {0} is {1} - it is {2} seconds old, adopting...", seen.Key, lastBeat, (DateTime.UtcNow - lastBeat.Value).TotalSeconds);
+                            Logger.WriteFormat(LogLevel.Debug, "Last beat on bucket {0} is {1} - it is {2} seconds old, adopting...", seen.Key, lastBeat, (DateTime.UtcNow - lastBeat.Value).TotalSeconds);
                             // We saw new events but the consumer for this bucket has died, so we will adopt its bucket
                             AdoptBucket(consumer, endpoint, seen.Key);
                         }
@@ -114,7 +114,7 @@ namespace Aggregates.Internal
                     {
                         try
                         {
-                            Logger.DebugFormat("Heartbeating adopted bucket {0} position {1}", seen.Key, consumer._adoptingPosition.Value);
+                            Logger.WriteFormat(LogLevel.Debug, "Heartbeating adopted bucket {0} position {1}", seen.Key, consumer._adoptingPosition.Value);
                             consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, consumer._adoptingPosition.Value);
                         }
                         catch (DiscriminatorException)
@@ -122,7 +122,7 @@ namespace Aggregates.Internal
                             // someone else took over the bucket
                             consumer._adopting = null;
                             consumer._adoptingPosition = null;
-                            Logger.InfoFormat("Lost claim on adopted bucket {0}.  Total claimed: {1}/{2}", seen.Key, consumer._buckets.Count, handledBuckets);
+                            Logger.WriteFormat(LogLevel.Info, "Lost claim on adopted bucket {0}.  Total claimed: {1}/{2}", seen.Key, consumer._buckets.Count, handledBuckets);
                         }
                         notSeenBuckets.Remove(seen.Key);
                     }
@@ -134,14 +134,14 @@ namespace Aggregates.Internal
                 {
                     try
                     {
-                        Logger.DebugFormat("Heartbeating unseen bucket {0}", bucket);
+                        Logger.WriteFormat(LogLevel.Debug, "Heartbeating unseen bucket {0}", bucket);
                         consumer._competes.Heartbeat(endpoint, bucket, DateTime.UtcNow);
                     }
                     catch (DiscriminatorException)
                     {
                         // someone else took over the bucket
                         consumer._buckets.Remove(bucket);
-                        Logger.InfoFormat("Lost claim on bucket {0}.  Total claimed: {1}/{2}", bucket, consumer._buckets.Count, handledBuckets);
+                        Logger.WriteFormat(LogLevel.Info, "Lost claim on bucket {0}.  Total claimed: {1}/{2}", bucket, consumer._buckets.Count, handledBuckets);
                     }
                 }
 
@@ -168,12 +168,12 @@ namespace Aggregates.Internal
 
                 if (openBuckets != 0 && _pausedArmed == false)
                 {
-                    Logger.WarnFormat("Detected {0} free buckets - pause ARMED", openBuckets);
+                    Logger.WriteFormat(LogLevel.Warn, "Detected {0} free buckets - pause ARMED", openBuckets);
                     _pausedArmed = true;
                 }
                 else if(openBuckets != 0 && _pausedArmed == true)
                 {
-                    Logger.WarnFormat("Detected {0} free buckets - PAUSING", openBuckets);
+                    Logger.WriteFormat(LogLevel.Warn, "Detected {0} free buckets - PAUSING", openBuckets);
                     consumer._dispatcher.Pause(true);
                 }
                 else
@@ -195,10 +195,10 @@ namespace Aggregates.Internal
         {
             var handledBuckets = consumer._settings.Get<Int32>("BucketsHandled");
             var readSize = consumer._settings.Get<Int32>("ReadSize");
-            Logger.InfoFormat("Discovered orphaned bucket {0}.. adopting", bucket);
+            Logger.WriteFormat(LogLevel.Info, "Discovered orphaned bucket {0}.. adopting", bucket);
             if(!consumer._competes.Adopt(endpoint, bucket, DateTime.UtcNow))
             {
-                Logger.InfoFormat("Failed to adopt bucket {0}.. maybe next time", bucket);
+                Logger.WriteFormat(LogLevel.Info, "Failed to adopt bucket {0}.. maybe next time", bucket);
                 return;
             }
             consumer._adopting = bucket;
@@ -213,7 +213,7 @@ namespace Aggregates.Internal
                 var eventBucket = Math.Abs(e.OriginalStreamId.GetHashCode() % consumer._bucketCount);
                 if (eventBucket != bucket) return;
 
-                Logger.DebugFormat("Adopted event appeared position {0}... processing - bucket {1}", e.OriginalPosition?.CommitPosition, bucket);
+                Logger.WriteFormat(LogLevel.Debug, "Adopted event appeared position {0}... processing - bucket {1}", e.OriginalPosition?.CommitPosition, bucket);
                 if (!e.OriginalPosition.HasValue) return;
 
                 var descriptor = e.Event.Metadata.Deserialize(consumer._jsonSettings);
@@ -238,14 +238,14 @@ namespace Aggregates.Internal
                 consumer._buckets.Add(bucket);
                 consumer._adopting = null;
                 consumer._adoptingPosition = null;
-                Logger.InfoFormat("Successfully adopted bucket {0}.  Total claimed: {1}/{2}", bucket, consumer._buckets.Count, handledBuckets);
+                Logger.WriteFormat(LogLevel.Info, "Successfully adopted bucket {0}.  Total claimed: {1}/{2}", bucket, consumer._buckets.Count, handledBuckets);
             }, subscriptionDropped: (subscription, reason, e) =>
             {
                 if (reason == SubscriptionDropReason.UserInitiated) return;
                 consumer._adopting = null;
                 consumer._adoptingPosition = null;
                 subscription.Stop();
-                Logger.WarnFormat("While adopting bucket {0} the subscription dropped for reason: {1}.  Exception: {2}", bucket, reason, e);
+                Logger.WriteFormat(LogLevel.Warn, "While adopting bucket {0} the subscription dropped for reason: {1}.  Exception: {2}", bucket, reason, e);
             });
         }
 
@@ -256,7 +256,7 @@ namespace Aggregates.Internal
             var readSize = _settings.Get<Int32>("ReadSize");
 
             // Start competing subscribers from the start, if they are picking up a new bucket they need to start from the begining
-            Logger.InfoFormat("Endpoint '{0}' subscribing to all events from START", endpoint);
+            Logger.WriteFormat(LogLevel.Info, "Endpoint '{0}' subscribing to all events from START", endpoint);
             var settings = new CatchUpSubscriptionSettings(readSize * readSize, readSize, false, false);
             _client.SubscribeToAllFrom(Position.Start, settings, (subscription, e) =>
             {
@@ -273,18 +273,18 @@ namespace Aggregates.Internal
                     // If we are already handling enough buckets, or we've seen (and tried to claim) it before, ignore
                     if (_buckets.Count >= handledBuckets || _seenBuckets.ContainsKey(bucket))
                     {
-                        Logger.DebugFormat("Event appeared position {0}... skipping", e.OriginalPosition?.CommitPosition);
+                        Logger.WriteFormat(LogLevel.Debug, "Event appeared position {0}... skipping", e.OriginalPosition?.CommitPosition);
                         lock(_lock) _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
                         return;
                     }
                     else
                     {
-                        Logger.DebugFormat("Attempting to claim bucket {0}", bucket);
+                        Logger.WriteFormat(LogLevel.Debug, "Attempting to claim bucket {0}", bucket);
                         // Returns true if it claimed the bucket
                         if (_competes.CheckOrSave(endpoint, bucket, e.OriginalPosition.Value.CommitPosition))
                         {
                             _buckets.Add(bucket);
-                            Logger.InfoFormat("Claimed bucket {0}.  Total claimed: {1}/{2}", bucket, _buckets.Count, handledBuckets);
+                            Logger.WriteFormat(LogLevel.Info, "Claimed bucket {0}.  Total claimed: {1}/{2}", bucket, _buckets.Count, handledBuckets);
                         }
                         else
                         {
@@ -293,7 +293,7 @@ namespace Aggregates.Internal
                         }
                     }
                 }
-                Logger.DebugFormat("Event appeared position {0}... processing - bucket {1}", e.OriginalPosition?.CommitPosition, bucket);
+                Logger.WriteFormat(LogLevel.Debug, "Event appeared position {0}... processing - bucket {1}", e.OriginalPosition?.CommitPosition, bucket);
                 lock(_lock) _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
 
 
@@ -317,11 +317,11 @@ namespace Aggregates.Internal
 
             }, liveProcessingStarted: (_) =>
             {
-                Logger.Info("Live processing started");
+                Logger.Write(LogLevel.Info, "Live processing started");
                 ProcessingLive = true;
             }, subscriptionDropped: (_, reason, e) =>
             {
-                Logger.WarnFormat("Subscription dropped for reason: {0}.  Exception: {1}", reason, e);
+                Logger.WriteFormat(LogLevel.Warn, "Subscription dropped for reason: {0}.  Exception: {1}", reason, e);
                 ProcessingLive = false;
                 if (Dropped != null)
                     Dropped.Invoke(reason.ToString(), e);

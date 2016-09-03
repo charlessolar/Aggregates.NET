@@ -15,6 +15,7 @@ using Aggregates.Extensions;
 using Newtonsoft.Json;
 using NServiceBus.Settings;
 using System.Threading;
+using Aggregates.Contracts;
 
 namespace Aggregates.Internal
 {
@@ -37,17 +38,22 @@ namespace Aggregates.Internal
 
         public void Invoke(IncomingContext context, Action next)
         {
-            var messageId = context.PhysicalMessage.Id;
+            Invoke(new IncomingContextWrapper(context), next);
+        }
+
+        public void Invoke(IContextAccessor context, Action next)
+        {
+            var messageId = context.PhysicalMessageId;
             try
             {
                 if (_retryRegistry.ContainsKey(messageId))
                 {
-                    context.PhysicalMessage.Headers[Headers.Retries] = _retryRegistry[messageId].ToString();
+                    context.SetPhysicalMessageHeader(Headers.Retries,  _retryRegistry[messageId].ToString());
                     context.Set<Int32>("AggregatesNet.Retries", _retryRegistry[messageId]);
                 }
 
                 next();
-                _retryRegistry.Remove(context.PhysicalMessage.Id);
+                _retryRegistry.Remove(context.PhysicalMessageId);
             }
             catch (Exception e)
             {
@@ -58,11 +64,11 @@ namespace Aggregates.Internal
                 {
                     try
                     {
-                        Logger.WarnFormat("Message {3} type [{0}] has faulted! {1}/{2} times\nBody: {4}", context.IncomingLogicalMessage.MessageType.FullName, numberOfRetries, _maxRetries, context.PhysicalMessage.Id, Encoding.UTF8.GetString(context.PhysicalMessage.Body));
+                        Logger.WriteFormat(LogLevel.Warn, "Message {3} type [{0}] has faulted! {1}/{2} times\nBody: {4}", context.IncomingLogicalMessageMessageType.FullName, numberOfRetries, _maxRetries, context.PhysicalMessageId, Encoding.UTF8.GetString(context.PhysicalMessageBody));
                     }
                     catch (KeyNotFoundException)
                     {
-                        Logger.WarnFormat("Message {3} type [{0}] has faulted! {1}/{2} times\nBody: {4}", "UNKNOWN", numberOfRetries, _maxRetries, context.PhysicalMessage.Id, Encoding.UTF8.GetString(context.PhysicalMessage.Body));
+                        Logger.WriteFormat(LogLevel.Warn, "Message {3} type [{0}] has faulted! {1}/{2} times\nBody: {4}", "UNKNOWN", numberOfRetries, _maxRetries, context.PhysicalMessageId, Encoding.UTF8.GetString(context.PhysicalMessageBody));
                     }
                     _retryRegistry[messageId] = numberOfRetries + 1;
                     Thread.Sleep(75 * (numberOfRetries / 2));
@@ -73,18 +79,18 @@ namespace Aggregates.Internal
                 _errorsMeter.Mark();
 
                 // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth
-                if (context.PhysicalMessage.MessageIntent != MessageIntentEnum.Send) return;
+                if (context.PhysicalMessageMessageIntent != MessageIntentEnum.Send) return;
                 try
                 {
-                    Logger.ErrorFormat("Message {2} type [{0}] has faulted!\nHeaders: {3}\nPayload: {4}\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, e, context.PhysicalMessage.Id, JsonConvert.SerializeObject(context.PhysicalMessage.Headers), JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance));
+                    Logger.WriteFormat(LogLevel.Error, "Message {2} type [{0}] has faulted!\nHeaders: {3}\nPayload: {4}\nException: {1}", context.IncomingLogicalMessageMessageType.FullName, e, context.PhysicalMessageId, JsonConvert.SerializeObject(context.PhysicalMessageHeaders), JsonConvert.SerializeObject(context.IncomingLogicalMessageInstance));
                     // Tell the sender the command was not handled due to a service exception
                     var rejection = context.Builder.Build<Func<Exception, String, Error>>();
                     // Wrap exception in our object which is serializable
-                    _bus.Reply(rejection(e, $"Rejected message {context.IncomingLogicalMessage.MessageType.FullName}\n Payload: {JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance)}"));
+                    _bus.Reply(rejection(e, $"Rejected message {context.IncomingLogicalMessageMessageType.FullName}\n Payload: {JsonConvert.SerializeObject(context.IncomingLogicalMessageInstance)}"));
                 }
                 catch (KeyNotFoundException)
                 {
-                    Logger.ErrorFormat("Message {1} type [Unknown] has faulted!\nHeaders: {2}\nException: {0}", e, context.PhysicalMessage.Id, JsonConvert.SerializeObject(context.PhysicalMessage.Headers));
+                    Logger.WriteFormat(LogLevel.Error, "Message {1} type [Unknown] has faulted!\nHeaders: {2}\nException: {0}", e, context.PhysicalMessageId, JsonConvert.SerializeObject(context.PhysicalMessageHeaders));
                 }
             }
 

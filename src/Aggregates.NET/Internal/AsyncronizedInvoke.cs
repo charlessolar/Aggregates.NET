@@ -53,13 +53,13 @@ namespace Aggregates.Internal
                 var handleContext = new HandleContext { Bus = _bus, Context = context, Mapper = _mapper };
                 await messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance, handleContext);
 
-                if (Logger.IsDebugEnabled)
-                {
-                    Logger.DebugFormat("Executing message {0} on handler {1} took {2} ms", context.IncomingLogicalMessage.MessageType.FullName, messageHandler.Handler.GetType().FullName, s.ElapsedMilliseconds);
-                }
                 if(s.ElapsedMilliseconds > _slowAlert)
                 {
-                    Logger.WarnFormat(" - SLOW ALERT - Executing message {0} on handler {1} took {2} ms", context.IncomingLogicalMessage.MessageType.FullName, messageHandler.Handler.GetType().FullName, s.ElapsedMilliseconds);
+                    Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Executing message {0} on handler {1} took {2} ms", context.IncomingLogicalMessage.MessageType.FullName, ((object)messageHandler.Handler).GetType().FullName, s.ElapsedMilliseconds);
+                }
+                else if (Logger.IsDebugEnabled)
+                {
+                    Logger.WriteFormat(LogLevel.Debug, "Executing message {0} on handler {1} took {2} ms", context.IncomingLogicalMessage.MessageType.FullName, ((object)messageHandler.Handler).GetType().FullName, s.ElapsedMilliseconds);
                 }
             })).Wait();
 

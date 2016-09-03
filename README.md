@@ -31,11 +31,12 @@ Current features include -
 - Multithreaded event dispatching
 - Type safe Unit of Work and Repository pattern
 - Automatic saving and publishing of domain events
-- Out of band events (events saved outside of an object's event stream)
+- Out of band events (events saved or published which do not affect business logic of entity)
 - Scalable event consumers via competing consumer
 - Async event and message handling (in NSB 5!)
 - Message idempotency
 - Automatic conflict resolution (when possible)
+- Performance logging
 - NO internal IOC container (NServicebus used for resolutions)
 - [Thorough sample](https://github.com/volak/DDD.Enterprise.Example)
 

@@ -38,7 +38,7 @@ namespace Aggregates.Internal
 
         public override async Task<T> Get<TId>(TId id)
         {
-            Logger.DebugFormat("Retreiving entity id [{0}] from parent {2} [{1}] in store", id, _parent.StreamId, typeof(TParent).FullName);
+            Logger.WriteFormat(LogLevel.Debug, "Retreiving entity id [{0}] from parent {2} [{1}] in store", id, _parent.StreamId, typeof(TParent).FullName);
             var streamId = String.Format("{0}.{1}", _parent.StreamId, id);
 
             var entity = await Get(_parent.Bucket, streamId);
@@ -111,7 +111,7 @@ namespace Aggregates.Internal
                     catch (PersistenceException e)
                     {
                         WriteErrors.Mark();
-                        Logger.WarnFormat("Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", tracked.Key.Item2, tracked.Key.Item1, e);
+                        Logger.WriteFormat(LogLevel.Warn, "Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", tracked.Key.Item2, tracked.Key.Item1, e);
                     }
                     catch
                     {
@@ -172,7 +172,7 @@ namespace Aggregates.Internal
 
         public async Task<T> Get<TId>(String bucket, TId id)
         {
-            Logger.DebugFormat("Retreiving aggregate id [{0}] from bucket [{1}] in store", id, bucket);
+            Logger.WriteFormat(LogLevel.Debug, "Retreiving aggregate id [{0}] from bucket [{1}] in store", id, bucket);
             var root = await Get(bucket, id.ToString());
             (root as IEventSource<TId>).Id = id;
             return root;

@@ -1,5 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Exceptions;
+using Aggregates.Extensions;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
@@ -51,7 +52,7 @@ namespace Aggregates.Internal
 
         public override async Task<T> Get<TId>(TId id)
         {
-            Logger.DebugFormat("Retreiving entity id [{0}] from parent {2} [{1}] in store", id, _parent.StreamId, typeof(TParent).FullName);
+            Logger.WriteFormat(LogLevel.Debug, "Retreiving entity id [{0}] from parent {2} [{1}] in store", id, _parent.StreamId, typeof(TParent).FullName);
 
             var entity = await Get(_parent.Bucket, id);
             (entity as IEventSource<TId>).Id = id;

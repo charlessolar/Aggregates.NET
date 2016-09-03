@@ -14,6 +14,7 @@ using NServiceBus.Settings;
 using Aggregates.Internal;
 using NServiceBus.Pipeline;
 using System.Threading;
+using Aggregates.Extensions;
 
 namespace Aggregates
 {
@@ -121,7 +122,7 @@ namespace Aggregates
 
         protected override void OnStart()
         {
-            Logger.Debug("Starting event consumer");
+            Logger.Write(LogLevel.Debug, "Starting event consumer");
             var subscriber = _builder.Build<IEventSubscriber>();
             subscriber.SubscribeToAll(_settings.EndpointName());
             subscriber.Dropped = (reason, ex) =>

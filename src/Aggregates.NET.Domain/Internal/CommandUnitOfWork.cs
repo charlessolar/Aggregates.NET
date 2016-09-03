@@ -17,51 +17,12 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    internal class TesterBehavior : IBehavior<IncomingContext>
-    {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(TesterBehavior));
-
-        private class StepObserver : IObserver<StepStarted>
-        {
-            private Guid ChainId = Guid.NewGuid();
-
-            public void OnCompleted()
-            {
-                Logger.InfoFormat("Step completed in chain {0}", ChainId);
-            }
-
-            public void OnError(Exception error)
-            {
-                Logger.InfoFormat("Error processing step in chain {1}: {0}", error, ChainId);
-            }
-
-            public void OnNext(StepStarted value)
-            {
-                Logger.InfoFormat("Stepping into behavior {0} id {1} chain {2}", value.Behavior.Name, value.StepId, ChainId);
-            }
-        }
-        public void Invoke(IncomingContext context, Action next)
-        {
-            var observer = context.Get<IObservable<StepStarted>>("Diagnostics.Pipe");
-            observer.Subscribe(new StepObserver());
-
-            next();
-        }
-    }
-    internal class TesterBehaviorRegistration : RegisterStep
-    {
-        public TesterBehaviorRegistration()
-            : base("TesterBehavior", typeof(TesterBehavior), "Begins and Ends command unit of work")
-        {
-            InsertBefore(WellKnownStep.ProcessingStatistics);
-
-        }
-    }
 
 
     internal class CommandUnitOfWork : IBehavior<IncomingContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CommandUnitOfWork));
+        private static HashSet<String> SlowEventTypes = new HashSet<String>();
 
         private static Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
         private static Metrics.Timer _commandsTimer = Metric.Timer("Command Duration", Unit.Commands);
@@ -78,6 +39,13 @@ namespace Aggregates.Internal
 
         public void Invoke(IncomingContext context, Action next)
         {
+            // Todo: break out timing of commands into a different pipeline step I think
+            if (SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
+            {
+                Logger.WriteFormat(LogLevel.Info, "Command {0} was previously detected as slow, switching to more verbose logging (for this instance)", context.IncomingLogicalMessage.MessageType.FullName);
+                Defaults.MinimumLogging.Value = LogLevel.Info;
+            }
+
             Stopwatch s = new Stopwatch();
             var uows = new ConcurrentStack<ICommandUnitOfWork>();
             try
@@ -105,7 +73,7 @@ namespace Aggregates.Internal
                     if (Logger.IsDebugEnabled)
                     {
                         s.Stop();
-                        Logger.DebugFormat("Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                        Logger.WriteFormat(LogLevel.Debug, "Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
 
                     }
                     s.Restart();
@@ -123,13 +91,15 @@ namespace Aggregates.Internal
                         }
                     }).Wait();
                     s.Stop();
-                    if (Logger.IsDebugEnabled)
-                    {
-                        Logger.DebugFormat("UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
-                    }
                     if (s.ElapsedMilliseconds > _slowAlert)
                     {
-                        Logger.WarnFormat(" - SLOW ALERT - UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                        Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                        if (!SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
+                            SlowEventTypes.Add(context.IncomingLogicalMessage.MessageType.FullName);
+                    }
+                    else if (Logger.IsDebugEnabled)
+                    {
+                        Logger.WriteFormat(LogLevel.Debug, "UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
                     }
                 }
 
@@ -159,6 +129,15 @@ namespace Aggregates.Internal
                 }
                 throw;
             }
+            finally
+            {
+                if (SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
+                {
+                    Logger.WriteFormat(LogLevel.Info, "Finished processing command {0} verbosely - resetting log level", context.IncomingLogicalMessage.MessageType.FullName);
+                    Defaults.MinimumLogging.Value = null;
+                    SlowEventTypes.Remove(context.IncomingLogicalMessage.MessageType.FullName);
+                }
+            }
         }
     }
 
@@ -172,3 +151,4 @@ namespace Aggregates.Internal
         }
     }
 }
+

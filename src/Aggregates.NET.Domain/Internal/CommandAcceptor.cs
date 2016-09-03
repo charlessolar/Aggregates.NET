@@ -54,7 +54,7 @@ namespace Aggregates.Internal
                 if (exception != null)
                 {
                     _errorsMeter.Mark();
-                    Logger.DebugFormat("Command {0} was rejected\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, exception);
+                    Logger.WriteFormat(LogLevel.Debug, "Command {0} was rejected\nException: {1}", context.IncomingLogicalMessage.MessageType.FullName, exception);
                     // Tell the sender the command was rejected due to a business exception
                     var rejection = context.Builder.Build<Func<BusinessException, Reject>>();
                     _bus.Reply(rejection(exception));

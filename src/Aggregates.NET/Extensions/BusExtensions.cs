@@ -24,7 +24,7 @@ namespace Aggregates.Extensions
                 if (reply is Reject)
                 {
                     var reject = reply as Reject;
-                    Logger.WarnFormat("Command was rejected - Message: {0}\nException: {1}", reject.Message, reject.Exception);
+                    Logger.WriteFormat(LogLevel.Warn, "Command was rejected - Message: {0}\nException: {1}", reject.Message, reject.Exception);
                     if (reject.Exception != null)
                         throw new CommandRejectedException(reject.Message, reject.Exception);
                     else if (reject != null)

@@ -104,7 +104,7 @@ namespace Aggregates.Internal
 
         public IRepository<T> For<T>() where T : class, IAggregate
         {
-            Logger.DebugFormat("Retreiving repository for type {0}", typeof(T));
+            Logger.WriteFormat(LogLevel.Debug, "Retreiving repository for type {0}", typeof(T));
             var type = typeof(T);
 
             IRepository repository;
@@ -117,7 +117,7 @@ namespace Aggregates.Internal
         }
         public IEntityRepository<TParent, TParentId, TEntity> For<TParent, TParentId, TEntity>(TParent parent) where TEntity : class, IEntity where TParent : class, IBase<TParentId>
         {
-            Logger.DebugFormat("Retreiving entity repository for type {0}", typeof(TEntity));
+            Logger.WriteFormat(LogLevel.Debug, "Retreiving entity repository for type {0}", typeof(TEntity));
             var key = $"{parent.StreamId}:{typeof(TEntity).FullName}";
 
             IEntityRepository repository;
@@ -128,7 +128,7 @@ namespace Aggregates.Internal
         }
         public IPocoRepository<T> Poco<T>() where T : class, new()
         {
-            Logger.DebugFormat("Retreiving poco repository for type {0}", typeof(T));
+            Logger.WriteFormat(LogLevel.Debug, "Retreiving poco repository for type {0}", typeof(T));
             var key = $"{typeof(T).FullName}";
 
             IRepository repository;
@@ -141,7 +141,7 @@ namespace Aggregates.Internal
         }
         public IPocoRepository<TParent, TParentId, T> Poco<TParent, TParentId, T>(TParent parent) where T : class, new() where TParent : class, IBase<TParentId>
         {
-            Logger.DebugFormat("Retreiving poco repository for type {0}", typeof(T));
+            Logger.WriteFormat(LogLevel.Debug, "Retreiving poco repository for type {0}", typeof(T));
             var key = $"{parent.StreamId}:{typeof(T).FullName}";
 
             IRepository repository;
@@ -230,7 +230,7 @@ namespace Aggregates.Internal
             // Insert all command headers into the commit
             var headers = new Dictionary<String, String>(_workHeaders);
 
-            Logger.DebugFormat("Starting commit id {0}", commitId);
+            Logger.WriteFormat(LogLevel.Debug, "Starting commit id {0}", commitId);
             await _repositories.Values.ForEachAsync(2, async (repo) =>
             {
                 try
@@ -253,7 +253,7 @@ namespace Aggregates.Internal
                     throw new PersistenceException(e.Message, e);
                 }
             });
-            Logger.DebugFormat("Commit id {0} complete", commitId);
+            Logger.WriteFormat(LogLevel.Debug, "Commit id {0} complete", commitId);
         }
 
         public void MutateOutgoing(LogicalMessage message, TransportMessage transportMessage)

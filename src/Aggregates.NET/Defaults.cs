@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using NServiceBus.Logging;
+using System.Threading;
 
 namespace Aggregates
 {
@@ -13,6 +15,8 @@ namespace Aggregates
         public static String MessageIdHeader = "Originating.NServiceBus.MessageId";
         public static String CommitIdHeader = "CommitId";
         public static String DomainHeader = "Domain";
+        
+        public static AsyncLocal<LogLevel?> MinimumLogging = new AsyncLocal<LogLevel?>();
 
         // Header information to take from incoming messages
         public static IList<String> CarryOverHeaders = new List<String> {

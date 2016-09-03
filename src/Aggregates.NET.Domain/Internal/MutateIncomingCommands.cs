@@ -37,7 +37,7 @@ namespace Aggregates.Internal
                 if (mutators != null && mutators.Any())
                     foreach (var mutator in mutators)
                     {
-                        Logger.DebugFormat("Mutating incoming command {0} with mutator {1}", context.IncomingLogicalMessage.MessageType.FullName, mutator.GetType().FullName);
+                        Logger.WriteFormat(LogLevel.Debug, "Mutating incoming command {0} with mutator {1}", context.IncomingLogicalMessage.MessageType.FullName, mutator.GetType().FullName);
                         mutated = mutator.MutateOutgoing(mutated);
                     }
                 context.IncomingLogicalMessage.UpdateMessageInstance(mutated);

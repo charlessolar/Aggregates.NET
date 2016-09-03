@@ -55,7 +55,7 @@ namespace Aggregates.Internal
 
                 if (stream.StreamVersion != stream.CommitVersion && tracked is ISnapshotting && (tracked as ISnapshotting).ShouldTakeSnapshot())
                 {
-                    Logger.DebugFormat("Taking snapshot of {0} id [{1}] version {2}", tracked.GetType().FullName, tracked.StreamId, tracked.Version);
+                    Logger.WriteFormat(LogLevel.Debug, "Taking snapshot of {0} id [{1}] version {2}", tracked.GetType().FullName, tracked.StreamId, tracked.Version);
                     var memento = (tracked as ISnapshotting).TakeSnapshot();
                     stream.AddSnapshot(memento, headers);
                 }
@@ -76,26 +76,26 @@ namespace Aggregates.Internal
                     {
                         try
                         {
-                            Logger.DebugFormat("Stream [{0}] entity {1} version {2} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
+                            Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
                             stream = await ResolveConflict(tracked.Stream);
-                            Logger.DebugFormat("Stream [{0}] entity {1} version {2} has version conflicts with store - successfully resolved", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
+                            Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - successfully resolved", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
                             ConflictsResolved.Mark();
                         }
                         catch
                         {
-                            Logger.ErrorFormat("Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve", tracked.StreamId, tracked.GetType().FullName);
+                            Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve", tracked.StreamId, tracked.GetType().FullName);
                             throw new ConflictingCommandException("Could not resolve conflicting events", version);
                         }
                     }
                     catch (PersistenceException e)
                     {
                         WriteErrors.Mark();
-                        Logger.WarnFormat("Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", stream.StreamId, stream.Bucket, e);
+                        Logger.WriteFormat(LogLevel.Warn, "Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", stream.StreamId, stream.Bucket, e);
                     }
                     catch (DuplicateCommitException)
                     {
                         WriteErrors.Mark();
-                        Logger.WarnFormat("Detected a possible double commit for stream: [{0}] bucket [{1}]", stream.StreamId, stream.Bucket);
+                        Logger.WriteFormat(LogLevel.Warn, "Detected a possible double commit for stream: [{0}] bucket [{1}]", stream.StreamId, stream.Bucket);
                         throw;
                     }
                     catch
@@ -169,7 +169,7 @@ namespace Aggregates.Internal
 
         public async Task<T> Get<TId>(String bucket, TId id)
         {
-            Logger.DebugFormat("Retreiving aggregate id [{0}] in bucket [{1}] for type {2} in store", id, bucket, typeof(T).FullName);
+            Logger.WriteFormat(LogLevel.Debug, "Retreiving aggregate id [{0}] in bucket [{1}] for type {2} in store", id, bucket, typeof(T).FullName);
             var root = await Get(bucket, id.ToString());
             (root as IEventSource<TId>).Id = id;
             return root;
@@ -201,7 +201,7 @@ namespace Aggregates.Internal
 
             if (snapshot != null && root is ISnapshotting)
             {
-                Logger.DebugFormat("Restoring snapshot version {0} to stream id [{1}] bucket [{2}] version {3}", snapshot.Version, streamId, bucket, stream.StreamVersion);
+                Logger.WriteFormat(LogLevel.Debug, "Restoring snapshot version {0} to stream id [{1}] bucket [{2}] version {3}", snapshot.Version, streamId, bucket, stream.StreamVersion);
                 ((ISnapshotting)root).RestoreSnapshot(snapshot.Payload);
             }
 
@@ -224,7 +224,7 @@ namespace Aggregates.Internal
         }
         public async Task<T> New(String bucket, String streamId)
         {
-            Logger.DebugFormat("Creating new stream id [{0}] in bucket [{1}] for type {2} in store", streamId, bucket, typeof(T).FullName);
+            Logger.WriteFormat(LogLevel.Debug, "Creating new stream id [{0}] in bucket [{1}] for type {2} in store", streamId, bucket, typeof(T).FullName);
             var stream = await OpenStream(bucket, streamId);
             var root = Newup(stream, _builder);
 

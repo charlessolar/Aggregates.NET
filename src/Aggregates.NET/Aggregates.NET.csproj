@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Aggregates</RootNamespace>
     <AssemblyName>Aggregates.NET</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -66,6 +66,7 @@
     <Compile Include="Attributes\ParallelAttribute.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="Contracts\ICommandMutator.cs" />
+    <Compile Include="Contracts\IContextAccessor.cs" />
     <Compile Include="Contracts\IEventDescriptor.cs" />
     <Compile Include="Contracts\IEventMutator.cs" />
     <Compile Include="Contracts\IInvokeObjects.cs" />
@@ -83,6 +84,7 @@
     <Compile Include="Extensions\BusExtensions.cs" />
     <Compile Include="Extensions\DescriptorExtensions.cs" />
     <Compile Include="Extensions\DictionaryExtensions.cs" />
+    <Compile Include="Extensions\LoggerExtensions.cs" />
     <Compile Include="Extensions\StoreExtensions.cs" />
     <Compile Include="Feature.cs" />
     <Compile Include="IHandleContext.cs" />
@@ -94,6 +96,7 @@
     <Compile Include="Internal\DefaultInvokeObjects.cs" />
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />
+    <Compile Include="Internal\IncomingContextWrapper.cs" />
     <Compile Include="Internal\MutateOutgoingCommands.cs" />
     <Compile Include="Internal\WritableEvent.cs" />
     <Compile Include="Messages\Accept.cs" />
