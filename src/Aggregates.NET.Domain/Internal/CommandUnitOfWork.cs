@@ -109,7 +109,7 @@ namespace Aggregates.Internal
             }
             catch (System.AggregateException e)
             {
-                Logger.WriteFormat(LogLevel.Warn, "Caught exception '{0}' while executing command", e.Message);
+                Logger.WriteFormat(LogLevel.Warn, "Caught exceptions '{0}' while executing command", e.InnerExceptions.Select(x => x.Message).Aggregate((c,n)=> $"{c}, {n}"));
                 _errorsMeter.Mark();
                 var trailingExceptions = new List<Exception>();
                 uows.Generate().ForEachAsync(2, async (uow) =>

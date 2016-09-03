@@ -16,8 +16,5 @@ namespace Aggregates
 
         Task Begin();
         Task End(Exception ex = null);
-
-        Object CurrentMessage { get; }
-        IDictionary<String, String> CurrentHeaders { get; }
     }
 }
