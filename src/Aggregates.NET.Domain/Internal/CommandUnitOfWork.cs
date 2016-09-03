@@ -39,12 +39,16 @@ namespace Aggregates.Internal
 
         public void Invoke(IncomingContext context, Action next)
         {
-            // Todo: break out timing of commands into a different pipeline step I think
-            if (SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
+            try
             {
-                Logger.WriteFormat(LogLevel.Info, "Command {0} was previously detected as slow, switching to more verbose logging (for this instance)", context.IncomingLogicalMessage.MessageType.FullName);
-                Defaults.MinimumLogging.Value = LogLevel.Info;
+                // Todo: break out timing of commands into a different pipeline step I think
+                if (SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
+                {
+                    Logger.WriteFormat(LogLevel.Info, "Command {0} was previously detected as slow, switching to more verbose logging (for this instance)", context.IncomingLogicalMessage.MessageType.FullName);
+                    Defaults.MinimumLogging.Value = LogLevel.Info;
+                }
             }
+            catch (KeyNotFoundException) { }
 
             Stopwatch s = new Stopwatch();
             var uows = new ConcurrentStack<ICommandUnitOfWork>();
@@ -131,12 +135,16 @@ namespace Aggregates.Internal
             }
             finally
             {
-                if (SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
+                try
                 {
-                    Logger.WriteFormat(LogLevel.Info, "Finished processing command {0} verbosely - resetting log level", context.IncomingLogicalMessage.MessageType.FullName);
-                    Defaults.MinimumLogging.Value = null;
-                    SlowEventTypes.Remove(context.IncomingLogicalMessage.MessageType.FullName);
+                    if (SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
+                    {
+                        Logger.WriteFormat(LogLevel.Info, "Finished processing command {0} verbosely - resetting log level", context.IncomingLogicalMessage.MessageType.FullName);
+                        Defaults.MinimumLogging.Value = null;
+                        SlowEventTypes.Remove(context.IncomingLogicalMessage.MessageType.FullName);
+                    }
                 }
+                catch (KeyNotFoundException) { }
             }
         }
     }
