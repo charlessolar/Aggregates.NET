@@ -204,6 +204,14 @@ namespace Aggregates.Internal
 
                         var uows = new ConcurrentStack<IEventUnitOfWork>();
                         
+                        await childBuilder.BuildAll<IEventUnitOfWork>().ForEachAsync(2, async (uow) =>
+                        {
+                            uows.Push(uow);
+                            uow.Builder = childBuilder;
+                            uow.Retries = retry;
+                            await uow.Begin();
+                        });
+
                         var mutators = childBuilder.BuildAll<IEventMutator>();
                         if (mutators != null && mutators.Any())
                             foreach (var mutator in mutators)
@@ -213,14 +221,6 @@ namespace Aggregates.Internal
                                 @event = mutator.MutateIncoming(@event, descriptor, position);
                             }
 
-                        await childBuilder.BuildAll<IEventUnitOfWork>().ForEachAsync(2, async (uow) =>
-                        {
-                            uows.Push(uow);
-                            uow.Builder = childBuilder;
-                            uow.Retries = retry;
-                            await uow.Begin();
-                        });
-                        
                         try
                         {
                             s.Restart();
