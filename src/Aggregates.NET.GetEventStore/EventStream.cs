@@ -52,7 +52,7 @@ namespace Aggregates.Internal
         public EventStream(IBuilder builder, IStoreEvents store, String bucket, String streamId, Int32 streamVersion, IEnumerable<IWritableEvent> events)
         {
             this._store = store;
-            this._snapshots = builder.Build<IStoreSnapshots>();
+            this._snapshots = builder?.Build<IStoreSnapshots>();
             this._builder = builder;
             this.Bucket = bucket;
             this.StreamId = streamId;
