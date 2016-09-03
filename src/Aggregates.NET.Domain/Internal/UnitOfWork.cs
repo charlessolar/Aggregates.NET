@@ -32,7 +32,6 @@ namespace Aggregates.Internal
         private readonly IMessageMapper _mapper;
 
         private bool _disposed;
-        private IDictionary<String, String> _workHeaders;
         private IDictionary<Type, IRepository> _repositories;
         private IDictionary<String, IEntityRepository> _entityRepositories;
         private IDictionary<String, IRepository> _pocoRepositories;
@@ -58,7 +57,7 @@ namespace Aggregates.Internal
             _repositories = new Dictionary<Type, IRepository>();
             _entityRepositories = new Dictionary<String, IEntityRepository>();
             _pocoRepositories = new Dictionary<String, IRepository>();
-            _workHeaders = new Dictionary<String, String>();
+            CurrentHeaders = new Dictionary<String, String>();
         }
 
         public void Dispose()
@@ -218,17 +217,17 @@ namespace Aggregates.Internal
             {
                 // Attempt to get MessageId from NServicebus headers
                 // If we maintain a good CommitId convention it should solve the message idempotentcy issue (assuming the storage they choose supports it)
-                if (_workHeaders.TryGetValue(Defaults.MessageIdHeader, out messageId))
+                if (CurrentHeaders.TryGetValue(Defaults.MessageIdHeader, out messageId))
                     commitId = Guid.Parse(messageId);
 
                 // Allow the user to send a CommitId along with his message if he wants
-                if (_workHeaders.TryGetValue(Defaults.CommitIdHeader, out messageId))
+                if (CurrentHeaders.TryGetValue(Defaults.CommitIdHeader, out messageId))
                     commitId = Guid.Parse(messageId);
             }
             catch (FormatException) { }
 
             // Insert all command headers into the commit
-            var headers = new Dictionary<String, String>(_workHeaders);
+            var headers = new Dictionary<String, String>(CurrentHeaders);
 
             Logger.WriteFormat(LogLevel.Debug, "Starting commit id {0}", commitId);
             await _repositories.Values.ForEachAsync(2, async (repo) =>
@@ -259,7 +258,7 @@ namespace Aggregates.Internal
         public void MutateOutgoing(LogicalMessage message, TransportMessage transportMessage)
         {
             // Insert our command headers into all messages sent by bus this unit of work
-            foreach (var header in _workHeaders)
+            foreach (var header in CurrentHeaders)
                 transportMessage.Headers[header.Key] = header.Value.ToString();
         }
 
@@ -279,7 +278,7 @@ namespace Aggregates.Internal
                     defaultHeader = NotFound;
 
                 var workHeader = String.Format("{0}.{1}", PrefixHeader, header);
-                _workHeaders[workHeader] = defaultHeader;
+                CurrentHeaders[workHeader] = defaultHeader;
             }
 
             // Copy any application headers the user might have included
@@ -291,7 +290,7 @@ namespace Aggregates.Internal
                             !h.Equals(Defaults.CommitIdHeader, StringComparison.InvariantCultureIgnoreCase));
 
             foreach (var header in userHeaders)
-                _workHeaders[header] = headers[header];
+                CurrentHeaders[header] = headers[header];
         }
 
         public Object MutateOutgoing(Object message)
@@ -302,7 +301,7 @@ namespace Aggregates.Internal
         {
             this.CurrentMessage = message;
 
-            _workHeaders[Defaults.DomainHeader] = Defaults.Domain.ToString();
+            CurrentHeaders[Defaults.DomainHeader] = Defaults.Domain.ToString();
             
             return message;
         }
@@ -311,7 +310,7 @@ namespace Aggregates.Internal
         public Object MutateIncoming(Object Event, IEventDescriptor Descriptor, long? Position)
         {
             this.CurrentMessage = Event;
-            _workHeaders[Defaults.DomainHeader] = Defaults.Domain.ToString();
+            CurrentHeaders[Defaults.DomainHeader] = Defaults.Domain.ToString();
 
             if (Descriptor == null) return Event; 
 
@@ -327,7 +326,7 @@ namespace Aggregates.Internal
                     defaultHeader = NotFound;
                 
                 var workHeader = String.Format("{0}.{1}", PrefixHeader, header);
-                _workHeaders[workHeader] = defaultHeader;
+                CurrentHeaders[workHeader] = defaultHeader;
             }
 
             // Copy any application headers the user might have included
@@ -338,18 +337,19 @@ namespace Aggregates.Internal
                             !h.StartsWith("$", StringComparison.InvariantCultureIgnoreCase));
 
             foreach (var header in userHeaders)
-                _workHeaders[header] = headers[header];
+                CurrentHeaders[header] = headers[header];
 
             return Event;
         }
 
         public IWritableEvent MutateOutgoing(IWritableEvent Event)
         {
-            foreach (var header in _workHeaders)
+            foreach (var header in CurrentHeaders)
                 Event.Descriptor.Headers[header.Key] = header.Value.ToString();
             return Event;
         }
 
         public Object CurrentMessage { get; private set; }
+        public IDictionary<String, String> CurrentHeaders { get; private set; }
     }
 }

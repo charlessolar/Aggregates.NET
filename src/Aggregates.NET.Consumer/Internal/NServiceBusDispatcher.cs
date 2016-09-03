@@ -308,11 +308,7 @@ namespace Aggregates.Internal
                             });
                             s.Stop();
                             if (s.ElapsedMilliseconds > _slowAlert)
-                            {
                                 Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
-                                if (!SlowEventTypes.Contains(eventType.FullName))
-                                    SlowEventTypes.Add(eventType.FullName);
-                            }
                             else if (Logger.IsDebugEnabled)
                                 Logger.WriteFormat(LogLevel.Debug, "UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
                             

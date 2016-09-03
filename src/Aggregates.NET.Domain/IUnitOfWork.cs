@@ -24,5 +24,6 @@ namespace Aggregates
         
         IBuilder Builder { get; set; }
         Object CurrentMessage { get; }
+        IDictionary<String, String> CurrentHeaders { get; }
     }
 }

@@ -99,15 +99,10 @@ namespace Aggregates.Internal
                     }).Wait();
                     s.Stop();
                     if (s.ElapsedMilliseconds > _slowAlert)
-                    {
                         Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
-                        if (!SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
-                            SlowEventTypes.Add(context.IncomingLogicalMessage.MessageType.FullName);
-                    }
                     else if (Logger.IsDebugEnabled)
-                    {
                         Logger.WriteFormat(LogLevel.Debug, "UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
-                    }
+                    
                 }
 
 
