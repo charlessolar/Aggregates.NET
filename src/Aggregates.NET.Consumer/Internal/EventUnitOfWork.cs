@@ -12,8 +12,8 @@ namespace Aggregates.Internal
 {
     public class EventUnitOfWork : IEventUnitOfWork, IEventMutator
     {
-        public Object CurrentEvent { get; private set; }
-        public IEventDescriptor CurrentDescriptor { get; private set; }
+        public Object CurrentMessage { get; private set; }
+        public IDictionary<String, String> CurrentHeaders { get; private set; }
         public long? CurrentPosition { get; private set; }
 
         public IBuilder Builder { get; set; }
@@ -41,8 +41,8 @@ namespace Aggregates.Internal
 
         public object MutateIncoming(object Event, IEventDescriptor Descriptor, long? Position)
         {
-            this.CurrentDescriptor = Descriptor;
-            this.CurrentEvent = Event;
+            this.CurrentHeaders = Descriptor.Headers;
+            this.CurrentMessage = Event;
             this.CurrentPosition = Position;
             return Event;
         }

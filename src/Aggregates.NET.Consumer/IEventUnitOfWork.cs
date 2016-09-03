@@ -1,4 +1,5 @@
-﻿using NServiceBus.ObjectBuilder;
+﻿using Aggregates.Contracts;
+using NServiceBus.ObjectBuilder;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,5 +16,8 @@ namespace Aggregates
 
         Task Begin();
         Task End(Exception ex = null);
+
+        Object CurrentMessage { get; }
+        IDictionary<String, String> CurrentHeaders { get; }
     }
 }
