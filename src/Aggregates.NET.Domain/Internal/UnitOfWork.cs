@@ -230,7 +230,7 @@ namespace Aggregates.Internal
             var headers = new Dictionary<String, String>(CurrentHeaders);
 
             Logger.WriteFormat(LogLevel.Debug, "Starting commit id {0}", commitId);
-            await _repositories.Values.ForEachAsync(2, async (repo) =>
+            foreach( var repo in _repositories.Values)
             {
                 try
                 {
@@ -240,8 +240,8 @@ namespace Aggregates.Internal
                 {
                     throw new PersistenceException(e.Message, e);
                 }
-            });
-            await _entityRepositories.Values.ForEachAsync(2, async (repo) =>
+            }
+            foreach (var repo in _entityRepositories.Values)
             {
                 try
                 {
@@ -251,7 +251,7 @@ namespace Aggregates.Internal
                 {
                     throw new PersistenceException(e.Message, e);
                 }
-            });
+            }
             Logger.WriteFormat(LogLevel.Debug, "Commit id {0} complete", commitId);
         }
 

@@ -58,7 +58,7 @@ namespace Aggregates.Internal
                 _commandsMeter.Mark();
                 using (_commandsTimer.NewContext())
                 {
-                    context.Builder.BuildAll<ICommandUnitOfWork>().ForEachAsync(2, async (uow) =>
+                    foreach( var uow in context.Builder.BuildAll<ICommandUnitOfWork>()) 
                     {
                         uows.Push(uow);
                         uow.Builder = context.Builder;
@@ -67,8 +67,8 @@ namespace Aggregates.Internal
                         context.TryGet<Int32>("AggregatesNet.Retries", out retries);
                         uow.Retries = retries;
 
-                        await uow.Begin();
-                    }).Wait();
+                        uow.Begin().Wait();
+                    }
                     
                     s.Restart();
 
@@ -85,11 +85,11 @@ namespace Aggregates.Internal
                         Logger.WriteFormat(LogLevel.Debug, "Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
                 
                     s.Restart();
-                    uows.Generate().ForEachAsync(2, async (uow) =>
+                    foreach (var uow in uows.Generate())
                     {
                         try
                         {
-                            await uow.End();
+                            uow.End().Wait();
                         }
                         catch
                         {
@@ -97,7 +97,7 @@ namespace Aggregates.Internal
                             uows.Push(uow);
                             throw;
                         }
-                    }).Wait();
+                    }
                     s.Stop();
                     if (s.ElapsedMilliseconds > _slowAlert)
                         Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
@@ -113,17 +113,17 @@ namespace Aggregates.Internal
                 Logger.WriteFormat(LogLevel.Warn, "Caught exceptions '{0}' while executing command", e.InnerExceptions.Select(x => x.Message).Aggregate((c,n)=> $"{c}, {n}"));
                 _errorsMeter.Mark();
                 var trailingExceptions = new List<Exception>();
-                uows.Generate().ForEachAsync(2, async (uow) =>
+                foreach (var uow in uows.Generate())
                 {
                     try
                     {
-                        await uow.End(e);
+                        uow.End(e).Wait();
                     }
                     catch (Exception endException)
                     {
                         trailingExceptions.Add(endException);
                     }
-                }).Wait();
+                }
 
 
                 if (trailingExceptions.Any())

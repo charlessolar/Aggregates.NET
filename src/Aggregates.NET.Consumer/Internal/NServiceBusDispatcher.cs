@@ -201,14 +201,14 @@ namespace Aggregates.Internal
                         }
 
                         var uows = new ConcurrentStack<IEventUnitOfWork>();
-                        
-                        await childBuilder.BuildAll<IEventUnitOfWork>().ForEachAsync(2, async (uow) =>
+
+                        foreach(var uow in childBuilder.BuildAll<IEventUnitOfWork>())
                         {
                             uows.Push(uow);
                             uow.Builder = childBuilder;
                             uow.Retries = retry;
                             await uow.Begin();
-                        });
+                        }
 
                         var mutators = childBuilder.BuildAll<IEventMutator>();
                         if (mutators != null && mutators.Any())
@@ -234,7 +234,7 @@ namespace Aggregates.Internal
                                          {
                                              Stopwatch handlerWatch = Stopwatch.StartNew();
                                              Logger.WriteFormat(LogLevel.Debug, "Executing event {0} on handler {1}", eventType.FullName, ((object)handler).GetType().FullName);
-                                             
+
                                              var lambda = _objectInvoker.Invoker(handler, eventType);
 
                                              await lambda(handler, @event, handleContext);
@@ -244,7 +244,7 @@ namespace Aggregates.Internal
                                                  Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Executing event {0} on handler {1} took {2} ms", eventType.FullName, ((object)handler).GetType().FullName, handlerWatch.ElapsedMilliseconds);
                                              else
                                                  Logger.WriteFormat(LogLevel.Debug, "Executing event {0} on handler {1} took {2} ms", eventType.FullName, ((object)handler).GetType().FullName, handlerWatch.ElapsedMilliseconds);
-                                             
+
                                              handlerSuccess = true;
                                          }
                                          catch (RetryException e)
@@ -282,10 +282,10 @@ namespace Aggregates.Internal
                             }
                             else
                                 Logger.WriteFormat(LogLevel.Debug, "Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
-                            
+
 
                             s.Restart();
-                            await uows.Generate().ForEachAsync(2, async (uow) =>
+                            foreach (var uow in uows.Generate())
                             {
                                 try
                                 {
@@ -297,18 +297,18 @@ namespace Aggregates.Internal
                                     uows.Push(uow);
                                     throw;
                                 }
-                            });
+                            }
                             s.Stop();
                             if (s.ElapsedMilliseconds > _slowAlert)
                                 Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
                             else
                                 Logger.WriteFormat(LogLevel.Debug, "UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
-                            
+
                         }
                         catch (Exception e)
                         {
                             var trailingExceptions = new ConcurrentBag<Exception>();
-                            await uows.Generate().ForEachAsync(2, async (uow) =>
+                            foreach (var uow in uows.Generate())
                             {
                                 try
                                 {
@@ -318,7 +318,7 @@ namespace Aggregates.Internal
                                 {
                                     trailingExceptions.Add(endException);
                                 }
-                            });
+                            }
                             if (trailingExceptions.Any())
                             {
                                 var exceptions = trailingExceptions.ToList();
@@ -356,7 +356,7 @@ namespace Aggregates.Internal
 
                 if (SlowEventTypes.Contains(eventType.FullName) && Defaults.MinimumLogging.Value.HasValue)
                 {
-                    Logger.WriteFormat(LogLevel.Info, "Finished processing command {0} verbosely - resetting log level", eventType.FullName);
+                    Logger.WriteFormat(LogLevel.Info, "Finished processing event {0} verbosely - resetting log level", eventType.FullName);
                     Defaults.MinimumLogging.Value = null;
                     SlowEventTypes.Remove(eventType.FullName);
                 }

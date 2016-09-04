@@ -47,7 +47,7 @@ namespace Aggregates.Internal
         async Task IRepository.Commit(Guid commitId, IDictionary<String, String> commitHeaders)
         {
             var written = 0;
-            await _tracked.Values.ForEachAsync(4, async (tracked) =>
+            foreach( var tracked in _tracked.Values) 
             {
                 var headers = new Dictionary<String, String>(commitHeaders);
 
@@ -110,7 +110,7 @@ namespace Aggregates.Internal
                     }
                 } while (!success && count < 5);
 
-            });
+            }
             WrittenEvents.Update(written);
         }
 
