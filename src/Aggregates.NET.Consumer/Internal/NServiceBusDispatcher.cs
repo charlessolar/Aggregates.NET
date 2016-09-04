@@ -166,7 +166,7 @@ namespace Aggregates.Internal
 
             if (SlowEventTypes.Contains(eventType.FullName))
             {
-                Logger.WriteFormat(LogLevel.Info, "Event {0} was previously detected as slow, switching to more verbose logging (for this instance)", eventType.FullName);
+                Logger.WriteFormat(LogLevel.Info, "Event {0} was previously detected as slow, switching to more verbose logging (for this instance)\nPayload: {1}", eventType.FullName, JsonConvert.SerializeObject(@event, Formatting.Indented).MaxLines(15));
                 Defaults.MinimumLogging.Value = LogLevel.Info;
             }
 
@@ -276,7 +276,7 @@ namespace Aggregates.Internal
                             s.Stop();
                             if (s.ElapsedMilliseconds > _slowAlert)
                             {
-                                Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Processing event {0} took {1} ms\nPayload: {2}", eventType.FullName, s.ElapsedMilliseconds, JsonConvert.SerializeObject(@event, Formatting.Indented));
+                                Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Processing event {0} took {1} ms\nPayload: {2}", eventType.FullName, s.ElapsedMilliseconds, JsonConvert.SerializeObject(@event, Formatting.Indented).MaxLines(15));
                                 if (!SlowEventTypes.Contains(eventType.FullName))
                                     SlowEventTypes.Add(eventType.FullName);
                             }
@@ -328,9 +328,9 @@ namespace Aggregates.Internal
 
                             // Only log if the event has failed more than half max retries indicating a non-transient error
                             if ((_maxRetries != -1 && retry > (_maxRetries / 2)) || (_maxRetries == -1 && (retry % 3) == 0))
-                                Logger.WriteFormat(LogLevel.Warn, "Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, Formatting.Indented), e);
+                                Logger.WriteFormat(LogLevel.Warn, "Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, Formatting.Indented).MaxLines(15), e);
                             else
-                                Logger.WriteFormat(LogLevel.Debug, "Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, Formatting.Indented), e);
+                                Logger.WriteFormat(LogLevel.Debug, "Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, Formatting.Indented).MaxLines(15), e);
 
                             _errorsMeter.Mark();
                             retry++;
@@ -343,7 +343,7 @@ namespace Aggregates.Internal
 
                 if (!success)
                 {
-                    var message = String.Format("Encountered an error while processing {0}.  Ran out of retries, dropping event.\nPayload: {1}", eventType.FullName, JsonConvert.SerializeObject(@event));
+                    var message = String.Format("Encountered an error while processing {0}.  Ran out of retries, dropping event.\nPayload: {1}", eventType.FullName, JsonConvert.SerializeObject(@event).MaxLines(15));
                     if (_dropEventFatal)
                     {
                         Logger.Fatal(message);

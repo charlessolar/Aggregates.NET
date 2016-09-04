@@ -45,7 +45,7 @@ namespace Aggregates.Internal
                 // Todo: break out timing of commands into a different pipeline step I think
                 if (SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
                 {
-                    Logger.WriteFormat(LogLevel.Info, "Command {0} was previously detected as slow, switching to more verbose logging (for this instance)", context.IncomingLogicalMessage.MessageType.FullName);
+                    Logger.WriteFormat(LogLevel.Info, "Command {0} was previously detected as slow, switching to more verbose logging (for this instance)\nPayload: {1}", context.IncomingLogicalMessage.MessageType.FullName, JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance, Formatting.Indented).MaxLines(15));
                     Defaults.MinimumLogging.Value = LogLevel.Info;
                 }
             }
@@ -77,7 +77,7 @@ namespace Aggregates.Internal
                     s.Stop();
                     if (s.ElapsedMilliseconds > _slowAlert)
                     {
-                        Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Processing command {0} took {1} ms\nPayload: {2}", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds, JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance, Formatting.Indented));
+                        Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Processing command {0} took {1} ms\nPayload: {2}", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds, JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance, Formatting.Indented).MaxLines(15));
                         if (!SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
                             SlowEventTypes.Add(context.IncomingLogicalMessage.MessageType.FullName);
                     }
