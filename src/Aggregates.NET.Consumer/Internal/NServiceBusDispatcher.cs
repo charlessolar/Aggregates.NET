@@ -264,14 +264,11 @@ namespace Aggregates.Internal
 
                              };
 
-                            // Run each handler in parallel (or not) (if handler ever is ASYNC can't use Parallel)
-                            if (_parallelHandlers)
-                                await handlers.ForEachAsync(_parallelOptions.MaxDegreeOfParallelism, processor);
-                            else
+                            await handlers.WhenAllAsync(async (handler) =>
                             {
-                                foreach (var handler in handlers)
-                                    await processor(handler);
-                            }
+                                await processor(handler);
+                            });
+                            
 
                             s.Stop();
                             if (s.ElapsedMilliseconds > _slowAlert)

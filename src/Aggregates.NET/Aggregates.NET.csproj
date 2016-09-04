@@ -87,6 +87,7 @@
     <Compile Include="Extensions\LoggerExtensions.cs" />
     <Compile Include="Extensions\StoreExtensions.cs" />
     <Compile Include="Extensions\StringExtensions.cs" />
+    <Compile Include="Extensions\TaskExtensions.cs" />
     <Compile Include="Feature.cs" />
     <Compile Include="IHandleContext.cs" />
     <Compile Include="IHandleMessagesAsync.cs" />

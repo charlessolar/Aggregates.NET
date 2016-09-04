@@ -230,7 +230,7 @@ namespace Aggregates.Internal
             var headers = new Dictionary<String, String>(CurrentHeaders);
 
             Logger.WriteFormat(LogLevel.Debug, "Starting commit id {0}", commitId);
-            foreach( var repo in _repositories.Values)
+            var aggs = _repositories.Values.WhenAllAsync(async (repo) =>
             {
                 try
                 {
@@ -240,8 +240,8 @@ namespace Aggregates.Internal
                 {
                     throw new PersistenceException(e.Message, e);
                 }
-            }
-            foreach (var repo in _entityRepositories.Values)
+            });
+            var entities = _entityRepositories.Values.WhenAllAsync(async (repo) =>
             {
                 try
                 {
@@ -251,7 +251,19 @@ namespace Aggregates.Internal
                 {
                     throw new PersistenceException(e.Message, e);
                 }
-            }
+            });
+            var pocos = _pocoRepositories.Values.WhenAllAsync(async (repo) =>
+            {
+                try
+                {
+                    await repo.Commit(commitId, headers);
+                }
+                catch (StorageException e)
+                {
+                    throw new PersistenceException(e.Message, e);
+                }
+            });
+            await Task.WhenAll(aggs, entities, pocos);
             Logger.WriteFormat(LogLevel.Debug, "Commit id {0} complete", commitId);
         }
 

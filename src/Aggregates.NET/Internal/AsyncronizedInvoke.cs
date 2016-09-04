@@ -14,7 +14,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Extensions;
-using System.Threading;
 
 namespace Aggregates.Internal
 {
@@ -46,7 +45,6 @@ namespace Aggregates.Internal
                 return;
             }
 
-            Thread.Sleep(10);
             var messageHandler = context.Get<AsyncMessageHandler>();
             Task.Run((Func<Task>)(async () =>
             {

@@ -29,7 +29,9 @@ namespace Aggregates.Internal
         private readonly IBuilder _builder;
 
         private static Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Events);
+        private static Meter Conflicts = Metric.Meter("Conflicts", Unit.Items);
         private static Meter ConflictsResolved = Metric.Meter("Conflicts Resolved", Unit.Items);
+        private static Meter ConflictsUnresolved = Metric.Meter("Conflicts Unesolved", Unit.Items);
         private static Meter WriteErrors = Metric.Meter("Event Write Errors", Unit.Errors);
 
         protected readonly IDictionary<String, T> _tracked = new Dictionary<String, T>();
@@ -47,7 +49,9 @@ namespace Aggregates.Internal
         async Task IRepository.Commit(Guid commitId, IDictionary<String, String> commitHeaders)
         {
             var written = 0;
-            foreach( var tracked in _tracked.Values) 
+            await _tracked.Values
+                .Where(x => x.Stream.Uncommitted.Any())
+                .WhenAllAsync(async (tracked) =>
             {
                 var headers = new Dictionary<String, String>(commitHeaders);
 
@@ -76,15 +80,17 @@ namespace Aggregates.Internal
                     {
                         try
                         {
+                            Conflicts.Mark();
                             Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
                             stream = await ResolveConflict(tracked.Stream);
                             Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - successfully resolved", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
                             ConflictsResolved.Mark();
                         }
-                        catch
+                        catch(Exception e)
                         {
+                            ConflictsUnresolved.Mark();
                             Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve", tracked.StreamId, tracked.GetType().FullName);
-                            throw new ConflictingCommandException("Could not resolve conflicting events", version);
+                            throw new ConflictingCommandException("Could not resolve conflicting events", version, e);
                         }
                     }
                     catch (PersistenceException e)
@@ -110,17 +116,20 @@ namespace Aggregates.Internal
                     }
                 } while (!success && count < 5);
 
-            }
+            });
             WrittenEvents.Update(written);
         }
 
         private async Task<IEventStream> ResolveConflict(IEventStream stream)
         {
             var uncommitted = stream.Uncommitted;
+            Logger.WriteFormat(LogLevel.Debug, "Resolving - getting stream {0} bucket {1} from store", stream.StreamId, stream.Bucket);
             // Get latest stream from store
             var existing = await GetUntracked(stream.Bucket, stream.StreamId);
+            Logger.WriteFormat(LogLevel.Debug, "Resolving - got stream version {0} from store, hydrating {1} uncomitted events", existing.Version, stream.Uncommitted.Count());
             // Hydrate the uncommitted events
             existing.Hydrate(uncommitted);
+            Logger.WriteFormat(LogLevel.Debug, "Resolving - successfully hydrated");
             // Success! Streams merged
             return existing.Stream;
         }
@@ -205,7 +214,7 @@ namespace Aggregates.Internal
                 ((ISnapshotting)root).RestoreSnapshot(snapshot.Payload);
             }
 
-                (root as IEventSource).Hydrate(stream.Events.Select(e => e.Event));
+            (root as IEventSource).Hydrate(stream.Events.Select(e => e.Event));
 
             return root;
         }

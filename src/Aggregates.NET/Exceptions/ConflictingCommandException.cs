@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public class ConflictingCommandException : Exception
+    public class ConflictingCommandException : System.AggregateException
     {
         public ConflictingCommandException() { }
         public ConflictingCommandException(String message) : base(message) { }
-        public ConflictingCommandException(String message, Exception innerException) : base(message, innerException) { }
+        public ConflictingCommandException(String message, Exception innerException, Exception resolve) : base(message, innerException, resolve) { }
     }
 }
