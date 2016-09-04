@@ -276,7 +276,7 @@ namespace Aggregates.Internal
                             s.Stop();
                             if (s.ElapsedMilliseconds > _slowAlert)
                             {
-                                Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                                Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Processing event {0} took {1} ms\nPayload: {2}", eventType.FullName, s.ElapsedMilliseconds, JsonConvert.SerializeObject(@event, Formatting.Indented));
                                 if (!SlowEventTypes.Contains(eventType.FullName))
                                     SlowEventTypes.Add(eventType.FullName);
                             }
@@ -328,9 +328,9 @@ namespace Aggregates.Internal
 
                             // Only log if the event has failed more than half max retries indicating a non-transient error
                             if ((_maxRetries != -1 && retry > (_maxRetries / 2)) || (_maxRetries == -1 && (retry % 3) == 0))
-                                Logger.WriteFormat(LogLevel.Warn, "Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event), e);
+                                Logger.WriteFormat(LogLevel.Warn, "Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, Formatting.Indented), e);
                             else
-                                Logger.WriteFormat(LogLevel.Debug, "Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event), e);
+                                Logger.WriteFormat(LogLevel.Debug, "Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, Formatting.Indented), e);
 
                             _errorsMeter.Mark();
                             retry++;

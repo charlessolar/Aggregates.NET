@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Metrics;
+using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
@@ -76,7 +77,7 @@ namespace Aggregates.Internal
                     s.Stop();
                     if (s.ElapsedMilliseconds > _slowAlert)
                     {
-                        Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                        Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Processing command {0} took {1} ms\nPayload: {2}", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds, JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance, Formatting.Indented));
                         if (!SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
                             SlowEventTypes.Add(context.IncomingLogicalMessage.MessageType.FullName);
                     }
