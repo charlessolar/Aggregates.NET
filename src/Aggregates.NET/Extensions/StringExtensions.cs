@@ -18,7 +18,7 @@ namespace Aggregates.Extensions
         {
             var ret = "";
             var lines = 0;
-            while(lines <= Max)
+            while(lines < Max)
             {
                 var newline = source.IndexOf("\n");
                 if (newline == -1) break;

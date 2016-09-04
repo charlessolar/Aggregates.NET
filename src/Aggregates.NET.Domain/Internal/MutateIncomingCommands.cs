@@ -38,7 +38,7 @@ namespace Aggregates.Internal
                     foreach (var mutator in mutators)
                     {
                         Logger.WriteFormat(LogLevel.Debug, "Mutating incoming command {0} with mutator {1}", context.IncomingLogicalMessage.MessageType.FullName, mutator.GetType().FullName);
-                        mutated = mutator.MutateIncoming(mutated);
+                        mutated = mutator.MutateIncoming(mutated, context.IncomingLogicalMessage.Headers);
                     }
                 context.IncomingLogicalMessage.UpdateMessageInstance(mutated);
             }
