@@ -24,6 +24,7 @@ namespace Aggregates.Extensions
                 if (newline == -1) break;
                 ret += source.Substring(0, newline + 1);
                 source = source.Substring(newline + 1);
+                lines++;
             }
 
             return ret;

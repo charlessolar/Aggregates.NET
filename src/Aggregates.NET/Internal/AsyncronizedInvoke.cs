@@ -54,9 +54,9 @@ namespace Aggregates.Internal
                 await messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance, handleContext);
 
                 if(s.ElapsedMilliseconds > _slowAlert)
-                    Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Executing message {0} on handler {1} took {2} ms", context.IncomingLogicalMessage.MessageType.FullName, ((object)messageHandler.Handler).GetType().FullName, s.ElapsedMilliseconds);
+                    Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Executing command {0} on handler {1} took {2} ms", context.IncomingLogicalMessage.MessageType.FullName, ((object)messageHandler.Handler).GetType().FullName, s.ElapsedMilliseconds);
                 else
-                    Logger.WriteFormat(LogLevel.Debug, "Executing message {0} on handler {1} took {2} ms", context.IncomingLogicalMessage.MessageType.FullName, ((object)messageHandler.Handler).GetType().FullName, s.ElapsedMilliseconds);
+                    Logger.WriteFormat(LogLevel.Debug, "Executing command {0} on handler {1} took {2} ms", context.IncomingLogicalMessage.MessageType.FullName, ((object)messageHandler.Handler).GetType().FullName, s.ElapsedMilliseconds);
                 
             })).Wait();
 
