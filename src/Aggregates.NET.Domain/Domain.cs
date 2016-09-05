@@ -43,7 +43,7 @@ namespace Aggregates
         {
             base.Setup(context);
 
-            context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
