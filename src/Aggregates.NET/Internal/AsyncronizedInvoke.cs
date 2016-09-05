@@ -49,9 +49,11 @@ namespace Aggregates.Internal
             Task.Run((Func<Task>)(async () =>
             {
                 var s = Stopwatch.StartNew();
+                Logger.WriteFormat(LogLevel.Debug, "Executing command {0} on handler {1}", context.IncomingLogicalMessage.MessageType.FullName, ((object)messageHandler.Handler).GetType().FullName);
 
                 var handleContext = new HandleContext { Bus = _bus, Context = context, Mapper = _mapper };
                 await messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance, handleContext);
+                s.Stop();
 
                 if(s.ElapsedMilliseconds > _slowAlert)
                     Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Executing command {0} on handler {1} took {2} ms", context.IncomingLogicalMessage.MessageType.FullName, ((object)messageHandler.Handler).GetType().FullName, s.ElapsedMilliseconds);
