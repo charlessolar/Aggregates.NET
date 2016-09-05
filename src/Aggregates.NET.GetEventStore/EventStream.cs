@@ -88,13 +88,13 @@ namespace Aggregates.Internal
         {
             if (backwards == true)
                 return _store.GetEventsBackwards<T>(this.Bucket, this.StreamId);
-            return _store.GetEvents<T>(this.Bucket, this.StreamId, 0);
+            return _store.GetEvents<T>(this.Bucket, this.StreamId);
         }
         public IEnumerable<IWritableEvent> OOBEvents(Boolean? backwards)
         {
             if (backwards == true)
                 return _store.GetEventsBackwards<T>(this.Bucket + ".OOB", this.StreamId);
-            return _store.GetEvents<T>(this.Bucket + ".OOB", this.StreamId, 0);
+            return _store.GetEvents<T>(this.Bucket + ".OOB", this.StreamId);
         }
 
         private IWritableEvent makeWritableEvent(IEvent @event, IDictionary<String, String> headers, Boolean version = true)

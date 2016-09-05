@@ -47,8 +47,8 @@ namespace Aggregates
 
         public async Task<IEventStream> GetStream<T>(String bucket, String streamId, Int32? start = null) where T : class, IEventSource
         {
-            Logger.WriteFormat(LogLevel.Debug, "Getting stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
-            
+            Logger.WriteFormat(LogLevel.Debug, "Getting events from stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
+
             var streamName = _streamGen(typeof(T), bucket, streamId);
             var events = new List<ResolvedEvent>();
 
@@ -77,10 +77,12 @@ namespace Aggregates
             do
             {
                 current = await _client.ReadStreamEventsForwardAsync(streamName, sliceStart, readSize, false);
+                Logger.WriteFormat(LogLevel.Debug, "Retreived {0} events from position {1}. Status: {4} LastEventNumber: {2} NextEventNumber: {3}", current.Events.Count(), sliceStart, current.LastEventNumber, current.LastEventNumber, current.Status);
 
                 events.AddRange(current.Events);
                 sliceStart = current.NextEventNumber;
             } while (!current.IsEndOfStream);
+            Logger.WriteFormat(LogLevel.Debug, "Finished getting events from stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
 
             var translatedEvents = events.Select(e =>
             {
@@ -125,6 +127,7 @@ namespace Aggregates
             do
             {
                 current = _client.ReadStreamEventsForwardAsync(streamName, sliceStart, readSize, false).Result;
+                Logger.WriteFormat(LogLevel.Debug, "Retreived {0} events from position {1}. Status: {4} LastEventNumber: {2} NextEventNumber: {3}", current.Events.Count(), sliceStart, current.LastEventNumber, current.LastEventNumber, current.Status);
 
                 foreach (var e in current.Events)
                 {
@@ -150,7 +153,8 @@ namespace Aggregates
                 
                 sliceStart = current.NextEventNumber;
             } while (!current.IsEndOfStream);
-            
+            Logger.WriteFormat(LogLevel.Debug, "Finished getting events from stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
+
         }
         public IEnumerable<IWritableEvent> GetEventsBackwards<T>(String bucket, String streamId, Int32? readUntil = null) where T : class, IEventSource
         {
@@ -171,6 +175,7 @@ namespace Aggregates
             do
             {
                 current = _client.ReadStreamEventsBackwardAsync(streamName, sliceStart, readSize, false).Result;
+                Logger.WriteFormat(LogLevel.Debug, "Retreived backwards {0} events from position {1}. Status: {4} LastEventNumber: {2} NextEventNumber: {3}", current.Events.Count(), sliceStart, current.LastEventNumber, current.LastEventNumber, current.Status);
 
                 foreach (var e in current.Events)
                 {
@@ -196,6 +201,7 @@ namespace Aggregates
 
                 sliceStart = current.NextEventNumber;
             } while (!current.IsEndOfStream);
+            Logger.WriteFormat(LogLevel.Debug, "Finished getting all events backward from stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
         }
 
         public async Task AppendEvents<T>(String bucket, String streamId, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders) where T : class, IEventSource

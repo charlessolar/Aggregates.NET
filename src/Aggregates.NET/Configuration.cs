@@ -17,5 +17,9 @@ namespace Aggregates
         {
             settings.GetSettings().Set("SlowAlertThreshold", Milliseconds);
         }
+        public static void SetReadSize(this ExposeSettings settings, Int32 Count)
+        {
+            settings.GetSettings().Set("ReadSize", Count);
+        }
     }
 }

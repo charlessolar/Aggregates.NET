@@ -28,7 +28,6 @@ namespace Aggregates
             {
                 s.SetDefault("Parallelism", Environment.ProcessorCount / 2);
                 s.SetDefault("ParallelHandlers", true);
-                s.SetDefault("ReadSize", 200);
                 s.SetDefault("EventDropIsFatal", false);
                 s.SetDefault("MaxQueueSize", 10000);
             });
