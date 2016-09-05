@@ -84,13 +84,13 @@ namespace Aggregates.Internal
         {
             return new EventStream<T>(null, null, Bucket, StreamId, StreamVersion, _committed);
         }
-        public IEnumerable<IWritableEvent> AllEvents(Boolean? backwards)
+        public Task<IEnumerable<IWritableEvent>> AllEvents(Boolean? backwards)
         {
             if (backwards == true)
                 return _store.GetEventsBackwards<T>(this.Bucket, this.StreamId);
             return _store.GetEvents<T>(this.Bucket, this.StreamId);
         }
-        public IEnumerable<IWritableEvent> OOBEvents(Boolean? backwards)
+        public Task<IEnumerable<IWritableEvent>> OOBEvents(Boolean? backwards)
         {
             if (backwards == true)
                 return _store.GetEventsBackwards<T>(this.Bucket + ".OOB", this.StreamId);

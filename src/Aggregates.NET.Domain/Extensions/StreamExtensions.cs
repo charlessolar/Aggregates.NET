@@ -10,21 +10,13 @@ namespace Aggregates.Extensions
 {
     public static class StreamExtensions
     {
-        public static IEnumerable<T> AllEvents<T>(this IEventStream stream, Boolean? backwards) where T : IEvent
+        public static async Task<IEnumerable<T>> AllEvents<T>(this IEventStream stream, Boolean? backwards = false) where T : IEvent
         {
-            foreach( var @event in stream.AllEvents(backwards))
-            {
-                if (@event.Event is T)
-                    yield return (T)@event.Event;
-            }
+            return (await stream.AllEvents(backwards)).Where(x => x.Event is T).Select(x => (T)x.Event);
         }
-        public static IEnumerable<T> OOBEvents<T>(this IEventStream stream, Boolean? backwards) where T : IEvent
+        public static async Task<IEnumerable<T>> OOBEvents<T>(this IEventStream stream, Boolean? backwards = false) where T : IEvent
         {
-            foreach (var @event in stream.OOBEvents(backwards))
-            {
-                if (@event.Event is T)
-                    yield return (T)@event.Event;
-            }
+            return (await stream.OOBEvents(backwards)).Where(x => x.Event is T).Select(x => (T)x.Event);
         }
     }
 }
