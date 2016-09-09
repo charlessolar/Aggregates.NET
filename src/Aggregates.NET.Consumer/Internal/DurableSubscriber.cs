@@ -50,12 +50,12 @@ namespace Aggregates.Internal
             var saved = _store.Load(endpoint).Result;
 
             var readSize = _settings.Get<Int32>("ReadSize");
-            Logger.WriteFormat(LogLevel.Info, "Endpoint '{0}' subscribing to all events from position '{1}'", endpoint, saved);
+            Logger.Write(LogLevel.Info, () => $"Endpoint '{endpoint}' subscribing to all events from position '{saved}'");
 
             var settings = new CatchUpSubscriptionSettings(readSize * readSize, readSize, false, false);
             _client.SubscribeToAllFrom(saved, settings, (subscription, e) =>
             {
-                Logger.WriteFormat(LogLevel.Debug, "Event appeared position {0}", e.OriginalPosition?.CommitPosition);
+                Logger.Write(LogLevel.Debug, () => $"Event appeared position {e.OriginalPosition?.CommitPosition}" );
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
 
@@ -81,7 +81,7 @@ namespace Aggregates.Internal
                 ProcessingLive = true;
             }, subscriptionDropped: (_, reason, e) =>
             {
-                Logger.WriteFormat(LogLevel.Warn, "Subscription dropped for reason: {0}.  Exception: {1}", reason, e);
+                Logger.Write(LogLevel.Warn, () => $"Subscription dropped for reason: {reason}.  Exception: {e}");
                 ProcessingLive = false;
                 if (Dropped != null)
                     Dropped.Invoke(reason.ToString(), e);

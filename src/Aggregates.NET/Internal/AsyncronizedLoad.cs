@@ -17,49 +17,62 @@ namespace Aggregates.Internal
 {
     class AsyncronizedLoad : IBehavior<IncomingContext>
     {
-        public IInvokeObjects ObjectInvoker { get; set; }
+        private readonly IInvokeObjects _invoker;
 
         private static MethodInfo _snapshotRegion = typeof(IncomingContext).GetMethod("CreateSnapshotRegion", BindingFlags.NonPublic | BindingFlags.Instance);
         private static Func<IncomingContext, IDisposable> CreateSnapshotRegion = (context) => (IDisposable)_snapshotRegion.Invoke(context, null);
 
+        public AsyncronizedLoad(IInvokeObjects invoker)
+        {
+            _invoker = invoker;
+        }
+
         public void Invoke(IncomingContext context, Action next)
         {
-            var messageToHandle = context.IncomingLogicalMessage;
+            Invoke(new IncomingContextWrapper(context), next);
+        }
+
+        public void Invoke(IIncomingContextAccessor context, Action next)
+        {
             var callbackInvoked = context.Get<bool>("NServiceBus.CallbackInvocationBehavior.CallbackWasInvoked");
 
-            var handlerGenericType = typeof(IHandleMessagesAsync<>).MakeGenericType(messageToHandle.MessageType);
+            var handlerGenericType = typeof(IHandleMessagesAsync<>).MakeGenericType(context.IncomingLogicalMessageMessageType);
             List<dynamic> handlers = context.Builder.BuildAll(handlerGenericType).ToList();
 
 
 
             if (!callbackInvoked && !handlers.Any())
             {
-                var error = string.Format("No handlers could be found for message type: {0}", messageToHandle.MessageType);
+                var error = string.Format("No handlers could be found for message type: {0}", context.IncomingLogicalMessageMessageType);
                 throw new InvalidOperationException(error);
             }
 
             foreach (var handler in handlers)
             {
-                using (CreateSnapshotRegion(context))
+                IDisposable snapshotRegion = null;
+                if (context is IncomingContext)
+                    snapshotRegion = CreateSnapshotRegion(context as IncomingContext);
+
+                var lambda = _invoker.Invoker(handler, context.IncomingLogicalMessageMessageType);
+
+                var loadedHandler = new AsyncMessageHandler
                 {
-                    var lambda = ObjectInvoker.Invoker(handler, messageToHandle.MessageType);
+                    Handler = handler,
+                    Invocation = lambda
+                };
 
-                    var loadedHandler = new AsyncMessageHandler
-                    {
-                        Handler = handler,
-                        Invocation = lambda
-                    };
+                context.Set(loadedHandler);
 
-                    context.Set(loadedHandler);
+                next();
 
-                    next();
-
-                    if (context.HandlerInvocationAborted)
-                    {
-                        //if the chain was aborted skip the other handlers
-                        break;
-                    }
+                if (context.HandlerInvocationAborted)
+                {
+                    //if the chain was aborted skip the other handlers
+                    break;
                 }
+
+                if (context is IncomingContext)
+                    snapshotRegion.Dispose();
             }
 
 

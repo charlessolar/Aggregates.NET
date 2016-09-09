@@ -78,7 +78,6 @@ namespace Aggregates.Internal
             if (_processingQueueSize % 10 == 0 || Logger.IsDebugEnabled)
             {
                 var eventType = _mapper.GetMappedTypeFor(x.Event.GetType());
-                var msg = String.Format("Queueing event {0} at position {1}.  Size of queue: {2}/{3}", eventType.FullName, x.Position, _processingQueueSize, _maxQueueSize);
                 if (_processingQueueSize > (_maxQueueSize / 2))
                 {
                     if (!_warned.HasValue)
@@ -91,13 +90,13 @@ namespace Aggregates.Internal
                 }
                 else if (_warned.HasValue && (DateTime.UtcNow - _warned.Value).TotalSeconds > 30)
                     _warned = null;
-
+                
                 if (_processingQueueSize % 1000 == 0)
-                    Logger.Warn(msg);
+                    Logger.Write(LogLevel.Warn, () => $"Queueing event {eventType.FullName} at position {x.Position}.  Size of queue: {_processingQueueSize}/{_maxQueueSize}");
                 else if (_processingQueueSize % 100 == 0)
-                    Logger.Info(msg);
+                    Logger.Write(LogLevel.Info, () => $"Queueing event {eventType.FullName} at position {x.Position}.  Size of queue: {_processingQueueSize}/{_maxQueueSize}");
                 else
-                    Logger.Debug(msg);
+                    Logger.Write(LogLevel.Debug, () => $"Queueing event {eventType.FullName} at position {x.Position}.  Size of queue: {_processingQueueSize}/{_maxQueueSize}");
             }
 
             _processor.Queue(async () =>
@@ -166,7 +165,7 @@ namespace Aggregates.Internal
 
             if (SlowEventTypes.Contains(eventType.FullName))
             {
-                Logger.WriteFormat(LogLevel.Info, "Event {0} was previously detected as slow, switching to more verbose logging (for this instance)\nPayload: {1}", eventType.FullName, JsonConvert.SerializeObject(@event, Formatting.Indented).MaxLines(15));
+                Logger.Write(LogLevel.Info, () => $"Event {eventType.FullName} was previously detected as slow, switching to more verbose logging (for this instance)\nPayload: {JsonConvert.SerializeObject(@event, Formatting.Indented).MaxLines(15)}");
                 Defaults.MinimumLogging.Value = LogLevel.Info;
             }
 
@@ -181,7 +180,7 @@ namespace Aggregates.Internal
 
             using (_eventsTimer.NewContext())
             {
-                Logger.WriteFormat(LogLevel.Debug, "Processing event {0} at position {1}.  Size of queue: {2}/{3}", eventType.FullName, position, _processingQueueSize, _maxQueueSize);
+                Logger.Write(LogLevel.Debug, () => $"Processing event {eventType.FullName} at position {position}.  Size of queue: {_processingQueueSize}/{_maxQueueSize}");
 
                 var success = false;
                 var retry = 0;
@@ -214,7 +213,7 @@ namespace Aggregates.Internal
                         if (mutators != null && mutators.Any())
                             foreach (var mutator in mutators)
                             {
-                                Logger.WriteFormat(LogLevel.Debug, "Mutating incoming event {0} with mutator {1}", eventType.FullName, mutator.GetType().FullName);
+                                Logger.Write(LogLevel.Debug, () => $"Mutating incoming event {eventType.FullName} with mutator {mutator.GetType().FullName}");
                                 @event = mutator.MutateIncoming(@event, descriptor, position);
                             }
 
@@ -233,7 +232,7 @@ namespace Aggregates.Internal
                                          try
                                          {
                                              Stopwatch handlerWatch = Stopwatch.StartNew();
-                                             Logger.WriteFormat(LogLevel.Debug, "Executing event {0} on handler {1}", eventType.FullName, ((object)handler).GetType().FullName);
+                                             Logger.Write(LogLevel.Debug, () => $"Executing event {eventType.FullName} on handler {handler.GetType().FullName}");
 
                                              var lambda = _objectInvoker.Invoker(handler, eventType);
 
@@ -241,15 +240,15 @@ namespace Aggregates.Internal
 
                                              handlerWatch.Stop();
                                              if (handlerWatch.ElapsedMilliseconds > _slowAlert)
-                                                 Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Executing event {0} on handler {1} took {2} ms", eventType.FullName, ((object)handler).GetType().FullName, handlerWatch.ElapsedMilliseconds);
+                                                 Logger.Write(LogLevel.Warn, () => $" - SLOW ALERT - Executing event {eventType.FullName} on handler {handler.GetType().FullName} took {handlerWatch.ElapsedMilliseconds} ms");
                                              else
-                                                 Logger.WriteFormat(LogLevel.Debug, "Executing event {0} on handler {1} took {2} ms", eventType.FullName, ((object)handler).GetType().FullName, handlerWatch.ElapsedMilliseconds);
+                                                 Logger.Write(LogLevel.Debug, () => $"Executing event {eventType.FullName} on handler {handler.GetType().FullName} took {handlerWatch.ElapsedMilliseconds} ms");
 
                                              handlerSuccess = true;
                                          }
                                          catch (RetryException e)
                                          {
-                                             Logger.WriteFormat(LogLevel.Info, "Received retry signal while dispatching event {0} to {1}. Retry: {2}/3\nException: {3}", eventType.FullName, ((object)handler).GetType().FullName, handlerRetries, e);
+                                             Logger.Write(LogLevel.Info, () => $"Received retry signal while dispatching event {eventType.FullName} to {handler.GetType().FullName}. Retry: {handlerRetries}/3\nException: {e}");
                                              handlerRetries++;
                                          }
 
@@ -257,8 +256,8 @@ namespace Aggregates.Internal
 
                                      if (!handlerSuccess)
                                      {
-                                         Logger.WriteFormat(LogLevel.Error, "Failed executing event {0} on handler {1}", eventType.FullName, ((object)handler).GetType().FullName);
-                                         throw new RetryException(String.Format("Failed executing event {0} on handler {1}", eventType.FullName, handler.FullName));
+                                         Logger.Write(LogLevel.Error, () => $"Failed executing event {eventType.FullName} on handler {handler.GetType().FullName}");
+                                         throw new RetryException($"Failed executing event {eventType.FullName} on handler {handler.GetType().FullName}");
                                      }
                                  }
 
@@ -273,12 +272,12 @@ namespace Aggregates.Internal
                             s.Stop();
                             if (s.ElapsedMilliseconds > _slowAlert)
                             {
-                                Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Processing event {0} took {1} ms\nPayload: {2}", eventType.FullName, s.ElapsedMilliseconds, JsonConvert.SerializeObject(@event, Formatting.Indented).MaxLines(15));
+                                Logger.Write(LogLevel.Warn, () => $" - SLOW ALERT - Processing event {eventType.FullName} took {s.ElapsedMilliseconds} ms\nPayload: {JsonConvert.SerializeObject(@event, Formatting.Indented).MaxLines(15)}");
                                 if (!SlowEventTypes.Contains(eventType.FullName))
                                     SlowEventTypes.Add(eventType.FullName);
                             }
                             else
-                                Logger.WriteFormat(LogLevel.Debug, "Processing event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                                Logger.Write(LogLevel.Debug, () => $"Processing event {eventType.FullName} took {s.ElapsedMilliseconds} ms");
 
 
                             s.Restart();
@@ -297,9 +296,9 @@ namespace Aggregates.Internal
                             }
                             s.Stop();
                             if (s.ElapsedMilliseconds > _slowAlert)
-                                Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                                Logger.Write(LogLevel.Warn, () => $" - SLOW ALERT - UOW.End for event {eventType.FullName} took {s.ElapsedMilliseconds} ms");
                             else
-                                Logger.WriteFormat(LogLevel.Debug, "UOW.End for event {0} took {1} ms", eventType.FullName, s.ElapsedMilliseconds);
+                                Logger.Write(LogLevel.Debug, () => $"UOW.End for event {eventType.FullName} took {s.ElapsedMilliseconds} ms");
 
                         }
                         catch (Exception e)
@@ -325,9 +324,9 @@ namespace Aggregates.Internal
 
                             // Only log if the event has failed more than half max retries indicating a non-transient error
                             if ((_maxRetries != -1 && retry > (_maxRetries / 2)) || (_maxRetries == -1 && (retry % 3) == 0))
-                                Logger.WriteFormat(LogLevel.Warn, "Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, Formatting.Indented).MaxLines(15), e);
+                                Logger.Write(LogLevel.Warn, () => $"Encountered an error while processing {eventType.FullName}. Retry {retry}/{_maxRetries}\nPayload: {JsonConvert.SerializeObject(@event, Formatting.Indented).MaxLines(15)}\nException details:\n{e}");
                             else
-                                Logger.WriteFormat(LogLevel.Debug, "Encountered an error while processing {0}. Retry {1}/{2}\nPayload: {3}\nException details:\n{4}", eventType.FullName, retry, _maxRetries, JsonConvert.SerializeObject(@event, Formatting.Indented).MaxLines(15), e);
+                                Logger.Write(LogLevel.Debug, () => $"Encountered an error while processing {eventType.FullName}. Retry {retry}/{_maxRetries}\nPayload: {JsonConvert.SerializeObject(@event, Formatting.Indented).MaxLines(15)}\nException details:\n{e}");
 
                             _errorsMeter.Mark();
                             retry++;
@@ -353,7 +352,7 @@ namespace Aggregates.Internal
 
                 if (SlowEventTypes.Contains(eventType.FullName) && Defaults.MinimumLogging.Value.HasValue)
                 {
-                    Logger.WriteFormat(LogLevel.Info, "Finished processing event {0} verbosely - resetting log level", eventType.FullName);
+                    Logger.Write(LogLevel.Info, () => $"Finished processing event {eventType.FullName} verbosely - resetting log level");
                     Defaults.MinimumLogging.Value = null;
                     SlowEventTypes.Remove(eventType.FullName);
                 }

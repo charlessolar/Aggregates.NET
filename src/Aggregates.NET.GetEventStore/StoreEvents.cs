@@ -58,7 +58,7 @@ namespace Aggregates
                 if (cached != null)
                 {
                     _hitMeter.Mark();
-                    Logger.WriteFormat(LogLevel.Debug, "Found stream [{0}] bucket [{1}] in cache", streamId, bucket);
+                    Logger.Write(LogLevel.Debug, () => $"Found stream [{streamId}] bucket [{bucket}] in cache");
                     return new Internal.EventStream<T>(cached, Builder, this);
                 }
                 _missMeter.Mark();
@@ -73,16 +73,16 @@ namespace Aggregates
 
             StreamEventsSlice current;
             var sliceStart = start ?? StreamPosition.Start;
-            Logger.WriteFormat(LogLevel.Debug, "Getting events from stream [{0}] in bucket [{1}] for type {2} starting at {3}", streamId, bucket, typeof(T).FullName, sliceStart);
+            Logger.Write(LogLevel.Debug, () => $"Getting events from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} starting at {sliceStart}");
             do
             {
                 current = await _client.ReadStreamEventsForwardAsync(streamName, sliceStart, readSize, false);
-                Logger.WriteFormat(LogLevel.Debug, "Retreived {0} events from position {1}. Status: {4} LastEventNumber: {2} NextEventNumber: {3}", current.Events.Count(), sliceStart, current.LastEventNumber, current.LastEventNumber, current.Status);
+                Logger.Write(LogLevel.Debug, () => $"Retreived {current.Events.Count()} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                 events.AddRange(current.Events);
                 sliceStart = current.NextEventNumber;
             } while (!current.IsEndOfStream);
-            Logger.WriteFormat(LogLevel.Debug, "Finished getting events from stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
+            Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
 
             var translatedEvents = events.Select(e =>
             {
@@ -123,18 +123,18 @@ namespace Aggregates
             var events = new List<ResolvedEvent>();
             StreamEventsSlice current;
             var sliceStart = start ?? StreamPosition.Start;
-            Logger.WriteFormat(LogLevel.Debug, "Getting events from stream [{0}] in bucket [{1}] for type {2} starting at {3}", streamId, bucket, typeof(T).FullName, sliceStart);
+            Logger.Write(LogLevel.Debug, () => $"Getting events from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} starting at {sliceStart}");
             do
             {
                 var take = Math.Min((count ?? Int32.MaxValue) - events.Count, readSize);
                 current = await _client.ReadStreamEventsForwardAsync(streamName, sliceStart, take, false);
-                Logger.WriteFormat(LogLevel.Debug, "Retreived {0} events from position {1}. Status: {4} LastEventNumber: {2} NextEventNumber: {3}", current.Events.Count(), sliceStart, current.LastEventNumber, current.LastEventNumber, current.Status);
+                Logger.Write(LogLevel.Debug, () => $"Retreived {current.Events.Count()} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                 events.AddRange(current.Events);
                 
                 sliceStart = current.NextEventNumber;
             } while (!current.IsEndOfStream);
-            Logger.WriteFormat(LogLevel.Debug, "Finished getting events from stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
+            Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
 
             var translatedEvents = events.Select(e =>
             {
@@ -170,18 +170,18 @@ namespace Aggregates
             StreamEventsSlice current;
             var sliceStart = StreamPosition.End;
 
-            Logger.WriteFormat(LogLevel.Debug, "Getting events backwards from stream [{0}] in bucket [{1}] for type {2} starting at {3}", streamId, bucket, typeof(T).FullName, sliceStart);
+            Logger.Write(LogLevel.Debug, () => $"Getting events backwards from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} starting at {sliceStart}");
             do
             {
                 var take = Math.Min((count ?? Int32.MaxValue) - events.Count, readSize);
                 current = await _client.ReadStreamEventsBackwardAsync(streamName, sliceStart, take, false);
-                Logger.WriteFormat(LogLevel.Debug, "Retreived backwards {0} events from position {1}. Status: {4} LastEventNumber: {2} NextEventNumber: {3}", current.Events.Count(), sliceStart, current.LastEventNumber, current.LastEventNumber, current.Status);
+                Logger.Write(LogLevel.Debug, () => $"Retreived backwards {current.Events.Count()} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                 events.AddRange(current.Events);
 
                 sliceStart = current.NextEventNumber;
             } while (!current.IsEndOfStream);
-            Logger.WriteFormat(LogLevel.Debug, "Finished getting all events backward from stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
+            Logger.Write(LogLevel.Debug, () => $"Finished getting all events backward from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
 
             var translatedEvents = events.Select(e =>
             {
@@ -204,7 +204,7 @@ namespace Aggregates
 
         public async Task AppendEvents<T>(String bucket, String streamId, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders) where T : class, IEventSource
         {
-            Logger.WriteFormat(LogLevel.Debug, "Writing {0} events to stream id [{1}] bucket [{2}] for type {3}.  Expected version: ANY", events.Count(), streamId, bucket, typeof(T).FullName);
+            Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName}.  Expected version: ANY");
             var streamName = _streamGen(typeof(T), bucket, streamId);
 
             if (_shouldCache)
@@ -244,7 +244,7 @@ namespace Aggregates
 
         public async Task WriteEvents<T>(String bucket, String streamId, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders) where T : class, IEventSource
         {
-            Logger.WriteFormat(LogLevel.Debug, "Writing {0} events to stream id [{1}] bucket [{2}] for type {2}.  Expected version: {3}", events.Count(), streamId, bucket, expectedVersion, typeof(T).FullName);
+            Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName}.  Expected version: {expectedVersion}");
             var streamName = _streamGen(typeof(T), bucket, streamId);
 
             if (_shouldCache)

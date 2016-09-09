@@ -14,6 +14,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Extensions;
+using Aggregates.Contracts;
 
 namespace Aggregates.Internal
 {
@@ -37,9 +38,14 @@ namespace Aggregates.Internal
 
         public void Invoke(IncomingContext context, Action next)
         {
+            Invoke(new IncomingContextWrapper(context), next);
+        }
+
+        public void Invoke(IIncomingContextAccessor context, Action next)
+        {
             ActiveSagaInstance saga;
 
-            if (context.TryGet(out saga) && saga.NotFound && saga.SagaType == context.MessageHandler.Instance.GetType())
+            if (context.TryGet(out saga) && saga.NotFound && saga.SagaType == context.MessageHandlerInstance.GetType())
             {
                 next();
                 return;
@@ -49,16 +55,16 @@ namespace Aggregates.Internal
             Task.Run((Func<Task>)(async () =>
             {
                 var s = Stopwatch.StartNew();
-                Logger.WriteFormat(LogLevel.Debug, "Executing command {0} on handler {1}", context.IncomingLogicalMessage.MessageType.FullName, ((object)messageHandler.Handler).GetType().FullName);
+                Logger.Write(LogLevel.Debug, $"Executing command {context.IncomingLogicalMessageMessageType.FullName} on handler {messageHandler.Handler.GetType().FullName}");
 
-                var handleContext = new HandleContext { Bus = _bus, Context = context, Mapper = _mapper };
-                await messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessage.Instance, handleContext);
+                var handleContext = new HandleContext { Bus = _bus, Context = context as IncomingContext, Mapper = _mapper };
+                await messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessageInstance, handleContext);
                 s.Stop();
 
                 if(s.ElapsedMilliseconds > _slowAlert)
-                    Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Executing command {0} on handler {1} took {2} ms", context.IncomingLogicalMessage.MessageType.FullName, ((object)messageHandler.Handler).GetType().FullName, s.ElapsedMilliseconds);
+                    Logger.Write(LogLevel.Warn, () => $" - SLOW ALERT - Executing command {context.IncomingLogicalMessageMessageType.FullName} on handler {messageHandler.Handler.GetType().FullName} took {s.ElapsedMilliseconds} ms");
                 else
-                    Logger.WriteFormat(LogLevel.Debug, "Executing command {0} on handler {1} took {2} ms", context.IncomingLogicalMessage.MessageType.FullName, ((object)messageHandler.Handler).GetType().FullName, s.ElapsedMilliseconds);
+                    Logger.Write(LogLevel.Debug, () => $"Executing command {context.IncomingLogicalMessageMessageType.FullName} on handler {messageHandler.Handler.GetType().FullName} took {s.ElapsedMilliseconds} ms");
                 
             })).Wait();
 

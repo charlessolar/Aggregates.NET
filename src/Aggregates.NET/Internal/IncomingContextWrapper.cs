@@ -10,7 +10,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    public class IncomingContextWrapper : IContextAccessor
+    public class IncomingContextWrapper : IIncomingContextAccessor
     {
         private readonly IncomingContext _context;
 
@@ -82,6 +82,40 @@ namespace Aggregates.Internal
         public void Set<T>(string name, T value)
         {
             _context.Set<T>(name, value);
+        }
+        public void Set<T>(T value)
+        {
+            _context.Set(value);
+        }
+        public T Get<T>(String name)
+        {
+            return _context.Get<T>(name);
+        }
+        public T Get<T>()
+        {
+            return _context.Get<T>();
+        }
+        public Boolean TryGet<T>(String name, out T value)
+        {
+            return _context.TryGet(name, out value);
+        }
+        public Boolean TryGet<T>(out T value)
+        {
+            return _context.TryGet(out value);
+        }
+        public object MessageHandlerInstance
+        {
+            get
+            {
+                return _context.MessageHandler.Instance;
+            }
+        }
+        public Boolean HandlerInvocationAborted
+        {
+            get
+            {
+                return _context.HandlerInvocationAborted;
+            }
         }
     }
 }

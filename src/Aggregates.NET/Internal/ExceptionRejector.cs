@@ -41,7 +41,7 @@ namespace Aggregates.Internal
             Invoke(new IncomingContextWrapper(context), next);
         }
 
-        public void Invoke(IContextAccessor context, Action next)
+        public void Invoke(IIncomingContextAccessor context, Action next)
         {
             var messageId = context.PhysicalMessageId;
             try
@@ -53,7 +53,7 @@ namespace Aggregates.Internal
                 }
 
                 next();
-                _retryRegistry.Remove(context.PhysicalMessageId);
+                _retryRegistry.Remove(messageId);
             }
             catch (Exception e)
             {
@@ -80,17 +80,20 @@ namespace Aggregates.Internal
 
                 // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth
                 if (context.PhysicalMessageMessageIntent != MessageIntentEnum.Send) return;
+
+                // Tell the sender the command was not handled due to a service exception
+                var rejection = context.Builder.Build<Func<Exception, String, Error>>();
                 try
                 {
                     Logger.WriteFormat(LogLevel.Error, "Message {2} type [{0}] has faulted!\nHeaders: {3}\nPayload: {4}\nException: {1}", context.IncomingLogicalMessageMessageType.FullName, e, context.PhysicalMessageId, JsonConvert.SerializeObject(context.PhysicalMessageHeaders), JsonConvert.SerializeObject(context.IncomingLogicalMessageInstance));
-                    // Tell the sender the command was not handled due to a service exception
-                    var rejection = context.Builder.Build<Func<Exception, String, Error>>();
+                    
                     // Wrap exception in our object which is serializable
                     _bus.Reply(rejection(e, $"Rejected message {context.IncomingLogicalMessageMessageType.FullName}\n Payload: {JsonConvert.SerializeObject(context.IncomingLogicalMessageInstance)}"));
                 }
                 catch (KeyNotFoundException)
                 {
                     Logger.WriteFormat(LogLevel.Error, "Message {1} type [Unknown] has faulted!\nHeaders: {2}\nException: {0}", e, context.PhysicalMessageId, JsonConvert.SerializeObject(context.PhysicalMessageHeaders));
+                    _bus.Reply(rejection(e, $"Rejected message [Unknown]\n Payload: {JsonConvert.SerializeObject(context.IncomingLogicalMessageInstance)}"));
                 }
             }
 

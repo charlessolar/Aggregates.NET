@@ -66,10 +66,11 @@
     <Compile Include="Attributes\ParallelAttribute.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="Contracts\ICommandMutator.cs" />
-    <Compile Include="Contracts\IContextAccessor.cs" />
+    <Compile Include="Contracts\IIncomingContextAccessor.cs" />
     <Compile Include="Contracts\IEventDescriptor.cs" />
     <Compile Include="Contracts\IEventMutator.cs" />
     <Compile Include="Contracts\IInvokeObjects.cs" />
+    <Compile Include="Contracts\IOutgoingContextAccessor.cs" />
     <Compile Include="Contracts\IWritableEvent.cs" />
     <Compile Include="Defaults.cs" />
     <Compile Include="Enumeration.cs" />
@@ -100,6 +101,7 @@
     <Compile Include="Internal\EventDescriptor.cs" />
     <Compile Include="Internal\IncomingContextWrapper.cs" />
     <Compile Include="Internal\MutateOutgoingCommands.cs" />
+    <Compile Include="Internal\OutgoingContextWrapper.cs" />
     <Compile Include="Internal\WritableEvent.cs" />
     <Compile Include="Messages\Accept.cs" />
     <Compile Include="Messages\Error.cs" />

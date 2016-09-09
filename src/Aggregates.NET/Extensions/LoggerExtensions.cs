@@ -57,5 +57,29 @@ namespace Aggregates.Extensions
                     break;
             }
         }
+        public static void Write(this ILog Logger, LogLevel Level, Func<String> Message)
+        {
+            if (Defaults.MinimumLogging.Value.HasValue)
+                Level = Level < Defaults.MinimumLogging.Value ? Defaults.MinimumLogging.Value.Value : Level;
+            
+            switch (Level)
+            {
+                case LogLevel.Debug:
+                    Logger.Debug(Message());
+                    break;
+                case LogLevel.Info:
+                    Logger.Info(Message());
+                    break;
+                case LogLevel.Warn:
+                    Logger.Warn(Message());
+                    break;
+                case LogLevel.Error:
+                    Logger.Error(Message());
+                    break;
+                case LogLevel.Fatal:
+                    Logger.Fatal(Message());
+                    break;
+            }
+        }
     }
 }

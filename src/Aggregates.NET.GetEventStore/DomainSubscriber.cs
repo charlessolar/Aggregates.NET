@@ -48,7 +48,7 @@ namespace Aggregates
         public void SubscribeToAll(String endpoint)
         {
             var readSize = _settings.Get<Int32>("ReadSize");
-            Logger.WriteFormat(LogLevel.Info, "Endpoint '{0}' subscribing to all events from END", endpoint);
+            Logger.Write(LogLevel.Info, () => $"Endpoint '{endpoint}' subscribing to all events from END");
 
             var settings = new CatchUpSubscriptionSettings(readSize * readSize, readSize, false, false);
             _client.SubscribeToAllFrom(Position.End, settings, (subscription, e) =>
@@ -89,7 +89,7 @@ namespace Aggregates
                 ProcessingLive = true;
             }, subscriptionDropped: (_, reason, e) =>
             {
-                Logger.WriteFormat(LogLevel.Warn, "Subscription dropped for reason: {0}.  Exception: {1}", reason, e);
+                Logger.Write(LogLevel.Warn,  () => $"Subscription dropped for reason: {reason}.  Exception: {e}");
                 ProcessingLive = false;
                 if (Dropped != null)
                     Dropped.Invoke(reason.ToString(), e);

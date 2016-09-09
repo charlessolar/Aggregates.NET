@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface IContextAccessor
+    public interface IIncomingContextAccessor
     {
         String PhysicalMessageId { get; }
         byte[] PhysicalMessageBody { get; }
@@ -17,6 +17,15 @@ namespace Aggregates.Contracts
         void SetPhysicalMessageHeader(String key, String value);
         IDictionary<String, String> PhysicalMessageHeaders { get; }
         void Set<T>(String name, T value);
+        void Set<T>(T value);
+        T Get<T>(String name);
+        T Get<T>();
+        Boolean TryGet<T>(String name, out T value);
+        Boolean TryGet<T>(out T value);
+
+        object MessageHandlerInstance { get; }
+
+        Boolean HandlerInvocationAborted { get; }
 
         object IncomingLogicalMessageInstance { get; }
         Type IncomingLogicalMessageMessageType { get; }

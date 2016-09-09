@@ -59,7 +59,7 @@ namespace Aggregates.Internal
 
                 if (stream.StreamVersion != stream.CommitVersion && tracked is ISnapshotting && (tracked as ISnapshotting).ShouldTakeSnapshot())
                 {
-                    Logger.WriteFormat(LogLevel.Debug, "Taking snapshot of {0} id [{1}] version {2}", tracked.GetType().FullName, tracked.StreamId, tracked.Version);
+                    Logger.Write(LogLevel.Debug, () => $"Taking snapshot of {tracked.GetType().FullName} id [{tracked.StreamId}] version {tracked.Version}");
                     var memento = (tracked as ISnapshotting).TakeSnapshot();
                     stream.AddSnapshot(memento, headers);
                 }
@@ -123,10 +123,10 @@ namespace Aggregates.Internal
         private async Task<IEventStream> ResolveConflict(IEventStream stream)
         {
             var uncommitted = stream.Uncommitted;
-            Logger.WriteFormat(LogLevel.Debug, "Resolving - getting stream {0} bucket {1} from store", stream.StreamId, stream.Bucket);
+            Logger.Write(LogLevel.Debug, () => $"Resolving - getting stream {stream.StreamId} bucket {stream.Bucket} from store");
             // Get latest stream from store
             var existing = await GetUntracked(stream.Bucket, stream.StreamId);
-            Logger.WriteFormat(LogLevel.Debug, "Resolving - got stream version {0} from store, hydrating {1} uncomitted events", existing.Version, stream.Uncommitted.Count());
+            Logger.Write(LogLevel.Debug, () => $"Resolving - got stream version {existing.Version} from store, hydrating {stream.Uncommitted.Count()} uncomitted events");
             // Hydrate the uncommitted events
             existing.Hydrate(uncommitted);
             Logger.WriteFormat(LogLevel.Debug, "Resolving - successfully hydrated");
@@ -178,7 +178,7 @@ namespace Aggregates.Internal
 
         public async Task<T> Get<TId>(String bucket, TId id)
         {
-            Logger.WriteFormat(LogLevel.Debug, "Retreiving aggregate id [{0}] in bucket [{1}] for type {2} in store", id, bucket, typeof(T).FullName);
+            Logger.Write(LogLevel.Debug, () => $"Retreiving aggregate id [{id}] in bucket [{bucket}] for type {typeof(T).FullName} in store");
             var root = await Get(bucket, id.ToString());
             (root as IEventSource<TId>).Id = id;
             return root;
@@ -210,7 +210,7 @@ namespace Aggregates.Internal
 
             if (snapshot != null && root is ISnapshotting)
             {
-                Logger.WriteFormat(LogLevel.Debug, "Restoring snapshot version {0} to stream id [{1}] bucket [{2}] version {3}", snapshot.Version, streamId, bucket, stream.StreamVersion);
+                Logger.Write(LogLevel.Debug, () => $"Restoring snapshot version {snapshot.Version} to stream id [{streamId}] bucket [{bucket}] version {stream.StreamVersion}");
                 ((ISnapshotting)root).RestoreSnapshot(snapshot.Payload);
             }
 
@@ -233,7 +233,7 @@ namespace Aggregates.Internal
         }
         public async Task<T> New(String bucket, String streamId)
         {
-            Logger.WriteFormat(LogLevel.Debug, "Creating new stream id [{0}] in bucket [{1}] for type {2} in store", streamId, bucket, typeof(T).FullName);
+            Logger.Write(LogLevel.Debug, () => $"Creating new stream id [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} in store");
             var stream = await OpenStream(bucket, streamId);
             var root = Newup(stream, _builder);
 

@@ -39,7 +39,7 @@ namespace Aggregates.Extensions
                 }
             });
         }
-        
+
 
         public static Task Command(this IBus bus, ICommand command)
         {

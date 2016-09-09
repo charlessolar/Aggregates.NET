@@ -117,7 +117,7 @@ namespace Aggregates.Internal
             if (mutators != null && mutators.Any())
                 foreach (var mutate in mutators)
                 {
-                    Logger.WriteFormat(LogLevel.Debug, "Mutating outgoing event {0} with mutator {1}", @event.GetType().FullName, mutate.GetType().FullName);
+                    Logger.Write(LogLevel.Debug, () => $"Mutating outgoing event {@event.GetType().FullName} with mutator {mutate.GetType().FullName}");
                     writable = mutate.MutateOutgoing(writable);
                 }
             return writable;
@@ -148,7 +148,7 @@ namespace Aggregates.Internal
 
         public async Task Commit(Guid commitId, IDictionary<String, String> commitHeaders)
         {
-            Logger.WriteFormat(LogLevel.Debug, "Event stream [{0}] in bucket [{1}] for type {2} commiting {3} events", this.StreamId, this.Bucket, typeof(T).FullName, this.Uncommitted.Count());
+            Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] in bucket [{this.Bucket}] for type {typeof(T).FullName} commiting {this.Uncommitted.Count()} events");
 
 
             if (commitHeaders == null)
@@ -173,25 +173,25 @@ namespace Aggregates.Internal
                     if (oldCommits.Any(x => x == commitId))
                         throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
 
-                    Logger.WriteFormat(LogLevel.Debug, "Event stream {0} committing {1} events", this.StreamId, _uncommitted.Count);
+                    Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] committing {_uncommitted.Count} events");
                     await _store.WriteEvents<T>(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
                     this._uncommitted.Clear();
                 }
                 if (_pendingShots.Any())
                 {
-                    Logger.WriteFormat(LogLevel.Debug, "Event stream {0} committing {1} snapshots", this.StreamId, _pendingShots.Count);
+                    Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] committing {_pendingShots.Count} snapshots");
                     await _snapshots.WriteSnapshots<T>(this.Bucket, this.StreamId, _pendingShots, commitHeaders);
                     this._pendingShots.Clear();
                 }
                 if (_outofband.Any())
                 {
                     if (!oobPublishers.Any())
-                        Logger.WriteFormat(LogLevel.Warn, "OOB events were used on stream {0} but no publishers have been defined!");
+                        Logger.Write(LogLevel.Warn, () => $"OOB events were used on stream [{this.StreamId}] but no publishers have been defined!");
                     else
                     {
                         foreach( var oob in oobPublishers)
                         {
-                            Logger.WriteFormat(LogLevel.Debug, "Event stream {0} publishing {1} out of band events to {2}", this.StreamId, _pendingShots.Count, oob.GetType().Name);
+                            Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] publishing {_pendingShots.Count} out of band events to {oob.GetType().Name}");
                             await oob.Publish<T>(this.Bucket, this.StreamId, _outofband, commitHeaders);
                         }
                     }

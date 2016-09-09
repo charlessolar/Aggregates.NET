@@ -39,7 +39,7 @@ namespace Aggregates
 
         public async Task<ISnapshot> GetSnapshot<T>(String bucket, String streamId) where T : class, IEventSource
         {
-            Logger.WriteFormat(LogLevel.Debug, "Getting snapshot for stream [{0}] in bucket [{1}] for type {2}", streamId, bucket, typeof(T).FullName);
+            Logger.Write(LogLevel.Debug, () => $"Getting snapshot for stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
 
             var streamName = $"{_streamGen(typeof(T), bucket, streamId)}.snapshots";
 
@@ -76,7 +76,7 @@ namespace Aggregates
 
         public async Task WriteSnapshots<T>(String bucket, String streamId, IEnumerable<ISnapshot> snapshots, IDictionary<String, String> commitHeaders) where T : class, IEventSource
         {
-            Logger.WriteFormat(LogLevel.Debug, "Writing {0} snapshots to stream id [{1}] in bucket [{2}] for type {2}", snapshots.Count(), streamId, bucket, typeof(T).FullName);
+            Logger.Write(LogLevel.Debug, () => $"Writing {snapshots.Count()} snapshots to stream id [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
             var streamName = $"{_streamGen(typeof(T), bucket, streamId)}.snapshots";
 
             if (_shouldCache)

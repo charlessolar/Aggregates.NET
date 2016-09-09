@@ -52,7 +52,7 @@ namespace Aggregates.Internal
 
         public override async Task<T> Get<TId>(TId id)
         {
-            Logger.WriteFormat(LogLevel.Debug, "Retreiving entity id [{0}] from parent {2} [{1}] in store", id, _parent.StreamId, typeof(TParent).FullName);
+            Logger.Write(LogLevel.Debug, () => $"Retreiving entity id [{id}] from parent {_parent.StreamId} [{typeof(TParent).FullName}] in store");
 
             var entity = await Get(_parent.Bucket, id);
             (entity as IEventSource<TId>).Id = id;

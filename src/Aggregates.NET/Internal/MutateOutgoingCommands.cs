@@ -26,21 +26,25 @@ namespace Aggregates.Internal
             _bus = bus;
         }
 
-
         public void Invoke(OutgoingContext context, Action next)
         {
-            if (context.OutgoingLogicalMessage.Instance is ICommand)
-            {
+            Invoke(new OutgoingContextWrapper(context), next);
+        }
 
+
+        public void Invoke(IOutgoingContextAccessor context, Action next)
+        {
+            if (context.OutgoingLogicalMessageInstance is ICommand)
+            {
                 var mutators = context.Builder.BuildAll<ICommandMutator>();
-                var mutated = context.OutgoingLogicalMessage.Instance as ICommand;
+                var mutated = context.OutgoingLogicalMessageInstance as ICommand;
                 if (mutators != null && mutators.Any())
                     foreach (var mutator in mutators)
                     {
-                        Logger.WriteFormat(LogLevel.Debug, "Mutating outgoing command {0} with mutator {1}", context.OutgoingLogicalMessage.MessageType.FullName, mutator.GetType().FullName);
+                        Logger.Write(LogLevel.Debug, () => $"Mutating outgoing command {context.OutgoingLogicalMessageMessageType.FullName} with mutator {mutator.GetType().FullName}");
                         mutated = mutator.MutateOutgoing(mutated);
                     }
-                context.OutgoingLogicalMessage.UpdateMessageInstance(mutated);
+                context.UpdateMessageInstance(mutated);
             }
 
             next();

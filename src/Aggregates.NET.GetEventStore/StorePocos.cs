@@ -43,7 +43,7 @@ namespace Aggregates
 
         public async Task<T> Get<T>(String bucket, String stream) where T : class
         {
-            Logger.WriteFormat(LogLevel.Debug, "Getting stream [{0}] in bucket [{1}]", stream, bucket);
+            Logger.Write(LogLevel.Debug, () => $"Getting stream [{stream}] in bucket [{bucket}]");
 
             var streamId = String.Format("{0}.POCO.{1}", bucket, stream);
 
@@ -53,7 +53,7 @@ namespace Aggregates
                 if (cached != null)
                 {
                     _hitMeter.Mark();
-                    Logger.WriteFormat(LogLevel.Debug, "Found stream [{0}] bucket [{1}] in cache", stream, bucket);
+                    Logger.Write(LogLevel.Debug, () => $"Found stream [{stream}] bucket [{bucket}] in cache");
                     // An easy way to make a deep copy
                     return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(cached));
                 }
@@ -75,7 +75,7 @@ namespace Aggregates
         }
         public async Task Write<T>(T poco, String bucket, String stream, IDictionary<String, String> commitHeaders)
         {
-            Logger.WriteFormat(LogLevel.Debug, "Writing poco to stream id [{0}] in bucket [{1}]", stream, bucket);
+            Logger.Write(LogLevel.Debug, () => $"Writing poco to stream id [{stream}] in bucket [{bucket}]");
             var streamId = String.Format("{0}.POCO.{1}", bucket, stream);
 
             if (_shouldCache)

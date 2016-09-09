@@ -45,7 +45,7 @@ namespace Aggregates.Internal
                 // Todo: break out timing of commands into a different pipeline step I think
                 if (SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
                 {
-                    Logger.WriteFormat(LogLevel.Info, "Command {0} was previously detected as slow, switching to more verbose logging (for this instance)\nPayload: {1}", context.IncomingLogicalMessage.MessageType.FullName, JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance, Formatting.Indented).MaxLines(15));
+                    Logger.Write(LogLevel.Info, () => $"Command {context.IncomingLogicalMessage.MessageType.FullName} was previously detected as slow, switching to more verbose logging (for this instance)\nPayload: {JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance, Formatting.Indented).MaxLines(15)}");
                     Defaults.MinimumLogging.Value = LogLevel.Info;
                 }
             }
@@ -77,12 +77,12 @@ namespace Aggregates.Internal
                     s.Stop();
                     if (s.ElapsedMilliseconds > _slowAlert)
                     {
-                        Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - Processing command {0} took {1} ms\nPayload: {2}", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds, JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance, Formatting.Indented).MaxLines(15));
+                        Logger.Write(LogLevel.Warn, () => $" - SLOW ALERT - Processing command {context.IncomingLogicalMessage.MessageType.FullName} took {s.ElapsedMilliseconds} ms\nPayload: {JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance, Formatting.Indented).MaxLines(15)}");
                         if (!SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
                             SlowEventTypes.Add(context.IncomingLogicalMessage.MessageType.FullName);
                     }
                     else
-                        Logger.WriteFormat(LogLevel.Debug, "Processing command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                        Logger.Write(LogLevel.Debug, () => $"Processing command {context.IncomingLogicalMessage.MessageType.FullName} took {s.ElapsedMilliseconds} ms");
                 
                     s.Restart();
                     foreach (var uow in uows.Generate())
@@ -100,9 +100,9 @@ namespace Aggregates.Internal
                     }
                     s.Stop();
                     if (s.ElapsedMilliseconds > _slowAlert)
-                        Logger.WriteFormat(LogLevel.Warn, " - SLOW ALERT - UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                        Logger.Write(LogLevel.Warn, () => $" - SLOW ALERT - UOW.End for command {context.IncomingLogicalMessage.MessageType.FullName} took {s.ElapsedMilliseconds} ms");
                     else
-                        Logger.WriteFormat(LogLevel.Debug, "UOW.End for command {0} took {1} ms", context.IncomingLogicalMessage.MessageType.FullName, s.ElapsedMilliseconds);
+                        Logger.Write(LogLevel.Debug, () => $"UOW.End for command {context.IncomingLogicalMessage.MessageType.FullName} took {s.ElapsedMilliseconds} ms");
                     
                 }
 
@@ -139,7 +139,7 @@ namespace Aggregates.Internal
                 {
                     if (SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName) && Defaults.MinimumLogging.Value.HasValue)
                     {
-                        Logger.WriteFormat(LogLevel.Info, "Finished processing command {0} verbosely - resetting log level", context.IncomingLogicalMessage.MessageType.FullName);
+                        Logger.Write(LogLevel.Info, () => $"Finished processing command {context.IncomingLogicalMessage.MessageType.FullName} verbosely - resetting log level");
                         Defaults.MinimumLogging.Value = null;
                         SlowEventTypes.Remove(context.IncomingLogicalMessage.MessageType.FullName);
                     }
