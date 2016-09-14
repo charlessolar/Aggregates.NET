@@ -34,7 +34,7 @@ namespace Aggregates.Internal
         }
         public IEnumerable<IWritableEvent> Uncommitted
         {
-             get
+            get
             {
                 return this._uncommitted.Concat(this._outofband);
             }
@@ -61,7 +61,7 @@ namespace Aggregates.Internal
             this._uncommitted = new List<IWritableEvent>();
             this._outofband = new List<IWritableEvent>();
             this._pendingShots = new List<ISnapshot>();
-            
+
         }
 
         // Special constructor for building from a cached instance
@@ -77,7 +77,7 @@ namespace Aggregates.Internal
             this._uncommitted = new List<IWritableEvent>();
             this._outofband = new List<IWritableEvent>();
             this._pendingShots = new List<ISnapshot>();
-            
+
         }
 
         public IEventStream Clone()
@@ -156,7 +156,7 @@ namespace Aggregates.Internal
 
             commitHeaders[CommitHeader] = commitId.ToString();
 
-            var oobPublishers = this._builder.BuildAll<IOOBPublisher>();
+            var oobPublisher = this._builder.Build<IOOBPublisher>();
 
             try
             {
@@ -185,15 +185,13 @@ namespace Aggregates.Internal
                 }
                 if (_outofband.Any())
                 {
-                    if (!oobPublishers.Any())
+                    if (oobPublisher == null)
                         Logger.Write(LogLevel.Warn, () => $"OOB events were used on stream [{this.StreamId}] but no publishers have been defined!");
                     else
                     {
-                        foreach( var oob in oobPublishers)
-                        {
-                            Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] publishing {_pendingShots.Count} out of band events to {oob.GetType().Name}");
-                            await oob.Publish<T>(this.Bucket, this.StreamId, _outofband, commitHeaders);
-                        }
+                        Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] publishing {_pendingShots.Count} out of band events to {oobPublisher.GetType().Name}");
+                        await oobPublisher.Publish<T>(this.Bucket, this.StreamId, _outofband, commitHeaders);
+
                     }
                     this._outofband.Clear();
                 }
