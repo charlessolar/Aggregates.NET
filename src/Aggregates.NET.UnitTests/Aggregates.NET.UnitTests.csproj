@@ -70,6 +70,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="Common\Enumeration.cs" />
     <Compile Include="Common\Internal\AsyncronizedInvoke.cs" />
     <Compile Include="Common\Internal\AsyncronizedLoad.cs" />
     <Compile Include="Common\Internal\DefaultInvokeObjects.cs" />
@@ -101,7 +102,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Consumer\" />
+    <Folder Include="Consumer\Internal\" />
     <Folder Include="Domain\" />
     <Folder Include="GetEventStore\" />
   </ItemGroup>

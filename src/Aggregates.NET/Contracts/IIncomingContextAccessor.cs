@@ -30,6 +30,9 @@ namespace Aggregates.Contracts
         object IncomingLogicalMessageInstance { get; }
         Type IncomingLogicalMessageMessageType { get; }
 
+        Address PhysicalMessageReplyToAddress { get; }
+        String PhysicalMessageCorrelationId { get; }
+
         IBuilder Builder { get; }
     }
 }

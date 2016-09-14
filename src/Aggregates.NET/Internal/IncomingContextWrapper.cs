@@ -50,6 +50,27 @@ namespace Aggregates.Internal
                 return _context.PhysicalMessage.Body;
             }
         }
+        public Address PhysicalMessageReplyToAddress
+        {
+            get
+            {
+                return _context.PhysicalMessage.ReplyToAddress;
+            }
+        }
+        public String PhysicalMessageCorrelationId
+        {
+            get
+            {
+                return _context.PhysicalMessage.CorrelationId;
+            }
+        }
+        public String PhysicalMessageId
+        {
+            get
+            {
+                return _context.PhysicalMessage.Id;
+            }
+        }
 
         public void SetPhysicalMessageHeader(String key, String value)
         {

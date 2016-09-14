@@ -85,7 +85,7 @@ namespace Aggregates
 
         public override bool Equals(object obj)
         {
-            if (obj == null) return false;
+            if (obj == null || (obj as TEnumeration) == null) return false;
             return Equals(obj as TEnumeration);
         }
 

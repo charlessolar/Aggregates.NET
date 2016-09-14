@@ -130,15 +130,13 @@ namespace Aggregates.Extensions
 
         public static void ReplyAsync(this IHandleContext context, object message)
         {
-            var incoming = context.Context.PhysicalMessage;
             context.Bus.SetMessageHeader(message, "$.Aggregates.Replying", "1");
-            var replyTo = incoming.ReplyToAddress.ToString();
+            var replyTo = context.Context.PhysicalMessageReplyToAddress.ToString();
             // Special case if using RabbitMq - replies need to be sent to the CallbackQueue NOT the primary queue
-            if (context.Context.PhysicalMessage.Headers.ContainsKey("NServiceBus.RabbitMQ.CallbackQueue"))
-                replyTo = context.Context.PhysicalMessage.Headers["NServiceBus.RabbitMQ.CallbackQueue"];
+            if (context.Context.PhysicalMessageHeaders.ContainsKey("NServiceBus.RabbitMQ.CallbackQueue"))
+                replyTo = context.Context.PhysicalMessageHeaders["NServiceBus.RabbitMQ.CallbackQueue"];
 
-
-            context.Bus.Send(Address.Parse(replyTo), String.IsNullOrEmpty(incoming.CorrelationId) ? incoming.Id : incoming.CorrelationId, message);
+            context.Bus.Send(Address.Parse(replyTo), String.IsNullOrEmpty(context.Context.PhysicalMessageCorrelationId) ? context.Context.PhysicalMessageId : context.Context.PhysicalMessageCorrelationId, message);
         }
         public static void ReplyAsync<T>(this IHandleContext context, Action<T> message)
         {

@@ -13,7 +13,7 @@ namespace Aggregates.Internal
     public class HandleContext : IHandleContext
     {
         public IEventDescriptor EventDescriptor { get; set; }
-        public IncomingContext Context { get; set; }
+        public IIncomingContextAccessor Context { get; set; }
         public IBus Bus { get; set; }
         public IMessageMapper Mapper { get; set; }
     }

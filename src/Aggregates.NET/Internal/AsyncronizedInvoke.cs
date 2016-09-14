@@ -57,7 +57,7 @@ namespace Aggregates.Internal
                 var s = Stopwatch.StartNew();
                 Logger.Write(LogLevel.Debug, $"Executing command {context.IncomingLogicalMessageMessageType.FullName} on handler {messageHandler.Handler.GetType().FullName}");
 
-                var handleContext = new HandleContext { Bus = _bus, Context = context as IncomingContext, Mapper = _mapper };
+                var handleContext = new HandleContext { Bus = _bus, Context = context, Mapper = _mapper };
                 await messageHandler.Invocation(messageHandler.Handler, context.IncomingLogicalMessageInstance, handleContext);
                 s.Stop();
 

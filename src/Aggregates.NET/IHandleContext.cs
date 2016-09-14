@@ -13,7 +13,7 @@ namespace Aggregates
     public interface IHandleContext
     {
         IEventDescriptor EventDescriptor { get; set; }
-        IncomingContext Context { get; set; }
+        IIncomingContextAccessor Context { get; set; }
         IBus Bus { get; set; }
         // Need this for ReplyAsync - grumble grumble
         IMessageMapper Mapper { get; set; }
