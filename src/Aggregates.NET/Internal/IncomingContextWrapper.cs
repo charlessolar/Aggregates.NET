@@ -83,14 +83,7 @@ namespace Aggregates.Internal
                 return _context.PhysicalMessage.Headers;
             }
         }
-
-        public string PhysicalMessageId
-        {
-            get
-            {
-                return _context.PhysicalMessage.Id;
-            }
-        }
+       
 
         public MessageIntentEnum PhysicalMessageMessageIntent
         {
