@@ -49,5 +49,10 @@ namespace Aggregates.Internal
 
             return Task.FromResult(0);
         }
+
+        public Task<IEnumerable<IWritableEvent>> Retrieve<T>(String Bucket, String StreamId, Int32 Skip = 0, Int32 Take = -1) where T : class, IEventSource
+        {
+            throw new NotImplementedException("Method is not supported in NSB publisher");
+        }
     }
 }

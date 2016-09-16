@@ -21,5 +21,9 @@ namespace Aggregates.Internal
         {
             await _store.AppendEvents<T>(Bucket + ".OOB", StreamId, Events, commitHeaders);
         }
+        public Task<IEnumerable<IWritableEvent>> Retrieve<T>(String Bucket, String StreamId, Int32 Skip = 0, Int32 Take = -1) where T : class, IEventSource
+        {
+            return _store.GetEvents<T>(Bucket, StreamId, Skip, Take);
+        }
     }
 }
