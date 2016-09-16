@@ -42,6 +42,7 @@ namespace Aggregates.Internal
 
         private readonly IStoreEvents _store;
         private readonly IStoreSnapshots _snapshots;
+        private readonly IOOBHandler _oobHandler;
         private readonly IBuilder _builder;
         private readonly Int32 _streamVersion;
         private IEnumerable<IWritableEvent> _committed;
@@ -53,6 +54,7 @@ namespace Aggregates.Internal
         {
             this._store = store;
             this._snapshots = builder?.Build<IStoreSnapshots>();
+            this._oobHandler = builder?.Build<IOOBHandler>();
             this._builder = builder;
             this.Bucket = bucket;
             this.StreamId = streamId;
@@ -69,6 +71,7 @@ namespace Aggregates.Internal
         {
             this._store = store;
             this._snapshots = builder.Build<IStoreSnapshots>();
+            this._oobHandler = builder.Build<IOOBHandler>();
             this._builder = builder;
             this.Bucket = clone.Bucket;
             this.StreamId = clone.StreamId;
@@ -92,9 +95,7 @@ namespace Aggregates.Internal
         }
         public Task<IEnumerable<IWritableEvent>> OOBEvents(Boolean? backwards)
         {
-            if (backwards == true)
-                return _store.GetEventsBackwards<T>(this.Bucket + ".OOB", this.StreamId);
-            return _store.GetEvents<T>(this.Bucket + ".OOB", this.StreamId);
+            return _oobHandler.Retrieve<T>(this.Bucket, this.StreamId, Ascending: !(backwards ?? false));
         }
 
         private IWritableEvent makeWritableEvent(IEvent @event, IDictionary<String, String> headers, Boolean version = true)
@@ -155,9 +156,7 @@ namespace Aggregates.Internal
                 commitHeaders = new Dictionary<String, String>();
 
             commitHeaders[CommitHeader] = commitId.ToString();
-
-            var oobPublisher = this._builder.Build<IOOBPublisher>();
-
+            
             try
             {
                 if (_uncommitted.Any())
@@ -185,12 +184,12 @@ namespace Aggregates.Internal
                 }
                 if (_outofband.Any())
                 {
-                    if (oobPublisher == null)
+                    if (_oobHandler == null)
                         Logger.Write(LogLevel.Warn, () => $"OOB events were used on stream [{this.StreamId}] but no publishers have been defined!");
                     else
                     {
-                        Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] publishing {_pendingShots.Count} out of band events to {oobPublisher.GetType().Name}");
-                        await oobPublisher.Publish<T>(this.Bucket, this.StreamId, _outofband, commitHeaders);
+                        Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] publishing {_outofband.Count} out of band events to {_oobHandler.GetType().Name}");
+                        await _oobHandler.Publish<T>(this.Bucket, this.StreamId, _outofband, commitHeaders);
 
                     }
                     this._outofband.Clear();

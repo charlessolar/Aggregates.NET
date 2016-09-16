@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public class DefaultOOBPublisher : IOOBPublisher
+    public class DefaultOOBHandler : IOOBHandler
     {
         private readonly IStoreEvents _store;
 
-        public DefaultOOBPublisher(IStoreEvents store)
+        public DefaultOOBHandler(IStoreEvents store)
         {
             _store = store;
         }
@@ -21,9 +21,11 @@ namespace Aggregates.Internal
         {
             await _store.AppendEvents<T>(Bucket + ".OOB", StreamId, Events, commitHeaders);
         }
-        public Task<IEnumerable<IWritableEvent>> Retrieve<T>(String Bucket, String StreamId, Int32 Skip = 0, Int32 Take = -1) where T : class, IEventSource
+        public Task<IEnumerable<IWritableEvent>> Retrieve<T>(String Bucket, String StreamId, Int32 Skip = 0, Int32 Take = -1, Boolean Ascending = true) where T : class, IEventSource
         {
-            return _store.GetEvents<T>(Bucket, StreamId, Skip, Take);
+            if(!Ascending)
+                return _store.GetEventsBackwards<T>(Bucket + ".OOB", StreamId);
+            return _store.GetEvents<T>(Bucket + ".OOB", StreamId);
         }
     }
 }

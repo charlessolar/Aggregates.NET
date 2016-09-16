@@ -67,7 +67,7 @@
     <Compile Include="Contracts\IEventStream.cs" />
     <Compile Include="Contracts\IHaveEntities.cs" />
     <Compile Include="Contracts\INeedProcessor.cs" />
-    <Compile Include="Contracts\IOOBPublisher.cs" />
+    <Compile Include="Contracts\IOOBHandler.cs" />
     <Compile Include="Contracts\IPocoRepository.cs" />
     <Compile Include="Contracts\IStorePocos.cs" />
     <Compile Include="Contracts\IStreamCache.cs" />
@@ -78,10 +78,10 @@
     <Compile Include="IBase.cs" />
     <Compile Include="Internal\Base.cs" />
     <Compile Include="Internal\CommandUnitOfWork.cs" />
-    <Compile Include="Internal\DefaultOOBPublisher.cs" />
+    <Compile Include="Internal\DefaultOOBHandler.cs" />
     <Compile Include="Internal\MemoryStreamCache.cs" />
     <Compile Include="Internal\MutateIncomingCommands.cs" />
-    <Compile Include="Internal\NSBOOBPublisher.cs" />
+    <Compile Include="Internal\NSBOOBHandler.cs" />
     <Compile Include="Internal\PocoRepository.cs" />
     <Compile Include="Internal\Processor.cs" />
     <Compile Include="IQuery.cs" />

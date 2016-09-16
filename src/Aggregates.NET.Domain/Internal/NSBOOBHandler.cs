@@ -8,11 +8,11 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public class NSBOOBPublisher : IOOBPublisher
+    public class NSBOOBHandler : IOOBHandler
     {
         private readonly IBus _bus;
 
-        public NSBOOBPublisher(IBus bus)
+        public NSBOOBHandler(IBus bus)
         {
             _bus = bus;
         }
@@ -49,10 +49,9 @@ namespace Aggregates.Internal
 
             return Task.FromResult(0);
         }
-
-        public Task<IEnumerable<IWritableEvent>> Retrieve<T>(String Bucket, String StreamId, Int32 Skip = 0, Int32 Take = -1) where T : class, IEventSource
+        public Task<IEnumerable<IWritableEvent>> Retrieve<T>(String Bucket, String StreamId, Int32 Skip = 0, Int32 Take = -1, Boolean Ascending = true) where T : class, IEventSource
         {
-            throw new NotImplementedException("Method is not supported in NSB publisher");
+            throw new NotImplementedException("NSB OOB handler does not support retrieving OOB events");
         }
     }
 }
