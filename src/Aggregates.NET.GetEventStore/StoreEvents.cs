@@ -154,7 +154,7 @@ namespace Aggregates
 
             return translatedEvents;
         }
-        public async Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(String bucket, String streamId, Int32? count = null) where T : class, IEventSource
+        public async Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(String bucket, String streamId, Int32? start = null, Int32? count = null) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
             var readSize = _nsbSettings.Get<Int32>("ReadSize");
@@ -169,6 +169,14 @@ namespace Aggregates
             var events = new List<ResolvedEvent>();
             StreamEventsSlice current;
             var sliceStart = StreamPosition.End;
+
+            if (start.HasValue)
+            {
+                // Interesting, ReadStreamEventsBackwardAsync's [start] parameter marks start from begining of stream, not an offset from the end.
+                // Read 1 event from the end, to figure out where start should be
+                var result = await _client.ReadStreamEventsBackwardAsync(streamName, StreamPosition.End, 1, false);
+                sliceStart = result.NextEventNumber - start.Value;
+            }
 
             Logger.Write(LogLevel.Debug, () => $"Getting events backwards from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} starting at {sliceStart}");
             do
