@@ -49,7 +49,7 @@ namespace Aggregates.Internal
 
             return Task.FromResult(0);
         }
-        public Task<IEnumerable<IWritableEvent>> Retrieve<T>(String Bucket, String StreamId, Int32 Skip = 0, Int32 Take = -1, Boolean Ascending = true) where T : class, IEventSource
+        public Task<IEnumerable<IWritableEvent>> Retrieve<T>(String Bucket, String StreamId, Int32? Skip = null, Int32? Take = null, Boolean Ascending = true) where T : class, IEventSource
         {
             throw new NotImplementedException("NSB OOB handler does not support retrieving OOB events");
         }
