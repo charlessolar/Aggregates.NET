@@ -162,6 +162,7 @@ namespace Aggregates.Internal
                 if (_uncommitted.Any())
                 {
                     // Do a quick check if any event in the current stream has the same commit id indicating the effects of this command have already been recorded
+                    // Note: if the stream has snapshots we wont be checking ALL previous events - but this is a good spot check
                     var oldCommits = this._committed.Select(x =>
                     {
                         String temp;

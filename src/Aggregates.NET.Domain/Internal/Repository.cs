@@ -97,6 +97,7 @@ namespace Aggregates.Internal
                     {
                         WriteErrors.Mark();
                         Logger.WriteFormat(LogLevel.Warn, "Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", stream.StreamId, stream.Bucket, e);
+                        Thread.Sleep(75 * (count / 2));
                     }
                     catch (DuplicateCommitException)
                     {
@@ -110,10 +111,8 @@ namespace Aggregates.Internal
                         throw;
                     }
                     if (!success)
-                    {
                         count++;
-                        Thread.Sleep(75 * (count / 2));
-                    }
+
                 } while (!success && count < 5);
 
             });
