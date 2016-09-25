@@ -214,10 +214,7 @@ namespace Aggregates
         {
             Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName}.  Expected version: ANY");
             var streamName = _streamGen(typeof(T), bucket, streamId);
-
-            if (_shouldCache)
-                _cache.Evict(streamName);
-
+            
             var settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.All,
@@ -250,13 +247,11 @@ namespace Aggregates
             await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents);
         }
 
-        public async Task WriteEvents<T>(String bucket, String streamId, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders) where T : class, IEventSource
+        public async Task WriteEvents<T>(IEventStream stream, IDictionary<String, String> commitHeaders) where T : class, IEventSource
         {
-            Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName}.  Expected version: {expectedVersion}");
-            var streamName = _streamGen(typeof(T), bucket, streamId);
+            Logger.Write(LogLevel.Debug, () => $"Writing {stream.Uncommitted.Count()} events to stream id [{stream.StreamId}] bucket [{stream.Bucket}] for type {typeof(T).FullName}.  Expected version: {stream.CommitVersion}");
+            var streamName = _streamGen(typeof(T), stream.Bucket, stream.StreamId);
 
-            if (_shouldCache)
-                _cache.Evict(streamName);
 
             var settings = new JsonSerializerSettings
             {
@@ -264,7 +259,7 @@ namespace Aggregates
                 Binder = new EventSerializationBinder(_mapper)
             };
 
-            var translatedEvents = events.Select(e =>
+            var translatedEvents = stream.Uncommitted.Select(e =>
             {
 
                 var descriptor = new EventDescriptor
@@ -287,7 +282,10 @@ namespace Aggregates
                     );
             }).ToList();
 
-            await _client.AppendToStreamAsync(streamName, expectedVersion, translatedEvents);
+            await _client.AppendToStreamAsync(streamName, stream.CommitVersion, translatedEvents);
+
+            if (_shouldCache)
+                _cache.Cache(streamName, stream.Clone());
         }
     }
 }

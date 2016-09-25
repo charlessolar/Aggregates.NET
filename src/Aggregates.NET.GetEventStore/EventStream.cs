@@ -174,7 +174,7 @@ namespace Aggregates.Internal
                         throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
 
                     Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] committing {_uncommitted.Count} events");
-                    await _store.WriteEvents<T>(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
+                    await _store.WriteEvents<T>(this, commitHeaders);
                     this._uncommitted.Clear();
                 }
                 if (_pendingShots.Any())

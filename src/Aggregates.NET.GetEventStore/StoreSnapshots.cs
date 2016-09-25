@@ -4,6 +4,7 @@ using Aggregates.Extensions;
 using Aggregates.Internal;
 using EventStore.ClientAPI;
 using EventStore.ClientAPI.Exceptions;
+using Metrics;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
@@ -19,6 +20,9 @@ namespace Aggregates
 {
     public class StoreSnapshots : IStoreSnapshots
     {
+        private static Meter _hitMeter = Metric.Meter("Snapshot Cache Hits", Unit.Events);
+        private static Meter _missMeter = Metric.Meter("Snapshot Cache Misses", Unit.Events);
+
         private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreSnapshots));
         private readonly IEventStoreConnection _client;
         private readonly ReadOnlySettings _nsbSettings;
@@ -47,7 +51,12 @@ namespace Aggregates
             {
                 var cached = _cache.Retreive(streamName) as ISnapshot;
                 if (cached != null)
+                {
+                    _hitMeter.Mark();
+                    Logger.Write(LogLevel.Debug, () => $"Found snapshot [{streamId}] bucket [{bucket}] in cache");
                     return cached;
+                }
+                _missMeter.Mark();
             }
 
             var read = await _client.ReadEventAsync(streamName, StreamPosition.End, false);
@@ -79,8 +88,6 @@ namespace Aggregates
             Logger.Write(LogLevel.Debug, () => $"Writing {snapshots.Count()} snapshots to stream id [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
             var streamName = $"{_streamGen(typeof(T), bucket, streamId)}.snapshots";
 
-            if (_shouldCache)
-                _cache.Evict(streamName);
 
             var translatedEvents = snapshots.Select(e =>
             {
@@ -102,6 +109,9 @@ namespace Aggregates
 
             
             await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents);
+
+            if (_shouldCache)
+                _cache.Cache(streamName, snapshots.Last());
         }
         
     }

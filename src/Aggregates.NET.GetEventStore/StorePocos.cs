@@ -18,8 +18,8 @@ namespace Aggregates
 {
     public class StorePocos : IStorePocos
     {
-        private static Meter _hitMeter = Metric.Meter("Stream Cache Hits", Unit.Events);
-        private static Meter _missMeter = Metric.Meter("Stream Cache Misses", Unit.Events);
+        private static Meter _hitMeter = Metric.Meter("Poco Cache Hits", Unit.Events);
+        private static Meter _missMeter = Metric.Meter("Poco Cache Misses", Unit.Events);
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreEvents));
         private readonly IEventStoreConnection _client;
@@ -53,7 +53,7 @@ namespace Aggregates
                 if (cached != null)
                 {
                     _hitMeter.Mark();
-                    Logger.Write(LogLevel.Debug, () => $"Found stream [{stream}] bucket [{bucket}] in cache");
+                    Logger.Write(LogLevel.Debug, () => $"Found poco [{stream}] bucket [{bucket}] in cache");
                     // An easy way to make a deep copy
                     return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(cached));
                 }
@@ -78,8 +78,6 @@ namespace Aggregates
             Logger.Write(LogLevel.Debug, () => $"Writing poco to stream id [{stream}] in bucket [{bucket}]");
             var streamId = String.Format("{0}.POCO.{1}", bucket, stream);
 
-            if (_shouldCache)
-                _cache.Evict(streamId);
 
             var descriptor = new EventDescriptor
             {
@@ -97,6 +95,9 @@ namespace Aggregates
                     );
 
             await _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvent);
+
+            if (_shouldCache)
+                _cache.Cache(streamId, poco);
         }
     }
 }
