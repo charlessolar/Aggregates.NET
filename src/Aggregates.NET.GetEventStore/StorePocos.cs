@@ -27,6 +27,7 @@ namespace Aggregates
         private readonly IStreamCache _cache;
         private readonly Boolean _shouldCache;
         private readonly JsonSerializerSettings _settings;
+        private readonly StreamIdGenerator _streamGen;
 
         public IBuilder Builder { get; set; }
 
@@ -37,6 +38,7 @@ namespace Aggregates
             _settings = settings;
             _cache = cache;
             _shouldCache = _nsbSettings.Get<Boolean>("ShouldCacheEntities");
+            _streamGen = _nsbSettings.Get<StreamIdGenerator>("StreamGenerator");
         }
 
 
@@ -45,11 +47,11 @@ namespace Aggregates
         {
             Logger.Write(LogLevel.Debug, () => $"Getting stream [{stream}] in bucket [{bucket}]");
 
-            var streamId = String.Format("{0}.POCO.{1}", bucket, stream);
+            var streamName = $"{_streamGen(typeof(T), bucket + ".POCO", stream)}";
 
             if (_shouldCache)
             {
-                var cached = _cache.Retreive(streamId) as T;
+                var cached = _cache.Retreive(streamName) as T;
                 if (cached != null)
                 {
                     _hitMeter.Mark();
@@ -60,7 +62,7 @@ namespace Aggregates
                 _missMeter.Mark();
             }
             
-            var read = await _client.ReadEventAsync(streamId, StreamPosition.End, false);
+            var read = await _client.ReadEventAsync(streamName, StreamPosition.End, false);
             if (read.Status != EventReadStatus.Success || !read.Event.HasValue)
                 return null;
 
@@ -70,13 +72,13 @@ namespace Aggregates
             var data = @event.Data.Deserialize<T>(_settings);
 
             if (_shouldCache)
-                _cache.Cache(streamId, data);
+                _cache.Cache(streamName, data);
             return data;
         }
         public async Task Write<T>(T poco, String bucket, String stream, IDictionary<String, String> commitHeaders)
         {
             Logger.Write(LogLevel.Debug, () => $"Writing poco to stream id [{stream}] in bucket [{bucket}]");
-            var streamId = String.Format("{0}.POCO.{1}", bucket, stream);
+            var streamName = $"{_streamGen(typeof(T), bucket + ".POCO", stream)}";
 
 
             var descriptor = new EventDescriptor
@@ -94,10 +96,7 @@ namespace Aggregates
                     descriptor.Serialize(_settings).AsByteArray()
                     );
 
-            await _client.AppendToStreamAsync(streamId, ExpectedVersion.Any, translatedEvent);
-
-            if (_shouldCache)
-                _cache.Cache(streamId, poco);
+            await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvent);
         }
     }
 }

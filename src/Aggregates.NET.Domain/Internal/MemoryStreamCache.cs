@@ -11,7 +11,7 @@ namespace Aggregates.Internal
 {
     public class MemoryStreamCache : IStreamCache
     {
-        private readonly static MemoryCache _cache = new MemoryCache("Aggregates Cache");
+        private readonly static MemoryCache _cache = new MemoryCache("Aggregates Cache", new System.Collections.Specialized.NameValueCollection { { "CacheMemoryLimitMegabytes", "500" } });
         
         public void Cache(String stream, object cached)
         {
@@ -27,6 +27,20 @@ namespace Aggregates.Internal
             if (cached == null) return null;
 
             return cached;
+        }
+
+        public Boolean Update(String stream, object payload)
+        {
+            var cached = _cache.Get(stream);
+            if (cached == null) return false;
+
+            if(cached is IEventStream && payload is IWritableEvent)
+            {
+                var real = (cached as IEventStream);
+                Cache(stream, real.Clone(payload as IWritableEvent));
+                return true;
+            }
+            return false;
         }
     }
 }

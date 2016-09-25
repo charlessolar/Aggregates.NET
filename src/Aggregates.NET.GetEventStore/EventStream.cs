@@ -83,9 +83,18 @@ namespace Aggregates.Internal
 
         }
 
-        public IEventStream Clone()
+        /// <summary>
+        /// Clones the stream for caching, add an event to the new clone stream optionally
+        /// </summary>
+        /// <param name="event"></param>
+        /// <returns></returns>
+        public IEventStream Clone(IWritableEvent @event = null)
         {
-            return new EventStream<T>(null, null, Bucket, StreamId, StreamVersion, _committed);
+            var committed = _committed.ToList();
+            if (@event != null)
+                committed.Add(@event);
+
+            return new EventStream<T>(null, null, Bucket, StreamId, StreamVersion, committed);
         }
         public Task<IEnumerable<IWritableEvent>> AllEvents(Boolean? backwards)
         {
@@ -174,7 +183,7 @@ namespace Aggregates.Internal
                         throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
 
                     Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] committing {_uncommitted.Count} events");
-                    await _store.WriteEvents<T>(this, commitHeaders);
+                    await _store.WriteEvents<T>(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
                     this._uncommitted.Clear();
                 }
                 if (_pendingShots.Any())

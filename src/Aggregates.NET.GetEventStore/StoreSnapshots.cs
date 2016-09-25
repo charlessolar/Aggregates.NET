@@ -45,7 +45,7 @@ namespace Aggregates
         {
             Logger.Write(LogLevel.Debug, () => $"Getting snapshot for stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
 
-            var streamName = $"{_streamGen(typeof(T), bucket, streamId)}.snapshots";
+            var streamName = $"{_streamGen(typeof(T), bucket + ".SNAP", streamId)}";
 
             if (_shouldCache)
             {
@@ -86,7 +86,7 @@ namespace Aggregates
         public async Task WriteSnapshots<T>(String bucket, String streamId, IEnumerable<ISnapshot> snapshots, IDictionary<String, String> commitHeaders) where T : class, IEventSource
         {
             Logger.Write(LogLevel.Debug, () => $"Writing {snapshots.Count()} snapshots to stream id [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
-            var streamName = $"{_streamGen(typeof(T), bucket, streamId)}.snapshots";
+            var streamName = $"{_streamGen(typeof(T), bucket + ".SNAP", streamId)}";
 
 
             var translatedEvents = snapshots.Select(e =>
@@ -109,9 +109,6 @@ namespace Aggregates
 
             
             await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents);
-
-            if (_shouldCache)
-                _cache.Cache(streamName, snapshots.Last());
         }
         
     }

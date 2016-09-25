@@ -14,6 +14,7 @@ using Aggregates.Exceptions;
 using NServiceBus.Settings;
 using Aggregates.Contracts;
 using NServiceBus.MessageInterfaces;
+using NServiceBus;
 
 namespace Aggregates
 {
@@ -23,17 +24,19 @@ namespace Aggregates
         private readonly IBuilder _builder;
         private readonly IEventStoreConnection _client;
         private readonly IDispatcher _dispatcher;
+        private readonly IStreamCache _cache;
         private readonly ReadOnlySettings _settings;
         private readonly JsonSerializerSettings _jsonSettings;
 
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public DomainSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, ReadOnlySettings settings, IMessageMapper mapper)
+        public DomainSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, IStreamCache cache, ReadOnlySettings settings, IMessageMapper mapper)
         {
             _builder = builder;
             _client = client;
             _dispatcher = dispatcher;
+            _cache = cache;
             _settings = settings;
             _jsonSettings = new JsonSerializerSettings
             {
@@ -53,19 +56,21 @@ namespace Aggregates
             {
                 // Unsure if we need to care about events from eventstore currently
                 if (!e.Event.IsJson) return;
-
+                
                 var descriptor = e.Event.Metadata.Deserialize(_jsonSettings);
 
                 if (descriptor == null) return;
+
+                var data = e.Event.Data.Deserialize(e.Event.EventType, _jsonSettings);
+                if (!(data is IEvent) || !_cache.Update(e.OriginalStreamId, new Internal.WritableEvent { Descriptor = descriptor, Event = data as IEvent, EventId = e.Event.EventId }))
+                    _cache.Evict(e.OriginalStreamId);
+
                 // Check if the event was written by this domain handler
                 // We don't need to publish events saved by other domain instances
                 String header = null;
                 Guid domain = Guid.Empty;
                 if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.DomainHeader, out header) || !Guid.TryParse(header, out domain) || domain != Defaults.Domain)
                     return;
-
-                var data = e.Event.Data.Deserialize(e.Event.EventType, _jsonSettings);
-
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
                 if (data == null) return;
 

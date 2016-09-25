@@ -19,5 +19,6 @@ namespace Aggregates.Contracts
         object Retreive(String stream);
 
         void Evict(String stream);
+        Boolean Update(String stream, object payload);
     }
 }
