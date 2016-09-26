@@ -10,6 +10,8 @@ namespace Aggregates
 {
     public static class Defaults
     {
+        public static readonly String RETRY_HEADER = "Aggregates.NET.Retries";
+
         public static Guid Domain = Guid.NewGuid();
         public static String Bucket = "default";
         public static String MessageIdHeader = "Originating.NServiceBus.MessageId";
