@@ -21,7 +21,7 @@ using Aggregates.Exceptions;
 
 namespace Aggregates
 {
-    public class Domain : ConsumerFeature, IProvideConfiguration<TransportConfig>
+    public class Domain : ConsumerFeature
     {
         public Domain() : base()
         {
@@ -30,14 +30,6 @@ namespace Aggregates
                 s.SetDefault("ShouldCacheEntities", false);
                 s.SetDefault("StreamGenerator", new StreamIdGenerator((type, bucket, stream) => $"{bucket}.[{type.FullName}].{stream}"));
             });
-        }
-        public TransportConfig GetConfiguration()
-        {
-            // Set a large amount of retries, when MaxRetries is hit ExceptionRejector will stop processing the message
-            return new TransportConfig
-            {
-                MaxRetries = 999
-            };
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
@@ -79,36 +71,8 @@ namespace Aggregates
             context.Pipeline.Register<MutateIncomingCommandsRegistration>();
             //context.Pipeline.Register<SafetyNetRegistration>();
             //context.Pipeline.Register<TesterBehaviorRegistration>();
-
-            // Register all query and computed in the container
-            foreach (var handler in context.Settings.GetAvailableTypes().Where(IsQueryOrComputeOrMessageHandler))
-                context.Container.ConfigureComponent(handler, DependencyLifecycle.InstancePerCall);
             
 
-        }
-        private static bool IsQueryOrComputeOrMessageHandler(Type type)
-        {
-            if (type.IsAbstract || type.IsGenericTypeDefinition)
-            {
-                return false;
-            }
-
-            return type.GetInterfaces()
-                .Where(@interface => @interface.IsGenericType)
-                .Select(@interface => @interface.GetGenericTypeDefinition())
-                .Any(genericTypeDef => genericTypeDef == typeof(IHandleQueries<,>) || genericTypeDef == typeof(IHandleComputed<,>));
-        }
-        private static bool IsSyncMessage(Type type)
-        {
-            if (type.IsAbstract || type.IsGenericTypeDefinition)
-            {
-                return false;
-            }
-
-            return type.GetInterfaces()
-                .Where(@interface => @interface.IsGenericType)
-                .Select(@interface => @interface.GetGenericTypeDefinition())
-                .Any(genericTypeDef => genericTypeDef == typeof(IHandleMessages<>));
         }
     }
 }

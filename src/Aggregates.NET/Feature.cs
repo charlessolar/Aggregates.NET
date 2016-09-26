@@ -27,17 +27,10 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
-
-
-            context.Pipeline.Replace(WellKnownStep.LoadHandlers, typeof(AsyncronizedLoad), "Loads the message handlers");
-            context.Pipeline.Replace(WellKnownStep.InvokeHandlers, typeof(AsyncronizedInvoke), "Invokes the message handler with Task.Run");
-
+            
             context.Pipeline.Register<ExceptionRejectorRegistration>();
             context.Pipeline.Register<MutateOutgoingCommandsRegistration>();
-
-            foreach (var handler in context.Settings.GetAvailableTypes().Where(IsAsyncMessage))
-                context.Container.ConfigureComponent(handler, DependencyLifecycle.InstancePerCall);
-
+            
 
             context.Container.ConfigureComponent<Func<Exception, String, Error>>(y =>
             {
@@ -82,18 +75,6 @@ namespace Aggregates
                     });
                 };
             }, DependencyLifecycle.SingleInstance);
-        }
-        private static bool IsAsyncMessage(Type type)
-        {
-            if (type.IsAbstract || type.IsGenericTypeDefinition)
-            {
-                return false;
-            }
-
-            return type.GetInterfaces()
-                .Where(@interface => @interface.IsGenericType)
-                .Select(@interface => @interface.GetGenericTypeDefinition())
-                .Any(genericTypeDef => genericTypeDef == typeof(IHandleMessagesAsync<>));
         }
     }
 }
