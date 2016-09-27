@@ -25,7 +25,7 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="..\..\build\merged\Aggregates.NET.Domain.dll" target="lib\net46" />
-    <file src="..\..\build\merged\Aggregates.NET.Domain.pdb" target="lib\net46" />
+    <file src="bin\Release\Aggregates.NET.Domain.dll" target="lib\net46" />
+    <file src="bin\Release\Aggregates.NET.Domain.pdb" target="lib\net46" />
   </files>
 </package>

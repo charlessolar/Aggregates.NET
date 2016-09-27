@@ -22,7 +22,7 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="..\..\build\merged\Aggregates.NET.dll" target="lib\net46" />
-    <file src="..\..\build\merged\Aggregates.NET.pdb" target="lib\net46" />
+    <file src="bin\Release\Aggregates.NET.dll" target="lib\net46" />
+    <file src="bin\Release\Aggregates.NET.pdb" target="lib\net46" />
   </files>
 </package>
