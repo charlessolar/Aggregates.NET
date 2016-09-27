@@ -22,12 +22,12 @@ build:
   include_nuget_references: true  # add -IncludeReferencedProjects option while packaging NuGet artifacts
 
 after_build:
-  git archive -o Aggregates.NET.Source.{version}.zip HEAD
+  git archive -o "Aggregates.NET.Source.{version}.zip" HEAD
 
 test: auto
 
 artifacts:
- - path: '**\*.nupkg'
+ - path: '*.nupkg'
    name: NuGet
 # - path: Aggregates.NET.Binaries*.zip
 #   name: Binaries
@@ -47,7 +47,7 @@ deploy:
   - provider: GitHub
     auth_token:
       secure: E3k8jpbA+1HCY5PHHiUlaOTJVBSlJyGNUGdIAUTStkSs9Aw8b5jYJ8bMZv+9/nb+
-    artifact: Binaries, Source
+    artifact: Source
     draft: false
     prerelease: true
     on:
