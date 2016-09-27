@@ -17,7 +17,7 @@ namespace Aggregates.Extensions
     {
         private static ILog Logger = LogManager.GetLogger("Bus");
 
-        private static void CheckResponse(IMessage msg)
+        public static void CommandResponse(this IMessage msg)
         {
             if (msg is Reject)
             {
@@ -45,7 +45,7 @@ namespace Aggregates.Extensions
             options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
 
             var response = await ctx.Request<IMessage>(command, options);
-            CheckResponse(response);
+            response.CommandResponse();
         }
         public static async Task Command(this IMessageSession ctx, string destination, ICommand command)
         {
@@ -54,7 +54,7 @@ namespace Aggregates.Extensions
             options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
 
             var response = await ctx.Request<IMessage>(command, options);
-            CheckResponse(response);
+            response.CommandResponse();
         }
         public static async Task Command<TCommand>(this IMessageSession ctx, Action<TCommand> command) where TCommand : ICommand
         {
@@ -62,7 +62,7 @@ namespace Aggregates.Extensions
             options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
 
             var response = await ctx.Request<IMessage>(command, options);
-            CheckResponse(response);
+            response.CommandResponse();
         }
         public static async Task Command<TCommand>(this IMessageSession ctx, string destination, Action<TCommand> command) where TCommand : ICommand
         {
@@ -71,7 +71,7 @@ namespace Aggregates.Extensions
             options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
 
             var response = await ctx.Request<IMessage>(command, options);
-            CheckResponse(response);
+            response.CommandResponse();
         }
 
         /// <summary>
