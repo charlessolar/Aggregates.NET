@@ -36,9 +36,10 @@ namespace Aggregates.Extensions
                 throw new CommandRejectedException($"Command Fault!\n{error.Message}");
             }
         }
+        
 
 
-        public static async Task Command(this IEndpointInstance ctx, ICommand command)
+        public static async Task Command(this IMessageSession ctx, ICommand command)
         {
             var options = new NServiceBus.SendOptions();
             options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
@@ -46,7 +47,7 @@ namespace Aggregates.Extensions
             var response = await ctx.Request<IMessage>(command, options);
             CheckResponse(response);
         }
-        public static async Task Command(this IEndpointInstance ctx, string destination, ICommand command)
+        public static async Task Command(this IMessageSession ctx, string destination, ICommand command)
         {
             var options = new NServiceBus.SendOptions();
             options.SetDestination(destination);
@@ -55,7 +56,7 @@ namespace Aggregates.Extensions
             var response = await ctx.Request<IMessage>(command, options);
             CheckResponse(response);
         }
-        public static async Task Command<TCommand>(this IEndpointInstance ctx, Action<TCommand> command) where TCommand : ICommand
+        public static async Task Command<TCommand>(this IMessageSession ctx, Action<TCommand> command) where TCommand : ICommand
         {
             var options = new NServiceBus.SendOptions();
             options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
@@ -63,7 +64,7 @@ namespace Aggregates.Extensions
             var response = await ctx.Request<IMessage>(command, options);
             CheckResponse(response);
         }
-        public static async Task Command<TCommand>(this IEndpointInstance ctx, string destination, Action<TCommand> command) where TCommand : ICommand
+        public static async Task Command<TCommand>(this IMessageSession ctx, string destination, Action<TCommand> command) where TCommand : ICommand
         {
             var options = new NServiceBus.SendOptions();
             options.SetDestination(destination);
@@ -79,21 +80,21 @@ namespace Aggregates.Extensions
         /// <param name="bus"></param>
         /// <param name="command"></param>
         /// <returns></returns>
-        public static async Task PassiveCommand<TCommand>(this IEndpointInstance ctx, Action<TCommand> command) where TCommand : ICommand
+        public static async Task PassiveCommand<TCommand>(this IMessageSession ctx, Action<TCommand> command) where TCommand : ICommand
         {
             var options = new NServiceBus.SendOptions();
             options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
 
             await ctx.Send(command, options);
         }
-        public static async Task PassiveCommand(this IEndpointInstance ctx, ICommand command)
+        public static async Task PassiveCommand(this IMessageSession ctx, ICommand command)
         {
             var options = new NServiceBus.SendOptions();
             options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
 
             await ctx.Send(command, options);
         }
-        public static async Task PassiveCommand<TCommand>(this IEndpointInstance ctx, string destination, Action<TCommand> command) where TCommand : ICommand
+        public static async Task PassiveCommand<TCommand>(this IMessageSession ctx, string destination, Action<TCommand> command) where TCommand : ICommand
         {
             var options = new NServiceBus.SendOptions();
             options.SetDestination(destination);
@@ -101,7 +102,7 @@ namespace Aggregates.Extensions
 
             await ctx.Send(command, options);
         }
-        public static async Task PassiveCommand(this IEndpointInstance ctx, string destination, ICommand command)
+        public static async Task PassiveCommand(this IMessageSession ctx, string destination, ICommand command)
         {
             var options = new NServiceBus.SendOptions();
             options.SetDestination(destination);
