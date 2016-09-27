@@ -25,19 +25,17 @@ namespace Aggregates
         private readonly IEventStoreConnection _client;
         private readonly IStreamCache _cache;
         private readonly ReadOnlySettings _settings;
-        private readonly IMessageSession _endpoint;
         private readonly JsonSerializerSettings _jsonSettings;
 
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public DomainSubscriber(IBuilder builder, IEventStoreConnection client, IStreamCache cache, IMessageSession endpoint, ReadOnlySettings settings, IMessageMapper mapper)
+        public DomainSubscriber(IBuilder builder, IEventStoreConnection client, IStreamCache cache, ReadOnlySettings settings, IMessageMapper mapper)
         {
             _builder = builder;
             _client = client;
             _cache = cache;
             _settings = settings;
-            _endpoint = endpoint;
             _jsonSettings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.All,
@@ -46,11 +44,11 @@ namespace Aggregates
             };
         }
 
-        public void SubscribeToAll(String endpoint)
+        public void SubscribeToAll(IMessageSession bus, String endpoint)
         {
             var readSize = _settings.Get<Int32>("ReadSize");
             Logger.Write(LogLevel.Info, () => $"Endpoint '{endpoint}' subscribing to all events from END");
-
+            
             var settings = new CatchUpSubscriptionSettings(readSize * readSize, readSize, false, false);
             _client.SubscribeToAllFrom(Position.End, settings, (subscription, e) =>
             {
@@ -86,7 +84,7 @@ namespace Aggregates
                 
                 try
                 {
-                    _endpoint.Send(data, options);
+                    bus.Send(data, options);
                 }
                 catch (SubscriptionCanceled)
                 {

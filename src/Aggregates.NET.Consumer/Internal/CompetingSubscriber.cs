@@ -26,9 +26,9 @@ namespace Aggregates.Internal
     public class CompetingSubscriber : IEventSubscriber, IDisposable
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CompetingSubscriber));
+        private readonly IBuilder _builder;
         private readonly IEventStoreConnection _client;
         private readonly IManageCompetes _competes;
-        private readonly IMessageSession _endpoint;
         private readonly ReadOnlySettings _settings;
         private readonly JsonSerializerSettings _jsonSettings;
         private readonly HashSet<Int32> _buckets;
@@ -46,11 +46,11 @@ namespace Aggregates.Internal
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public CompetingSubscriber(IEventStoreConnection client, IManageCompetes competes, IMessageSession endpoint, ReadOnlySettings settings, IMessageMapper mapper)
+        public CompetingSubscriber(IBuilder builder, IEventStoreConnection client, IManageCompetes competes, ReadOnlySettings settings, IMessageMapper mapper)
         {
+            _builder = builder;
             _client = client;
             _competes = competes;
-            _endpoint = endpoint;
             _settings = settings;
             _buckets = new HashSet<Int32>();
             _seenBuckets = new Dictionary<Int32, long>();
@@ -206,6 +206,7 @@ namespace Aggregates.Internal
             var lastPosition = consumer._competes.LastPosition(endpoint, bucket);
             consumer._adoptingPosition = lastPosition;
 
+            var bus = consumer._builder.Build<IMessageSession>();
             var settings = new CatchUpSubscriptionSettings(readSize * readSize, readSize, false, false);
             consumer._client.SubscribeToAllFrom(new Position(lastPosition, lastPosition), settings, (subscription, e) =>
             {
@@ -238,7 +239,7 @@ namespace Aggregates.Internal
 
                 try
                 {
-                    consumer._endpoint.Send(data, options);
+                    bus.Send(data, options);
                 }
                 catch (SubscriptionCanceled)
                 {
@@ -262,12 +263,12 @@ namespace Aggregates.Internal
             });
         }
 
-        public void SubscribeToAll(String endpoint)
+        public void SubscribeToAll(IMessageSession bus, String endpoint)
         {
             // To support HA simply save IManageCompetes data to a different db, in this way we can make clusters of consumers
             var handledBuckets = _settings.Get<Int32>("BucketsHandled");
             var readSize = _settings.Get<Int32>("ReadSize");
-
+            
             // Start competing subscribers from the start, if they are picking up a new bucket they need to start from the begining
             Logger.Write(LogLevel.Info, () => $"Endpoint '{endpoint}' subscribing to all events from START");
             var settings = new CatchUpSubscriptionSettings(readSize * readSize, readSize, false, false);
@@ -333,7 +334,7 @@ namespace Aggregates.Internal
 
                 try
                 {
-                    _endpoint.Send(data, options);
+                    bus.Send(data, options);
                 }
                 catch (SubscriptionCanceled)
                 {

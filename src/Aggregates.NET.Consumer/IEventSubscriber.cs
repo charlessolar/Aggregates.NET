@@ -9,7 +9,7 @@ namespace Aggregates
 {
     public interface IEventSubscriber
     {
-        void SubscribeToAll(String endpoint);
+        void SubscribeToAll(IMessageSession bus, String endpoint);
         Boolean ProcessingLive { get; set; }
         Action<String, Exception> Dropped { get; set; }
     }

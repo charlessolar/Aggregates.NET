@@ -124,11 +124,11 @@ namespace Aggregates
         {
             Logger.Write(LogLevel.Debug, "Starting event consumer");
             var subscriber = _builder.Build<IEventSubscriber>();
-            subscriber.SubscribeToAll(_settings.EndpointName());
+            subscriber.SubscribeToAll(session, _settings.EndpointName());
             subscriber.Dropped = (reason, ex) =>
             {
                 Thread.Sleep(CalculateSleep());
-                subscriber.SubscribeToAll(_settings.EndpointName());
+                subscriber.SubscribeToAll(session, _settings.EndpointName());
             };
 
             await session.Publish<Messages.ConsumerAlive>(x =>

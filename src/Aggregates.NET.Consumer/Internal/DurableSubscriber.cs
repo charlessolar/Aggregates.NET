@@ -24,18 +24,16 @@ namespace Aggregates.Internal
         private readonly IEventStoreConnection _client;
         private readonly IPersistCheckpoints _store;
         private readonly ReadOnlySettings _settings;
-        private readonly IMessageSession _endpoint;
         private readonly JsonSerializerSettings _jsonSettings;
 
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public DurableSubscriber(IBuilder builder, IEventStoreConnection client, IPersistCheckpoints store, IMessageSession endpoint, ReadOnlySettings settings, IMessageMapper mapper)
+        public DurableSubscriber(IBuilder builder, IEventStoreConnection client, IPersistCheckpoints store, ReadOnlySettings settings, IMessageMapper mapper)
         {
             _builder = builder;
             _client = client;
             _store = store;
-            _endpoint = endpoint;
             _settings = settings;
             _jsonSettings = new JsonSerializerSettings
             {
@@ -45,13 +43,13 @@ namespace Aggregates.Internal
             };
         }
 
-        public void SubscribeToAll(String endpoint)
+        public void SubscribeToAll(IMessageSession bus, String endpoint)
         {
             var saved = _store.Load(endpoint).Result;
 
             var readSize = _settings.Get<Int32>("ReadSize");
             Logger.Write(LogLevel.Info, () => $"Endpoint '{endpoint}' subscribing to all events from position '{saved}'");
-
+            
             var settings = new CatchUpSubscriptionSettings(readSize * readSize, readSize, false, false);
             _client.SubscribeToAllFrom(saved, settings, (subscription, e) =>
             {
@@ -77,7 +75,7 @@ namespace Aggregates.Internal
 
                 try
                 {
-                    _endpoint.Send(data, options);
+                    bus.Send(data, options);
                 }
                 catch (SubscriptionCanceled)
                 {

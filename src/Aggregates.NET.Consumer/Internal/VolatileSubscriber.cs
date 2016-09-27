@@ -18,17 +18,15 @@ namespace Aggregates.Internal
         private readonly IBuilder _builder;
         private readonly IEventStoreConnection _client;
         private readonly ReadOnlySettings _settings;
-        private readonly IMessageSession _endpoint;
         private readonly JsonSerializerSettings _jsonSettings;
 
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public VolatileSubscriber(IBuilder builder, IEventStoreConnection client, IMessageSession endpoint, ReadOnlySettings settings, IMessageMapper mapper)
+        public VolatileSubscriber(IBuilder builder, IEventStoreConnection client, ReadOnlySettings settings, IMessageMapper mapper)
         {
             _builder = builder;
             _client = client;
-            _endpoint = endpoint;
             _settings = settings;
             _jsonSettings = new JsonSerializerSettings
             {
@@ -38,11 +36,11 @@ namespace Aggregates.Internal
             };
         }
 
-        public void SubscribeToAll(String endpoint)
+        public void SubscribeToAll(IMessageSession bus, String endpoint)
         {
             var readSize = _settings.Get<Int32>("ReadSize");
             Logger.Write(LogLevel.Info, () => $"Endpoint '{endpoint}' subscribing to all events from END");
-
+            
             var settings = new CatchUpSubscriptionSettings(readSize * readSize, readSize, false, false);
             _client.SubscribeToAllFrom(Position.End, settings, (subscription, e) =>
             {
@@ -68,7 +66,7 @@ namespace Aggregates.Internal
 
                 try
                 {
-                    _endpoint.Send(data, options);
+                    bus.Send(data, options);
                 }
                 catch (SubscriptionCanceled)
                 {
