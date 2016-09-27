@@ -81,14 +81,14 @@ namespace Aggregates.Extensions
         public static async Task PassiveCommand<TCommand>(this IMessageSession ctx, Action<TCommand> command) where TCommand : ICommand
         {
             var options = new NServiceBus.SendOptions();
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
 
             await ctx.Send(command, options);
         }
         public static async Task PassiveCommand(this IMessageSession ctx, ICommand command)
         {
             var options = new NServiceBus.SendOptions();
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
 
             await ctx.Send(command, options);
         }
@@ -96,7 +96,7 @@ namespace Aggregates.Extensions
         {
             var options = new NServiceBus.SendOptions();
             options.SetDestination(destination);
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
 
             await ctx.Send(command, options);
         }
@@ -104,7 +104,7 @@ namespace Aggregates.Extensions
         {
             var options = new NServiceBus.SendOptions();
             options.SetDestination(destination);
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
 
             await ctx.Send(command, options);
         }
