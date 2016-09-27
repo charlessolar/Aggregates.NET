@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using NServiceBus;
+using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,9 +11,9 @@ namespace Aggregates.NET.UnitTests.Common.Internal
     interface ITest { }
 
     class Handler :
-        IHandleMessagesAsync<ITest>
+        IHandleMessages<ITest>
     {
-        public Task Handle(ITest e, IHandleContext ctx) { return Task.FromResult(0); }
+        public Task Handle(ITest e, IMessageHandlerContext ctx) { return Task.FromResult(0); }
     }
 
     [TestFixture]

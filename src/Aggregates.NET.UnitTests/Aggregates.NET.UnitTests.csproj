@@ -47,8 +47,8 @@
       <HintPath>..\packages\Moq.4.5.21\lib\net45\Moq.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="NServiceBus.Core, Version=5.0.0.0, Culture=neutral, PublicKeyToken=9fc386479f8a226c, processorArchitecture=MSIL">
-      <HintPath>..\packages\NServiceBus.5.2.15\lib\net45\NServiceBus.Core.dll</HintPath>
+    <Reference Include="NServiceBus.Core, Version=6.0.0.0, Culture=neutral, PublicKeyToken=9fc386479f8a226c, processorArchitecture=MSIL">
+      <HintPath>..\packages\NServiceBus.6.0.0-rc0002\lib\net452\NServiceBus.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="nunit.framework, Version=3.4.1.0, Culture=neutral, PublicKeyToken=2638cd05610744eb, processorArchitecture=MSIL">
@@ -71,8 +71,6 @@
   </Choose>
   <ItemGroup>
     <Compile Include="Common\Enumeration.cs" />
-    <Compile Include="Common\Internal\AsyncronizedInvoke.cs" />
-    <Compile Include="Common\Internal\AsyncronizedLoad.cs" />
     <Compile Include="Common\Internal\DefaultInvokeObjects.cs" />
     <Compile Include="Common\Internal\ExceptionRejector.cs" />
     <Compile Include="Common\Internal\MutateOutgoingCommands.cs" />
