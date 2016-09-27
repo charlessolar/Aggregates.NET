@@ -22,25 +22,15 @@ build:
   include_nuget_references: true  # add -IncludeReferencedProjects option while packaging NuGet artifacts
 
 after_build:
-  ps: 
-    - "Copy-Item src\Aggregates.NET\bin\Release\Aggregates.NET.dll %APPVEYOR_BUILD_FOLDER%\Aggregates.NET.dll"
-    - "Copy-Item src\Aggregates.NET\bin\Release\Aggregates.NET.pdb %APPVEYOR_BUILD_FOLDER%\Aggregates.NET.pdb"
-    - "Copy-Item src\Aggregates.NET\bin\Release\Aggregates.NET.Consumer.dll %APPVEYOR_BUILD_FOLDER%\Aggregates.NET.Consumer.dll"
-    - "Copy-Item src\Aggregates.NET\bin\Release\Aggregates.NET.Consumer.pdb %APPVEYOR_BUILD_FOLDER%\Aggregates.NET.Consumer.pdb"
-    - "Copy-Item src\Aggregates.NET\bin\Release\Aggregates.NET.Domain.dll %APPVEYOR_BUILD_FOLDER%\Aggregates.NET.Domain.dll"
-    - "Copy-Item src\Aggregates.NET\bin\Release\Aggregates.NET.Domain.pdb %APPVEYOR_BUILD_FOLDER%\Aggregates.NET.Domain.pdb"
-    - "Copy-Item src\Aggregates.NET\bin\Release\Aggregates.NET.GetEventStore.dll %APPVEYOR_BUILD_FOLDER%\Aggregates.NET.GetEventStore.dll"
-    - "Copy-Item src\Aggregates.NET\bin\Release\Aggregates.NET.GetEventStore.pdb %APPVEYOR_BUILD_FOLDER%\Aggregates.NET.GetEventStore.pdb"
-    - "7z a -tzip Aggregates.NET.Binaries.{version}.zip %APPVEYOR_BUILD_FOLDER%\*.dll %APPVEYOR_BUILD_FOLDER%\*.pdb"
-    - "git archive -o Aggregates.NET.Source.{version}.zip HEAD"
+  git archive -o Aggregates.NET.Source.{version}.zip HEAD
 
 test: auto
 
 artifacts:
  - path: '**\*.nupkg'
    name: NuGet
- - path: Aggregates.NET.Binaries*.zip
-   name: Binaries
+# - path: Aggregates.NET.Binaries*.zip
+#   name: Binaries
  - path: Aggregates.NET.Source*.zip
    name: Source
    
