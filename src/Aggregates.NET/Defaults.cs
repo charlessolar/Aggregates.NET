@@ -10,7 +10,7 @@ namespace Aggregates
 {
     public static class Defaults
     {
-        public static readonly String RETRY_HEADER = "Aggregates.NET.Retries";
+        public static readonly String SETUP_CORRECTLY = "Aggregates.NET.Safe";
 
         public static Guid Domain = Guid.NewGuid();
         public static String Bucket = "default";

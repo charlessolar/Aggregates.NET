@@ -16,6 +16,7 @@ using Newtonsoft.Json;
 using NServiceBus.Settings;
 using System.Threading;
 using Aggregates.Contracts;
+using System.Collections.Concurrent;
 
 namespace Aggregates.Internal
 {
@@ -23,7 +24,7 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(ExceptionRejector));
 
-        private static IDictionary<String, Int32> _retryRegistry = new Dictionary<String, Int32>();
+        private static ConcurrentDictionary<String, Int32> _retryRegistry = new ConcurrentDictionary<String, Int32>();
         private static Meter _errorsMeter = Metric.Meter("Message Faults", Unit.Errors);
         private readonly ReadOnlySettings _settings;
         private readonly Int32 _maxRetries;
@@ -34,24 +35,23 @@ namespace Aggregates.Internal
             _maxRetries = _settings.Get<Int32>("MaxRetries");
         }
 
-        public override Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)
+        public override async Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)
         {
             var messageId = context.MessageId;
+            Int32 existingRetry = 0;
             try
             {
-                return next();
+                await next();
+                _retryRegistry.TryRemove(messageId, out existingRetry);
             }
             catch (Exception e)
             {
-                var numberOfRetries = "";
-                context.MessageHeaders.TryGetValue(Defaults.RETRY_HEADER, out numberOfRetries);
-                if (String.IsNullOrEmpty(numberOfRetries))
-                    throw;
-
-                var retries = Int32.Parse(numberOfRetries);
-                if (retries < _maxRetries || _maxRetries == -1)
+                _retryRegistry.TryGetValue(messageId, out existingRetry);
+                                
+                if (existingRetry < _maxRetries || _maxRetries == -1)
                 {
-                    Logger.WriteFormat(LogLevel.Warn, "Message {0} has faulted! {1}/{2} times\nException: {3}\nHeaders: {4}\nBody: {5}", context.MessageId, retries, _maxRetries, e, context.MessageHeaders, Encoding.UTF8.GetString(context.Message.Body));
+                    Logger.WriteFormat(LogLevel.Warn, "Message {0} has faulted! {1}/{2} times\nException: {3}\nHeaders: {4}\nBody: {5}", context.MessageId, existingRetry, _maxRetries, e, context.MessageHeaders, Encoding.UTF8.GetString(context.Message.Body));
+                    _retryRegistry[messageId] = existingRetry + 1;
                     throw;
                 }
 
@@ -60,15 +60,18 @@ namespace Aggregates.Internal
 
                 // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth
                 var intent = (MessageIntentEnum)Enum.Parse(typeof(MessageIntentEnum), context.Message.Headers[Headers.MessageIntent], true);
-                if (intent != MessageIntentEnum.Send) return Task.CompletedTask;
+                if (intent != MessageIntentEnum.Send) return;
 
                 // Tell the sender the command was not handled due to a service exception
                 var rejection = context.Builder.Build<Func<Exception, String, Error>>();
 
-                Logger.WriteFormat(LogLevel.Warn, "Message {0} has failed after {1} retries!\nException: {2}\nHeaders: {3}\nBody: {4}", context.MessageId, retries, e, context.MessageHeaders, Encoding.UTF8.GetString(context.Message.Body));
+                Logger.WriteFormat(LogLevel.Warn, "Message {0} has failed after {1} retries!\nException: {2}\nHeaders: {3}\nBody: {4}", context.MessageId, existingRetry, e, context.MessageHeaders, Encoding.UTF8.GetString(context.Message.Body));
 
                 // Wrap exception in our object which is serializable
-                return context.Reply(rejection(e, $"Rejected message after {retries} retries!\n Payload: {Encoding.UTF8.GetString(context.Message.Body)}"));
+                await context.Reply(rejection(e, $"Rejected message after {existingRetry} retries!\n Payload: {Encoding.UTF8.GetString(context.Message.Body)}"));
+
+                // Should be the last throw for this message - if RecoveryPolicy is properly set the message will be sent over to error queue
+                throw;
             }
         }
     }

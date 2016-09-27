@@ -26,6 +26,10 @@ namespace Aggregates
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
+            // Check that aggregates has been properly setup
+            if (!context.Settings.Get<Boolean>(Aggregates.Defaults.SETUP_CORRECTLY))
+                throw new InvalidOperationException("Endpoint not setup correctly!  Please call [endpointConfiguration.Recoverability.ConfigureForAggregates] before enabling this feature.  (Sorry I can't set recoverability myself)");
+
             context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             
             context.Pipeline.Register<ExceptionRejectorRegistration>();
