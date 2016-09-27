@@ -6,5 +6,5 @@ using System.Runtime.CompilerServices;
 [assembly: AssemblyCopyright("Copyright © Charles Solar 2015")]
 [assembly: AssemblyVersion("0.3.0.0")]
 [assembly: AssemblyFileVersion("0.3.0.0")]
-[assembly: AssemblyInformationalVersion("0.3.0.0-alpha")]
+[assembly: AssemblyInformationalVersion("0.3.0.0-beta")]
 [assembly: InternalsVisibleTo("Aggregates.NET.UnitTests")]
