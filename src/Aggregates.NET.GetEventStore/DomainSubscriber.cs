@@ -23,21 +23,21 @@ namespace Aggregates
         private static readonly ILog Logger = LogManager.GetLogger(typeof(DomainSubscriber));
         private readonly IBuilder _builder;
         private readonly IEventStoreConnection _client;
-        private readonly IDispatcher _dispatcher;
         private readonly IStreamCache _cache;
         private readonly ReadOnlySettings _settings;
+        private readonly IMessageSession _endpoint;
         private readonly JsonSerializerSettings _jsonSettings;
 
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public DomainSubscriber(IBuilder builder, IEventStoreConnection client, IDispatcher dispatcher, IStreamCache cache, ReadOnlySettings settings, IMessageMapper mapper)
+        public DomainSubscriber(IBuilder builder, IEventStoreConnection client, IStreamCache cache, IMessageSession endpoint, ReadOnlySettings settings, IMessageMapper mapper)
         {
             _builder = builder;
             _client = client;
-            _dispatcher = dispatcher;
             _cache = cache;
             _settings = settings;
+            _endpoint = endpoint;
             _jsonSettings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.All,
@@ -67,16 +67,26 @@ namespace Aggregates
 
                 // Check if the event was written by this domain handler
                 // We don't need to publish events saved by other domain instances
-                String header = null;
+                String instance = null;
                 Guid domain = Guid.Empty;
-                if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.DomainHeader, out header) || !Guid.TryParse(header, out domain) || domain != Defaults.Instance)
+                if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.InstanceHeader, out instance) || !Guid.TryParse(instance, out domain) || domain != Defaults.Instance)
                     return;
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
                 if (data == null) return;
 
+                var options = new SendOptions();
+
+                options.RouteToThisInstance();
+                options.SetHeader("CommitPosition", e.OriginalPosition?.CommitPosition.ToString());
+                options.SetHeader("EntityType", descriptor.EntityType);
+                options.SetHeader("Version", descriptor.Version.ToString());
+                options.SetHeader("Timestamp", descriptor.Timestamp.ToString());
+                foreach (var header in descriptor.Headers)
+                    options.SetHeader(header.Key, header.Value);
+                
                 try
                 {
-                    _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
+                    _endpoint.Send(data, options);
                 }
                 catch (SubscriptionCanceled)
                 {

@@ -67,7 +67,6 @@
     <Compile Include="Consumer.cs" />
     <Compile Include="ConsumerConfiguration.cs" />
     <Compile Include="Internal\DurableSubscriber.cs" />
-    <Compile Include="IDispatcher.cs" />
     <Compile Include="IEventSubscriber.cs" />
     <Compile Include="IManageCompetes.cs" />
     <Compile Include="Internal\Checkpointer.cs" />

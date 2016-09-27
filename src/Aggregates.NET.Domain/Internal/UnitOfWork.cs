@@ -307,7 +307,7 @@ namespace Aggregates.Internal
 
             foreach (var header in userHeaders)
                 CurrentHeaders[header] = headers[header];
-            CurrentHeaders[Defaults.DomainHeader] = Defaults.Instance.ToString();
+            CurrentHeaders[Defaults.InstanceHeader] = Defaults.Instance.ToString();
 
             return Task.CompletedTask;
         }

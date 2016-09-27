@@ -28,7 +28,7 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CompetingSubscriber));
         private readonly IEventStoreConnection _client;
         private readonly IManageCompetes _competes;
-        private readonly IEndpointInstance _endpoint;
+        private readonly IMessageSession _endpoint;
         private readonly ReadOnlySettings _settings;
         private readonly JsonSerializerSettings _jsonSettings;
         private readonly HashSet<Int32> _buckets;
@@ -46,7 +46,7 @@ namespace Aggregates.Internal
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public CompetingSubscriber(IEventStoreConnection client, IManageCompetes competes, IEndpointInstance endpoint, ReadOnlySettings settings, IMessageMapper mapper)
+        public CompetingSubscriber(IEventStoreConnection client, IManageCompetes competes, IMessageSession endpoint, ReadOnlySettings settings, IMessageMapper mapper)
         {
             _client = client;
             _competes = competes;

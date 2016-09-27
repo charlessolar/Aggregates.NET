@@ -18,7 +18,7 @@ namespace Aggregates
         public static String Bucket = "default";
         public static String MessageIdHeader = "Originating.NServiceBus.MessageId";
         public static String CommitIdHeader = "CommitId";
-        public static String DomainHeader = "Domain";
+        public static String InstanceHeader = "Instance";
         
         public static AsyncLocal<LogLevel?> MinimumLogging = new AsyncLocal<LogLevel?>();
 

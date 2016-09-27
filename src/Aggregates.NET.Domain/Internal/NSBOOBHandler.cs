@@ -10,9 +10,9 @@ namespace Aggregates.Internal
 {
     public class NSBOOBHandler : IOOBHandler
     {
-        private readonly IEndpointInstance _endpoint;
+        private readonly IMessageSession _endpoint;
 
-        public NSBOOBHandler(IEndpointInstance endpoint)
+        public NSBOOBHandler(IMessageSession endpoint)
         {
             _endpoint = endpoint;
         }

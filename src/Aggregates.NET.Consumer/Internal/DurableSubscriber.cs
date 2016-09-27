@@ -24,13 +24,13 @@ namespace Aggregates.Internal
         private readonly IEventStoreConnection _client;
         private readonly IPersistCheckpoints _store;
         private readonly ReadOnlySettings _settings;
-        private readonly IEndpointInstance _endpoint;
+        private readonly IMessageSession _endpoint;
         private readonly JsonSerializerSettings _jsonSettings;
 
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public DurableSubscriber(IBuilder builder, IEventStoreConnection client, IPersistCheckpoints store, IEndpointInstance endpoint, ReadOnlySettings settings, IMessageMapper mapper)
+        public DurableSubscriber(IBuilder builder, IEventStoreConnection client, IPersistCheckpoints store, IMessageSession endpoint, ReadOnlySettings settings, IMessageMapper mapper)
         {
             _builder = builder;
             _client = client;
