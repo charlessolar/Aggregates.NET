@@ -39,7 +39,7 @@ namespace Aggregates.Internal
                 }
                 catch (BusinessException e)
                 {
-                    if (context.MessageHeaders.ContainsKey(Defaults.REQUEST_RESPONSE) && context.MessageHeaders[Defaults.REQUEST_RESPONSE] == "1")
+                    if (!context.MessageHeaders.ContainsKey(Defaults.REQUEST_RESPONSE) || context.MessageHeaders[Defaults.REQUEST_RESPONSE] != "1")
                         return; // Dont throw, business exceptions are not message failures
 
                     _errorsMeter.Mark();
