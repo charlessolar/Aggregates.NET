@@ -41,17 +41,17 @@ namespace Aggregates.Internal
             Int32 existingRetry = 0;
             try
             {
-                await next();
                 _retryRegistry.TryRemove(messageId, out existingRetry);
+                context.Extensions.Set(Defaults.RETRIES, existingRetry);
+
+                await next();
             }
             catch (Exception e)
             {
-                _retryRegistry.TryGetValue(messageId, out existingRetry);
-                                
                 if (existingRetry < _maxRetries || _maxRetries == -1)
                 {
                     Logger.WriteFormat(LogLevel.Warn, "Message {0} has faulted! {1}/{2} times\nException: {3}\nHeaders: {4}\nBody: {5}", context.MessageId, existingRetry, _maxRetries, e, context.MessageHeaders, Encoding.UTF8.GetString(context.Message.Body));
-                    _retryRegistry[messageId] = existingRetry + 1;
+                    _retryRegistry.TryAdd(messageId, existingRetry + 1);
                     throw;
                 }
 

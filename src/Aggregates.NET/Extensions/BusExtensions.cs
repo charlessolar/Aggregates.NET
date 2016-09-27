@@ -16,60 +16,61 @@ namespace Aggregates.Extensions
     public static class BusExtensions
     {
         private static ILog Logger = LogManager.GetLogger("Bus");
-        public static Task AsCommandResult(this ICallback callback)
+
+        private static void CheckResponse(IMessage msg)
         {
-            return callback.Register(x =>
+            if (msg is Reject)
             {
-                var reply = x.Messages.FirstOrDefault();
-                if (reply is Reject)
-                {
-                    var reject = reply as Reject;
-                    Logger.WriteFormat(LogLevel.Warn, "Command was rejected - Message: {0}\nException: {1}", reject.Message, reject.Exception);
-                    if (reject.Exception != null)
-                        throw new CommandRejectedException(reject.Message, reject.Exception);
-                    else if (reject != null)
-                        throw new CommandRejectedException(reject.Message);
-                    throw new CommandRejectedException();
-                }
-                if (reply is Error)
-                {
-                    var error = reply as Error;
-                    Logger.Warn($"Command Fault!\n{error.Message}");
-                    throw new CommandRejectedException($"Command Fault!\n{error.Message}");
-                }
-            });
+                var reject = msg as Reject;
+                Logger.WriteFormat(LogLevel.Warn, "Command was rejected - Message: {0}\nException: {1}", reject.Message, reject.Exception);
+                if (reject.Exception != null)
+                    throw new CommandRejectedException(reject.Message, reject.Exception);
+                else if (reject != null)
+                    throw new CommandRejectedException(reject.Message);
+                throw new CommandRejectedException();
+            }
+            if (msg is Error)
+            {
+                var error = msg as Error;
+                Logger.Warn($"Command Fault!\n{error.Message}");
+                throw new CommandRejectedException($"Command Fault!\n{error.Message}");
+            }
         }
 
 
-        public static Task Command(this IBus bus, ICommand command)
+        public static async Task Command(this IEndpointInstance ctx, ICommand command)
         {
-            // All commands get a response so we'll need to register a callback
-            return bus.Send(command).AsCommandResult();
+            var options = new NServiceBus.SendOptions();
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+
+            var response = await ctx.Request<IMessage>(command, options);
+            CheckResponse(response);
         }
-        public static Task Command(this IBus bus, string destination, ICommand command)
+        public static async Task Command(this IEndpointInstance ctx, string destination, ICommand command)
         {
-            // All commands get a response so we'll need to register a callback
-            return bus.Send(destination, command).AsCommandResult();
+            var options = new NServiceBus.SendOptions();
+            options.SetDestination(destination);
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+
+            var response = await ctx.Request<IMessage>(command, options);
+            CheckResponse(response);
         }
-        public static Task Command(this IBus bus, Address destination, ICommand command)
+        public static async Task Command<TCommand>(this IEndpointInstance ctx, Action<TCommand> command) where TCommand : ICommand
         {
-            // All commands get a response so we'll need to register a callback
-            return bus.Send(destination, command).AsCommandResult();
+            var options = new NServiceBus.SendOptions();
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+
+            var response = await ctx.Request<IMessage>(command, options);
+            CheckResponse(response);
         }
-        public static Task Command<TCommand>(this IBus bus, Action<TCommand> command) where TCommand : ICommand
+        public static async Task Command<TCommand>(this IEndpointInstance ctx, string destination, Action<TCommand> command) where TCommand : ICommand
         {
-            // All commands get a response so we'll need to register a callback
-            return bus.Send(command).AsCommandResult();
-        }
-        public static Task Command<TCommand>(this IBus bus, string destination, Action<TCommand> command) where TCommand : ICommand
-        {
-            // All commands get a response so we'll need to register a callback
-            return bus.Send(destination, command).AsCommandResult();
-        }
-        public static Task Command<TCommand>(this IBus bus, Address destination, Action<TCommand> command) where TCommand : ICommand
-        {
-            // All commands get a response so we'll need to register a callback
-            return bus.Send(destination, command).AsCommandResult();
+            var options = new NServiceBus.SendOptions();
+            options.SetDestination(destination);
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+
+            var response = await ctx.Request<IMessage>(command, options);
+            CheckResponse(response);
         }
 
         /// <summary>
@@ -78,93 +79,35 @@ namespace Aggregates.Extensions
         /// <param name="bus"></param>
         /// <param name="command"></param>
         /// <returns></returns>
-        public static async Task PassiveCommand<TCommand>(this IBus bus, Action<TCommand> command) where TCommand : ICommand
+        public static async Task PassiveCommand<TCommand>(this IEndpointInstance ctx, Action<TCommand> command) where TCommand : ICommand
         {
-            try
-            {
-                await bus.Send(command).AsCommandResult();
-            }
-            catch (CommandRejectedException) { }
-        }
-        public static async Task PassiveCommand(this IBus bus, ICommand command)
-        {
-            try
-            {
-                await bus.Send(command).AsCommandResult();
-            }
-            catch (CommandRejectedException) { }
-        }
-        public static async Task PassiveCommand<TCommand>(this IBus bus, string destination, Action<TCommand> command) where TCommand : ICommand
-        {
-            try
-            {
-                await bus.Send(destination, command).AsCommandResult();
-            }
-            catch (CommandRejectedException) { }
-        }
-        public static async Task PassiveCommand<TCommand>(this IBus bus, Address destination, Action<TCommand> command) where TCommand : ICommand
-        {
-            try
-            {
-                await bus.Send(destination, command).AsCommandResult();
-            }
-            catch (CommandRejectedException) { }
-        }
-        public static async Task PassiveCommand(this IBus bus, string destination, ICommand command)
-        {
-            try
-            {
-                await bus.Send(destination, command).AsCommandResult();
-            }
-            catch (CommandRejectedException) { }
-        }
-        public static async Task PassiveCommand(this IBus bus, Address destination, ICommand command)
-        {
-            try
-            {
-                await bus.Send(destination, command).AsCommandResult();
-            }
-            catch (CommandRejectedException) { }
-        }
+            var options = new NServiceBus.SendOptions();
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
 
+            await ctx.Send(command, options);
+        }
+        public static async Task PassiveCommand(this IEndpointInstance ctx, ICommand command)
+        {
+            var options = new NServiceBus.SendOptions();
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
 
-        public static void ReplyAsync(this IHandleContext context, object message)
+            await ctx.Send(command, options);
+        }
+        public static async Task PassiveCommand<TCommand>(this IEndpointInstance ctx, string destination, Action<TCommand> command) where TCommand : ICommand
         {
-            context.Bus.SetMessageHeader(message, "$.Aggregates.Replying", "1");
-            var replyTo = context.Context.PhysicalMessageReplyToAddress.ToString();
-            // Special case if using RabbitMq - replies need to be sent to the CallbackQueue NOT the primary queue
-            if (context.Context.PhysicalMessageHeaders.ContainsKey("NServiceBus.RabbitMQ.CallbackQueue"))
-                replyTo = context.Context.PhysicalMessageHeaders["NServiceBus.RabbitMQ.CallbackQueue"];
+            var options = new NServiceBus.SendOptions();
+            options.SetDestination(destination);
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
 
-            context.Bus.Send(Address.Parse(replyTo), String.IsNullOrEmpty(context.Context.PhysicalMessageCorrelationId) ? context.Context.PhysicalMessageId : context.Context.PhysicalMessageCorrelationId, message);
+            await ctx.Send(command, options);
         }
-        public static void ReplyAsync<T>(this IHandleContext context, Action<T> message)
+        public static async Task PassiveCommand(this IEndpointInstance ctx, string destination, ICommand command)
         {
-            context.ReplyAsync(context.Mapper.CreateInstance(message));
-        }
-        public static void PublishAsync<T>(this IHandleContext context, Action<T> message)
-        {
-            context.Bus.Publish<T>(message);
-        }
-        public static void PublishAsync(this IHandleContext context, object message)
-        {
-            context.Bus.Publish(message);
-        }
-        public static void SendAsync<T>(this IHandleContext context, Action<T> message)
-        {
-            context.Bus.Send(message);
-        }
-        public static void SendAsync(this IHandleContext context, object message)
-        {
-            context.Bus.Send(message);
-        }
-        public static void SendAsync<T>(this IHandleContext context, String destination, Action<T> message)
-        {
-            context.Bus.Send(destination, message);
-        }
-        public static void SendAsync(this IHandleContext context, String destination, object message)
-        {
-            context.Bus.Send(destination, message);
+            var options = new NServiceBus.SendOptions();
+            options.SetDestination(destination);
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+
+            await ctx.Send(command, options);
         }
     }
 }

@@ -32,8 +32,14 @@ namespace Aggregates
 
             context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             
-            context.Pipeline.Register<ExceptionRejectorRegistration>();
-            context.Pipeline.Register<MutateOutgoingCommandsRegistration>();
+            context.Pipeline.Register(
+                behavior: typeof(ExceptionRejector),
+                description: "Watches message faults, sends error replies to client when message moves to error queue"
+                );
+            context.Pipeline.Register(
+                behavior: typeof(MutateOutgoingCommands),
+                description: "runs command mutators on outgoing commands"
+                );
             
 
             context.Container.ConfigureComponent<Func<Exception, String, Error>>(y =>

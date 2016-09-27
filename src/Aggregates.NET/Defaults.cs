@@ -11,6 +11,8 @@ namespace Aggregates
     public static class Defaults
     {
         public static readonly String SETUP_CORRECTLY = "Aggregates.NET.Safe";
+        public static readonly String RETRIES = "Aggregates.NET.Retries";
+        public static readonly String REQUEST_RESPONSE = "Aggregates.NET.Request";
 
         public static Guid Domain = Guid.NewGuid();
         public static String Bucket = "default";

@@ -16,48 +16,28 @@ using Aggregates.Contracts;
 
 namespace Aggregates.Internal
 {
-    internal class MutateOutgoingCommands : IBehavior<OutgoingContext>
+    internal class MutateOutgoingCommands : Behavior<IOutgoingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(MutateOutgoingCommands));
-
-        private readonly IBus _bus;
-        public MutateOutgoingCommands(IBus bus)
+        
+        public override Task Invoke(IOutgoingLogicalMessageContext context, Func<Task> next)
         {
-            _bus = bus;
-        }
-
-        public void Invoke(OutgoingContext context, Action next)
-        {
-            Invoke(new OutgoingContextWrapper(context), next);
-        }
-
-
-        public void Invoke(IOutgoingContextAccessor context, Action next)
-        {
-            if (context.OutgoingLogicalMessageInstance is ICommand)
+            if (context.Message.Instance is ICommand)
             {
                 var mutators = context.Builder.BuildAll<ICommandMutator>();
-                var mutated = context.OutgoingLogicalMessageInstance as ICommand;
+                var mutated = context.Message.Instance as ICommand;
                 if (mutators != null && mutators.Any())
                     foreach (var mutator in mutators)
                     {
-                        Logger.Write(LogLevel.Debug, () => $"Mutating outgoing command {context.OutgoingLogicalMessageMessageType.FullName} with mutator {mutator.GetType().FullName}");
+                        Logger.Write(LogLevel.Debug, () => $"Mutating outgoing command {context.Message.MessageType.FullName} with mutator {mutator.GetType().FullName}");
                         mutated = mutator.MutateOutgoing(mutated);
                     }
-                context.UpdateMessageInstance(mutated);
+                
+                context.UpdateMessage(mutated);
             }
 
-            next();
+            return next();
         }
     }
-
-    internal class MutateOutgoingCommandsRegistration : RegisterStep
-    {
-        public MutateOutgoingCommandsRegistration()
-            : base("MutateOutgoingCommands", typeof(MutateOutgoingCommands), "Running command mutators for outgoing messages")
-        {
-            InsertAfter(WellKnownStep.MutateOutgoingMessages);
-            InsertBefore(WellKnownStep.CreatePhysicalMessage);
-        }
-    }
+    
 }
