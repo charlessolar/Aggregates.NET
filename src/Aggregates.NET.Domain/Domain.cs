@@ -61,7 +61,6 @@ namespace Aggregates
                 return (exception) => {
                     return eventFactory.CreateInstance<Reject>(e => {
                         e.Message = "Exception raised";
-                        e.Exception = exception;
                     });
                 };
             }, DependencyLifecycle.SingleInstance);

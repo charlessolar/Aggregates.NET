@@ -10,7 +10,6 @@ namespace Aggregates.Messages
 {
     public interface Reject : IMessage
     {
-        BusinessException Exception { get; set; }
         String Message { get; set; }
     }
 }
