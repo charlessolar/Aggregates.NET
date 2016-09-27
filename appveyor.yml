@@ -5,7 +5,7 @@ cache:
   
 assembly_info:
   patch: true
-  file: src\SharedAssemblyInfo.*
+  file: src\SharedAssemblyInfo.cs
   assembly_version: "{version}"
   assembly_file_version: "{version}"
   assembly_informational_version: "{version}"
@@ -13,19 +13,22 @@ assembly_info:
 platform: Any CPU
 configuration: Release
 
-
-build_script:
-  - ps: .\build.ps1
+build:
+  parallel: true                  # enable MSBuild parallel builds
+  project: Aggregates.NET.sln      # path to Visual Studio solution or project
+  publish_nuget: true             # package projects with .nuspec files and push to artifacts
+  publish_nuget_symbols: true     # generate and publish NuGet symbol packages
+  include_nuget_references: true  # add -IncludeReferencedProjects option while packaging NuGet artifacts
 
 test: auto
 
-artifacts:
- - path: build\Aggregates.NET*.nupkg
-   name: NuGet
- - path: build\Aggregates.NET.Binaries*.zip
-   name: Binaries
- - path: build\Aggregates.NET.Source*.zip
-   name: Source
+#artifacts:
+# - path: build\Aggregates.NET*.nupkg
+#   name: NuGet
+# - path: build\Aggregates.NET.Binaries*.zip
+#   name: Binaries
+# - path: build\Aggregates.NET.Source*.zip
+#   name: Source
    
 
 deploy:
