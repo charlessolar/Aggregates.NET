@@ -21,7 +21,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public class UnitOfWork : IUnitOfWork, ICommandUnitOfWork, IEventUnitOfWork, IEventMutator, IMutateTransportMessages, IMessageMutator
+    public class UnitOfWork : IUnitOfWork, ICommandUnitOfWork, IEventUnitOfWork, IMutateOutgoingMessages, IMutateIncomingMessages
     {
         public static String PrefixHeader = "Originating";
         public static String NotFound = "<NOT FOUND>";
@@ -267,16 +267,20 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Commit id {commitId} complete");
         }
 
-        public void MutateOutgoing(LogicalMessage message, TransportMessage transportMessage)
+        public Task MutateOutgoing(MutateOutgoingMessageContext context)
         {
-            // Insert our command headers into all messages sent by bus this unit of work
+            var headers = context.OutgoingHeaders;
             foreach (var header in CurrentHeaders)
-                transportMessage.Headers[header.Key] = header.Value.ToString();
+                headers[header.Key] = header.Value;
+
+            return Task.CompletedTask;
         }
 
-        public void MutateIncoming(TransportMessage transportMessage)
+        public Task MutateIncoming(MutateIncomingMessageContext context)
         {
-            var headers = transportMessage.Headers;
+            this.CurrentMessage = context.Message;
+
+            var headers = context.Headers;
 
             // There are certain headers that we can make note of
             // These will be committed to the event stream and included in all .Reply or .Publish done via this Unit Of Work
@@ -303,63 +307,12 @@ namespace Aggregates.Internal
 
             foreach (var header in userHeaders)
                 CurrentHeaders[header] = headers[header];
+            CurrentHeaders[Defaults.DomainHeader] = Defaults.Instance.ToString();
+
+            return Task.CompletedTask;
         }
-
-        public Object MutateOutgoing(Object message)
-        {
-            return message;
-        }
-        public Object MutateIncoming(Object message)
-        {
-            this.CurrentMessage = message;
-
-            CurrentHeaders[Defaults.DomainHeader] = Defaults.Domain.ToString();
-            
-            return message;
-        }
-
-        // Event mutating
-        public Object MutateIncoming(Object Event, IEventDescriptor Descriptor, long? Position)
-        {
-            this.CurrentMessage = Event;
-            CurrentHeaders[Defaults.DomainHeader] = Defaults.Domain.ToString();
-
-            if (Descriptor == null) return Event; 
-
-            var headers = Descriptor.Headers;
-
-            // There are certain headers that we can make note of
-            // These will be committed to the event stream and included in all .Reply or .Publish done via this Unit Of Work
-            // Meaning all receivers of events from the command will get information about the command's message, if they care
-            foreach (var header in Defaults.CarryOverHeaders)
-            {
-                String defaultHeader;
-                if (!headers.TryGetValue(header, out defaultHeader))
-                    defaultHeader = NotFound;
-                
-                var workHeader = String.Format("{0}.{1}", PrefixHeader, header);
-                CurrentHeaders[workHeader] = defaultHeader;
-            }
-
-            // Copy any application headers the user might have included
-            var userHeaders = headers.Keys.Where(h =>
-                            !h.Equals("CorrId", StringComparison.InvariantCultureIgnoreCase) &&
-                            !h.Equals("WinIdName", StringComparison.InvariantCultureIgnoreCase) &&
-                            !h.StartsWith("NServiceBus", StringComparison.InvariantCultureIgnoreCase) &&
-                            !h.StartsWith("$", StringComparison.InvariantCultureIgnoreCase));
-
-            foreach (var header in userHeaders)
-                CurrentHeaders[header] = headers[header];
-
-            return Event;
-        }
-
-        public IWritableEvent MutateOutgoing(IWritableEvent Event)
-        {
-            foreach (var header in CurrentHeaders)
-                Event.Descriptor.Headers[header.Key] = header.Value.ToString();
-            return Event;
-        }
+        
+        
 
         public Object CurrentMessage { get; private set; }
         public IDictionary<String, String> CurrentHeaders { get; private set; }

@@ -28,7 +28,7 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CompetingSubscriber));
         private readonly IEventStoreConnection _client;
         private readonly IManageCompetes _competes;
-        private readonly IDispatcher _dispatcher;
+        private readonly IEndpointInstance _endpoint;
         private readonly ReadOnlySettings _settings;
         private readonly JsonSerializerSettings _jsonSettings;
         private readonly HashSet<Int32> _buckets;
@@ -38,6 +38,7 @@ namespace Aggregates.Internal
         private readonly Int32 _bucketCount;
         private Boolean _pauseOnFreeBucket;
         private Boolean _pausedArmed;
+        private Boolean _paused;
         private Int32? _adopting;
         private Int64? _adoptingPosition;
         private Object _lock = new object();
@@ -45,18 +46,17 @@ namespace Aggregates.Internal
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public CompetingSubscriber(IEventStoreConnection client, IManageCompetes competes, IDispatcher dispatcher, ReadOnlySettings settings, IMessageMapper mapper)
+        public CompetingSubscriber(IEventStoreConnection client, IManageCompetes competes, IEndpointInstance endpoint, ReadOnlySettings settings, IMessageMapper mapper)
         {
             _client = client;
             _competes = competes;
-            _dispatcher = dispatcher;
+            _endpoint = endpoint;
             _settings = settings;
             _buckets = new HashSet<Int32>();
             _seenBuckets = new Dictionary<Int32, long>();
             _bucketCount = _settings.Get<Int32>("BucketCount");
             _pauseOnFreeBucket = _settings.Get<Boolean>("PauseOnFreeBuckets");
-            // Start paused initially if enabled
-            dispatcher.Pause(_pauseOnFreeBucket);
+            _paused = true;
 
             _jsonSettings = new JsonSerializerSettings
             {
@@ -73,7 +73,7 @@ namespace Aggregates.Internal
                 var expiration = _settings.Get<Int32>("BucketExpiration");
 
                 var consumer = (CompetingSubscriber)state;
-                var endpoint = consumer._settings.EndpointName();
+                var endpointName = consumer._settings.EndpointName();
 
                 var notSeenBuckets = new HashSet<Int32>(consumer._buckets);
                 IDictionary<Int32, long> seenBuckets;
@@ -90,7 +90,7 @@ namespace Aggregates.Internal
                         try
                         {
                             Logger.Write(LogLevel.Debug, () => $"Heartbeating bucket {seen.Key} position {seen.Value}");
-                            consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, seen.Value);
+                            consumer._competes.Heartbeat(endpointName, seen.Key, DateTime.UtcNow, seen.Value);
                         }
                         catch (DiscriminatorException)
                         {
@@ -102,12 +102,12 @@ namespace Aggregates.Internal
                     }
                     else if (!consumer._adopting.HasValue && consumer._buckets.Count < handledBuckets)
                     {
-                        var lastBeat = consumer._competes.LastHeartbeat(endpoint, seen.Key);
+                        var lastBeat = consumer._competes.LastHeartbeat(endpointName, seen.Key);
                         if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds > expiration)
                         {
                             Logger.Write(LogLevel.Debug, () => $"Last beat on bucket {seen.Key} is {lastBeat} - it is {(DateTime.UtcNow - lastBeat.Value).TotalSeconds} seconds old, adopting...");
                             // We saw new events but the consumer for this bucket has died, so we will adopt its bucket
-                            AdoptBucket(consumer, endpoint, seen.Key);
+                            AdoptBucket(consumer, endpointName, seen.Key);
                         }
                     }
                     else if (consumer._adopting == seen.Key)
@@ -115,7 +115,7 @@ namespace Aggregates.Internal
                         try
                         {
                             Logger.Write(LogLevel.Debug, () => $"Heartbeating adopted bucket {seen.Key} position {consumer._adoptingPosition.Value}");
-                            consumer._competes.Heartbeat(endpoint, seen.Key, DateTime.UtcNow, consumer._adoptingPosition.Value);
+                            consumer._competes.Heartbeat(endpointName, seen.Key, DateTime.UtcNow, consumer._adoptingPosition.Value);
                         }
                         catch (DiscriminatorException)
                         {
@@ -135,7 +135,7 @@ namespace Aggregates.Internal
                     try
                     {
                         Logger.Write(LogLevel.Debug, () => $"Heartbeating unseen bucket {bucket}");
-                        consumer._competes.Heartbeat(endpoint, bucket, DateTime.UtcNow);
+                        consumer._competes.Heartbeat(endpointName, bucket, DateTime.UtcNow);
                     }
                     catch (DiscriminatorException)
                     {
@@ -152,7 +152,7 @@ namespace Aggregates.Internal
             _bucketPause = new System.Threading.Timer(state =>
             {
                 var consumer = (CompetingSubscriber)state;
-                var endpoint = consumer._settings.EndpointName();
+                var endpointName = consumer._settings.EndpointName();
                 var expiration = _settings.Get<Int32>("BucketExpiration");
 
                 var openBuckets = consumer._bucketCount;
@@ -161,7 +161,7 @@ namespace Aggregates.Internal
 
                 Parallel.For(0, consumer._bucketCount, idx =>
                 {
-                    var lastBeat = consumer._competes.LastHeartbeat(endpoint, idx);
+                    var lastBeat = consumer._competes.LastHeartbeat(endpointName, idx);
                     if (lastBeat.HasValue && (DateTime.UtcNow - lastBeat.Value).TotalSeconds < expiration)
                         Interlocked.Decrement(ref openBuckets);
                 });
@@ -174,12 +174,12 @@ namespace Aggregates.Internal
                 else if(openBuckets != 0 && _pausedArmed == true)
                 {
                     Logger.Write(LogLevel.Warn, () => $"Detected {openBuckets} free buckets - PAUSING");
-                    consumer._dispatcher.Pause(true);
+                    _paused = true;
                 }
                 else
                 {
                     _pausedArmed = false;
-                    consumer._dispatcher.Pause(false);
+                    _paused = false;
                 }
                 
 
@@ -224,9 +224,21 @@ namespace Aggregates.Internal
                 if (data == null) return;
 
                 consumer._adoptingPosition = e.OriginalPosition?.CommitPosition ?? consumer._adoptingPosition;
+
+                var options = new SendOptions();
+
+                options.RouteToThisInstance();
+                options.SetHeader("CommitPosition", e.OriginalPosition?.CommitPosition.ToString());
+                options.SetHeader("EntityType", descriptor.EntityType);
+                options.SetHeader("Version", descriptor.Version.ToString());
+                options.SetHeader("Timestamp", descriptor.Timestamp.ToString());
+                options.SetHeader("Adopting", "1");
+                foreach (var header in descriptor.Headers)
+                    options.SetHeader(header.Key, header.Value);
+
                 try
                 {
-                    consumer._dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
+                    consumer._endpoint.Send(data, options);
                 }
                 catch (SubscriptionCanceled)
                 {
@@ -305,10 +317,23 @@ namespace Aggregates.Internal
 
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position or snapshots)
                 if (data == null) return;
-                
+
+                var options = new SendOptions();
+
+                options.RouteToThisInstance();
+                options.SetHeader("CommitPosition", e.OriginalPosition?.CommitPosition.ToString());
+                options.SetHeader("EntityType", descriptor.EntityType);
+                options.SetHeader("Version", descriptor.Version.ToString());
+                options.SetHeader("Timestamp", descriptor.Timestamp.ToString());
+                foreach (var header in descriptor.Headers)
+                    options.SetHeader(header.Key, header.Value);
+
+                while (_paused)
+                    Thread.Sleep(50);
+
                 try
                 {
-                    _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
+                    _endpoint.Send(data, options);
                 }
                 catch (SubscriptionCanceled)
                 {

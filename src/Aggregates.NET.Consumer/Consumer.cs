@@ -22,23 +22,26 @@ namespace Aggregates
     {
         public ConsumerFeature() : base()
         {
-            RegisterStartupTask<ConsumerRunner>();
-
             Defaults(s =>
             {
-                s.SetDefault("Parallelism", Environment.ProcessorCount / 2);
-                s.SetDefault("ParallelHandlers", true);
-                s.SetDefault("EventDropIsFatal", false);
-                s.SetDefault("MaxQueueSize", 10000);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
             base.Setup(context);
-            context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
-            context.Container.ConfigureComponent<NServiceBusDispatcher>(DependencyLifecycle.SingleInstance);
 
-            context.Pipeline.Register<FixSendIntentRegistration>();
+            context.RegisterStartupTask((builder) => new ConsumerRunner(builder, context.Settings));
+
+            context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
+
+            context.Pipeline.Register(
+                behavior: typeof(MutateIncomingEvents),
+                description: "Running event mutators for incoming messages"
+                );
+            context.Pipeline.Register(
+                behavior: typeof(EventUnitOfWork),
+                description: "Begins and Ends event unit of work"
+                );
         }
     }
 
@@ -51,7 +54,7 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             base.Setup(context);
-            context.Container.ConfigureComponent<EventUnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
+            context.Container.ConfigureComponent<Checkpointer>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DurableSubscriber>(DependencyLifecycle.SingleInstance);
         }
     }
@@ -94,15 +97,13 @@ namespace Aggregates
         private static readonly ILog Logger = LogManager.GetLogger(typeof(ConsumerRunner));
         private readonly IBuilder _builder;
         private readonly ReadOnlySettings _settings;
-        private readonly Configure _configure;
         private Int32 _retryCount;
         private DateTime? _lastFailure;
 
-        public ConsumerRunner(IBuilder builder, ReadOnlySettings settings, Configure configure)
+        public ConsumerRunner(IBuilder builder, ReadOnlySettings settings)
         {
             _builder = builder;
             _settings = settings;
-            _configure = configure;
         }
 
         private TimeSpan CalculateSleep()
@@ -119,7 +120,7 @@ namespace Aggregates
             return TimeSpan.FromSeconds(1 << ((_retryCount / 2) + 2));
         }
 
-        protected override void OnStart()
+        protected override async Task OnStart(IMessageSession session)
         {
             Logger.Write(LogLevel.Debug, "Starting event consumer");
             var subscriber = _builder.Build<IEventSubscriber>();
@@ -129,6 +130,22 @@ namespace Aggregates
                 Thread.Sleep(CalculateSleep());
                 subscriber.SubscribeToAll(_settings.EndpointName());
             };
+
+            await session.Publish<Messages.ConsumerAlive>(x =>
+            {
+                x.Endpoint = _settings.EndpointName();
+                x.Instance = Defaults.Instance;
+            }).ConfigureAwait(false);
+
+        }
+        protected override async Task OnStop(IMessageSession session)
+        {
+            Logger.Write(LogLevel.Debug, "Stopping event consumer");
+            await session.Publish<Messages.ConsumerDead>(x =>
+            {
+                x.Endpoint = _settings.EndpointName();
+                x.Instance = Defaults.Instance;
+            }).ConfigureAwait(false);
         }
     }
 }

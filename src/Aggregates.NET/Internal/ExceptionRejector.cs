@@ -67,6 +67,10 @@ namespace Aggregates.Internal
 
                 Logger.WriteFormat(LogLevel.Warn, "Message {0} has failed after {1} retries!\nException: {2}\nHeaders: {3}\nBody: {4}", context.MessageId, existingRetry, e, context.MessageHeaders, Encoding.UTF8.GetString(context.Message.Body));
 
+                // Only need to reply if the client expects it
+                if (context.Message.Headers.ContainsKey(Defaults.REQUEST_RESPONSE) && context.Message.Headers[Defaults.REQUEST_RESPONSE] == "1")
+                    throw;
+                
                 // Wrap exception in our object which is serializable
                 await context.Reply(rejection(e, $"Rejected message after {existingRetry} retries!\n Payload: {Encoding.UTF8.GetString(context.Message.Body)}"));
 

@@ -10,16 +10,18 @@ namespace Aggregates.Internal
 {
     public class NSBOOBHandler : IOOBHandler
     {
-        private readonly IBus _bus;
+        private readonly IEndpointInstance _endpoint;
 
-        public NSBOOBHandler(IBus bus)
+        public NSBOOBHandler(IEndpointInstance endpoint)
         {
-            _bus = bus;
+            _endpoint = endpoint;
         }
 
 
         public Task Publish<T>(String Bucket, String StreamId, IEnumerable<IWritableEvent> Events, IDictionary<String, String> commitHeaders) where T : class, IEventSource
         {
+            var options = new PublishOptions();
+
             foreach (var header in commitHeaders)
             {
                 if (header.Key == Headers.OriginatingHostId)
@@ -27,24 +29,23 @@ namespace Aggregates.Internal
                     //is added by bus in v5
                     continue;
                 }
-
-                _bus.OutgoingHeaders[header.Key] = header.Value != null ? header.Value.ToString() : null;
+                options.SetHeader(header.Key, header.Value?.ToString());
             }
 
             foreach (var @event in Events)
             {
-                _bus.SetMessageHeader(@event.Event, "EventId", @event.EventId.ToString());
-                _bus.SetMessageHeader(@event.Event, "EntityType", @event.Descriptor.EntityType);
-                _bus.SetMessageHeader(@event.Event, "Timestamp", @event.Descriptor.Timestamp.ToString());
-                _bus.SetMessageHeader(@event.Event, "Version", @event.Descriptor.Version.ToString());
+                options.SetHeader("EventId", @event.EventId.ToString());
+                options.SetHeader("EntityType", @event.Descriptor.EntityType);
+                options.SetHeader("Timestamp", @event.Descriptor.Timestamp.ToString());
+                options.SetHeader("Version", @event.Descriptor.Version.ToString());
 
 
                 foreach (var header in @event.Descriptor.Headers)
                 {
-                    _bus.SetMessageHeader(@event, header.Key, header.Value);
+                    options.SetHeader(header.Key, header.Value);
                 }
 
-                _bus.Publish(@event);
+                _endpoint.Publish(@event, options);
             }
 
             return Task.FromResult(0);

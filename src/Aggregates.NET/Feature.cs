@@ -40,7 +40,11 @@ namespace Aggregates
                 behavior: typeof(MutateOutgoingCommands),
                 description: "runs command mutators on outgoing commands"
                 );
-            
+            context.Pipeline.Register(
+                behavior: typeof(MutateOutgoingEvents),
+                description: "runs command mutators on outgoing events"
+                );
+
 
             context.Container.ConfigureComponent<Func<Exception, String, Error>>(y =>
             {

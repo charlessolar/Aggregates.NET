@@ -62,6 +62,7 @@
     <Compile Include="Exceptions\DiscriminatorException.cs" />
     <Compile Include="Exceptions\SubscriptionCanceled.cs" />
     <Compile Include="Extensions\StackExtensions.cs" />
+    <Compile Include="Internal\EventUnitOfWork.cs" />
     <Compile Include="Internal\CompetingSubscriber.cs" />
     <Compile Include="Consumer.cs" />
     <Compile Include="ConsumerConfiguration.cs" />
@@ -69,12 +70,10 @@
     <Compile Include="IDispatcher.cs" />
     <Compile Include="IEventSubscriber.cs" />
     <Compile Include="IManageCompetes.cs" />
-    <Compile Include="Internal\EventUnitOfWork.cs" />
-    <Compile Include="Internal\FixSendIntent.cs" />
-    <Compile Include="Internal\TaskProcessor.cs" />
+    <Compile Include="Internal\Checkpointer.cs" />
+    <Compile Include="Internal\MutateIncomingEvents.cs" />
     <Compile Include="IPersistCheckpoints.cs" />
     <Compile Include="IEventUnitOfWork.cs" />
-    <Compile Include="Internal\NServiceBusDispatcher.cs" />
     <Compile Include="Internal\VolatileSubscriber.cs" />
   </ItemGroup>
   <ItemGroup>

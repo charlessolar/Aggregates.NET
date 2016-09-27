@@ -35,6 +35,8 @@ namespace Aggregates
         {
             base.Setup(context);
 
+            context.RegisterStartupTask(() => new DomainStart(context.Settings));
+
             context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.SingleInstance);
@@ -65,14 +67,53 @@ namespace Aggregates
             }, DependencyLifecycle.SingleInstance);
 
 
-            context.Pipeline.Register<CommandAcceptorRegistration>();
-            context.Pipeline.Register<CommandUnitOfWorkRegistration>();
+            context.Pipeline.Register(
+                behavior: typeof(CommandAcceptor),
+                description: "Filters [BusinessException] from processing failures"
+                );
+            context.Pipeline.Register(
+                behavior: typeof(CommandUnitOfWork),
+                description: "Begins and Ends command unit of work"
+                );
+            context.Pipeline.Register(
+                behavior: typeof(MutateIncomingCommands),
+                description: "Running command mutators for incoming messages"
+                );
 
-            context.Pipeline.Register<MutateIncomingCommandsRegistration>();
             //context.Pipeline.Register<SafetyNetRegistration>();
             //context.Pipeline.Register<TesterBehaviorRegistration>();
-            
+        }
 
+        public class DomainStart : FeatureStartupTask
+        {
+            private static readonly ILog Logger = LogManager.GetLogger(typeof(DomainStart));
+
+            private readonly ReadOnlySettings _settings;
+
+            public DomainStart(ReadOnlySettings settings)
+            {
+                _settings = settings;
+            }
+
+            protected override async Task OnStart(IMessageSession session)
+            {
+                Logger.Write(LogLevel.Debug, "Starting domain");
+                await session.Publish<Messages.DomainAlive>(x =>
+                {
+                    x.Endpoint = _settings.EndpointName();
+                    x.Instance = Aggregates.Defaults.Instance;
+                }).ConfigureAwait(false);
+
+            }
+            protected override async Task OnStop(IMessageSession session)
+            {
+                Logger.Write(LogLevel.Debug, "Stopping domain");
+                await session.Publish<Messages.DomainDead>(x =>
+                {
+                    x.Endpoint = _settings.EndpointName();
+                    x.Instance = Aggregates.Defaults.Instance;
+                }).ConfigureAwait(false);
+            }
         }
     }
 }

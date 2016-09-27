@@ -14,7 +14,7 @@ namespace Aggregates
         public static readonly String RETRIES = "Aggregates.NET.Retries";
         public static readonly String REQUEST_RESPONSE = "Aggregates.NET.Request";
 
-        public static Guid Domain = Guid.NewGuid();
+        public static Guid Instance = Guid.NewGuid();
         public static String Bucket = "default";
         public static String MessageIdHeader = "Originating.NServiceBus.MessageId";
         public static String CommitIdHeader = "CommitId";

@@ -15,65 +15,43 @@ using Aggregates.Extensions;
 
 namespace Aggregates.Internal
 {
-    internal class CommandAcceptor : IBehavior<IncomingContext>
+    internal class CommandAcceptor : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CommandAcceptor));
 
-        private static Meter _errorsMeter = Metric.Meter("Business Exceptions", Unit.Errors);
-        private readonly IBus _bus;
-        public CommandAcceptor(IBus bus)
-        {
-            _bus = bus;
-        }
-        
+        private static Meter _errorsMeter = Metric.Meter("Business Exceptions", Unit.Errors);        
 
-        public void Invoke(IncomingContext context, Action next)
+        public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
-            if (context.IncomingLogicalMessage.Instance is ICommand)
+            if (context.Message.Instance is ICommand)
             {
-                BusinessException exception = null;
                 try
                 {
-                    next();
-                    // Tell the sender the command was accepted
-                    var accept = context.Builder.Build<Func<Accept>>();
-                    _bus.Reply(accept());
-                }
-                catch (System.AggregateException e)
-                {
-                    if (!(e is BusinessException) && !(e.InnerException is BusinessException) && !e.InnerExceptions.OfType<BusinessException>().Any())
-                        throw;
+                    await next();
 
-                    if (e is BusinessException)
-                        exception = e as BusinessException;
-                    else if (e.InnerException is BusinessException)
-                        exception = e.InnerException as BusinessException;
-                    else
-                        exception = new BusinessException(e.Message, e.InnerExceptions.OfType<BusinessException>());
+                    // Only need to reply if the client expects it
+                    if (context.MessageHeaders.ContainsKey(Defaults.REQUEST_RESPONSE) && context.MessageHeaders[Defaults.REQUEST_RESPONSE] == "1")
+                    {
+                        // Tell the sender the command was accepted
+                        var accept = context.Builder.Build<Func<Accept>>();
+                        await context.Reply(accept());
+                    }
                 }
-                if (exception != null)
+                catch (BusinessException e)
                 {
+                    if (context.MessageHeaders.ContainsKey(Defaults.REQUEST_RESPONSE) && context.MessageHeaders[Defaults.REQUEST_RESPONSE] == "1")
+                        return; // Dont throw, business exceptions are not message failures
+
                     _errorsMeter.Mark();
-                    Logger.Write(LogLevel.Debug, () => $"Command {context.IncomingLogicalMessage.MessageType.FullName} was rejected\nException: {exception}");
+                    Logger.Write(LogLevel.Debug, () => $"Command {context.Message.MessageType.FullName} was rejected\nException: {e}");
                     // Tell the sender the command was rejected due to a business exception
                     var rejection = context.Builder.Build<Func<BusinessException, Reject>>();
-                    _bus.Reply(rejection(exception));
+                    await context.Reply(rejection(e));
                 }
                 return;
-
             }
 
-            next();
-        }
-    }
-
-    internal class CommandAcceptorRegistration : RegisterStep
-    {
-        public CommandAcceptorRegistration()
-            : base("CommandAcceptor", typeof(CommandAcceptor), "Filters [BusinessException] from processing failures")
-        {
-            InsertBefore(WellKnownStep.LoadHandlers);
-
+            await next();
         }
     }
 }

@@ -23,19 +23,19 @@ namespace Aggregates.Internal
         private readonly IBuilder _builder;
         private readonly IEventStoreConnection _client;
         private readonly IPersistCheckpoints _store;
-        private readonly IDispatcher _dispatcher;
         private readonly ReadOnlySettings _settings;
+        private readonly IEndpointInstance _endpoint;
         private readonly JsonSerializerSettings _jsonSettings;
 
         public Boolean ProcessingLive { get; set; }
         public Action<String, Exception> Dropped { get; set; }
 
-        public DurableSubscriber(IBuilder builder, IEventStoreConnection client, IPersistCheckpoints store, IDispatcher dispatcher, ReadOnlySettings settings, IMessageMapper mapper)
+        public DurableSubscriber(IBuilder builder, IEventStoreConnection client, IPersistCheckpoints store, IEndpointInstance endpoint, ReadOnlySettings settings, IMessageMapper mapper)
         {
             _builder = builder;
             _client = client;
             _store = store;
-            _dispatcher = dispatcher;
+            _endpoint = endpoint;
             _settings = settings;
             _jsonSettings = new JsonSerializerSettings
             {
@@ -61,13 +61,23 @@ namespace Aggregates.Internal
 
                 var descriptor = e.Event.Metadata.Deserialize(_jsonSettings);
                 var data = e.Event.Data.Deserialize(e.Event.EventType, _jsonSettings);
-
+                
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position or snapshots)
                 if (data == null) return;
 
+                var options = new SendOptions();
+
+                options.RouteToThisInstance();
+                options.SetHeader("CommitPosition", e.OriginalPosition?.CommitPosition.ToString());
+                options.SetHeader("EntityType", descriptor.EntityType);
+                options.SetHeader("Version", descriptor.Version.ToString());
+                options.SetHeader("Timestamp", descriptor.Timestamp.ToString());
+                foreach (var header in descriptor.Headers)
+                    options.SetHeader(header.Key, header.Value);
+
                 try
                 {
-                    _dispatcher.Dispatch(data, descriptor, e.OriginalPosition?.CommitPosition);
+                    _endpoint.Send(data, options);
                 }
                 catch (SubscriptionCanceled)
                 {

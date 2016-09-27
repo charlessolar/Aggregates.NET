@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NServiceBus;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,7 +9,7 @@ namespace Aggregates.Contracts
 {
     public interface IEventMutator
     {
-        Object MutateIncoming(Object Event, IEventDescriptor Descriptor, long? Position);
-        IWritableEvent MutateOutgoing(IWritableEvent Event);
+        IEvent MutateIncoming(IEvent @event, IReadOnlyDictionary<String, String> headers);
+        IEvent MutateOutgoing(IEvent @event);
     }
 }

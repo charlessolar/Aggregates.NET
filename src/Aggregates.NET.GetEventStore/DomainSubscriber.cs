@@ -69,7 +69,7 @@ namespace Aggregates
                 // We don't need to publish events saved by other domain instances
                 String header = null;
                 Guid domain = Guid.Empty;
-                if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.DomainHeader, out header) || !Guid.TryParse(header, out domain) || domain != Defaults.Domain)
+                if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.DomainHeader, out header) || !Guid.TryParse(header, out domain) || domain != Defaults.Instance)
                     return;
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
                 if (data == null) return;

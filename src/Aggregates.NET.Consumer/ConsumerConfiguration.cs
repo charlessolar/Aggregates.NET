@@ -12,10 +12,6 @@ namespace Aggregates
 
     public static class ConsumerConfiguration
     {
-        public static void SetParallelism(this ExposeSettings settings, Int32 Parallelism)
-        {
-            settings.GetSettings().Set("Parallelism", Parallelism);
-        }
         public static void SetBucketHeartbeats(this ExposeSettings settings, Int32 Seconds)
         {
             settings.GetSettings().Set("BucketHeartbeats", Seconds);
@@ -31,18 +27,6 @@ namespace Aggregates
         public static void SetBucketsHandled(this ExposeSettings settings, Int32 Count)
         {
             settings.GetSettings().Set("BucketsHandled", Count);
-        }
-        public static void ParallelHandlers(this ExposeSettings settings, Boolean Parrallel)
-        {
-            settings.GetSettings().Set("ParallelHandlers", Parrallel);
-        }
-        public static void EventDropIsFatal(this ExposeSettings settings, Boolean Fatal)
-        {
-            settings.GetSettings().Set("EventDropIsFatal", Fatal);
-        }
-        public static void MaxProcessingQueueSize(this ExposeSettings settings, Int32 Size)
-        {
-            settings.GetSettings().Set("MaxQueueSize", Size);
         }
         /// <summary>
         /// When true, application will not consume events unless ALL buckets are claimed

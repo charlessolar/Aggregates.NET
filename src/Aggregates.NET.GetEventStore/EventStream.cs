@@ -128,7 +128,7 @@ namespace Aggregates.Internal
                 foreach (var mutate in mutators)
                 {
                     Logger.Write(LogLevel.Debug, () => $"Mutating outgoing event {@event.GetType().FullName} with mutator {mutate.GetType().FullName}");
-                    writable = mutate.MutateOutgoing(writable);
+                    writable.Event = mutate.MutateOutgoing(writable.Event);
                 }
             return writable;
         }

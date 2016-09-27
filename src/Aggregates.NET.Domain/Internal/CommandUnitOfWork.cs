@@ -20,10 +20,10 @@ namespace Aggregates.Internal
 {
 
 
-    internal class CommandUnitOfWork : IBehavior<IncomingContext>
+    internal class CommandUnitOfWork : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CommandUnitOfWork));
-        private static HashSet<String> SlowEventTypes = new HashSet<String>();
+        private static HashSet<String> SlowCommandTypes = new HashSet<String>();
 
         private static Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
         private static Metrics.Timer _commandsTimer = Metric.Timer("Command Duration", Unit.Commands);
@@ -32,24 +32,27 @@ namespace Aggregates.Internal
 
         private readonly ReadOnlySettings _settings;
         private readonly Int32 _slowAlert;
-        public CommandUnitOfWork(IBus bus, ReadOnlySettings settings)
+
+        public CommandUnitOfWork(ReadOnlySettings settings)
         {
             _settings = settings;
             _slowAlert = _settings.Get<Int32>("SlowAlertThreshold");
         }
 
-        public void Invoke(IncomingContext context, Action next)
+        public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
-            try
+            if(!(context.Message.Instance is ICommand))
             {
-                // Todo: break out timing of commands into a different pipeline step I think
-                if (SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
-                {
-                    Logger.Write(LogLevel.Info, () => $"Command {context.IncomingLogicalMessage.MessageType.FullName} was previously detected as slow, switching to more verbose logging (for this instance)\nPayload: {JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance, Formatting.Indented).MaxLines(15)}");
-                    Defaults.MinimumLogging.Value = LogLevel.Info;
-                }
+                await next();
+                return;
             }
-            catch (KeyNotFoundException) { }
+
+            // Todo: break out timing of commands into a different pipeline step I think
+            if (SlowCommandTypes.Contains(context.Message.MessageType.FullName))
+            {
+                Logger.Write(LogLevel.Info, () => $"Command {context.Message.MessageType.FullName} was previously detected as slow, switching to more verbose logging (for this instance)\nPayload: {JsonConvert.SerializeObject(context.Message.Instance, Formatting.Indented).MaxLines(15)}");
+                Defaults.MinimumLogging.Value = LogLevel.Info;
+            }
 
             Stopwatch s = new Stopwatch();
             var uows = new ConcurrentStack<ICommandUnitOfWork>();
@@ -58,38 +61,38 @@ namespace Aggregates.Internal
                 _commandsMeter.Mark();
                 using (_commandsTimer.NewContext())
                 {
-                    foreach( var uow in context.Builder.BuildAll<ICommandUnitOfWork>()) 
+                    foreach (var uow in context.Builder.BuildAll<ICommandUnitOfWork>())
                     {
                         uows.Push(uow);
                         uow.Builder = context.Builder;
 
                         var retries = 0;
-                        context.TryGet<Int32>("AggregatesNet.Retries", out retries);
+                        context.Extensions.TryGet<Int32>(Defaults.RETRIES, out retries);
                         uow.Retries = retries;
 
-                        uow.Begin().Wait();
+                        await uow.Begin();
                     }
-                    
+
                     s.Restart();
 
-                    next();
+                    await next();
 
                     s.Stop();
                     if (s.ElapsedMilliseconds > _slowAlert)
                     {
-                        Logger.Write(LogLevel.Warn, () => $" - SLOW ALERT - Processing command {context.IncomingLogicalMessage.MessageType.FullName} took {s.ElapsedMilliseconds} ms\nPayload: {JsonConvert.SerializeObject(context.IncomingLogicalMessage.Instance, Formatting.Indented).MaxLines(15)}");
-                        if (!SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName))
-                            SlowEventTypes.Add(context.IncomingLogicalMessage.MessageType.FullName);
+                        Logger.Write(LogLevel.Warn, () => $" - SLOW ALERT - Processing command {context.Message.MessageType.FullName} took {s.ElapsedMilliseconds} ms\nPayload: {JsonConvert.SerializeObject(context.Message.Instance, Formatting.Indented).MaxLines(15)}");
+                        if (!SlowCommandTypes.Contains(context.Message.MessageType.FullName))
+                            SlowCommandTypes.Add(context.Message.MessageType.FullName);
                     }
                     else
-                        Logger.Write(LogLevel.Debug, () => $"Processing command {context.IncomingLogicalMessage.MessageType.FullName} took {s.ElapsedMilliseconds} ms");
-                
+                        Logger.Write(LogLevel.Debug, () => $"Processing command {context.Message.MessageType.FullName} took {s.ElapsedMilliseconds} ms");
+
                     s.Restart();
                     foreach (var uow in uows.Generate())
                     {
                         try
                         {
-                            uow.End().Wait();
+                            await uow.End();
                         }
                         catch
                         {
@@ -100,24 +103,24 @@ namespace Aggregates.Internal
                     }
                     s.Stop();
                     if (s.ElapsedMilliseconds > _slowAlert)
-                        Logger.Write(LogLevel.Warn, () => $" - SLOW ALERT - UOW.End for command {context.IncomingLogicalMessage.MessageType.FullName} took {s.ElapsedMilliseconds} ms");
+                        Logger.Write(LogLevel.Warn, () => $" - SLOW ALERT - UOW.End for command {context.Message.MessageType.FullName} took {s.ElapsedMilliseconds} ms");
                     else
-                        Logger.Write(LogLevel.Debug, () => $"UOW.End for command {context.IncomingLogicalMessage.MessageType.FullName} took {s.ElapsedMilliseconds} ms");
-                    
+                        Logger.Write(LogLevel.Debug, () => $"UOW.End for command {context.Message.MessageType.FullName} took {s.ElapsedMilliseconds} ms");
+
                 }
 
 
             }
-            catch (System.AggregateException e)
+            catch (Exception e)
             {
-                Logger.WriteFormat(LogLevel.Warn, "Caught exceptions '{0}' while executing command", e.InnerExceptions.Select(x => x.Message).Aggregate((c,n)=> $"{c}, {n}"));
+                Logger.WriteFormat(LogLevel.Warn, "Caught exception '{0}' while executing command", e);
                 _errorsMeter.Mark();
                 var trailingExceptions = new List<Exception>();
                 foreach (var uow in uows.Generate())
                 {
                     try
                     {
-                        uow.End(e).Wait();
+                        await uow.End(e);
                     }
                     catch (Exception endException)
                     {
@@ -135,27 +138,13 @@ namespace Aggregates.Internal
             }
             finally
             {
-                try
+                if (SlowCommandTypes.Contains(context.Message.MessageType.FullName) && Defaults.MinimumLogging.Value.HasValue)
                 {
-                    if (SlowEventTypes.Contains(context.IncomingLogicalMessage.MessageType.FullName) && Defaults.MinimumLogging.Value.HasValue)
-                    {
-                        Logger.Write(LogLevel.Info, () => $"Finished processing command {context.IncomingLogicalMessage.MessageType.FullName} verbosely - resetting log level");
-                        Defaults.MinimumLogging.Value = null;
-                        SlowEventTypes.Remove(context.IncomingLogicalMessage.MessageType.FullName);
-                    }
+                    Logger.Write(LogLevel.Info, () => $"Finished processing command {context.Message.MessageType.FullName} verbosely - resetting log level");
+                    Defaults.MinimumLogging.Value = null;
+                    SlowCommandTypes.Remove(context.Message.MessageType.FullName);
                 }
-                catch (KeyNotFoundException) { }
             }
-        }
-    }
-
-    internal class CommandUnitOfWorkRegistration : RegisterStep
-    {
-        public CommandUnitOfWorkRegistration()
-            : base("CommandUnitOfWork", typeof(CommandUnitOfWork), "Begins and Ends command unit of work")
-        {
-            InsertBefore(WellKnownStep.ExecuteUnitOfWork);
-            InsertAfter(WellKnownStep.CreateChildContainer);
         }
     }
 }
