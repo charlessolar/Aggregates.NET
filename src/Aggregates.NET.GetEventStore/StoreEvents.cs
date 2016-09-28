@@ -76,7 +76,7 @@ namespace Aggregates
             Logger.Write(LogLevel.Debug, () => $"Getting events from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} starting at {sliceStart}");
             do
             {
-                current = await _client.ReadStreamEventsForwardAsync(streamName, sliceStart, readSize, false);
+                current = await _client.ReadStreamEventsForwardAsync(streamName, sliceStart, readSize, false).ConfigureAwait(false);
                 Logger.Write(LogLevel.Debug, () => $"Retreived {current.Events.Count()} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                 events.AddRange(current.Events);
@@ -127,7 +127,7 @@ namespace Aggregates
             do
             {
                 var take = Math.Min((count ?? Int32.MaxValue) - events.Count, readSize);
-                current = await _client.ReadStreamEventsForwardAsync(streamName, sliceStart, take, false);
+                current = await _client.ReadStreamEventsForwardAsync(streamName, sliceStart, take, false).ConfigureAwait(false);
                 Logger.Write(LogLevel.Debug, () => $"Retreived {current.Events.Count()} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                 events.AddRange(current.Events);
@@ -174,7 +174,7 @@ namespace Aggregates
             {
                 // Interesting, ReadStreamEventsBackwardAsync's [start] parameter marks start from begining of stream, not an offset from the end.
                 // Read 1 event from the end, to figure out where start should be
-                var result = await _client.ReadStreamEventsBackwardAsync(streamName, StreamPosition.End, 1, false);
+                var result = await _client.ReadStreamEventsBackwardAsync(streamName, StreamPosition.End, 1, false).ConfigureAwait(false);
                 sliceStart = result.NextEventNumber - start.Value;
             }
 
@@ -182,7 +182,7 @@ namespace Aggregates
             do
             {
                 var take = Math.Min((count ?? Int32.MaxValue) - events.Count, readSize);
-                current = await _client.ReadStreamEventsBackwardAsync(streamName, sliceStart, take, false);
+                current = await _client.ReadStreamEventsBackwardAsync(streamName, sliceStart, take, false).ConfigureAwait(false);
                 Logger.Write(LogLevel.Debug, () => $"Retreived backwards {current.Events.Count()} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                 events.AddRange(current.Events);
@@ -244,7 +244,7 @@ namespace Aggregates
                     );
             }).ToList();
 
-            await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents);
+            await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents).ConfigureAwait(false);
         }
 
         public async Task WriteEvents<T>(String bucket, String streamId, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders) where T : class, IEventSource
@@ -284,7 +284,18 @@ namespace Aggregates
                     );
             }).ToList();
 
-            await _client.AppendToStreamAsync(streamName, expectedVersion, translatedEvents);
+            await _client.AppendToStreamAsync(streamName, expectedVersion, translatedEvents).ConfigureAwait(false);
+        }
+
+
+        public async Task WriteEventMetadata<T>(String bucket, String streamId, Int32? MaxCount = null, TimeSpan? MaxAge = null, TimeSpan? CacheControl = null) where T : class, IEventSource
+        {
+            Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName}");
+            var streamName = _streamGen(typeof(T), bucket, streamId);
+
+            var metadata = StreamMetadata.Create(maxCount: MaxCount, maxAge: MaxAge, cacheControl: CacheControl);
+
+            await _client.SetStreamMetadataAsync(streamName, ExpectedVersion.Any, metadata).ConfigureAwait(false);
         }
     }
 }

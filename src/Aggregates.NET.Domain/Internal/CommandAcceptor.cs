@@ -27,14 +27,14 @@ namespace Aggregates.Internal
             {
                 try
                 {
-                    await next();
+                    await next().ConfigureAwait(false);
 
                     // Only need to reply if the client expects it
                     if (context.MessageHeaders.ContainsKey(Defaults.REQUEST_RESPONSE) && context.MessageHeaders[Defaults.REQUEST_RESPONSE] == "1")
                     {
                         // Tell the sender the command was accepted
                         var accept = context.Builder.Build<Func<Accept>>();
-                        await context.Reply(accept());
+                        await context.Reply(accept()).ConfigureAwait(false);
                     }
                 }
                 catch (BusinessException e)
@@ -46,12 +46,12 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Debug, () => $"Command {context.Message.MessageType.FullName} was rejected\nException: {e}");
                     // Tell the sender the command was rejected due to a business exception
                     var rejection = context.Builder.Build<Func<BusinessException, Reject>>();
-                    await context.Reply(rejection(e));
+                    await context.Reply(rejection(e)).ConfigureAwait(false);
                 }
                 return;
             }
 
-            await next();
+            await next().ConfigureAwait(false);
         }
     }
 }

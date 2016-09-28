@@ -73,7 +73,7 @@ namespace Aggregates.Internal
                 {
                     try
                     {
-                        await stream.Commit(commitId, headers);
+                        await stream.Commit(commitId, headers).ConfigureAwait(false);
                         success = true;
                     }
                     catch (VersionException version)
@@ -82,7 +82,7 @@ namespace Aggregates.Internal
                         {
                             Conflicts.Mark();
                             Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
-                            stream = await ResolveConflict(tracked.Stream);
+                            stream = await ResolveConflict(tracked.Stream).ConfigureAwait(false);
                             Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - successfully resolved", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
                             ConflictsResolved.Mark();
                         }
@@ -124,7 +124,7 @@ namespace Aggregates.Internal
             var uncommitted = stream.Uncommitted;
             Logger.Write(LogLevel.Debug, () => $"Resolving - getting stream {stream.StreamId} bucket {stream.Bucket} from store");
             // Get latest stream from store
-            var existing = await GetUntracked(stream.Bucket, stream.StreamId);
+            var existing = await GetUntracked(stream.Bucket, stream.StreamId).ConfigureAwait(false);
             Logger.Write(LogLevel.Debug, () => $"Resolving - got stream version {existing.Version} from store, hydrating {stream.Uncommitted.Count()} uncomitted events");
             // Hydrate the uncommitted events
             existing.Hydrate(uncommitted);
@@ -159,7 +159,7 @@ namespace Aggregates.Internal
             if (typeof(TId) == typeof(String) && String.IsNullOrEmpty(id as String)) return null;
             try
             {
-                return await Get<TId>(bucket, id);
+                return await Get<TId>(bucket, id).ConfigureAwait(false);
             }
             catch (NotFoundException) { }
             catch (System.AggregateException e)
@@ -178,7 +178,7 @@ namespace Aggregates.Internal
         public async Task<T> Get<TId>(String bucket, TId id)
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving aggregate id [{id}] in bucket [{bucket}] for type {typeof(T).FullName} in store");
-            var root = await Get(bucket, id.ToString());
+            var root = await Get(bucket, id.ToString()).ConfigureAwait(false);
             (root as IEventSource<TId>).Id = id;
             return root;
         }
@@ -187,15 +187,15 @@ namespace Aggregates.Internal
             var cacheId = String.Format("{0}.{1}", bucket, id);
             T root;
             if (!_tracked.TryGetValue(cacheId, out root))
-                _tracked[cacheId] = root = await GetUntracked(bucket, id);
+                _tracked[cacheId] = root = await GetUntracked(bucket, id).ConfigureAwait(false);
 
             return root;
         }
         private async Task<T> GetUntracked(String bucket, string streamId)
         {
             T root;
-            var snapshot = await GetSnapshot(bucket, streamId);
-            var stream = await OpenStream(bucket, streamId, snapshot);
+            var snapshot = await GetSnapshot(bucket, streamId).ConfigureAwait(false);
+            var stream = await OpenStream(bucket, streamId, snapshot).ConfigureAwait(false);
 
             if (stream == null && snapshot == null)
                 throw new NotFoundException($"Aggregate snapshot in stream [{streamId}] bucket [{bucket}] type {typeof(T).FullName} not found");
@@ -225,7 +225,7 @@ namespace Aggregates.Internal
 
         public async Task<T> New<TId>(String bucket, TId id)
         {
-            var root = await New(bucket, id.ToString());
+            var root = await New(bucket, id.ToString()).ConfigureAwait(false);
             (root as IEventSource<TId>).Id = id;
 
             return root;
@@ -233,7 +233,7 @@ namespace Aggregates.Internal
         public async Task<T> New(String bucket, String streamId)
         {
             Logger.Write(LogLevel.Debug, () => $"Creating new stream id [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} in store");
-            var stream = await OpenStream(bucket, streamId);
+            var stream = await OpenStream(bucket, streamId).ConfigureAwait(false);
             var root = Newup(stream, _builder);
 
             var cacheId = String.Format("{0}.{1}", bucket, streamId);

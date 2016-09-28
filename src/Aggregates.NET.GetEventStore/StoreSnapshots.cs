@@ -59,7 +59,7 @@ namespace Aggregates
                 _missMeter.Mark();
             }
 
-            var read = await _client.ReadEventAsync(streamName, StreamPosition.End, false);
+            var read = await _client.ReadEventAsync(streamName, StreamPosition.End, false).ConfigureAwait(false);
             if (read.Status != EventReadStatus.Success || !read.Event.HasValue)
                 return null;
 
@@ -108,7 +108,15 @@ namespace Aggregates
             }).ToList();
 
             
-            await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents);
+            var result = await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents).ConfigureAwait(false);
+            if( result.LogPosition == Position.Start)
+            {
+                Logger.Write(LogLevel.Debug, () => $"Writing metadata to snapshot stream id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName}");
+
+                var metadata = StreamMetadata.Create(maxCount: 10, cacheControl: TimeSpan.FromSeconds(30));
+
+                await _client.SetStreamMetadataAsync(streamName, ExpectedVersion.Any, metadata).ConfigureAwait(false);
+            }
         }
         
     }

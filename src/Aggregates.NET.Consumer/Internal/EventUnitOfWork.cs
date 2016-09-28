@@ -43,7 +43,7 @@ namespace Aggregates.Internal
         {
             if (!(context.Message.Instance is IEvent))
             {
-                await next();
+                await next().ConfigureAwait(false);
                 return;
             }
 
@@ -70,12 +70,12 @@ namespace Aggregates.Internal
                         context.Extensions.TryGet<Int32>(Defaults.RETRIES, out retries);
                         uow.Retries = retries;
 
-                        await uow.Begin();
+                        await uow.Begin().ConfigureAwait(false);
                     }
 
                     s.Restart();
 
-                    await next();
+                    await next().ConfigureAwait(false);
 
                     s.Stop();
                     if (s.ElapsedMilliseconds > _slowAlert)
@@ -92,7 +92,7 @@ namespace Aggregates.Internal
                     {
                         try
                         {
-                            await uow.End();
+                            await uow.End().ConfigureAwait(false);
                         }
                         catch
                         {
@@ -118,7 +118,7 @@ namespace Aggregates.Internal
                 {
                     try
                     {
-                        await uow.End(e);
+                        await uow.End(e).ConfigureAwait(false);
                     }
                     catch (Exception endException)
                     {

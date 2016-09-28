@@ -39,7 +39,7 @@ namespace Aggregates.Internal
             if (typeof(TId) == typeof(String) && String.IsNullOrEmpty(id as String)) return null;
             try
             {
-                return await Get<TId>(id);
+                return await Get<TId>(id).ConfigureAwait(false);
             }
             catch (NotFoundException) { }
             catch (System.AggregateException e)
@@ -54,7 +54,7 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving entity id [{id}] from parent {_parent.StreamId} [{typeof(TParent).FullName}] in store");
 
-            var entity = await Get(_parent.Bucket, id);
+            var entity = await Get(_parent.Bucket, id).ConfigureAwait(false);
             (entity as IEventSource<TId>).Id = id;
             (entity as IEntity<TId, TParent, TParentId>).Parent = _parent;
             
@@ -64,7 +64,7 @@ namespace Aggregates.Internal
         public override async Task<T> New<TId>(TId id)
         {
 
-            var entity = await New(_parent.Bucket, id);
+            var entity = await New(_parent.Bucket, id).ConfigureAwait(false);
 
             try
             {

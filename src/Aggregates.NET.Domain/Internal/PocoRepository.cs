@@ -41,7 +41,7 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Retreiving entity id [{id}] from parent {_parent.StreamId} [{typeof(TParent).FullName}] in store");
             var streamId = String.Format("{0}.{1}", _parent.StreamId, id);
 
-            var entity = await Get(_parent.Bucket, streamId);
+            var entity = await Get(_parent.Bucket, streamId).ConfigureAwait(false);
             (entity as IEventSource<TId>).Id = id;
             (entity as IEntity<TId, TParent, TParentId>).Parent = _parent;
 
@@ -52,7 +52,7 @@ namespace Aggregates.Internal
         {
             var streamId = String.Format("{0}.{1}", _parent.StreamId, id);
 
-            var entity = await New(_parent.Bucket, streamId);
+            var entity = await New(_parent.Bucket, streamId).ConfigureAwait(false);
 
             try
             {
@@ -105,7 +105,7 @@ namespace Aggregates.Internal
                 {
                     try
                     {
-                        await _store.Write<T>(tracked.Value, tracked.Key.Item1, tracked.Key.Item2, headers);
+                        await _store.Write<T>(tracked.Value, tracked.Key.Item1, tracked.Key.Item2, headers).ConfigureAwait(false);
                         success = true;
                     }
                     catch (PersistenceException e)
@@ -173,7 +173,7 @@ namespace Aggregates.Internal
         public async Task<T> Get<TId>(String bucket, TId id)
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving aggregate id [{id}] from bucket [{bucket}] in store");
-            var root = await Get(bucket, id.ToString());
+            var root = await Get(bucket, id.ToString()).ConfigureAwait(false);
             (root as IEventSource<TId>).Id = id;
             return root;
         }
@@ -182,7 +182,7 @@ namespace Aggregates.Internal
             var cacheId = new Tuple<String, String>(bucket, id);
             T root;
             if (!_tracked.TryGetValue(cacheId, out root))
-                _tracked[cacheId] = root = await _store.Get<T>(bucket, id);
+                _tracked[cacheId] = root = await _store.Get<T>(bucket, id).ConfigureAwait(false);
 
             return root;
         }
@@ -194,7 +194,7 @@ namespace Aggregates.Internal
 
         public async Task<T> New<TId>(String bucket, TId id)
         {
-            var root = await New(bucket, id.ToString());
+            var root = await New(bucket, id.ToString()).ConfigureAwait(false);
             (root as IEventSource<TId>).Id = id;
 
             return root;

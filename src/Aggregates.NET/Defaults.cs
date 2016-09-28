@@ -29,7 +29,6 @@ namespace Aggregates
                                                                           "NServiceBus.Version",
                                                                           "NServiceBus.TimeSent",
                                                                           "NServiceBus.ConversationId",
-                                                                          "CorrId",
                                                                           "NServiceBus.OriginatingMachine",
                                                                           "NServiceBus.OriginatingEndpoint"
                                                                       };

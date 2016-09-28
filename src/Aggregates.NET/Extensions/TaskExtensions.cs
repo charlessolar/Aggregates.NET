@@ -18,7 +18,7 @@ namespace Aggregates.Extensions
                 {
                     using (partition)
                         while (partition.MoveNext())
-                            await body(partition.Current);
+                            await body(partition.Current).ConfigureAwait(false);
 
                 }));
         }
@@ -37,7 +37,7 @@ namespace Aggregates.Extensions
         public static async Task WhenAllSync<T>(this IEnumerable<T> values, Func<T, Task> asyncAction)
         {
             foreach (var val in values)
-                await asyncAction.Invoke(val);
+                await asyncAction.Invoke(val).ConfigureAwait(false);
         }
     }
 }

@@ -42,7 +42,7 @@ namespace Aggregates.Extensions
             var options = new NServiceBus.SendOptions();
             options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
 
-            var response = await ctx.Request<IMessage>(command, options);
+            var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
             response.CommandResponse();
         }
         public static async Task Command(this IMessageSession ctx, string destination, ICommand command)
@@ -51,7 +51,7 @@ namespace Aggregates.Extensions
             options.SetDestination(destination);
             options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
 
-            var response = await ctx.Request<IMessage>(command, options);
+            var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
             response.CommandResponse();
         }
         public static async Task Command<TCommand>(this IMessageSession ctx, Action<TCommand> command) where TCommand : ICommand
@@ -59,7 +59,7 @@ namespace Aggregates.Extensions
             var options = new NServiceBus.SendOptions();
             options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
 
-            var response = await ctx.Request<IMessage>(command, options);
+            var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
             response.CommandResponse();
         }
         public static async Task Command<TCommand>(this IMessageSession ctx, string destination, Action<TCommand> command) where TCommand : ICommand
@@ -68,7 +68,7 @@ namespace Aggregates.Extensions
             options.SetDestination(destination);
             options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
 
-            var response = await ctx.Request<IMessage>(command, options);
+            var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
             response.CommandResponse();
         }
 
@@ -83,14 +83,14 @@ namespace Aggregates.Extensions
             var options = new NServiceBus.SendOptions();
             options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
 
-            await ctx.Send(command, options);
+            await ctx.Send(command, options).ConfigureAwait(false);
         }
         public static async Task PassiveCommand(this IMessageSession ctx, ICommand command)
         {
             var options = new NServiceBus.SendOptions();
             options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
 
-            await ctx.Send(command, options);
+            await ctx.Send(command, options).ConfigureAwait(false);
         }
         public static async Task PassiveCommand<TCommand>(this IMessageSession ctx, string destination, Action<TCommand> command) where TCommand : ICommand
         {
@@ -98,7 +98,7 @@ namespace Aggregates.Extensions
             options.SetDestination(destination);
             options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
 
-            await ctx.Send(command, options);
+            await ctx.Send(command, options).ConfigureAwait(false);
         }
         public static async Task PassiveCommand(this IMessageSession ctx, string destination, ICommand command)
         {
@@ -106,7 +106,7 @@ namespace Aggregates.Extensions
             options.SetDestination(destination);
             options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
 
-            await ctx.Send(command, options);
+            await ctx.Send(command, options).ConfigureAwait(false);
         }
     }
 }

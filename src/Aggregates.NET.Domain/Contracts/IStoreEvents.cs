@@ -17,6 +17,8 @@ namespace Aggregates.Contracts
 
         Task AppendEvents<T>(String bucket, String streamId, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders) where T : class, IEventSource;
 
+        Task WriteEventMetadata<T>(String bucket, String streamId, Int32? MaxCount = null, TimeSpan? MaxAge = null, TimeSpan? CacheControl = null) where T : class, IEventSource;
+
         IBuilder Builder { get; set; }
     }
 }

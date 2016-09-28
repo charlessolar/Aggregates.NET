@@ -181,7 +181,7 @@ namespace Aggregates.Internal
         async Task ICommandUnitOfWork.End(Exception ex)
         {
             if (ex == null)
-                await Commit();
+                await Commit().ConfigureAwait(false);
             else
                 _errorsMeter.Mark();
 
@@ -199,7 +199,7 @@ namespace Aggregates.Internal
         async Task IEventUnitOfWork.End(Exception ex)
         {
             if (ex == null)
-                await Commit();
+                await Commit().ConfigureAwait(false);
             else
                 _errorsMeter.Mark();
 
@@ -234,7 +234,7 @@ namespace Aggregates.Internal
             {
                 try
                 {
-                    await repo.Commit(commitId, headers);
+                    await repo.Commit(commitId, headers).ConfigureAwait(false);
                 }
                 catch (StorageException e)
                 {
@@ -245,7 +245,7 @@ namespace Aggregates.Internal
             {
                 try
                 {
-                    await repo.Commit(commitId, headers);
+                    await repo.Commit(commitId, headers).ConfigureAwait(false);
                 }
                 catch (StorageException e)
                 {
@@ -256,14 +256,14 @@ namespace Aggregates.Internal
             {
                 try
                 {
-                    await repo.Commit(commitId, headers);
+                    await repo.Commit(commitId, headers).ConfigureAwait(false);
                 }
                 catch (StorageException e)
                 {
                     throw new PersistenceException(e.Message, e);
                 }
             });
-            await Task.WhenAll(aggs, entities, pocos);
+            await Task.WhenAll(aggs, entities, pocos).ConfigureAwait(false);
             Logger.Write(LogLevel.Debug, () => $"Commit id {commitId} complete");
         }
 

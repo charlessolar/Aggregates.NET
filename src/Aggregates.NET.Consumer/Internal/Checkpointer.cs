@@ -36,7 +36,7 @@ namespace Aggregates.Internal
         {
             if (ex != null) return;
             if(this.CurrentPosition.HasValue)
-                await _checkpoints.Save(_settings.EndpointName(), CurrentPosition.Value);
+                await _checkpoints.Save(_settings.EndpointName(), CurrentPosition.Value).ConfigureAwait(false);
         }
 
         public IEvent MutateIncoming(IEvent Event, IReadOnlyDictionary<String, String> Headers)

@@ -44,7 +44,7 @@ namespace Aggregates.Internal
                 _retryRegistry.TryRemove(messageId, out existingRetry);
                 context.Extensions.Set(Defaults.RETRIES, existingRetry);
 
-                await next();
+                await next().ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -72,7 +72,7 @@ namespace Aggregates.Internal
                     throw;
                 
                 // Wrap exception in our object which is serializable
-                await context.Reply(rejection(e, $"Rejected message after {existingRetry} retries!\n Payload: {Encoding.UTF8.GetString(context.Message.Body)}"));
+                await context.Reply(rejection(e, $"Rejected message after {existingRetry} retries!\n Payload: {Encoding.UTF8.GetString(context.Message.Body)}")).ConfigureAwait(false);
 
                 // Should be the last throw for this message - if RecoveryPolicy is properly set the message will be sent over to error queue
                 throw;

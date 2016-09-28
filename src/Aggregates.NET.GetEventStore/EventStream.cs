@@ -183,13 +183,13 @@ namespace Aggregates.Internal
                         throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
 
                     Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] committing {_uncommitted.Count} events");
-                    await _store.WriteEvents<T>(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders);
+                    await _store.WriteEvents<T>(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders).ConfigureAwait(false);
                     this._uncommitted.Clear();
                 }
                 if (_pendingShots.Any())
                 {
                     Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] committing {_pendingShots.Count} snapshots");
-                    await _snapshots.WriteSnapshots<T>(this.Bucket, this.StreamId, _pendingShots, commitHeaders);
+                    await _snapshots.WriteSnapshots<T>(this.Bucket, this.StreamId, _pendingShots, commitHeaders).ConfigureAwait(false);
                     this._pendingShots.Clear();
                 }
                 if (_outofband.Any())
@@ -199,7 +199,7 @@ namespace Aggregates.Internal
                     else
                     {
                         Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] publishing {_outofband.Count} out of band events to {_oobHandler.GetType().Name}");
-                        await _oobHandler.Publish<T>(this.Bucket, this.StreamId, _outofband, commitHeaders);
+                        await _oobHandler.Publish<T>(this.Bucket, this.StreamId, _outofband, commitHeaders).ConfigureAwait(false);
 
                     }
                     this._outofband.Clear();
