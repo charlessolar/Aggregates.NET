@@ -45,6 +45,8 @@ namespace Aggregates
                 description: "runs command mutators on outgoing events"
                 );
 
+            // We are sending IEvents, which NSB doesn't like out of the box - so turn that check off
+            context.Pipeline.Remove("EnforceSendBestPractices");
 
             context.Container.ConfigureComponent<Func<Exception, String, Error>>(y =>
             {
