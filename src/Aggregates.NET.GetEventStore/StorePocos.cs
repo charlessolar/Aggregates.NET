@@ -97,7 +97,7 @@ namespace Aggregates
                     );
 
             var result = await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvent).ConfigureAwait(false);
-            if (result.LogPosition == Position.Start)
+            if (result.NextExpectedVersion == 1)
             {
                 Logger.Write(LogLevel.Debug, () => $"Writing metadata to snapshot stream id [{stream}] bucket [{bucket}] for type {typeof(T).FullName}");
 

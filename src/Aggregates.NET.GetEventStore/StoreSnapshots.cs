@@ -109,7 +109,7 @@ namespace Aggregates
 
             
             var result = await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents).ConfigureAwait(false);
-            if( result.LogPosition == Position.Start)
+            if( result.NextExpectedVersion == 1)
             {
                 Logger.Write(LogLevel.Debug, () => $"Writing metadata to snapshot stream id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName}");
 
