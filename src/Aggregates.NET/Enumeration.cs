@@ -16,14 +16,14 @@ namespace Aggregates
     public abstract class Enumeration<TEnumeration> : Enumeration<TEnumeration, int>
         where TEnumeration : Enumeration<TEnumeration>
     {
-        protected Enumeration(int value, string displayName)
-            : base(value, displayName)
+        protected Enumeration(int Value, string DisplayName)
+            : base(Value, DisplayName)
         {
         }
 
-        public static TEnumeration FromInt32(int value)
+        public static TEnumeration FromInt32(int Value)
         {
-            return FromValue(value);
+            return FromValue(Value);
         }
 
         public static bool TryFromInt32(int listItemValue, out TEnumeration result)
@@ -42,24 +42,24 @@ namespace Aggregates
         private static readonly Lazy<TEnumeration[]> Enumerations = new Lazy<TEnumeration[]>(GetEnumerations);
 
         [DataMember(Order = 1)]
-        public string DisplayName { get; private set; }
+        public string DisplayName { get; protected set; }
         [DataMember(Order = 0)]
-        public TValue Value { get; private set; }
+        public TValue Value { get; protected set; }
 
-        protected Enumeration(TValue value, string displayName)
+        protected Enumeration(TValue Value, string DisplayName)
         {
-            if (value == null)
+            if (Value == null)
             {
                 throw new ArgumentNullException();
             }
 
-            this.Value = value;
-            this.DisplayName = displayName;
+            this.Value = Value;
+            this.DisplayName = DisplayName;
         }
 
-        public int CompareTo(TEnumeration other)
+        public int CompareTo(TEnumeration Other)
         {
-            return Value.CompareTo(other == default(TEnumeration) ? default(TValue) : other.Value);
+            return Value.CompareTo(Other == default(TEnumeration) ? default(TValue) : Other.Value);
         }
 
         public override sealed string ToString()
