@@ -108,5 +108,35 @@ namespace Aggregates.Extensions
 
             await ctx.Send(command, options).ConfigureAwait(false);
         }
+        public static async Task PassiveCommand<TCommand>(this IMessageHandlerContext ctx, Action<TCommand> command) where TCommand : ICommand
+        {
+            var options = new NServiceBus.SendOptions();
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
+
+            await ctx.Send(command, options).ConfigureAwait(false);
+        }
+        public static async Task PassiveCommand(this IMessageHandlerContext ctx, ICommand command)
+        {
+            var options = new NServiceBus.SendOptions();
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
+
+            await ctx.Send(command, options).ConfigureAwait(false);
+        }
+        public static async Task PassiveCommand<TCommand>(this IMessageHandlerContext ctx, string destination, Action<TCommand> command) where TCommand : ICommand
+        {
+            var options = new NServiceBus.SendOptions();
+            options.SetDestination(destination);
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
+
+            await ctx.Send(command, options).ConfigureAwait(false);
+        }
+        public static async Task PassiveCommand(this IMessageHandlerContext ctx, string destination, ICommand command)
+        {
+            var options = new NServiceBus.SendOptions();
+            options.SetDestination(destination);
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
+
+            await ctx.Send(command, options).ConfigureAwait(false);
+        }
     }
 }
