@@ -42,9 +42,9 @@ namespace Aggregates
         private static readonly Lazy<TEnumeration[]> Enumerations = new Lazy<TEnumeration[]>(GetEnumerations);
 
         [DataMember(Order = 1)]
-        public string DisplayName { get; protected set; }
+        public string DisplayName { get; set; }
         [DataMember(Order = 0)]
-        public TValue Value { get; protected set; }
+        public TValue Value { get; set; }
 
         protected Enumeration(TValue Value, string DisplayName)
         {
