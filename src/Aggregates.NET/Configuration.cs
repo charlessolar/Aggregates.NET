@@ -10,15 +10,6 @@ namespace Aggregates
 {
     public static class Configuration
     {
-        /// <summary>
-        /// Set the number of message retries
-        /// A setting of -1 will effectively make the app retry forever (Int32.MaxValue)
-        /// The actual number of delayed retries is always 3 with 2 second time increases
-        /// The number of immediate retries in between delays is Max / 3
-        /// See: https://docs.particular.net/nservicebus/recoverability/?version=Core_6
-        /// </summary>
-        /// <param name="settings"></param>
-        /// <param name="Max"></param>
         public static void MaxRetries(this ExposeSettings settings, Int32 Max)
         {
             settings.GetSettings().Set("MaxRetries", Max);
@@ -52,13 +43,12 @@ namespace Aggregates
                 if (max == -1)
                     x.NumberOfRetries(Int32.MaxValue);
                 else
-                    x.NumberOfRetries( max / 3 );
+                    x.NumberOfRetries( max );
             });
             // Disable delayed retries 
             recoverability.Delayed(x =>
             {
-                x.NumberOfRetries(3);
-                x.TimeIncrease(TimeSpan.FromSeconds(2));
+                x.NumberOfRetries(0);
             });
         }
     }
