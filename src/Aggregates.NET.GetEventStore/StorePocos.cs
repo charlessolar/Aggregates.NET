@@ -61,25 +61,37 @@ namespace Aggregates
                 }
                 _missMeter.Mark();
             }
-            
+
             var read = await _client.ReadEventAsync(streamName, StreamPosition.End, false).ConfigureAwait(false);
             if (read.Status != EventReadStatus.Success || !read.Event.HasValue)
                 return null;
 
+
+            var compress = _nsbSettings.Get<Boolean>("Compress");
+
             var @event = read.Event.Value.Event;
+            var metadata = @event.Metadata;
+            var data = @event.Data;
+            if (compress)
+            {
+                metadata = metadata.Decompress();
+                data = data.Decompress();
+            }
+
 
             var descriptor = @event.Metadata.Deserialize(_settings);
-            var data = @event.Data.Deserialize<T>(_settings);
+            var result = data.Deserialize<T>(_settings);
 
             if (_shouldCache)
-                _cache.Cache(streamName, data);
-            return data;
+                _cache.Cache(streamName, result);
+            return result;
         }
         public async Task Write<T>(T poco, String bucket, String stream, IDictionary<String, String> commitHeaders)
         {
             Logger.Write(LogLevel.Debug, () => $"Writing poco to stream id [{stream}] in bucket [{bucket}]");
             var streamName = $"{_streamGen(typeof(T), bucket + ".POCO", stream)}";
 
+            var compress = _nsbSettings.Get<Boolean>("Compress");
 
             var descriptor = new EventDescriptor
             {
@@ -88,22 +100,30 @@ namespace Aggregates
                 Version = -1,
                 Headers = commitHeaders
             };
+            var @event = poco.Serialize(_settings).AsByteArray();
+            var metadata = descriptor.Serialize(_settings).AsByteArray();
+            if (compress)
+            {
+                @event = @event.Compress();
+                metadata = metadata.Compress();
+            }
+
             var translatedEvent = new EventData(
                     Guid.NewGuid(),
-                    typeof(T).FullName,
-                    true,
-                    poco.Serialize(_settings).AsByteArray(),
-                    descriptor.Serialize(_settings).AsByteArray()
-                    );
+                    typeof(T).AssemblyQualifiedName,
+                    !compress,
+                    @event,
+                    metadata
+                );
 
             var result = await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvent).ConfigureAwait(false);
             if (result.NextExpectedVersion == 1)
             {
                 Logger.Write(LogLevel.Debug, () => $"Writing metadata to snapshot stream id [{stream}] bucket [{bucket}] for type {typeof(T).FullName}");
 
-                var metadata = StreamMetadata.Create(maxCount: 10, cacheControl: TimeSpan.FromSeconds(30));
+                var streamMetadata = StreamMetadata.Create(maxCount: 10);
 
-                await _client.SetStreamMetadataAsync(streamName, ExpectedVersion.Any, metadata).ConfigureAwait(false);
+                await _client.SetStreamMetadataAsync(streamName, ExpectedVersion.Any, streamMetadata).ConfigureAwait(false);
             }
         }
     }

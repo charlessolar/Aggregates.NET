@@ -22,6 +22,15 @@ namespace Aggregates
         {
             settings.GetSettings().Set("ReadSize", Count);
         }
+        /// <summary>
+        /// Compress events and messages using GZip
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <param name="Compress"></param>
+        public static void SetCompress(this ExposeSettings settings, Boolean Compress)
+        {
+            settings.GetSettings().Set("Compress", Compress);
+        }
         public static void ConfigureForAggregates(this RecoverabilitySettings recoverability)
         {
             var settings = recoverability.GetSettings();

@@ -22,6 +22,7 @@ namespace Aggregates
                 s.SetDefault("MaxRetries", 10);
                 s.SetDefault("SlowAlertThreshold", 500);
                 s.SetDefault("ReadSize", 200);
+                s.SetDefault("Compress", false);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)

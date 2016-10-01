@@ -63,11 +63,19 @@ namespace Aggregates
             if (read.Status != EventReadStatus.Success || !read.Event.HasValue)
                 return null;
 
+            var compress = _nsbSettings.Get<Boolean>("Compress");
+
             var @event = read.Event.Value.Event;
+            var metadata = @event.Metadata;
+            var data = @event.Data;
+            if (compress)
+            {
+                metadata = metadata.Decompress();
+                data = data.Decompress();
+            }
 
             var descriptor = @event.Metadata.Deserialize(_settings);
-            var data = @event.Data.Deserialize(descriptor.EntityType, _settings);
-            
+            var result = data.Deserialize(descriptor.EntityType, _settings);
             var snapshot = new Snapshot
             {
                 EntityType = descriptor.EntityType,
@@ -77,6 +85,8 @@ namespace Aggregates
                 Version = descriptor.Version,
                 Payload = data
             };
+
+
             if (_shouldCache)
                 _cache.Cache(streamName, snapshot);
             return snapshot;
@@ -88,6 +98,7 @@ namespace Aggregates
             Logger.Write(LogLevel.Debug, () => $"Writing {snapshots.Count()} snapshots to stream id [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
             var streamName = $"{_streamGen(typeof(T), bucket + ".SNAP", streamId)}";
 
+            var compress = _nsbSettings.Get<Boolean>("Compress");
 
             var translatedEvents = snapshots.Select(e =>
             {
@@ -98,12 +109,21 @@ namespace Aggregates
                     Version = e.Version,
                     Headers = commitHeaders
                 };
+
+                var @event = e.Payload.Serialize(_settings).AsByteArray();
+                var metadata = descriptor.Serialize(_settings).AsByteArray();
+                if (compress)
+                {
+                    @event = @event.Compress();
+                    metadata = metadata.Compress();
+                }
+
                 return new EventData(
                     Guid.NewGuid(),
                     e.EntityType,
-                    true,
-                    e.Payload.Serialize(_settings).AsByteArray(),
-                    descriptor.Serialize(_settings).AsByteArray()
+                    !compress,
+                    @event,
+                    metadata
                     );
             }).ToList();
 
@@ -113,7 +133,7 @@ namespace Aggregates
             {
                 Logger.Write(LogLevel.Debug, () => $"Writing metadata to snapshot stream id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName}");
 
-                var metadata = StreamMetadata.Create(maxCount: 10, cacheControl: TimeSpan.FromSeconds(30));
+                var metadata = StreamMetadata.Create(maxCount: 10);
 
                 await _client.SetStreamMetadataAsync(streamName, ExpectedVersion.Any, metadata).ConfigureAwait(false);
             }

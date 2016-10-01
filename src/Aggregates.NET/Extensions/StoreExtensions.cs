@@ -3,6 +3,8 @@ using Aggregates.Internal;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,6 +16,31 @@ namespace Aggregates.Extensions
         public static byte[] AsByteArray(this String json)
         {
             return Encoding.UTF8.GetBytes(json);
+        }
+        public static byte[] Compress(this byte[] bytes)
+        {
+            using (var stream = new MemoryStream())
+            {
+                using (var zip = new GZipStream(stream, CompressionMode.Compress))
+                {
+                    zip.Write(bytes, 0, bytes.Length);
+                }
+                return stream.ToArray();
+            }
+        }
+        public static byte[] Decompress(this byte[] bytes)
+        {
+            using (var stream = new MemoryStream(bytes))
+            {
+                using (var dezip = new MemoryStream())
+                {
+                    using (var gz = new GZipStream(stream, CompressionMode.Decompress))
+                    {
+                        gz.CopyTo(dezip);
+                    }
+                    return dezip.ToArray();
+                }
+            }
         }
 
         public static String Serialize(this Object @event, JsonSerializerSettings settings)

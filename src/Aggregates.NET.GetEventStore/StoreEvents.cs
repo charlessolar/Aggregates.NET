@@ -84,12 +84,21 @@ namespace Aggregates
             } while (!current.IsEndOfStream);
             Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
 
+            var compress = _nsbSettings.Get<Boolean>("Compress");
+
             var translatedEvents = events.Select(e =>
             {
-                var descriptor = e.Event.Metadata.Deserialize(settings);
-                var data = e.Event.Data.Deserialize(e.Event.EventType, settings);
+                var metadata = e.Event.Metadata;
+                var data = e.Event.Data;
+                if (compress)
+                {
+                    metadata = metadata.Decompress();
+                    data = data.Decompress();
+                }
 
-                var @event = data as IEvent;
+                var descriptor = metadata.Deserialize(settings);
+                var @event = data.Deserialize(e.Event.EventType, settings) as IEvent;
+                
                 if (@event == null)
                     throw new InvalidOperationException($"Event type {e.Event.EventType} on stream {streamName} does not inherit from IEvent and therefore cannot be read");
                 return new Internal.WritableEvent
@@ -136,12 +145,21 @@ namespace Aggregates
             } while (!current.IsEndOfStream);
             Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
 
+            var compress = _nsbSettings.Get<Boolean>("Compress");
+
             var translatedEvents = events.Select(e =>
             {
-                var descriptor = e.Event.Metadata.Deserialize(settings);
-                var data = e.Event.Data.Deserialize(e.Event.EventType, settings);
+                var metadata = e.Event.Metadata;
+                var data = e.Event.Data;
+                if (compress)
+                {
+                    metadata = metadata.Decompress();
+                    data = data.Decompress();
+                }
 
-                var @event = data as IEvent;
+                var descriptor = metadata.Deserialize(settings);
+                var @event = data.Deserialize(e.Event.EventType, settings) as IEvent;
+
                 if (@event == null)
                     throw new InvalidOperationException($"Event type {e.Event.EventType} on stream {streamName} does not inherit from IEvent and therefore cannot be read");
                 return new Internal.WritableEvent
@@ -191,12 +209,21 @@ namespace Aggregates
             } while (!current.IsEndOfStream);
             Logger.Write(LogLevel.Debug, () => $"Finished getting all events backward from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
 
+            var compress = _nsbSettings.Get<Boolean>("Compress");
+
             var translatedEvents = events.Select(e =>
             {
-                var descriptor = e.Event.Metadata.Deserialize(settings);
-                var data = e.Event.Data.Deserialize(e.Event.EventType, settings);
+                var metadata = e.Event.Metadata;
+                var data = e.Event.Data;
+                if (compress)
+                {
+                    metadata = metadata.Decompress();
+                    data = data.Decompress();
+                }
 
-                var @event = data as IEvent;
+                var descriptor = metadata.Deserialize(settings);
+                var @event = data.Deserialize(e.Event.EventType, settings) as IEvent;
+
                 if (@event == null)
                     throw new InvalidOperationException($"Event type {e.Event.EventType} on stream {streamName} does not inherit from IEvent and therefore cannot be read");
                 return new Internal.WritableEvent
@@ -221,6 +248,8 @@ namespace Aggregates
                 Binder = new EventSerializationBinder(_mapper)
             };
 
+            var compress = _nsbSettings.Get<Boolean>("Compress");
+
             var translatedEvents = events.Select(e =>
             {
 
@@ -234,13 +263,20 @@ namespace Aggregates
 
                 var mappedType = _mapper.GetMappedTypeFor(e.Event.GetType());
 
+                var @event = e.Event.Serialize(settings).AsByteArray();
+                var metadata = descriptor.Serialize(settings).AsByteArray();
+                if (compress)
+                {
+                    @event = @event.Compress();
+                    metadata = metadata.Compress();
+                }
 
                 return new EventData(
                     e.EventId,
                     mappedType.AssemblyQualifiedName,
-                    true,
-                    e.Event.Serialize(settings).AsByteArray(),
-                    descriptor.Serialize(settings).AsByteArray()
+                    !compress,
+                    @event,
+                    metadata
                     );
             }).ToList();
 
@@ -261,6 +297,8 @@ namespace Aggregates
                 Binder = new EventSerializationBinder(_mapper)
             };
 
+            var compress = _nsbSettings.Get<Boolean>("Compress");
+
             var translatedEvents = events.Select(e =>
             {
 
@@ -275,12 +313,20 @@ namespace Aggregates
                 var mappedType = _mapper.GetMappedTypeFor(e.Event.GetType());
 
 
+                var @event = e.Event.Serialize(settings).AsByteArray();
+                var metadata = descriptor.Serialize(settings).AsByteArray();
+                if (compress)
+                {
+                    @event = @event.Compress();
+                    metadata = metadata.Compress();
+                }
+
                 return new EventData(
                     e.EventId,
                     mappedType.AssemblyQualifiedName,
-                    true,
-                    e.Event.Serialize(settings).AsByteArray(),
-                    descriptor.Serialize(settings).AsByteArray()
+                    !compress,
+                    @event,
+                    metadata
                     );
             }).ToList();
 
