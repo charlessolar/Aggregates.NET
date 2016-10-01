@@ -75,6 +75,7 @@
     <Compile Include="Contracts\IInvokeObjects.cs" />
     <Compile Include="Contracts\IWritableEvent.cs" />
     <Compile Include="Defaults.cs" />
+    <Compile Include="Enumeration.cs" />
     <Compile Include="Exceptions\AggregateException.cs" />
     <Compile Include="Exceptions\BusinessException.cs" />
     <Compile Include="Exceptions\CommandRejectedException.cs" />

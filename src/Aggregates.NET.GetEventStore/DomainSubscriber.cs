@@ -47,20 +47,32 @@ namespace Aggregates
         public void SubscribeToAll(IMessageSession bus, String endpoint)
         {
             var readSize = _settings.Get<Int32>("ReadSize");
+            var compress = _settings.Get<Boolean>("Compress");
             Logger.Write(LogLevel.Info, () => $"Endpoint '{endpoint}' subscribing to all events from END");
             
             var settings = new CatchUpSubscriptionSettings(readSize * readSize, readSize, false, false);
             _client.SubscribeToAllFrom(Position.End, settings, (subscription, e) =>
             {
                 // Unsure if we need to care about events from eventstore currently
-                if (!e.Event.IsJson) return;
-                
-                var descriptor = e.Event.Metadata.Deserialize(_jsonSettings);
+                //if (!e.Event.IsJson) return;
+                var metadata = e.Event.Metadata;
+
+                // Todo: dont depend on setting, detect event compression somehow (metadata?)
+                if (compress)
+                    metadata = metadata.Decompress();
+
+                var descriptor = metadata.Deserialize(_jsonSettings);
 
                 if (descriptor == null) return;
 
-                var data = e.Event.Data.Deserialize(e.Event.EventType, _jsonSettings);
-                if (!(data is IEvent) || !_cache.Update(e.OriginalStreamId, new Internal.WritableEvent { Descriptor = descriptor, Event = data as IEvent, EventId = e.Event.EventId }))
+                var data = e.Event.Data;
+
+                if (compress)
+                    data = data.Decompress();
+
+                var @event = data.Deserialize(e.Event.EventType, _jsonSettings) as IEvent;
+
+                if (!(@event == null) || !_cache.Update(e.OriginalStreamId, new Internal.WritableEvent { Descriptor = descriptor, Event = @event, EventId = e.Event.EventId }))
                     _cache.Evict(e.OriginalStreamId);
 
                 // Check if the event was written by this domain handler
@@ -70,11 +82,14 @@ namespace Aggregates
                 if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.InstanceHeader, out instance) || !Guid.TryParse(instance, out domain) || domain != Defaults.Instance)
                     return;
                 // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
-                if (data == null) return;
+                if (@event == null) return;
 
-                var options = new SendOptions();
+                var options = new PublishOptions();
 
-                options.RouteToThisInstance();
+                //options.RouteToThisInstance();
+                // Recent Change!
+                // Publish the event we read - its from the store so we know its committed, no DTC
+                // Eliminates the need for consumers to "load balance" themselves using the CompetingSubscriber
                 options.SetHeader("CommitPosition", e.OriginalPosition?.CommitPosition.ToString());
                 options.SetHeader("EntityType", descriptor.EntityType);
                 options.SetHeader("Version", descriptor.Version.ToString());
@@ -84,7 +99,7 @@ namespace Aggregates
                 
                 try
                 {
-                    bus.Send(data, options);
+                    bus.Publish(@event, options);
                 }
                 catch (SubscriptionCanceled)
                 {
