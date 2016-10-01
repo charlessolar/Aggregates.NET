@@ -119,7 +119,7 @@ namespace Aggregates
                 }
                 return new EventData(
                     Guid.NewGuid(),
-                    typeof(T).AssemblyQualifiedName,
+                    e.GetType().AssemblyQualifiedName,
                     !compress,
                     @event,
                     metadata

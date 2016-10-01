@@ -303,7 +303,9 @@ namespace Aggregates.Internal
                             !h.Equals("WinIdName", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.StartsWith("NServiceBus", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.StartsWith("$", StringComparison.InvariantCultureIgnoreCase) &&
-                            !h.Equals(Defaults.CommitIdHeader, StringComparison.InvariantCultureIgnoreCase));
+                            !h.Equals(Defaults.CommitIdHeader, StringComparison.InvariantCultureIgnoreCase) &&
+                            !h.Equals(Defaults.REQUEST_RESPONSE, StringComparison.InvariantCultureIgnoreCase) &&
+                            !h.Equals(Defaults.RETRIES, StringComparison.InvariantCultureIgnoreCase));
 
             foreach (var header in userHeaders)
                 CurrentHeaders[header] = headers[header];
