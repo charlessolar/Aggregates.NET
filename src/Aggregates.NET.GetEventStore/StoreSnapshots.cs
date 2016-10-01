@@ -75,7 +75,7 @@ namespace Aggregates
             }
 
             var descriptor = @event.Metadata.Deserialize(_settings);
-            var result = data.Deserialize(descriptor.EntityType, _settings);
+            var result = data.Deserialize(@event.EventType, _settings);
             var snapshot = new Snapshot
             {
                 EntityType = descriptor.EntityType,
@@ -83,7 +83,7 @@ namespace Aggregates
                 Stream = streamId,
                 Timestamp = descriptor.Timestamp,
                 Version = descriptor.Version,
-                Payload = data
+                Payload = result
             };
 
 
@@ -104,7 +104,7 @@ namespace Aggregates
             {
                 var descriptor = new EventDescriptor
                 {
-                    EntityType = e.EntityType,
+                    EntityType = typeof(T).AssemblyQualifiedName,
                     Timestamp = e.Timestamp,
                     Version = e.Version,
                     Headers = commitHeaders
@@ -117,10 +117,9 @@ namespace Aggregates
                     @event = @event.Compress();
                     metadata = metadata.Compress();
                 }
-
                 return new EventData(
                     Guid.NewGuid(),
-                    e.EntityType,
+                    typeof(T).AssemblyQualifiedName,
                     !compress,
                     @event,
                     metadata
