@@ -19,7 +19,7 @@ namespace Aggregates
         {
             Defaults(s =>
             {
-                s.SetDefault("MaxRetries", 10);
+                s.SetDefault("MaxRetries", 12);
                 s.SetDefault("SlowAlertThreshold", 500);
                 s.SetDefault("ReadSize", 200);
                 s.SetDefault("Compress", false);
