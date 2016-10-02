@@ -72,7 +72,7 @@ namespace Aggregates
 
                 var @event = data.Deserialize(e.Event.EventType, _jsonSettings) as IEvent;
 
-                if (!(@event == null) || !_cache.Update(e.OriginalStreamId, new Internal.WritableEvent { Descriptor = descriptor, Event = @event, EventId = e.Event.EventId }))
+                if ((@event == null) || !_cache.Update(e.OriginalStreamId, new Internal.WritableEvent { Descriptor = descriptor, Event = @event, EventId = e.Event.EventId }))
                     _cache.Evict(e.OriginalStreamId);
 
                 // Check if the event was written by this domain handler
@@ -81,7 +81,8 @@ namespace Aggregates
                 Guid domain = Guid.Empty;
                 if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.InstanceHeader, out instance) || !Guid.TryParse(instance, out domain) || domain != Defaults.Instance)
                     return;
-                // Data is null for certain irrelevant eventstore messages (and we don't need to store position)
+
+                // If a snapshot, poco, or irrelevent ES message, don't publish
                 if (@event == null) return;
 
                 var options = new PublishOptions();
