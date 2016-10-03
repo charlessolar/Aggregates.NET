@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Aggregates.Extensions
@@ -34,7 +35,7 @@ namespace Aggregates.Extensions
                 throw new CommandRejectedException($"Command Fault!\n{error.Message}");
             }
         }
-        
+
 
 
         public static async Task Command(this IMessageSession ctx, ICommand command)
@@ -68,8 +69,80 @@ namespace Aggregates.Extensions
             options.SetDestination(destination);
             options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
 
+
             var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
             response.CommandResponse();
+        }
+
+        public static async Task<Boolean> TimeoutCommand(this IMessageSession ctx, ICommand command, TimeSpan Timeout)
+        {
+            var options = new NServiceBus.SendOptions();
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+
+            var cancelation = new CancellationTokenSource(Timeout);
+            try
+            {
+                var response = await ctx.Request<IMessage>(command, options, cancelation.Token).ConfigureAwait(false);
+                response.CommandResponse();
+                return true;
+            }
+            catch (TaskCanceledException)
+            {
+                return false;
+            }
+        }
+        public static async Task<Boolean> TimeoutCommand(this IMessageSession ctx, string destination, ICommand command, TimeSpan Timeout)
+        {
+            var options = new NServiceBus.SendOptions();
+            options.SetDestination(destination);
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+
+            var cancelation = new CancellationTokenSource(Timeout);
+            try
+            {
+                var response = await ctx.Request<IMessage>(command, options, cancelation.Token).ConfigureAwait(false);
+                response.CommandResponse();
+                return true;
+            }
+            catch (TaskCanceledException)
+            {
+                return false;
+            }
+        }
+        public static async Task<Boolean> TimeoutCommand<TCommand>(this IMessageSession ctx, Action<TCommand> command, TimeSpan Timeout) where TCommand : ICommand
+        {
+            var options = new NServiceBus.SendOptions();
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+
+            var cancelation = new CancellationTokenSource(Timeout);
+            try
+            {
+                var response = await ctx.Request<IMessage>(command, options, cancelation.Token).ConfigureAwait(false);
+                response.CommandResponse();
+                return true;
+            }
+            catch (TaskCanceledException)
+            {
+                return false;
+            }
+        }
+        public static async Task<Boolean> TimeoutCommand<TCommand>(this IMessageSession ctx, string destination, Action<TCommand> command, TimeSpan Timeout) where TCommand : ICommand
+        {
+            var options = new NServiceBus.SendOptions();
+            options.SetDestination(destination);
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+
+            var cancelation = new CancellationTokenSource(Timeout);
+            try
+            {
+                var response = await ctx.Request<IMessage>(command, options, cancelation.Token).ConfigureAwait(false);
+                response.CommandResponse();
+                return true;
+            }
+            catch (TaskCanceledException)
+            {
+                return false;
+            }
         }
 
         /// <summary>

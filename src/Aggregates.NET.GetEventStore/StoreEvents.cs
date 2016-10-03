@@ -58,7 +58,7 @@ namespace Aggregates
                 if (cached != null)
                 {
                     _hitMeter.Mark();
-                    Logger.Write(LogLevel.Debug, () => $"Found stream [{streamId}] bucket [{bucket}] in cache");
+                    Logger.Write(LogLevel.Debug, () => $"Found stream [{streamName}] in cache");
                     var stream = new Internal.EventStream<T>(cached, Builder, this);
                     stream.TrimEvents(start);
                     return stream;
@@ -75,7 +75,7 @@ namespace Aggregates
 
             StreamEventsSlice current;
             var sliceStart = start ?? StreamPosition.Start;
-            Logger.Write(LogLevel.Debug, () => $"Getting events from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} starting at {sliceStart}");
+            Logger.Write(LogLevel.Debug, () => $"Getting events from stream [{streamName}] starting at {sliceStart}");
             do
             {
                 current = await _client.ReadStreamEventsForwardAsync(streamName, sliceStart, readSize, false).ConfigureAwait(false);
@@ -84,7 +84,7 @@ namespace Aggregates
                 events.AddRange(current.Events);
                 sliceStart = current.NextEventNumber;
             } while (!current.IsEndOfStream);
-            Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
+            Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamName}]");
 
             var compress = _nsbSettings.Get<Boolean>("Compress");
 
@@ -134,7 +134,7 @@ namespace Aggregates
             var events = new List<ResolvedEvent>();
             StreamEventsSlice current;
             var sliceStart = start ?? StreamPosition.Start;
-            Logger.Write(LogLevel.Debug, () => $"Getting events from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} starting at {sliceStart}");
+            Logger.Write(LogLevel.Debug, () => $"Getting events from stream [{streamName}] starting at {sliceStart}");
             do
             {
                 var take = Math.Min((count ?? Int32.MaxValue) - events.Count, readSize);
@@ -145,7 +145,7 @@ namespace Aggregates
                 
                 sliceStart = current.NextEventNumber;
             } while (!current.IsEndOfStream);
-            Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
+            Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamName}]");
 
             var compress = _nsbSettings.Get<Boolean>("Compress");
 
@@ -198,7 +198,7 @@ namespace Aggregates
                 sliceStart = result.NextEventNumber - start.Value;
             }
 
-            Logger.Write(LogLevel.Debug, () => $"Getting events backwards from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} starting at {sliceStart}");
+            Logger.Write(LogLevel.Debug, () => $"Getting events backwards from stream [{streamName}] starting at {sliceStart}");
             do
             {
                 var take = Math.Min((count ?? Int32.MaxValue) - events.Count, readSize);
@@ -209,7 +209,7 @@ namespace Aggregates
 
                 sliceStart = current.NextEventNumber;
             } while (!current.IsEndOfStream);
-            Logger.Write(LogLevel.Debug, () => $"Finished getting all events backward from stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
+            Logger.Write(LogLevel.Debug, () => $"Finished getting all events backward from stream [{streamName}]");
 
             var compress = _nsbSettings.Get<Boolean>("Compress");
 
@@ -241,9 +241,9 @@ namespace Aggregates
 
         public async Task AppendEvents<T>(String bucket, String streamId, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders) where T : class, IEventSource
         {
-            Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName}.  Expected version: ANY");
             var streamName = _streamGen(typeof(T), bucket, streamId);
-            
+            Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream [{streamName}].  Expected version: ANY");
+
             var settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.All,
@@ -287,8 +287,8 @@ namespace Aggregates
 
         public async Task WriteEvents<T>(String bucket, String streamId, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders) where T : class, IEventSource
         {
-            Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName}.  Expected version: {expectedVersion}");
             var streamName = _streamGen(typeof(T), bucket, streamId);
+            Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{streamName}].  Expected version: {expectedVersion}");
 
             if (_shouldCache)
                 _cache.Evict(streamName);
@@ -338,8 +338,8 @@ namespace Aggregates
 
         public async Task WriteEventMetadata<T>(String bucket, String streamId, Int32? MaxCount = null, TimeSpan? MaxAge = null, TimeSpan? CacheControl = null) where T : class, IEventSource
         {
-            Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName}");
             var streamName = _streamGen(typeof(T), bucket, streamId);
+            Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream [{streamName}]");
 
             var metadata = StreamMetadata.Create(maxCount: MaxCount, maxAge: MaxAge, cacheControl: CacheControl);
 

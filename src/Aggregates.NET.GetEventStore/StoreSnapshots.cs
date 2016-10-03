@@ -43,9 +43,8 @@ namespace Aggregates
 
         public async Task<ISnapshot> GetSnapshot<T>(String bucket, String streamId) where T : class, IEventSource
         {
-            Logger.Write(LogLevel.Debug, () => $"Getting snapshot for stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
-
             var streamName = $"{_streamGen(typeof(T), bucket + ".SNAP", streamId)}";
+            Logger.Write(LogLevel.Debug, () => $"Getting snapshot for stream [{streamName}]");
 
             if (_shouldCache)
             {
@@ -95,8 +94,8 @@ namespace Aggregates
 
         public async Task WriteSnapshots<T>(String bucket, String streamId, IEnumerable<ISnapshot> snapshots, IDictionary<String, String> commitHeaders) where T : class, IEventSource
         {
-            Logger.Write(LogLevel.Debug, () => $"Writing {snapshots.Count()} snapshots to stream id [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
             var streamName = $"{_streamGen(typeof(T), bucket + ".SNAP", streamId)}";
+            Logger.Write(LogLevel.Debug, () => $"Writing {snapshots.Count()} snapshots to stream [{streamName}]");
 
             var compress = _nsbSettings.Get<Boolean>("Compress");
 
@@ -130,7 +129,7 @@ namespace Aggregates
             var result = await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents).ConfigureAwait(false);
             if( result.NextExpectedVersion == 1)
             {
-                Logger.Write(LogLevel.Debug, () => $"Writing metadata to snapshot stream id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName}");
+                Logger.Write(LogLevel.Debug, () => $"Writing metadata to snapshot stream [{streamName}]");
 
                 var metadata = StreamMetadata.Create(maxCount: 10);
 

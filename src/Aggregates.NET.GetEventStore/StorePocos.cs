@@ -45,9 +45,8 @@ namespace Aggregates
 
         public async Task<T> Get<T>(String bucket, String stream) where T : class
         {
-            Logger.Write(LogLevel.Debug, () => $"Getting stream [{stream}] in bucket [{bucket}]");
-
             var streamName = $"{_streamGen(typeof(T), bucket + ".POCO", stream)}";
+            Logger.Write(LogLevel.Debug, () => $"Getting stream [{streamName}]");
 
             if (_shouldCache)
             {
@@ -88,8 +87,8 @@ namespace Aggregates
         }
         public async Task Write<T>(T poco, String bucket, String stream, IDictionary<String, String> commitHeaders)
         {
-            Logger.Write(LogLevel.Debug, () => $"Writing poco to stream id [{stream}] in bucket [{bucket}]");
             var streamName = $"{_streamGen(typeof(T), bucket + ".POCO", stream)}";
+            Logger.Write(LogLevel.Debug, () => $"Writing poco to stream id [{streamName}]");
 
             var compress = _nsbSettings.Get<Boolean>("Compress");
 
@@ -119,7 +118,7 @@ namespace Aggregates
             var result = await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvent).ConfigureAwait(false);
             if (result.NextExpectedVersion == 1)
             {
-                Logger.Write(LogLevel.Debug, () => $"Writing metadata to snapshot stream id [{stream}] bucket [{bucket}] for type {typeof(T).FullName}");
+                Logger.Write(LogLevel.Debug, () => $"Writing metadata to snapshot stream id [{streamName}]");
 
                 var streamMetadata = StreamMetadata.Create(maxCount: 10);
 
