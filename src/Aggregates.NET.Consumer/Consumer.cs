@@ -29,16 +29,13 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             base.Setup(context);
-
-
-            context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
-
+            
             context.Pipeline.Register(
                 behavior: typeof(MutateIncomingEvents),
                 description: "Running event mutators for incoming messages"
                 );
             context.Pipeline.Register(
-                behavior: typeof(EventUnitOfWork),
+                behavior: new EventUnitOfWork(context.Settings.Get<Int32>("SlowAlertThreshold")),
                 description: "Begins and Ends event unit of work"
                 );
         }

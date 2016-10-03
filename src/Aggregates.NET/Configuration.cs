@@ -10,9 +10,17 @@ namespace Aggregates
 {
     public static class Configuration
     {
-        public static void MaxRetries(this ExposeSettings settings, Int32 Max)
+        public static void ImmediateRetries(this ExposeSettings settings, Int32 Max)
         {
-            settings.GetSettings().Set("MaxRetries", Max);
+            settings.GetSettings().Set("ImmediateRetries", Max);
+        }
+        public static void DelayedRetries(this ExposeSettings settings, Int32 Max)
+        {
+            settings.GetSettings().Set("DelayedRetries", Max);
+        }
+        public static void RetryForever(this ExposeSettings settings, Boolean Forever)
+        {
+            settings.GetSettings().Set("RetryForever", Forever);
         }
         public static void SlowAlertThreshold(this ExposeSettings settings, Int32 Milliseconds)
         {
@@ -35,22 +43,19 @@ namespace Aggregates
         {
             var settings = recoverability.GetSettings();
             settings.Set(Defaults.SETUP_CORRECTLY, true);
-
-            var max = settings.Get<Int32>("MaxRetries");
+            
             // Set immediate retries to our "MaxRetries" setting
             recoverability.Immediate(x =>
             {
-                if (max == -1)
-                    x.NumberOfRetries(100);
-                else
-                    x.NumberOfRetries( max / 3 );
+                x.NumberOfRetries(settings.Get<Int32>("ImmediateRetries"));
             });
             recoverability.Delayed(x =>
             {
-                if (max == -1)
+                x.TimeIncrease(TimeSpan.FromSeconds(2));
+                if (settings.Get<Boolean>("RetryForever"))
                     x.NumberOfRetries(Int32.MaxValue);
                 else
-                    x.NumberOfRetries(3);
+                    x.NumberOfRetries(settings.Get<Int32>("DelayedRetries"));
             });
         }
     }

@@ -41,7 +41,6 @@ namespace Aggregates
             context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.SingleInstance);
-            context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<Processor>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<MemoryStreamCache>(DependencyLifecycle.InstancePerCall);
 
@@ -72,7 +71,7 @@ namespace Aggregates
                 description: "Filters [BusinessException] from processing failures"
                 );
             context.Pipeline.Register(
-                behavior: typeof(CommandUnitOfWork),
+                behavior: new CommandUnitOfWork(context.Settings.Get<Int32>("SlowAlertThreshold")),
                 description: "Begins and Ends command unit of work"
                 );
             context.Pipeline.Register(

@@ -26,13 +26,13 @@ namespace Aggregates.Internal
 
         private static ConcurrentDictionary<String, Int32> _retryRegistry = new ConcurrentDictionary<String, Int32>();
         private static Meter _errorsMeter = Metric.Meter("Message Faults", Unit.Errors);
-        private readonly ReadOnlySettings _settings;
-        private readonly Int32 _maxRetries;
+        private readonly Int32 _immediate;
+        private readonly Boolean _forever;
 
-        public ExceptionRejector(ReadOnlySettings settings)
+        public ExceptionRejector(Int32 ImmediateRetries, Boolean Forever)
         {
-            _settings = settings;
-            _maxRetries = _settings.Get<Int32>("MaxRetries");
+            _immediate = ImmediateRetries;
+            _forever = Forever;
         }
 
         public override async Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)
@@ -48,15 +48,18 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
-                if (existingRetry < _maxRetries || _maxRetries == -1)
+                if (existingRetry < _immediate)
                 {
-                    Logger.WriteFormat(LogLevel.Warn, "Message {0} has faulted! {1}/{2} times\nException: {3}\nHeaders: {4}\nBody: {5}", context.MessageId, existingRetry, _maxRetries, e, context.MessageHeaders, Encoding.UTF8.GetString(context.Message.Body));
+                    Logger.WriteFormat(LogLevel.Warn, "Message {0} has faulted! {1}/{2} times\nException: {3}\nHeaders: {4}\nBody: {5}", context.MessageId, existingRetry, _immediate, e, context.MessageHeaders, Encoding.UTF8.GetString(context.Message.Body));
                     _retryRegistry.TryAdd(messageId, existingRetry + 1);
                     throw;
                 }
-
                 // At this point message is dead - should be moved to error queue, send message to client that their request was rejected due to error 
                 _errorsMeter.Mark();
+
+                // They've chosen to never move to error queue so don't reply with error
+                if (_forever)
+                    throw;
 
                 // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth
                 var intent = (MessageIntentEnum)Enum.Parse(typeof(MessageIntentEnum), context.Message.Headers[Headers.MessageIntent], true);
@@ -70,7 +73,7 @@ namespace Aggregates.Internal
                 // Only need to reply if the client expects it
                 if (!context.Message.Headers.ContainsKey(Defaults.REQUEST_RESPONSE) || context.Message.Headers[Defaults.REQUEST_RESPONSE] != "1")
                     throw;
-                
+
                 // Wrap exception in our object which is serializable
                 await context.Reply(rejection(e, $"Rejected message after {existingRetry} retries!\n Payload: {Encoding.UTF8.GetString(context.Message.Body)}")).ConfigureAwait(false);
 

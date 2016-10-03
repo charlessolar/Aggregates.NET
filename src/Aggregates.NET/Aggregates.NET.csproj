@@ -72,7 +72,6 @@
     <Compile Include="Contracts\ICommandMutator.cs" />
     <Compile Include="Contracts\IEventDescriptor.cs" />
     <Compile Include="Contracts\IEventMutator.cs" />
-    <Compile Include="Contracts\IInvokeObjects.cs" />
     <Compile Include="Contracts\IWritableEvent.cs" />
     <Compile Include="Defaults.cs" />
     <Compile Include="Enumeration.cs" />
@@ -93,7 +92,6 @@
     <Compile Include="Extensions\TaskExtensions.cs" />
     <Compile Include="Feature.cs" />
     <Compile Include="Internal\ExceptionRejector.cs" />
-    <Compile Include="Internal\DefaultInvokeObjects.cs" />
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />
     <Compile Include="Internal\MutateOutgoingEvents.cs" />

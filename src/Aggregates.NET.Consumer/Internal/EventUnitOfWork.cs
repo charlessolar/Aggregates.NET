@@ -30,14 +30,12 @@ namespace Aggregates.Internal
         private static Metrics.Timer _eventsTimer = Metric.Timer("Event Duration", Unit.Commands);
 
         private static Meter _errorsMeter = Metric.Meter("Event Errors", Unit.Errors);
-
-        private readonly ReadOnlySettings _settings;
+        
         private readonly Int32 _slowAlert;
 
-        public EventUnitOfWork(ReadOnlySettings settings)
+        public EventUnitOfWork(Int32 SlowAlertThreshold)
         {
-            _settings = settings;
-            _slowAlert = _settings.Get<Int32>("SlowAlertThreshold");
+            _slowAlert = SlowAlertThreshold;
         }
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)

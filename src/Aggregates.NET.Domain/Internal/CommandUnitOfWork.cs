@@ -30,14 +30,12 @@ namespace Aggregates.Internal
         private static Metrics.Timer _commandsTimer = Metric.Timer("Command Duration", Unit.Commands);
 
         private static Meter _errorsMeter = Metric.Meter("Command Errors", Unit.Errors);
-
-        private readonly ReadOnlySettings _settings;
+        
         private readonly Int32 _slowAlert;
 
-        public CommandUnitOfWork(ReadOnlySettings settings)
+        public CommandUnitOfWork(Int32 SlowAlertThreshold)
         {
-            _settings = settings;
-            _slowAlert = _settings.Get<Int32>("SlowAlertThreshold");
+            _slowAlert = SlowAlertThreshold;
         }
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)

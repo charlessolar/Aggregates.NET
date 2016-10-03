@@ -19,22 +19,24 @@ namespace Aggregates
         {
             Defaults(s =>
             {
-                s.SetDefault("MaxRetries", 12);
-                s.SetDefault("SlowAlertThreshold", 500);
+                s.SetDefault("ImmediateRetries", 12);
+                s.SetDefault("RetryForever", false);
+                s.SetDefault("DelayedRetries", 3);
+                s.SetDefault("SlowAlertThreshold", 1000);
                 s.SetDefault("ReadSize", 200);
                 s.SetDefault("Compress", false);
             });
+            
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
             // Check that aggregates has been properly setup
             if (!context.Settings.Get<Boolean>(Aggregates.Defaults.SETUP_CORRECTLY))
                 throw new InvalidOperationException("Endpoint not setup correctly!  Please call [endpointConfiguration.Recoverability.ConfigureForAggregates] before enabling this feature.  (Sorry I can't set recoverability myself)");
-
-            context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
             
+            var settings = context.Settings;
             context.Pipeline.Register(
-                behavior: typeof(ExceptionRejector),
+                behavior: new ExceptionRejector(settings.Get<Int32>("ImmediateRetries"), settings.Get<Boolean>("RetryForever")),
                 description: "Watches message faults, sends error replies to client when message moves to error queue"
                 );
             context.Pipeline.Register(
