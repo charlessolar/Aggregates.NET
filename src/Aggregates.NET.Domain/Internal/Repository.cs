@@ -192,12 +192,9 @@ namespace Aggregates.Internal
             T root;
             var snapshot = await _snapstore.GetSnapshot<T>(bucket, streamId).ConfigureAwait(false);
             var stream = await _store.GetStream<T>(bucket, streamId, snapshot?.Version + 1).ConfigureAwait(false);
-
-            if (stream == null && snapshot == null)
-                throw new NotFoundException($"Aggregate snapshot in stream [{streamId}] bucket [{bucket}] type {typeof(T).FullName} not found");
-
+            
             // Get requires the stream exists
-            if (stream.StreamVersion == -1)
+            if (stream == null || stream.StreamVersion == -1)
                 throw new NotFoundException($"Aggregate stream [{streamId}] in bucket [{bucket}] type {typeof(T).FullName} not found");
 
             // Call the 'private' constructor
