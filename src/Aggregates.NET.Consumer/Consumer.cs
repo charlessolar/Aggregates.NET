@@ -123,13 +123,13 @@ namespace Aggregates
         protected override async Task OnStart(IMessageSession session)
         {
             Logger.Write(LogLevel.Debug, "Starting event consumer");
-            //var subscriber = _builder.Build<IEventSubscriber>();
-            //subscriber.SubscribeToAll(session, _settings.EndpointName());
-            //subscriber.Dropped = (reason, ex) =>
-            //{
-            //    Thread.Sleep(CalculateSleep());
-            //    subscriber.SubscribeToAll(session, _settings.EndpointName());
-            //};
+            var subscriber = _builder.Build<IEventSubscriber>();
+            subscriber.SubscribeToAll(session, _settings.EndpointName());
+            subscriber.Dropped = (reason, ex) =>
+            {
+                Thread.Sleep(CalculateSleep());
+                subscriber.SubscribeToAll(session, _settings.EndpointName());
+            };
 
             await session.Publish<Messages.ConsumerAlive>(x =>
             {
