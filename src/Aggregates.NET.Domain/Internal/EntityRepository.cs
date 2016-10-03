@@ -37,16 +37,13 @@ namespace Aggregates.Internal
         {
             if (id == null) return null;
             if (typeof(TId) == typeof(String) && String.IsNullOrEmpty(id as String)) return null;
+
             try
             {
                 return await Get<TId>(id).ConfigureAwait(false);
             }
             catch (NotFoundException) { }
-            catch (System.AggregateException e)
-            {
-                if (!(e.InnerException is NotFoundException) && !e.InnerExceptions.Any(x => x is NotFoundException))
-                    throw;
-            }
+
             return null;
         }
 

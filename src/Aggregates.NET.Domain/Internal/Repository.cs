@@ -162,11 +162,6 @@ namespace Aggregates.Internal
                 return await Get<TId>(bucket, id).ConfigureAwait(false);
             }
             catch (NotFoundException) { }
-            catch (System.AggregateException e)
-            {
-                if (!(e.InnerException is NotFoundException) && !e.InnerExceptions.Any(x => x is NotFoundException))
-                    throw;
-            }
             return null;
         }
 
@@ -194,8 +189,8 @@ namespace Aggregates.Internal
         private async Task<T> GetUntracked(String bucket, string streamId)
         {
             T root;
-            var snapshot = await GetSnapshot(bucket, streamId).ConfigureAwait(false);
-            var stream = await OpenStream(bucket, streamId, snapshot).ConfigureAwait(false);
+            var snapshot = await _snapstore.GetSnapshot<T>(bucket, streamId).ConfigureAwait(false);
+            var stream = await _store.GetStream<T>(bucket, streamId, snapshot?.Version + 1).ConfigureAwait(false);
 
             if (stream == null && snapshot == null)
                 throw new NotFoundException($"Aggregate snapshot in stream [{streamId}] bucket [{bucket}] type {typeof(T).FullName} not found");
@@ -233,7 +228,7 @@ namespace Aggregates.Internal
         public async Task<T> New(String bucket, String streamId)
         {
             Logger.Write(LogLevel.Debug, () => $"Creating new stream id [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} in store");
-            var stream = await OpenStream(bucket, streamId).ConfigureAwait(false);
+            var stream = await _store.NewStream<T>(bucket, streamId).ConfigureAwait(false);
             var root = Newup(stream, _builder);
 
             var cacheId = String.Format("{0}.{1}", bucket, streamId);
@@ -267,16 +262,7 @@ namespace Aggregates.Internal
 
             return root;
         }
-
-        protected Task<ISnapshot> GetSnapshot(String bucket, String streamId)
-        {
-            return _snapstore.GetSnapshot<T>(bucket, streamId);
-        }
-
-        protected Task<IEventStream> OpenStream(String bucket, String streamId, ISnapshot snapshot = null)
-        {
-            return _store.GetStream<T>(bucket, streamId, snapshot?.Version + 1);
-        }
+        
 
     }
 }

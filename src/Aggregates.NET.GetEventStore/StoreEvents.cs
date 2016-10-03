@@ -47,9 +47,9 @@ namespace Aggregates
 
         public async Task<IEventStream> GetStream<T>(String bucket, String streamId, Int32? start = null) where T : class, IEventSource
         {
-
             var streamName = _streamGen(typeof(T), bucket, streamId);
             var events = new List<ResolvedEvent>();
+            Logger.Write(LogLevel.Debug, () => $"Retreiving stream [{streamId}] in bucket [{bucket}] starting at {start}");
 
             var readSize = _nsbSettings.Get<Int32>("ReadSize");
             if (_shouldCache)
@@ -86,6 +86,12 @@ namespace Aggregates
             } while (!current.IsEndOfStream);
             Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamName}]");
 
+            if (!events.Any())
+            {
+                Logger.Write(LogLevel.Warn, () => $"No events found for stream [{streamName}]");
+                return null;
+            }
+
             var compress = _nsbSettings.Get<Boolean>("Compress");
 
             var translatedEvents = events.Select(e =>
@@ -116,6 +122,13 @@ namespace Aggregates
                 _cache.Cache(streamName, eventstream.Clone());
 
             return eventstream;
+        }
+
+        public Task<IEventStream> NewStream<T>(String bucket, String streamId) where T : class, IEventSource
+        {
+            Logger.Write(LogLevel.Debug, () => $"Creating new stream [{streamId}] in bucket [{bucket}]");
+            IEventStream stream = new Internal.EventStream<T>(Builder, this, bucket, streamId, -1, null);
+            return Task.FromResult(stream);
         }
         
         public async Task<IEnumerable<IWritableEvent>> GetEvents<T>(String bucket, String streamId, Int32? start = null, Int32? count = null) where T : class, IEventSource
@@ -339,7 +352,7 @@ namespace Aggregates
         public async Task WriteEventMetadata<T>(String bucket, String streamId, Int32? MaxCount = null, TimeSpan? MaxAge = null, TimeSpan? CacheControl = null) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
-            Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream [{streamName}]");
+            Logger.Write(LogLevel.Debug, () => $"Writing metadata [ {nameof(MaxCount)}: {MaxCount}, {nameof(MaxAge)}: {MaxAge}, {nameof(CacheControl)}: {CacheControl} ] to stream [{streamName}]");
 
             var metadata = StreamMetadata.Create(maxCount: MaxCount, maxAge: MaxAge, cacheControl: CacheControl);
 

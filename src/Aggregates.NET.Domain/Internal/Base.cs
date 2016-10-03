@@ -96,7 +96,7 @@ namespace Aggregates.Internal
 
         void IEventSource.Hydrate(IEnumerable<object> events)
         {
-            Logger.Write(LogLevel.Debug, () => $"Hydrating {events.Count()} events to entity {this.GetType().FullName} id {this.Id}");
+            Logger.Write(LogLevel.Debug, () => $"Hydrating {events.Count()} events to entity {this.GetType().FullName} stream {this.StreamId}");
             foreach (var @event in events)
                 Route(@event);
         }
@@ -113,7 +113,7 @@ namespace Aggregates.Internal
         /// <param name="action"></param>
         protected void Apply<TEvent>(Action<TEvent> action) where TEvent : IEvent
         {
-            Logger.Write(LogLevel.Debug, () => $"Applying event {typeof(TEvent).FullName} to entity {this.GetType().FullName} id {this.Id}");
+            Logger.Write(LogLevel.Debug, () => $"Applying event {typeof(TEvent).FullName} to entity {this.GetType().FullName} stream {this.StreamId}");
             var @event = _eventFactory.CreateInstance(action);
 
             Route(@event);
@@ -129,7 +129,7 @@ namespace Aggregates.Internal
         /// <param name="action"></param>
         protected void Raise<TEvent>(Action<TEvent> action) where TEvent : IEvent
         {
-            Logger.Write(LogLevel.Debug, () => $"Raising an OOB event {typeof(TEvent).FullName} on entity {this.GetType().FullName} id {this.Id}");
+            Logger.Write(LogLevel.Debug, () => $"Raising an OOB event {typeof(TEvent).FullName} on entity {this.GetType().FullName} stream {this.StreamId}");
             var @event = _eventFactory.CreateInstance(action);
 
             var headers = new Dictionary<String, String>();

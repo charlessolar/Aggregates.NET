@@ -58,7 +58,7 @@ namespace Aggregates.Internal
             this._builder = builder;
             this.Bucket = bucket;
             this.StreamId = streamId;
-            this._committed = events.ToList();
+            this._committed = events?.ToList() ?? new List<IWritableEvent>();
             this._streamVersion = streamVersion;
             this._uncommitted = new List<IWritableEvent>();
             this._outofband = new List<IWritableEvent>();
