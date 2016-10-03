@@ -61,7 +61,7 @@
     </Compile>
     <Compile Include="DomainSubscriber.cs" />
     <Compile Include="EventStream.cs" />
-    <Compile Include="Feature.cs" />
+    <Compile Include="GetEventStore.cs" />
     <Compile Include="StoreEvents.cs" />
     <Compile Include="StoreExtensions.cs" />
     <Compile Include="StorePocos.cs" />

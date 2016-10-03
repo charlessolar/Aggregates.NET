@@ -35,20 +35,22 @@ namespace Aggregates
         {
             var settings = recoverability.GetSettings();
             settings.Set(Defaults.SETUP_CORRECTLY, true);
-            
+
+            var max = settings.Get<Int32>("MaxRetries");
             // Set immediate retries to our "MaxRetries" setting
             recoverability.Immediate(x =>
             {
-                var max = settings.Get<Int32>("MaxRetries");
+                if (max == -1)
+                    x.NumberOfRetries(100);
+                else
+                    x.NumberOfRetries( max / 3 );
+            });
+            recoverability.Delayed(x =>
+            {
                 if (max == -1)
                     x.NumberOfRetries(Int32.MaxValue);
                 else
-                    x.NumberOfRetries( max );
-            });
-            // Disable delayed retries 
-            recoverability.Delayed(x =>
-            {
-                x.NumberOfRetries(0);
+                    x.NumberOfRetries(3);
             });
         }
     }
