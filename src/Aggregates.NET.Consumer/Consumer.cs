@@ -30,7 +30,6 @@ namespace Aggregates
         {
             base.Setup(context);
 
-            context.RegisterStartupTask((builder) => new ConsumerRunner(builder, context.Settings));
 
             context.Container.ConfigureComponent<DefaultInvokeObjects>(DependencyLifecycle.SingleInstance);
 
@@ -54,6 +53,8 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             base.Setup(context);
+            context.RegisterStartupTask((builder) => new ConsumerRunner(builder, context.Settings));
+
             context.Container.ConfigureComponent<Checkpointer>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DurableSubscriber>(DependencyLifecycle.SingleInstance);
         }
@@ -68,6 +69,8 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             base.Setup(context);
+            context.RegisterStartupTask((builder) => new ConsumerRunner(builder, context.Settings));
+
             context.Container.ConfigureComponent<VolatileSubscriber>(DependencyLifecycle.SingleInstance);
         }
     }
@@ -88,6 +91,8 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             base.Setup(context);
+            context.RegisterStartupTask((builder) => new ConsumerRunner(builder, context.Settings));
+
             context.Container.ConfigureComponent<CompetingSubscriber>(DependencyLifecycle.SingleInstance);
         }
     }
