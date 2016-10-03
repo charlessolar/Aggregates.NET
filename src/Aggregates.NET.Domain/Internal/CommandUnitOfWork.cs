@@ -23,6 +23,7 @@ namespace Aggregates.Internal
     internal class CommandUnitOfWork : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CommandUnitOfWork));
+        private static object SlowLock = new object();
         private static HashSet<String> SlowCommandTypes = new HashSet<String>();
 
         private static Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
@@ -47,11 +48,14 @@ namespace Aggregates.Internal
                 return;
             }
 
+            var verbose = false;
             // Todo: break out timing of commands into a different pipeline step I think
             if (SlowCommandTypes.Contains(context.Message.MessageType.FullName))
             {
+                lock (SlowLock) SlowCommandTypes.Remove(context.Message.MessageType.FullName);
                 Logger.Write(LogLevel.Info, () => $"Command {context.Message.MessageType.FullName} was previously detected as slow, switching to more verbose logging (for this instance)\nPayload: {JsonConvert.SerializeObject(context.Message.Instance, Formatting.Indented).MaxLines(15)}");
                 Defaults.MinimumLogging.Value = LogLevel.Info;
+                verbose = true;
             }
 
             Stopwatch s = new Stopwatch();
@@ -81,8 +85,8 @@ namespace Aggregates.Internal
                     if (s.ElapsedMilliseconds > _slowAlert)
                     {
                         Logger.Write(LogLevel.Warn, () => $" - SLOW ALERT - Processing command {context.Message.MessageType.FullName} took {s.ElapsedMilliseconds} ms\nPayload: {JsonConvert.SerializeObject(context.Message.Instance, Formatting.Indented).MaxLines(15)}");
-                        if (!SlowCommandTypes.Contains(context.Message.MessageType.FullName))
-                            SlowCommandTypes.Add(context.Message.MessageType.FullName);
+                        if (!verbose)
+                            lock (SlowLock) SlowCommandTypes.Add(context.Message.MessageType.FullName);
                     }
                     else
                         Logger.Write(LogLevel.Debug, () => $"Processing command {context.Message.MessageType.FullName} took {s.ElapsedMilliseconds} ms");
@@ -138,11 +142,10 @@ namespace Aggregates.Internal
             }
             finally
             {
-                if (SlowCommandTypes.Contains(context.Message.MessageType.FullName) && Defaults.MinimumLogging.Value.HasValue)
+                if (verbose)
                 {
                     Logger.Write(LogLevel.Info, () => $"Finished processing command {context.Message.MessageType.FullName} verbosely - resetting log level");
                     Defaults.MinimumLogging.Value = null;
-                    SlowCommandTypes.Remove(context.Message.MessageType.FullName);
                 }
             }
         }

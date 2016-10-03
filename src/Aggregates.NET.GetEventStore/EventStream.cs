@@ -166,7 +166,7 @@ namespace Aggregates.Internal
 
         public async Task Commit(Guid commitId, IDictionary<String, String> commitHeaders)
         {
-            Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] in bucket [{this.Bucket}] for type {typeof(T).FullName} commiting {this.Uncommitted.Count()} events");
+            Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] in bucket [{this.Bucket}] for type {typeof(T).FullName} commiting {this._uncommitted.Count} events, {this._pendingShots.Count} snapshots, {this._outofband.Count} out of band");
 
 
             if (commitHeaders == null)
@@ -190,13 +190,13 @@ namespace Aggregates.Internal
                     if (oldCommits.Any(x => x == commitId))
                         throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
 
-                    Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] committing {_uncommitted.Count} events");
+                    Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] in bucket [{this.Bucket}] committing {_uncommitted.Count} events");
                     await _store.WriteEvents<T>(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders).ConfigureAwait(false);
                     this._uncommitted.Clear();
                 }
                 if (_pendingShots.Any())
                 {
-                    Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] committing {_pendingShots.Count} snapshots");
+                    Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] in bucket [{this.Bucket}] committing {_pendingShots.Count} snapshots");
                     await _snapshots.WriteSnapshots<T>(this.Bucket, this.StreamId, _pendingShots, commitHeaders).ConfigureAwait(false);
                     this._pendingShots.Clear();
                 }
@@ -206,7 +206,7 @@ namespace Aggregates.Internal
                         Logger.Write(LogLevel.Warn, () => $"OOB events were used on stream [{this.StreamId}] but no publishers have been defined!");
                     else
                     {
-                        Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] publishing {_outofband.Count} out of band events to {_oobHandler.GetType().Name}");
+                        Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] in bucket [{this.Bucket}] publishing {_outofband.Count} out of band events to {_oobHandler.GetType().Name}");
                         await _oobHandler.Publish<T>(this.Bucket, this.StreamId, _outofband, commitHeaders).ConfigureAwait(false);
 
                     }

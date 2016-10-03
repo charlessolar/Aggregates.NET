@@ -5,6 +5,7 @@ using Metrics;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
+using NServiceBus.Settings;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -27,6 +28,7 @@ namespace Aggregates.Internal
         private readonly IStoreEvents _store;
         private readonly IStoreSnapshots _snapstore;
         private readonly IBuilder _builder;
+        private readonly ReadOnlySettings _settings;
 
         private static Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Events);
         private static Meter Conflicts = Metric.Meter("Conflicts", Unit.Items);
@@ -43,6 +45,7 @@ namespace Aggregates.Internal
             _builder = builder;
             _snapstore = _builder.Build<IStoreSnapshots>();
             _store = _builder.Build<IStoreEvents>();
+            _settings = _builder.Build<ReadOnlySettings>();
             _store.Builder = _builder;
         }
 
@@ -66,54 +69,52 @@ namespace Aggregates.Internal
 
                 Interlocked.Add(ref written, stream.Uncommitted.Count());
 
+                var conflictRetries = _settings.Get<Int32>("MaxConflictResolves");
 
-                var count = 0;
-                var success = false;
-                do
+
+                try
+                {
+                    await stream.Commit(commitId, headers).ConfigureAwait(false);
+                }
+                catch (VersionException version)
                 {
                     try
                     {
-                        await stream.Commit(commitId, headers).ConfigureAwait(false);
-                        success = true;
-                    }
-                    catch (VersionException version)
-                    {
-                        try
-                        {
-                            Conflicts.Mark();
-                            Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
-                            stream = await ResolveConflict(tracked.Stream).ConfigureAwait(false);
-                            Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - successfully resolved", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
-                            ConflictsResolved.Mark();
-                        }
-                        catch(Exception e)
-                        {
-                            ConflictsUnresolved.Mark();
-                            Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve", tracked.StreamId, tracked.GetType().FullName);
-                            throw new ConflictingCommandException("Could not resolve conflicting events", version, e);
-                        }
-                    }
-                    catch (PersistenceException e)
-                    {
-                        WriteErrors.Mark();
-                        Logger.WriteFormat(LogLevel.Warn, "Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", stream.StreamId, stream.Bucket, e);
-                        Thread.Sleep(75 * (count / 2));
-                    }
-                    catch (DuplicateCommitException)
-                    {
-                        WriteErrors.Mark();
-                        Logger.WriteFormat(LogLevel.Warn, "Detected a possible double commit for stream: [{0}] bucket [{1}]", stream.StreamId, stream.Bucket);
-                        throw;
-                    }
-                    catch
-                    {
-                        WriteErrors.Mark();
-                        throw;
-                    }
-                    if (!success)
-                        count++;
+                        Conflicts.Mark();
 
-                } while (!success && count < 5);
+                        if (conflictRetries <= 0)
+                            throw new Exception($"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} version {tracked.Version} has version conflicts with store - ran out of retries!");
+
+                        conflictRetries--;
+                        Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
+                        stream = await ResolveConflict(tracked.Stream).ConfigureAwait(false);
+                        Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - successfully resolved", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
+                        ConflictsResolved.Mark();
+                    }
+                    catch (Exception e)
+                    {
+                        ConflictsUnresolved.Mark();
+                        Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve", tracked.StreamId, tracked.GetType().FullName);
+                        throw new ConflictingCommandException("Could not resolve conflicting events", version, e);
+                    }
+                }
+                catch (PersistenceException e)
+                {
+                    WriteErrors.Mark();
+                    Logger.WriteFormat(LogLevel.Warn, "Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", stream.StreamId, stream.Bucket, e);
+                }
+                catch (DuplicateCommitException)
+                {
+                    WriteErrors.Mark();
+                    Logger.WriteFormat(LogLevel.Warn, "Detected a double commit for stream: [{0}] bucket [{1}] - discarding changes for this stream", stream.StreamId, stream.Bucket);
+                    // I was throwing this, but if this happens it means the events for this message have already been committed.  Possibly as a partial message failure earlier.  Im changing to just discard the changes, perhaps can take a deeper look later if this ever bites me on the ass
+                    //throw;
+                }
+                catch
+                {
+                    WriteErrors.Mark();
+                    throw;
+                }
 
             });
             WrittenEvents.Update(written);
@@ -262,7 +263,7 @@ namespace Aggregates.Internal
 
             return root;
         }
-        
+
 
     }
 }

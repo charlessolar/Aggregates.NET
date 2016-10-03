@@ -15,6 +15,10 @@ This library contains code to help create and manage domain driven design object
 
 This project was originally inspired by and still uses many ideas from NES and CommonDomain.  
 
+NServiceBus 6
+-------------
+As of the pre-release branch Aggregates.NET is now running on NSB 6.0 - enjoy!
+
 What will Aggregates.NET do for you?
 ------------------------------------
 
@@ -36,7 +40,7 @@ Current features include -
 - Async event and message handling (in NSB 5!)
 - Message idempotency
 - Automatic conflict resolution (when possible)
-- Performance logging
+- Advanced performance logging
 - NO internal IOC container (NServicebus used for resolutions)
 - [Thorough sample](https://github.com/volak/DDD.Enterprise.Example)
 
