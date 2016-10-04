@@ -67,7 +67,6 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
-    <Compile Include="Attributes\ParallelAttribute.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="Contracts\ICommandMutator.cs" />
     <Compile Include="Contracts\IEventDescriptor.cs" />
@@ -122,7 +121,9 @@
     <None Include="Aggregates.NET.nuspec" />
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="Attributes\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

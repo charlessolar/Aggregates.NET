@@ -9,7 +9,7 @@ namespace Aggregates.Contracts
 {
     public interface IStoreEvents
     {
-        Task<IEventStream> GetStream<T>(String bucket, String streamId, Int32? start = null) where T : class, IEventSource;
+        Task<IEventStream> GetStream<T>(String bucket, String streamId, Int32? start = null, Boolean tryCache = true) where T : class, IEventSource;
         Task<IEventStream> NewStream<T>(String bucket, String streamId) where T : class, IEventSource;
         Task<IEnumerable<IWritableEvent>> GetEvents<T>(String bucket, String streamId, Int32? start = null, Int32? count = null) where T : class, IEventSource;
         Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(String bucket, String streamId, Int32? start = null, Int32? count = null) where T : class, IEventSource;

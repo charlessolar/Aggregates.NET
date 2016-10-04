@@ -41,12 +41,12 @@ namespace Aggregates
             _streamGen = _nsbSettings.Get<StreamIdGenerator>("StreamGenerator");
         }
 
-        public async Task<ISnapshot> GetSnapshot<T>(String bucket, String streamId) where T : class, IEventSource
+        public async Task<ISnapshot> GetSnapshot<T>(String bucket, String streamId, Boolean tryCache = true) where T : class, IEventSource
         {
             var streamName = $"{_streamGen(typeof(T), bucket + ".SNAP", streamId)}";
             Logger.Write(LogLevel.Debug, () => $"Getting snapshot for stream [{streamName}]");
 
-            if (_shouldCache)
+            if (_shouldCache && tryCache)
             {
                 var cached = _cache.Retreive(streamName) as ISnapshot;
                 if (cached != null)
