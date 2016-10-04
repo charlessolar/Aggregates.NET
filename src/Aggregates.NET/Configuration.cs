@@ -39,23 +39,27 @@ namespace Aggregates
         {
             settings.GetSettings().Set("Compress", Compress);
         }
-        public static void ConfigureForAggregates(this RecoverabilitySettings recoverability)
+        public static void ConfigureForAggregates(this RecoverabilitySettings recoverability, Int32 ImmediateRetries = 12, Int32 DelayedRetries = 3, Boolean Forever = false)
         {
             var settings = recoverability.GetSettings();
+
             settings.Set(Defaults.SETUP_CORRECTLY, true);
-            
+            settings.Set("ImmediateRetries", ImmediateRetries);
+            settings.Set("DelayedRetries", DelayedRetries);
+            settings.Set("RetryForever", Forever);
+
             // Set immediate retries to our "MaxRetries" setting
             recoverability.Immediate(x =>
             {
-                x.NumberOfRetries(settings.Get<Int32>("ImmediateRetries"));
+                x.NumberOfRetries(ImmediateRetries);
             });
             recoverability.Delayed(x =>
             {
                 x.TimeIncrease(TimeSpan.FromSeconds(2));
-                if (settings.Get<Boolean>("RetryForever"))
+                if (Forever)
                     x.NumberOfRetries(Int32.MaxValue);
                 else
-                    x.NumberOfRetries(settings.Get<Int32>("DelayedRetries"));
+                    x.NumberOfRetries(DelayedRetries);
             });
         }
     }
