@@ -52,7 +52,18 @@ namespace Aggregates.Internal
                 if (!methods.Any())
                     return null;
 
-                return methods.ToDictionary(x => x.Name, x => (Action<IEventSource, Object>)((es, m) => x.Invoke(es, new[] { m })));
+                return methods.ToDictionary(x => x.Name, x => (Action<IEventSource, Object>)((es, m) =>
+                {
+                    try
+                    {
+                        x.Invoke(es, new[] { m });
+                    }
+                    catch (TargetInvocationException e)
+                    {
+                        throw e.InnerException;
+                    }
+                }));
+
             });
         }
 
