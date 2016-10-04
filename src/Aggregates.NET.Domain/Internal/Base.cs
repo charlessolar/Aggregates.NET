@@ -109,6 +109,7 @@ namespace Aggregates.Internal
                 try
                 {
                     RouteForConflict(@event);
+                    RouteFor(@event);
 
                     // Todo: Fill with user headers or something
                     var headers = new Dictionary<String, String>();
@@ -170,7 +171,7 @@ namespace Aggregates.Internal
         {
             var route = _resolver.Conflict(this, @event.GetType());
             if (route == null)
-                throw new NoRouteException($"Failed to route {typeof(TEvent).FullName} for conflict resolution on entity {typeof(TThis).FullName}.  If you want to handle conflicts here, define a new method of signature `private void Conflict({typeof(TEvent).Name} e)`");
+                throw new NoRouteException($"Failed to route {@event.GetType().FullName} for conflict resolution on entity {typeof(TThis).FullName}.  If you want to handle conflicts here, define a new method of signature `private void Conflict({@event.GetType().Name} e)`");
 
             route(this, @event);
         }
