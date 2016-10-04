@@ -86,7 +86,7 @@ namespace Aggregates
             } while (!current.IsEndOfStream);
             Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamName}]");
 
-            if (!events.Any())
+            if (!events.Any() && current.LastEventNumber == -1)
             {
                 Logger.Write(LogLevel.Warn, () => $"No events found for stream [{streamName}]");
                 return null;
@@ -106,7 +106,7 @@ namespace Aggregates
 
                 var descriptor = metadata.Deserialize(settings);
                 var @event = data.Deserialize(e.Event.EventType, settings) as IEvent;
-                
+
                 if (@event == null)
                     throw new InvalidOperationException($"Event type {e.Event.EventType} on stream {streamName} does not inherit from IEvent and therefore cannot be read");
                 return new Internal.WritableEvent
@@ -130,7 +130,7 @@ namespace Aggregates
             IEventStream stream = new Internal.EventStream<T>(Builder, this, bucket, streamId, -1, null);
             return Task.FromResult(stream);
         }
-        
+
         public async Task<IEnumerable<IWritableEvent>> GetEvents<T>(String bucket, String streamId, Int32? start = null, Int32? count = null) where T : class, IEventSource
         {
 
@@ -155,7 +155,7 @@ namespace Aggregates
                 Logger.Write(LogLevel.Debug, () => $"Retreived {current.Events.Count()} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                 events.AddRange(current.Events);
-                
+
                 sliceStart = current.NextEventNumber;
             } while (!current.IsEndOfStream);
             Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamName}]");
