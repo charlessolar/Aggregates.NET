@@ -123,7 +123,7 @@ namespace Aggregates.Internal
             Stream.Add(@event, headers);
         }
         /// <summary>
-        /// Publishes an event, but does not save to object's eventstream.  It will be stored under a general events system stream so as to not pollute object's
+        /// Publishes an event, but does not save to object's eventstream.  It will be stored under out of band event stream so as to not pollute object's
         /// </summary>
         /// <typeparam name="TEvent"></typeparam>
         /// <param name="action"></param>

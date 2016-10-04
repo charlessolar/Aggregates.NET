@@ -29,6 +29,7 @@ namespace Aggregates.Internal
         private readonly IStoreSnapshots _snapstore;
         private readonly IBuilder _builder;
         private readonly ReadOnlySettings _settings;
+        private readonly IStreamCache _cache;
 
         private static Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Events);
         private static Meter Conflicts = Metric.Meter("Conflicts", Unit.Items);
@@ -46,11 +47,13 @@ namespace Aggregates.Internal
             _snapstore = _builder.Build<IStoreSnapshots>();
             _store = _builder.Build<IStoreEvents>();
             _settings = _builder.Build<ReadOnlySettings>();
+            _cache = _builder.Build<IStreamCache>();
             _store.Builder = _builder;
         }
 
         async Task IRepository.Commit(Guid commitId, IDictionary<String, String> commitHeaders)
         {
+            Logger.Write(LogLevel.Debug, () => $"Repository {typeof(T).FullName} starting commit {commitId}");
             var written = 0;
             await _tracked.Values
                 .Where(x => x.Stream.Uncommitted.Any())
@@ -69,10 +72,10 @@ namespace Aggregates.Internal
 
                 Interlocked.Add(ref written, stream.Uncommitted.Count());
 
-                var conflictRetries = _settings.Get<Int32>("MaxConflictResolves");
+                //var conflictRetries = _settings.Get<Int32>("MaxConflictResolves");
 
                 var success = false;
-                var sanity = Math.Max(conflictRetries, 5);
+                var sanity = 5;// Math.Max(conflictRetries, 5);
                 do
                 {
                     try
@@ -80,27 +83,14 @@ namespace Aggregates.Internal
                         await stream.Commit(commitId, headers).ConfigureAwait(false);
                         success = true;
                     }
-                    catch (VersionException version)
+                    catch (VersionException e)
                     {
-                        try
-                        {
-                            Conflicts.Mark();
+                        // Our cache is out of date
+                        _cache.Evict(stream.StreamId);
+                        Conflicts.Mark();
+                        Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store", tracked.StreamId, tracked.GetType().FullName);
+                        throw new ConflictingCommandException("Could not resolve conflicting events", e);
 
-                            if (conflictRetries <= 0)
-                                throw new Exception($"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} version {tracked.Version} has version conflicts with store - ran out of retries!");
-
-                            conflictRetries--;
-                            Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
-                            stream = await ResolveConflict(tracked.Stream).ConfigureAwait(false);
-                            Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - successfully resolved", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
-                            ConflictsResolved.Mark();
-                        }
-                        catch (Exception e)
-                        {
-                            ConflictsUnresolved.Mark();
-                            Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve", tracked.StreamId, tracked.GetType().FullName);
-                            throw new ConflictingCommandException("Could not resolve conflicting events", version, e);
-                        }
                     }
                     catch (PersistenceException e)
                     {
@@ -126,21 +116,10 @@ namespace Aggregates.Internal
             });
 
             WrittenEvents.Update(written);
+            Logger.Write(LogLevel.Debug, () => $"Repository {typeof(T).FullName} finished commit {commitId}");
         }
 
-        private async Task<IEventStream> ResolveConflict(IEventStream stream)
-        {
-            var uncommitted = stream.Uncommitted;
-            Logger.Write(LogLevel.Debug, () => $"Resolving - getting stream {stream.StreamId} bucket {stream.Bucket} from store");
-            // Get latest stream from store
-            var existing = await GetUntracked(stream.Bucket, stream.StreamId, tryCache: false).ConfigureAwait(false);
-            Logger.Write(LogLevel.Debug, () => $"Resolving - got stream version {existing.Version} from store, hydrating {stream.Uncommitted.Count()} uncomitted events");
-            // Hydrate the uncommitted events
-            existing.Hydrate(uncommitted);
-            Logger.WriteFormat(LogLevel.Debug, "Resolving - successfully hydrated");
-            // Success! Streams merged
-            return existing.Stream;
-        }
+        
 
         public void Dispose()
         {
@@ -195,12 +174,12 @@ namespace Aggregates.Internal
 
             return root;
         }
-        private async Task<T> GetUntracked(String bucket, string streamId, Boolean tryCache = true)
+        private async Task<T> GetUntracked(String bucket, string streamId)
         {
             T root;
-            var snapshot = await _snapstore.GetSnapshot<T>(bucket, streamId, tryCache: false).ConfigureAwait(false);
-            var stream = await _store.GetStream<T>(bucket, streamId, snapshot?.Version + 1, tryCache: false).ConfigureAwait(false);
-            
+            var snapshot = await _snapstore.GetSnapshot<T>(bucket, streamId).ConfigureAwait(false);
+            var stream = await _store.GetStream<T>(bucket, streamId, snapshot?.Version + 1).ConfigureAwait(false);
+
             // Get requires the stream exists
             if (stream == null || stream.StreamVersion == -1)
                 throw new NotFoundException($"Aggregate stream [{streamId}] in bucket [{bucket}] type {typeof(T).FullName} not found");

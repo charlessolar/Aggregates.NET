@@ -10,6 +10,6 @@ namespace Aggregates
     {
         public ConflictingCommandException() { }
         public ConflictingCommandException(String message) : base(message) { }
-        public ConflictingCommandException(String message, Exception innerException, Exception resolve) : base(message, innerException, resolve) { }
+        public ConflictingCommandException(String message, Exception innerException) : base(message, innerException) { }
     }
 }

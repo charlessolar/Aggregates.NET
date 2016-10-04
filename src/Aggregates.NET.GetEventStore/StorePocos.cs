@@ -43,12 +43,12 @@ namespace Aggregates
 
 
 
-        public async Task<T> Get<T>(String bucket, String stream, Boolean tryCache = true) where T : class
+        public async Task<T> Get<T>(String bucket, String stream) where T : class
         {
             var streamName = $"{_streamGen(typeof(T), bucket + ".POCO", stream)}";
             Logger.Write(LogLevel.Debug, () => $"Getting stream [{streamName}]");
 
-            if (_shouldCache && tryCache)
+            if (_shouldCache)
             {
                 var cached = _cache.Retreive(streamName) as T;
                 if (cached != null)

@@ -45,14 +45,14 @@ namespace Aggregates
         }
 
 
-        public async Task<IEventStream> GetStream<T>(String bucket, String streamId, Int32? start = null, Boolean tryCache = true) where T : class, IEventSource
+        public async Task<IEventStream> GetStream<T>(String bucket, String streamId, Int32? start = null) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
             var events = new List<ResolvedEvent>();
             Logger.Write(LogLevel.Debug, () => $"Retreiving stream [{streamId}] in bucket [{bucket}] starting at {start}");
 
             var readSize = _nsbSettings.Get<Int32>("ReadSize");
-            if (_shouldCache && tryCache)
+            if (_shouldCache)
             {
                 var cached = _cache.Retreive(streamName) as IEventStream;
                 if (cached != null)
