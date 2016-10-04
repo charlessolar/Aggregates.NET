@@ -119,9 +119,13 @@ namespace Aggregates.Internal
             }
         }
 
-        void IEventSource.Apply<TEvent>(Action<TEvent> action)
+        void IEventSource.Apply(IEvent @event)
         {
-            Apply(action);
+            Apply(@event);
+        }
+        void IEventSource.Raise(IEvent @event)
+        {
+            Raise(@event);
         }
 
         /// <summary>
@@ -133,12 +137,7 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Applying event {typeof(TEvent).FullName} to entity {this.GetType().FullName} stream {this.StreamId}");
             var @event = _eventFactory.CreateInstance(action);
-
-            RouteFor(@event);
-
-            // Todo: Fill with user headers or something
-            var headers = new Dictionary<String, String>();
-            Stream.Add(@event, headers);
+            Apply(@event);
         }
         /// <summary>
         /// Publishes an event, but does not save to object's eventstream.  It will be stored under out of band event stream so as to not pollute object's
@@ -150,15 +149,25 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Raising an OOB event {typeof(TEvent).FullName} on entity {this.GetType().FullName} stream {this.StreamId}");
             var @event = _eventFactory.CreateInstance(action);
 
+            Raise(@event);
+        }
+        
+        private void Apply(IEvent @event)
+        {
+            RouteFor(@event);
+
+            // Todo: Fill with user headers or something
+            var headers = new Dictionary<String, String>();
+            Stream.Add(@event, headers);
+        }
+        private void Raise(IEvent @event)
+        {
             var headers = new Dictionary<String, String>();
             headers["Bucket"] = this.Bucket;
             headers["StreamId"] = this.StreamId;
 
-
             Stream.AddOutOfBand(@event, headers);
         }
-        
-        
 
         internal void RouteFor<TEvent>(TEvent @event) where TEvent : IEvent
         {

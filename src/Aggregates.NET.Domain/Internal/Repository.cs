@@ -149,6 +149,9 @@ namespace Aggregates.Internal
             // Hydrate events using special `Conflict` handlers the user can specify to help auto resolve conflicts
             // if a conflict handler doesn't exist it will throw `NoRouteException`, if the user aborts they'll throw `AbandonConflictException`
             existing.Conflict(uncommitted);
+
+            foreach (var oob in stream.OOBUncommitted)
+                existing.Raise(oob.Event);
             
             Logger.WriteFormat(LogLevel.Debug, "Resolving - successfully hydrated");
             // Success! Streams merged

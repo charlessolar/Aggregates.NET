@@ -36,7 +36,21 @@ namespace Aggregates.Internal
         {
             get
             {
-                return this._uncommitted.Concat(this._outofband);
+                return this._uncommitted;
+            }
+        }
+        public IEnumerable<IWritableEvent> OOBUncommitted
+        {
+            get
+            {
+                return this._outofband;
+            }
+        }
+        public IEnumerable<ISnapshot> SnapshotsUncommitted
+        {
+            get
+            {
+                return this._pendingShots;
             }
         }
 
@@ -85,7 +99,7 @@ namespace Aggregates.Internal
         internal void TrimEvents(Int32? Start)
         {
             // Trim off events earlier than Start (if the stream is from cache its possible a snapshot has been taken since cached)
-            if(Start.HasValue && _committed.Any() && _committed.First().Descriptor.Version <= Start.Value)
+            if (Start.HasValue && _committed.Any() && _committed.First().Descriptor.Version <= Start.Value)
             {
                 _committed = _committed.Where(x => x.Descriptor.Version > Start.Value);
             }
@@ -173,7 +187,7 @@ namespace Aggregates.Internal
                 commitHeaders = new Dictionary<String, String>();
 
             commitHeaders[CommitHeader] = commitId.ToString();
-            
+
             try
             {
                 if (_uncommitted.Any())

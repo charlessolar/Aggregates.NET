@@ -13,7 +13,8 @@ namespace Aggregates.Contracts
         IEventStream Stream { get; }
         void Hydrate(IEnumerable<IEvent> events);
         void Conflict(IEnumerable<IEvent> events);
-        void Apply<TEvent>(Action<TEvent> action) where TEvent : IEvent;
+        void Apply(IEvent @event);
+        void Raise(IEvent @event);
     }
 
     public interface IEventSource<TId> : IEventSource
