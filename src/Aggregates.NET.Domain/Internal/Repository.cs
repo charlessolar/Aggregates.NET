@@ -89,12 +89,12 @@ namespace Aggregates.Internal
                             Conflicts.Mark();
 
                             if (conflictRetries <= 0)
-                                throw new Exception($"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} version {tracked.Version} has version conflicts with store - ran out of retries!");
+                                throw new Exception($"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} version {stream.StreamVersion} has version conflicts with store - ran out of retries!");
 
                             conflictRetries--;
-                            Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
+                            Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName, stream.StreamVersion);
                             stream = await ResolveConflict(tracked).ConfigureAwait(false);
-                            Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - successfully resolved", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
+                            Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} had version conflicts with store - successfully resolved", tracked.StreamId, tracked.GetType().FullName, stream.StreamVersion);
                             ConflictsResolved.Mark();
                         }
                         catch (AbandonConflictException abandon)
@@ -137,13 +137,22 @@ namespace Aggregates.Internal
             var stream = tracked.Stream;
             var uncommitted = stream.Uncommitted.Select(x => x.Event).ToList();
 
-            // Our cache is out of date
+
+            Logger.Write(LogLevel.Debug, () => $"Resolving - getting stream {stream.StreamId} bucket {stream.Bucket} from store");
+
+            // Gets tracked object before command was processed (should be in cache)
+            var existing = await GetUntracked(stream.Bucket, stream.StreamId).ConfigureAwait(false);
+
+            // Evict cache
             await _store.Evict<T>(stream.Bucket, stream.StreamId);
             await _snapstore.Evict<T>(stream.Bucket, stream.StreamId);
 
-            Logger.Write(LogLevel.Debug, () => $"Resolving - getting stream {stream.StreamId} bucket {stream.Bucket} from store");
             // Get latest stream from store
-            var existing = await GetUntracked(stream.Bucket, stream.StreamId).ConfigureAwait(false);
+            var latest = await _store.GetStream<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1).ConfigureAwait(false);
+            Logger.Write(LogLevel.Debug, () => $"Resolving - latest stream version is {latest.CommitVersion}");
+
+            existing.Hydrate(latest.Events.Select(x => x.Event));
+
             Logger.Write(LogLevel.Debug, () => $"Resolving - got stream version {existing.Version} from store, hydrating {stream.Uncommitted.Count()} uncomitted events");
 
             // Hydrate events using special `Conflict` handlers the user can specify to help auto resolve conflicts
