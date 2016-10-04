@@ -19,12 +19,26 @@ namespace Aggregates.Internal
         // For streams that are changing multiple times a second, no sense to cache them if they get immediately evicted
         private readonly static HashSet<String> _uncachable = new HashSet<string>();
         private readonly static HashSet<String> _levelOne = new HashSet<string>();
-        private static String _lastEvicted = "";
+        private readonly static HashSet<String> _levelZero = new HashSet<string>();
+        private static Int32 _stage = 0;
         private static Timer _unachableEviction = new Timer((_) =>
         {
-            Logger.Write(LogLevel.Debug, () => $"Clearing {_uncachable.Count} uncachable stream names");
-            _uncachable.Clear();
-        }, null, TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(10));
+            // Clear uncachable every 10 minutes
+            if (_stage == 120)
+            {
+                _stage = 0;
+                Logger.Write(LogLevel.Debug, () => $"Clearing {_uncachable.Count} uncachable stream names");
+                _uncachable.Clear();
+            }
+            // Clear levelOne every minute
+            if (_stage % 12 == 0)
+                _levelOne.Clear();
+
+            // Clear levelZero every 5 seconds
+            _levelZero.Clear();
+
+            _stage++;
+        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
 
         public void Cache(String stream, object cached)
         {
@@ -35,30 +49,21 @@ namespace Aggregates.Internal
         }
         public void Evict(String stream)
         {
-            // Logic here:
-            // If a stream is getting evicted multiple times in a row, it would mean there are a lot of commands being processed that are changing the same stream
-            // What this will do is whenever a stream is evicted it will be first saved as the "lastEvicted"
-            // Next eviction if its the same stream, then it moves the stream to levelOne, kind of a buffer zone that will prevent the stream
-            // from being cached, but is also very temporary.  If the next eviction is not the same stream, then the previous stream is removed 
-            // from level one.
-            // If it IS the same stream for a third time, then its moved into the _uncachable set where it won't be cached for as much as 10 minutes
-            // depending on the timer.
-            // So tldr, if a stream is evicted 3 times in a row its marked "uncachable" for up to 10 minutes
-            if (stream.Equals(_lastEvicted))
+            if (_uncachable.Contains(stream)) return;
+
+            if (_levelZero.Contains(stream))
             {
                 if (_levelOne.Contains(stream))
                 {
-                    Logger.Write(LogLevel.Info, () => $"Stream {stream} has been evicted 3 times in a row, marking uncachable for a few minutes");
+                    Logger.Write(LogLevel.Info, () => $"Stream {stream} has been evicted frequenty, marking uncachable for a few minutes");
                     _uncachable.Add(stream);
                 }
                 else
                     _levelOne.Add(stream);
             }
             else
-                _levelOne.Remove(_lastEvicted);
-
-
-            _lastEvicted = stream;
+                _levelZero.Add(stream);
+            
             _cache.Remove(stream);
         }
         public object Retreive(String stream)

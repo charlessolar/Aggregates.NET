@@ -69,12 +69,7 @@ namespace Aggregates
 
                 if (compress)
                     data = data.Decompress();
-
-                var @event = data.Deserialize(e.Event.EventType, _jsonSettings) as IEvent;
-
-                if ((@event == null) || !_cache.Update(e.OriginalStreamId, new Internal.WritableEvent { Descriptor = descriptor, Event = @event, EventId = e.Event.EventId }))
-                    _cache.Evict(e.OriginalStreamId);
-
+                
                 // Check if the event was written by this domain handler
                 // We don't need to publish events saved by other domain instances
                 String instance = null;
@@ -82,6 +77,7 @@ namespace Aggregates
                 if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.InstanceHeader, out instance) || !Guid.TryParse(instance, out domain) || domain != Defaults.Instance)
                     return;
 
+                var @event = data.Deserialize(e.Event.EventType, _jsonSettings) as IEvent;
                 // If a snapshot, poco, or irrelevent ES message, don't publish
                 if (@event == null) return;
 
