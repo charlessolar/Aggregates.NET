@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -60,7 +61,7 @@ namespace Aggregates.Internal
                     }
                     catch (TargetInvocationException e)
                     {
-                        throw e.InnerException;
+                        ExceptionDispatchInfo.Capture(e.InnerException).Throw();
                     }
                 }));
 
