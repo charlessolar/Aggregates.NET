@@ -137,22 +137,13 @@ namespace Aggregates.Internal
             var stream = tracked.Stream;
             var uncommitted = stream.Uncommitted.Select(x => x.Event).ToList();
 
-
-            Logger.Write(LogLevel.Debug, () => $"Resolving - getting stream {stream.StreamId} bucket {stream.Bucket} from store");
-
-            // Gets tracked object before command was processed (should be in cache)
-            var existing = await GetUntracked(stream.Bucket, stream.StreamId).ConfigureAwait(false);
-
-            // Evict cache
+            // Our cache is out of date
             await _store.Evict<T>(stream.Bucket, stream.StreamId);
             await _snapstore.Evict<T>(stream.Bucket, stream.StreamId);
 
+            Logger.Write(LogLevel.Debug, () => $"Resolving - getting stream {stream.StreamId} bucket {stream.Bucket} from store");
             // Get latest stream from store
-            var latest = await _store.GetStream<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1).ConfigureAwait(false);
-            Logger.Write(LogLevel.Debug, () => $"Resolving - latest stream version is {latest.CommitVersion}");
-
-            existing.Hydrate(latest.Events.Select(x => x.Event));
-
+            var existing = await GetUntracked(stream.Bucket, stream.StreamId).ConfigureAwait(false);
             Logger.Write(LogLevel.Debug, () => $"Resolving - got stream version {existing.Version} from store, hydrating {stream.Uncommitted.Count()} uncomitted events");
 
             // Hydrate events using special `Conflict` handlers the user can specify to help auto resolve conflicts
