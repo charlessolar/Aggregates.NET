@@ -9,5 +9,6 @@ namespace Aggregates.Contracts
     public interface IRouteResolver
     {
         Action<IEventSource, Object> Resolve(IEventSource eventsource, Type eventType);
+        Action<IEventSource, Object> Conflict(IEventSource eventsource, Type eventType);
     }
 }

@@ -36,7 +36,7 @@ namespace Aggregates.Contracts
         void AddOutOfBand(IEvent @event, IDictionary<String, String> headers);
         void AddSnapshot(Object memento, IDictionary<String, String> headers);
         Task Commit(Guid commitId, IDictionary<String, String> commitHeaders);
-        
+
         IEventStream Clone(IWritableEvent @event = null);
     }
 }

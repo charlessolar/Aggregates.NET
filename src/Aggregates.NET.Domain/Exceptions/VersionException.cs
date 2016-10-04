@@ -8,12 +8,6 @@ namespace Aggregates.Exceptions
 {
     public class VersionException : Exception
     {
-        public VersionException()
-        {
-        }
-        public VersionException(String message) : base(message)
-        {
-        }
         public VersionException(String message, Exception innerException) : base(message, innerException)
         {
         }

@@ -62,7 +62,6 @@
     <Compile Include="Contracts\IEntity.cs" />
     <Compile Include="Contracts\IEntityRepository.cs" />
     <Compile Include="Contracts\IEventPublisher.cs" />
-    <Compile Include="Contracts\IEventRouter.cs" />
     <Compile Include="Contracts\IEventSource.cs" />
     <Compile Include="Contracts\IEventStream.cs" />
     <Compile Include="Contracts\IHaveEntities.cs" />
@@ -71,6 +70,9 @@
     <Compile Include="Contracts\IPocoRepository.cs" />
     <Compile Include="Contracts\IStorePocos.cs" />
     <Compile Include="Contracts\IStreamCache.cs" />
+    <Compile Include="Exceptions\AbandonConflictException.cs" />
+    <Compile Include="Exceptions\DiscardEventException.cs" />
+    <Compile Include="Exceptions\NoRouteException.cs" />
     <Compile Include="Extensions\StreamExtensions.cs" />
     <Compile Include="ICommandUnitOfWork.cs" />
     <Compile Include="IComputed.cs" />

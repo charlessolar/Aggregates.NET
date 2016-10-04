@@ -70,10 +70,10 @@ namespace Aggregates.Internal
 
                 Interlocked.Add(ref written, stream.Uncommitted.Count());
 
-                //var conflictRetries = _settings.Get<Int32>("MaxConflictResolves");
+                var conflictRetries = _settings.Get<Int32>("MaxConflictResolves");
 
                 var success = false;
-                var sanity = 5;// Math.Max(conflictRetries, 5);
+                var sanity = Math.Max(conflictRetries, 5);
                 do
                 {
                     try
@@ -81,14 +81,29 @@ namespace Aggregates.Internal
                         await stream.Commit(commitId, headers).ConfigureAwait(false);
                         success = true;
                     }
-                    catch (VersionException e)
+                    catch (VersionException)
                     {
-                        // Our cache is out of date
-                        await _store.Evict<T>(stream.Bucket, stream.StreamId);
-                        Conflicts.Mark();
-                        Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store", tracked.StreamId, tracked.GetType().FullName);
-                        throw new ConflictingCommandException("Could not resolve conflicting events", e);
 
+                        try
+                        {
+                            Conflicts.Mark();
+
+                            if (conflictRetries <= 0)
+                                throw new Exception($"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} version {tracked.Version} has version conflicts with store - ran out of retries!");
+
+                            conflictRetries--;
+                            Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
+                            stream = await ResolveConflict(tracked).ConfigureAwait(false);
+                            Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - successfully resolved", tracked.StreamId, tracked.GetType().FullName, tracked.Version);
+                            ConflictsResolved.Mark();
+                        }
+                        catch (AbandonConflictException abandon)
+                        {
+                            ConflictsUnresolved.Mark();
+                            Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve", tracked.StreamId, tracked.GetType().FullName);
+                            throw new ConflictingCommandException("Could not resolve conflicting events", abandon);
+                        }
+                        
                     }
                     catch (PersistenceException e)
                     {
@@ -117,7 +132,29 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Repository {typeof(T).FullName} finished commit {commitId}");
         }
 
-        
+        private async Task<IEventStream> ResolveConflict(T tracked)
+        {
+            var stream = tracked.Stream;
+            var uncommitted = stream.Uncommitted.Select(x => x.Event).ToList();
+
+            // Our cache is out of date
+            await _store.Evict<T>(stream.Bucket, stream.StreamId);
+            await _snapstore.Evict<T>(stream.Bucket, stream.StreamId);
+
+            Logger.Write(LogLevel.Debug, () => $"Resolving - getting stream {stream.StreamId} bucket {stream.Bucket} from store");
+            // Get latest stream from store
+            var existing = await GetUntracked(stream.Bucket, stream.StreamId).ConfigureAwait(false);
+            Logger.Write(LogLevel.Debug, () => $"Resolving - got stream version {existing.Version} from store, hydrating {stream.Uncommitted.Count()} uncomitted events");
+
+            // Hydrate events using special `Conflict` handlers the user can specify to help auto resolve conflicts
+            // if a conflict handler doesn't exist it will throw `NoRouteException`, if the user aborts they'll throw `AbandonConflictException`
+            existing.Conflict(uncommitted);
+            
+            Logger.WriteFormat(LogLevel.Debug, "Resolving - successfully hydrated");
+            // Success! Streams merged
+            return existing.Stream;
+        }
+
 
         public void Dispose()
         {

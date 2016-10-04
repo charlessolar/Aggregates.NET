@@ -9,6 +9,7 @@ namespace Aggregates.Contracts
 {
     public interface IStoreSnapshots
     {
+        Task Evict<T>(String bucket, String streamId) where T : class, IEventSource;
         Task<ISnapshot> GetSnapshot<T>(String bucket, String streamId) where T : class, IEventSource;
         Task WriteSnapshots<T>(String bucket, String streamId, IEnumerable<ISnapshot> snapshots, IDictionary<String, String> commitHeaders) where T : class, IEventSource;
     }

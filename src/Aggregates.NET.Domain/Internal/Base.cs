@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Aggregates.Specifications;
 using NServiceBus;
@@ -13,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public abstract class Base<TThis, TId> : IBase<TId>, IHaveEntities<TThis, TId>, IEventRouter, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver, INeedRepositoryFactory, INeedProcessor where TThis : Base<TThis, TId>
+    public abstract class Base<TThis, TId> : IBase<TId>, IHaveEntities<TThis, TId>, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver, INeedRepositoryFactory, INeedProcessor where TThis : Base<TThis, TId>
     {
         internal static readonly ILog Logger = LogManager.GetLogger(typeof(Base<,>));
         private IDictionary<Type, IEntityRepository> _repositories = new Dictionary<Type, IEntityRepository>();
@@ -51,7 +52,7 @@ namespace Aggregates.Internal
         IBuilder INeedBuilder.Builder { get; set; }
 
         TId IEventSource<TId>.Id { get; set; }
-        
+
         public IEntityRepository<TThis, TId, TEntity> For<TEntity>() where TEntity : class, IEntity
         {
             // Get current UOW
@@ -94,11 +95,27 @@ namespace Aggregates.Internal
             return Id.GetHashCode();
         }
 
-        void IEventSource.Hydrate(IEnumerable<object> events)
+        void IEventSource.Hydrate(IEnumerable<IEvent> events)
         {
             Logger.Write(LogLevel.Debug, () => $"Hydrating {events.Count()} events to entity {this.GetType().FullName} stream {this.StreamId}");
             foreach (var @event in events)
-                Route(@event);
+                RouteFor(@event);
+        }
+        void IEventSource.Conflict(IEnumerable<IEvent> events)
+        {
+            Logger.Write(LogLevel.Debug, () => $"Attempting to merge {events.Count()} events to entity {this.GetType().FullName} stream {this.StreamId}");
+            foreach (var @event in events)
+            {
+                try
+                {
+                    RouteForConflict(@event);
+
+                    // Todo: Fill with user headers or something
+                    var headers = new Dictionary<String, String>();
+                    Stream.Add(@event, headers);
+                }
+                catch (DiscardEventException) { }
+            }
         }
 
         void IEventSource.Apply<TEvent>(Action<TEvent> action)
@@ -116,7 +133,7 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Applying event {typeof(TEvent).FullName} to entity {this.GetType().FullName} stream {this.StreamId}");
             var @event = _eventFactory.CreateInstance(action);
 
-            Route(@event);
+            RouteFor(@event);
 
             // Todo: Fill with user headers or something
             var headers = new Dictionary<String, String>();
@@ -139,23 +156,21 @@ namespace Aggregates.Internal
 
             Stream.AddOutOfBand(@event, headers);
         }
+        
+        
 
-        private void Route(object @event)
+        internal void RouteFor<TEvent>(TEvent @event) where TEvent : IEvent
         {
-            if (@event == null) return;
-
-            RouteFor(@event.GetType(), @event);
-        }
-
-        void IEventRouter.RouteFor(Type @eventType, object @event)
-        {
-            RouteFor(eventType, @event);
-        }
-
-        internal void RouteFor(Type eventType, object @event)
-        {
-            var route = _resolver.Resolve(this, eventType);
+            var route = _resolver.Resolve(this, @event.GetType());
             if (route == null) return;
+
+            route(this, @event);
+        }
+        internal void RouteForConflict<TEvent>(TEvent @event) where TEvent : IEvent
+        {
+            var route = _resolver.Conflict(this, @event.GetType());
+            if (route == null)
+                throw new NoRouteException($"Failed to route {typeof(TEvent).FullName} for conflict resolution on entity {typeof(TThis).FullName}.  If you want to handle conflicts here, define a new method of signature `private void Conflict({typeof(TEvent).Name} e)`");
 
             route(this, @event);
         }

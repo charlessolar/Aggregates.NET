@@ -41,6 +41,12 @@ namespace Aggregates
             _streamGen = _nsbSettings.Get<StreamIdGenerator>("StreamGenerator");
         }
 
+        public Task Evict<T>(String bucket, String streamId) where T : class
+        {
+            var streamName = _streamGen(typeof(T), bucket + ".POCO", streamId);
+            _cache.Evict(streamName);
+            return Task.CompletedTask;
+        }
 
 
         public async Task<T> Get<T>(String bucket, String stream) where T : class

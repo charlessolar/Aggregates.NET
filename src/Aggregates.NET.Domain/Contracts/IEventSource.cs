@@ -11,7 +11,8 @@ namespace Aggregates.Contracts
         Int32 Version { get; }
 
         IEventStream Stream { get; }
-        void Hydrate(IEnumerable<object> events);
+        void Hydrate(IEnumerable<IEvent> events);
+        void Conflict(IEnumerable<IEvent> events);
         void Apply<TEvent>(Action<TEvent> action) where TEvent : IEvent;
     }
 
