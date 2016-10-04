@@ -169,18 +169,22 @@ namespace Aggregates.Internal
             Stream.AddOutOfBand(@event, headers);
         }
 
-        internal void RouteFor<TEvent>(TEvent @event) where TEvent : IEvent
+        internal void RouteFor(IEvent @event)
         {
             var route = _resolver.Resolve(this, @event.GetType());
-            if (route == null) return;
+            if (route == null)
+            {
+                Logger.Write(LogLevel.Debug, () => $"Failed to route event {@event.GetType().FullName} on type {typeof(TThis).FullName}");
+                return;
+            }
 
             route(this, @event);
         }
-        internal void RouteForConflict<TEvent>(TEvent @event) where TEvent : IEvent
+        internal void RouteForConflict(IEvent @event)
         {
             var route = _resolver.Conflict(this, @event.GetType());
             if (route == null)
-                throw new NoRouteException($"Failed to route {@event.GetType().FullName} for conflict resolution on entity {typeof(TThis).FullName}.  If you want to handle conflicts here, define a new method of signature `private void Conflict({@event.GetType().Name} e)`");
+                throw new NoRouteException($"Failed to route {@event.GetType().FullName} for conflict resolution on entity {typeof(TThis).FullName} stream id {StreamId}.  If you want to handle conflicts here, define a new method of signature `private void Conflict({@event.GetType().Name} e)`");
 
             route(this, @event);
         }
