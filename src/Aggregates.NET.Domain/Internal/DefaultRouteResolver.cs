@@ -49,7 +49,7 @@ namespace Aggregates.Internal
                                              m.ReturnParameter.ParameterType == typeof(void));
                 //.Select(m => new { Method = m, MessageType = m.GetParameters().Single().ParameterType });
 
-                if (methods.Any())
+                if (!methods.Any())
                     return null;
 
                 return methods.ToDictionary(x => x.Name, x => (Action<IEventSource, Object>)((es, m) => x.Invoke(es, new[] { m })));

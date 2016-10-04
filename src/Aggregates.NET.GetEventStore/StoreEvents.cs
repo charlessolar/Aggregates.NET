@@ -93,9 +93,9 @@ namespace Aggregates
             } while (!current.IsEndOfStream);
             Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamName}]");
 
-            if (!events.Any() && current.LastEventNumber == -1)
+            if (current.Status == SliceReadStatus.StreamNotFound)
             {
-                Logger.Write(LogLevel.Warn, () => $"No events found for stream [{streamName}]");
+                Logger.Write(LogLevel.Warn, () => $"Stream [{streamName}] does not exist!");
                 return null;
             }
 
