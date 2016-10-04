@@ -29,7 +29,6 @@ namespace Aggregates.Internal
         private readonly IStoreSnapshots _snapstore;
         private readonly IBuilder _builder;
         private readonly ReadOnlySettings _settings;
-        private readonly IStreamCache _cache;
 
         private static Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Events);
         private static Meter Conflicts = Metric.Meter("Conflicts", Unit.Items);
@@ -47,7 +46,6 @@ namespace Aggregates.Internal
             _snapstore = _builder.Build<IStoreSnapshots>();
             _store = _builder.Build<IStoreEvents>();
             _settings = _builder.Build<ReadOnlySettings>();
-            _cache = _builder.Build<IStreamCache>();
             _store.Builder = _builder;
         }
 
@@ -86,7 +84,7 @@ namespace Aggregates.Internal
                     catch (VersionException e)
                     {
                         // Our cache is out of date
-                        _cache.Evict(stream.StreamId);
+                        await _store.Evict<T>(stream.Bucket, stream.StreamId);
                         Conflicts.Mark();
                         Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store", tracked.StreamId, tracked.GetType().FullName);
                         throw new ConflictingCommandException("Could not resolve conflicting events", e);
