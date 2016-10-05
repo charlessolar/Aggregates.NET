@@ -286,7 +286,7 @@ namespace Aggregates.Internal
                 var i = 0;
                 while ((i + 8) < redirect.Mask.Length && i < context.Message.Body.Length)
                 {
-                    if ((i + 8) < context.Message.Body.Length)
+                    if ((i + 8) > context.Message.Body.Length)
                     {
                         // If we've run out of Int64's run the last few bytes individually through the mask
                         for (; i < context.Message.Body.Length; i++)
