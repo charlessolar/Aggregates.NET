@@ -89,7 +89,7 @@ namespace Aggregates.Internal
                             Conflicts.Mark();
 
                             if (conflictRetries <= 0)
-                                throw new Exception($"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} version {stream.StreamVersion} has version conflicts with store - ran out of retries!");
+                                throw new ConflictingCommandException($"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} version {stream.StreamVersion} has version conflicts with store - ran out of retries!");
 
                             conflictRetries--;
                             Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} has version conflicts with store - attempting to resolve", tracked.StreamId, tracked.GetType().FullName, stream.StreamVersion);
@@ -103,12 +103,18 @@ namespace Aggregates.Internal
                             Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve", tracked.StreamId, tracked.GetType().FullName);
                             throw new ConflictingCommandException("Could not resolve conflicting events", abandon);
                         }
+                        catch(Exception e)
+                        {
+                            Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve due to {2}", tracked.StreamId, tracked.GetType().FullName, e.Message);
+                            ConflictsUnresolved.Mark();
+                            throw;
+                        }
                         
                     }
                     catch (PersistenceException e)
                     {
                         WriteErrors.Mark();
-                        Logger.WriteFormat(LogLevel.Warn, "Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", stream.StreamId, stream.Bucket, e);
+                        Logger.WriteFormat(LogLevel.Warn, "Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", stream.StreamId, stream.Bucket, e.Message);
                     }
                     catch (DuplicateCommitException)
                     {

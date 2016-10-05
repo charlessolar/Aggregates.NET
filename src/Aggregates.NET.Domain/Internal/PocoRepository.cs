@@ -111,7 +111,7 @@ namespace Aggregates.Internal
                     catch (PersistenceException e)
                     {
                         WriteErrors.Mark();
-                        Logger.WriteFormat(LogLevel.Warn, "Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", tracked.Key.Item2, tracked.Key.Item1, e);
+                        Logger.WriteFormat(LogLevel.Warn, "Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", tracked.Key.Item2, tracked.Key.Item1, e.Message);
                     }
                     catch
                     {

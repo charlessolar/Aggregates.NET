@@ -43,7 +43,7 @@ namespace Aggregates.Internal
                         return; // Dont throw, business exceptions are not message failures
 
                     _errorsMeter.Mark();
-                    Logger.Write(LogLevel.Debug, () => $"Command {context.Message.MessageType.FullName} was rejected\nException: {e}");
+                    Logger.Write(LogLevel.Debug, () => $"Command {context.Message.MessageType.FullName} was rejected\nException: {e.Message}");
                     // Tell the sender the command was rejected due to a business exception
                     var rejection = context.Builder.Build<Func<BusinessException, Reject>>();
                     await context.Reply(rejection(e)).ConfigureAwait(false);

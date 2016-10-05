@@ -9,6 +9,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -79,15 +80,19 @@ namespace Aggregates.Internal
                 }
 
                 // Do a check if we should claim this command
+                ExceptionDispatchInfo ex;
                 try
                 {
                     // Process next, catch ConflictCommandException
                     await next().ConfigureAwait(false);
                     return;
                 }
-                catch (ConflictingCommandException) { }
+                catch (ConflictingCommandException e)
+                {
+                    ex = ExceptionDispatchInfo.Capture(e.InnerException);
+                }
 
-                Logger.Write(LogLevel.Debug, () => $"Caught conflicting command {typeStr}, checking if we can CLAIM command");
+                Logger.Write(LogLevel.Debug, () => $"Caught conflicting command {typeStr} - checking if we can CLAIM command");
 
                 var tuple = new Tuple<DateTime, byte[]>(DateTime.UtcNow, context.Message.Body);
                 // Store message bytes in cache with expiry
@@ -107,7 +112,7 @@ namespace Aggregates.Internal
                 // If we see more than X exceptions
                 Logger.Write(LogLevel.Debug, () => $"Command {typeStr} has been conflicted {ClaimCache[typeStr].Count}/{_claimThresh} times");
                 if (ClaimCache[typeStr].Count < _claimThresh)
-                    return;
+                    ex.Throw();
 
                 IList<Tuple<DateTime, byte[]>> conflicts;
                 ClaimCache.TryRemove(typeStr, out conflicts);
@@ -144,14 +149,14 @@ namespace Aggregates.Internal
                 if((incommon / (maxLength / 8)) < _commonality)
                 {
                     Logger.Warn($"Command {typeStr} has been conflicted {conflicts.Count}/{_claimThresh} times - could not claim because conflicts are only {Math.Floor(incommon / (maxLength / 8M)) * 100M}% similar we require at least {_commonality * 100M}%");
-                    return;
+                    ex.Throw();
                 }
 
                 var maskArray = mask.ToArray();
                 if(maskArray.Length == 0)
                 {
                     Logger.Warn($"Command {typeStr} has been conflicted {conflicts.Count}/{_claimThresh} times - could not claim, failed to generate mask array");
-                    return;
+                    ex.Throw();
                 }
 
 

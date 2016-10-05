@@ -259,7 +259,7 @@ namespace Aggregates.Internal
                 consumer._adopting = null;
                 consumer._adoptingPosition = null;
                 subscription.Stop();
-                Logger.Write(LogLevel.Warn, () => $"While adopting bucket {bucket} the subscription dropped for reason: {reason}.  Exception: {e}");
+                Logger.Write(LogLevel.Warn, () => $"While adopting bucket {bucket} the Subscription dropped for reason: {reason}.  Exception: {e.Message}");
             });
         }
 
@@ -348,7 +348,7 @@ namespace Aggregates.Internal
                 ProcessingLive = true;
             }, subscriptionDropped: (_, reason, e) =>
             {
-                Logger.Write(LogLevel.Warn, () => $"Subscription dropped for reason: {reason}.  Exception: {e}");
+                Logger.Write(LogLevel.Warn, () => $"Subscription dropped for reason: {reason}.  Exception: {e.Message}");
                 ProcessingLive = false;
                 if (Dropped != null)
                     Dropped.Invoke(reason.ToString(), e);
