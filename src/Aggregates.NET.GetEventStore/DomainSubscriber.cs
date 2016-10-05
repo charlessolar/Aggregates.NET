@@ -64,18 +64,18 @@ namespace Aggregates
                 var descriptor = metadata.Deserialize(_jsonSettings);
 
                 if (descriptor == null) return;
+                
+                // Check if the event was written by this domain handler
+                // We don't need to publish events saved by other domain instances
+                String instanceHeader = null;
+                Guid instance = Guid.Empty;
+                if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.InstanceHeader, out instanceHeader) || !Guid.TryParse(instanceHeader, out instance) || instance != Defaults.Instance)
+                    return;
 
                 var data = e.Event.Data;
 
                 if (compress)
                     data = data.Decompress();
-                
-                // Check if the event was written by this domain handler
-                // We don't need to publish events saved by other domain instances
-                String instance = null;
-                Guid domain = Guid.Empty;
-                if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.InstanceHeader, out instance) || !Guid.TryParse(instance, out domain) || domain != Defaults.Instance)
-                    return;
 
                 var @event = data.Deserialize(e.Event.EventType, _jsonSettings) as IEvent;
                 // If a snapshot, poco, or irrelevent ES message, don't publish
@@ -93,7 +93,7 @@ namespace Aggregates
                 options.SetHeader("Timestamp", descriptor.Timestamp.ToString());
                 foreach (var header in descriptor.Headers)
                     options.SetHeader(header.Key, header.Value);
-                
+
                 try
                 {
                     bus.Publish(@event, options);

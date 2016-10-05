@@ -56,7 +56,9 @@ namespace Aggregates
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
             var events = new List<ResolvedEvent>();
-            Logger.Write(LogLevel.Debug, () => $"Retreiving stream [{streamId}] in bucket [{bucket}] starting at {start}");
+
+            var sliceStart = start ?? StreamPosition.Start;
+            Logger.Write(LogLevel.Debug, () => $"Retreiving stream [{streamId}] in bucket [{bucket}] starting at {sliceStart}");
 
             var readSize = _nsbSettings.Get<Int32>("ReadSize");
             if (_shouldCache)
@@ -81,7 +83,6 @@ namespace Aggregates
             };
 
             StreamEventsSlice current;
-            var sliceStart = start ?? StreamPosition.Start;
             Logger.Write(LogLevel.Debug, () => $"Getting events from stream [{streamName}] starting at {sliceStart}");
             do
             {

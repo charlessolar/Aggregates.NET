@@ -59,7 +59,7 @@ namespace Aggregates
                 if (cached != null)
                 {
                     _hitMeter.Mark();
-                    Logger.Write(LogLevel.Debug, () => $"Found snapshot [{streamId}] bucket [{bucket}] in cache");
+                    Logger.Write(LogLevel.Debug, () => $"Found snapshot [{streamName}] in cache");
                     return cached;
                 }
                 _missMeter.Mark();

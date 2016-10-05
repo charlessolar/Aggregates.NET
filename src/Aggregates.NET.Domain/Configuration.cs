@@ -41,5 +41,25 @@ namespace Aggregates
         {
             settings.GetSettings().Set("StreamGenerator", generator);
         }
+        public static void SetWatchConflicts(this ExposeSettings settings, Boolean Watch)
+        {
+            settings.GetSettings().Set("WatchConflicts", Watch);
+        }
+        public static void SetClaimThreshold(this ExposeSettings settings, Int32 Threshold)
+        {
+            settings.GetSettings().Set("ClaimThreshold", Threshold);
+        }
+        public static void SetExpireConflict(this ExposeSettings settings, TimeSpan Length)
+        {
+            settings.GetSettings().Set("ExpireConflict", Length);
+        }
+        public static void SetClaimLength(this ExposeSettings settings, TimeSpan Length)
+        {
+            settings.GetSettings().Set("ClaimLength", Length);
+        }
+        public static void SetCommonalityRequired(this ExposeSettings settings, Decimal CommonalityRequired)
+        {
+            settings.GetSettings().Set("CommonalityRequired", CommonalityRequired);
+        }
     }
 }

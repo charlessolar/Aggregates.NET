@@ -61,13 +61,6 @@ namespace Aggregates.Internal
 
                 var stream = tracked.Stream;
 
-                if (stream.StreamVersion != stream.CommitVersion && tracked is ISnapshotting && (tracked as ISnapshotting).ShouldTakeSnapshot())
-                {
-                    Logger.Write(LogLevel.Debug, () => $"Taking snapshot of {tracked.GetType().FullName} id [{tracked.StreamId}] version {tracked.Version}");
-                    var memento = (tracked as ISnapshotting).TakeSnapshot();
-                    stream.AddSnapshot(memento, headers);
-                }
-
                 Interlocked.Add(ref written, stream.Uncommitted.Count());
 
                 var conflictRetries = _settings.Get<Int32>("MaxConflictResolves");
@@ -76,6 +69,13 @@ namespace Aggregates.Internal
                 var sanity = Math.Max(conflictRetries, 5);
                 do
                 {
+                    if (stream.StreamVersion != stream.CommitVersion && tracked is ISnapshotting && (tracked as ISnapshotting).ShouldTakeSnapshot())
+                    {
+                        Logger.Write(LogLevel.Debug, () => $"Taking snapshot of {tracked.GetType().FullName} id [{tracked.StreamId}] version {tracked.Version}");
+                        var memento = (tracked as ISnapshotting).TakeSnapshot();
+                        stream.AddSnapshot(memento, headers);
+                    }
+
                     try
                     {
                         await stream.Commit(commitId, headers).ConfigureAwait(false);

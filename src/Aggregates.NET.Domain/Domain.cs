@@ -30,6 +30,11 @@ namespace Aggregates
                 s.SetDefault("ShouldCacheEntities", false);
                 s.SetDefault("MaxConflictResolves", 5);
                 s.SetDefault("StreamGenerator", new StreamIdGenerator((type, bucket, stream) => $"{bucket}.[{type.FullName}].{stream}"));
+                s.SetDefault("WatchConflicts", false);
+                s.SetDefault("ClaimThreshold", 5);
+                s.SetDefault("ExpireConflict", TimeSpan.FromMinutes(1));
+                s.SetDefault("ClaimLength", TimeSpan.FromMinutes(10));
+                s.SetDefault("CommonalityRequired", 0.6M);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
@@ -66,18 +71,25 @@ namespace Aggregates
             }, DependencyLifecycle.SingleInstance);
 
 
+            var settings = context.Settings;
             context.Pipeline.Register(
                 behavior: typeof(CommandAcceptor),
                 description: "Filters [BusinessException] from processing failures"
                 );
             context.Pipeline.Register(
-                behavior: new CommandUnitOfWork(context.Settings.Get<Int32>("SlowAlertThreshold")),
+                behavior: new CommandUnitOfWork(settings.Get<Int32>("SlowAlertThreshold")),
                 description: "Begins and Ends command unit of work"
                 );
             context.Pipeline.Register(
                 behavior: typeof(MutateIncomingCommands),
                 description: "Running command mutators for incoming messages"
                 );
+
+            if(settings.Get<Boolean>("WatchConflicts"))
+                context.Pipeline.Register(
+                    behavior: new BulkCommandBehavior(settings.Get<Int32>("ClaimThreshold"), settings.Get<TimeSpan>("ExpireConflict"),settings.Get<TimeSpan>("ClaimLength"), settings.Get<Decimal>("CommonalityRequired"), settings.LocalAddress()),
+                    description: "Watches commands for many version conflict exceptions, when found it will claim the command type with a byte mask to run only on 1 instance reducing eventstore conflicts considerably"
+                    );
 
             //context.Pipeline.Register<SafetyNetRegistration>();
             //context.Pipeline.Register<TesterBehaviorRegistration>();
