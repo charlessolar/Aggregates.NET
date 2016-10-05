@@ -7,9 +7,11 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Messages
 {
-    public interface SurrenderCommand : IEvent
+    public interface Claim : IEvent
     {
+        String Endpoint { get; set; }
         Guid Instance { get; set; }
+        String Queue { get; set; }
         String CommandType { get; set; }
         byte[] Mask { get; set; }
     }

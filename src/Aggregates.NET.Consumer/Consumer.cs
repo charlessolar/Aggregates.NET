@@ -135,7 +135,7 @@ namespace Aggregates
 
             await session.Publish<Messages.ConsumerAlive>(x =>
             {
-                x.Endpoint = _settings.EndpointName();
+                x.Endpoint = _settings.InstanceSpecificQueue();
                 x.Instance = Defaults.Instance;
             }).ConfigureAwait(false);
 
@@ -145,7 +145,7 @@ namespace Aggregates
             Logger.Write(LogLevel.Debug, "Stopping event consumer");
             await session.Publish<Messages.ConsumerDead>(x =>
             {
-                x.Endpoint = _settings.EndpointName();
+                x.Endpoint = _settings.InstanceSpecificQueue();
                 x.Instance = Defaults.Instance;
             }).ConfigureAwait(false);
         }

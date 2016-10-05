@@ -34,7 +34,7 @@ namespace Aggregates
                 s.SetDefault("ClaimThreshold", 5);
                 s.SetDefault("ExpireConflict", TimeSpan.FromMinutes(1));
                 s.SetDefault("ClaimLength", TimeSpan.FromMinutes(10));
-                s.SetDefault("CommonalityRequired", 0.6M);
+                s.SetDefault("CommonalityRequired", 0.95M);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
@@ -87,7 +87,7 @@ namespace Aggregates
 
             if(settings.Get<Boolean>("WatchConflicts"))
                 context.Pipeline.Register(
-                    behavior: new BulkCommandBehavior(settings.Get<Int32>("ClaimThreshold"), settings.Get<TimeSpan>("ExpireConflict"),settings.Get<TimeSpan>("ClaimLength"), settings.Get<Decimal>("CommonalityRequired"), settings.LocalAddress()),
+                    behavior: new BulkCommandBehavior(settings.Get<Int32>("ClaimThreshold"), settings.Get<TimeSpan>("ExpireConflict"),settings.Get<TimeSpan>("ClaimLength"), settings.Get<Decimal>("CommonalityRequired"), settings.EndpointName(), settings.InstanceSpecificQueue()),
                     description: "Watches commands for many version conflict exceptions, when found it will claim the command type with a byte mask to run only on 1 instance reducing eventstore conflicts considerably"
                     );
 
@@ -111,7 +111,7 @@ namespace Aggregates
                 Logger.Write(LogLevel.Debug, "Starting domain");
                 await session.Publish<Messages.DomainAlive>(x =>
                 {
-                    x.Endpoint = _settings.EndpointName();
+                    x.Endpoint = _settings.InstanceSpecificQueue();
                     x.Instance = Aggregates.Defaults.Instance;
                 }).ConfigureAwait(false);
 
@@ -121,7 +121,7 @@ namespace Aggregates
                 Logger.Write(LogLevel.Debug, "Stopping domain");
                 await session.Publish<Messages.DomainDead>(x =>
                 {
-                    x.Endpoint = _settings.EndpointName();
+                    x.Endpoint = _settings.InstanceSpecificQueue();
                     x.Instance = Aggregates.Defaults.Instance;
                 }).ConfigureAwait(false);
             }

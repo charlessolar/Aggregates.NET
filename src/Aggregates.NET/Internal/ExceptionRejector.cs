@@ -50,7 +50,7 @@ namespace Aggregates.Internal
             {
                 if (existingRetry < _immediate)
                 {
-                    Logger.WriteFormat(LogLevel.Warn, "Message {0} has faulted! {1}/{2} times\nException: {3}\nHeaders: {4}\nBody: {5}", context.MessageId, existingRetry, _immediate, e.Message, context.MessageHeaders, Encoding.UTF8.GetString(context.Message.Body));
+                    Logger.WriteFormat(LogLevel.Warn, $"Message {context.MessageId} has faulted! {existingRetry}/{_immediate} times\nException: {e.GetType().Name}: {e.Message}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");
                     _retryRegistry.TryAdd(messageId, existingRetry + 1);
                     throw;
                 }
@@ -68,8 +68,8 @@ namespace Aggregates.Internal
                 // Tell the sender the command was not handled due to a service exception
                 var rejection = context.Builder.Build<Func<Exception, String, Error>>();
 
-                Logger.WriteFormat(LogLevel.Warn, "Message {0} has failed after {1} retries!\nException: {2}\nHeaders: {3}\nBody: {4}", context.MessageId, existingRetry, e.Message, context.MessageHeaders, Encoding.UTF8.GetString(context.Message.Body));
-
+                Logger.WriteFormat(LogLevel.Warn, $"Message {context.MessageId} has failed after {existingRetry} retries!\nException: {e.GetType().Name}: {e.Message}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");
+                
                 // Only need to reply if the client expects it
                 if (!context.Message.Headers.ContainsKey(Defaults.REQUEST_RESPONSE) || context.Message.Headers[Defaults.REQUEST_RESPONSE] != "1")
                     throw;
