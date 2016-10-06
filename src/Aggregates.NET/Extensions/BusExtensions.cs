@@ -63,6 +63,14 @@ namespace Aggregates.Extensions
             var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
             response.CommandResponse();
         }
+        public static async Task Command<TCommand>(this IMessageSession ctx, Action<TCommand> command, String routingKey) where TCommand : ICommand
+        {
+            var options = new NServiceBus.SendOptions();
+            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+
+            var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
+            response.CommandResponse();
+        }
         public static async Task Command<TCommand>(this IMessageSession ctx, string destination, Action<TCommand> command) where TCommand : ICommand
         {
             var options = new NServiceBus.SendOptions();

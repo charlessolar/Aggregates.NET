@@ -50,6 +50,10 @@ namespace Aggregates.Internal
         public IBuilder Builder { get; set; }
         public Int32 Retries { get; set; }
 
+        public Guid CommitId { get; private set; }
+        public Object CurrentMessage { get; private set; }
+        public IDictionary<String, String> CurrentHeaders { get; private set; }
+
         public UnitOfWork(IRepositoryFactory repoFactory, IMessageMapper mapper)
         {
             _repoFactory = repoFactory;
@@ -210,31 +214,18 @@ namespace Aggregates.Internal
         private async Task Commit()
         {
 
-            var commitId = Guid.NewGuid();
-            String messageId;
-
-            try
-            {
-                // Attempt to get MessageId from NServicebus headers
-                // If we maintain a good CommitId convention it should solve the message idempotentcy issue (assuming the storage they choose supports it)
-                if (CurrentHeaders.TryGetValue(Defaults.MessageIdHeader, out messageId))
-                    commitId = Guid.Parse(messageId);
-
-                // Allow the user to send a CommitId along with his message if he wants
-                if (CurrentHeaders.TryGetValue(Defaults.CommitIdHeader, out messageId))
-                    commitId = Guid.Parse(messageId);
-            }
-            catch (FormatException) { }
 
             // Insert all command headers into the commit
             var headers = new Dictionary<String, String>(CurrentHeaders);
 
-            Logger.Write(LogLevel.Debug, () => $"Starting commit id {commitId}");
+            Logger.Write(LogLevel.Debug, () => $"Starting commit id {CommitId}");
+
+            var startingEventId = CommitId;
             var aggs = _repositories.Values.WhenAllAsync(async (repo) =>
             {
                 try
                 {
-                    await repo.Commit(commitId, headers).ConfigureAwait(false);
+                    startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
                 }
                 catch (StorageException e)
                 {
@@ -245,7 +236,7 @@ namespace Aggregates.Internal
             {
                 try
                 {
-                    await repo.Commit(commitId, headers).ConfigureAwait(false);
+                    startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
                 }
                 catch (StorageException e)
                 {
@@ -256,7 +247,7 @@ namespace Aggregates.Internal
             {
                 try
                 {
-                    await repo.Commit(commitId, headers).ConfigureAwait(false);
+                    startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
                 }
                 catch (StorageException e)
                 {
@@ -264,7 +255,7 @@ namespace Aggregates.Internal
                 }
             });
             await Task.WhenAll(aggs, entities, pocos).ConfigureAwait(false);
-            Logger.Write(LogLevel.Debug, () => $"Commit id {commitId} complete");
+            Logger.Write(LogLevel.Debug, () => $"Commit id {CommitId} complete");
         }
 
         public Task MutateOutgoing(MutateOutgoingMessageContext context)
@@ -272,6 +263,7 @@ namespace Aggregates.Internal
             var headers = context.OutgoingHeaders;
             foreach (var header in CurrentHeaders)
                 headers[header.Key] = header.Value;
+
 
             return Task.CompletedTask;
         }
@@ -311,12 +303,25 @@ namespace Aggregates.Internal
                 CurrentHeaders[header] = headers[header];
             CurrentHeaders[Defaults.InstanceHeader] = Defaults.Instance.ToString();
 
+
+            CommitId = Guid.NewGuid();
+            String messageId;
+
+            try
+            {
+                // Attempt to get MessageId from NServicebus headers
+                // If we maintain a good CommitId convention it should solve the message idempotentcy issue (assuming the storage they choose supports it)
+                if (CurrentHeaders.TryGetValue(Defaults.MessageIdHeader, out messageId))
+                    CommitId = Guid.Parse(messageId);
+
+                // Allow the user to send a CommitId along with his message if he wants
+                if (CurrentHeaders.TryGetValue(Defaults.CommitIdHeader, out messageId))
+                    CommitId = Guid.Parse(messageId);
+            }
+            catch (FormatException) { }
+
             return Task.CompletedTask;
         }
         
-        
-
-        public Object CurrentMessage { get; private set; }
-        public IDictionary<String, String> CurrentHeaders { get; private set; }
     }
 }

@@ -23,6 +23,7 @@ namespace Aggregates
         Task<TResponse> Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>;
         
         IBuilder Builder { get; set; }
+        Guid CommitId { get; }
         Object CurrentMessage { get; }
         IDictionary<String, String> CurrentHeaders { get; }
     }

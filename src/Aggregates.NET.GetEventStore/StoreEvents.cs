@@ -295,7 +295,7 @@ namespace Aggregates
                 }
 
                 return new EventData(
-                    e.EventId,
+                    e.EventId ?? Guid.NewGuid(),
                     mappedType.AssemblyQualifiedName,
                     !compress,
                     @event,
@@ -345,7 +345,7 @@ namespace Aggregates
                 }
 
                 return new EventData(
-                    e.EventId,
+                    e.EventId ?? Guid.NewGuid(),
                     mappedType.AssemblyQualifiedName,
                     !compress,
                     @event,

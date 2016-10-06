@@ -85,6 +85,7 @@
     <Compile Include="Extensions\BusExtensions.cs" />
     <Compile Include="Extensions\DescriptorExtensions.cs" />
     <Compile Include="Extensions\DictionaryExtensions.cs" />
+    <Compile Include="Extensions\GuidExtensions.cs" />
     <Compile Include="Extensions\LoggerExtensions.cs" />
     <Compile Include="Extensions\StoreExtensions.cs" />
     <Compile Include="Extensions\StringExtensions.cs" />

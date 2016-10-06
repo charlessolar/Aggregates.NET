@@ -88,7 +88,7 @@ namespace Aggregates.Internal
             _store = _builder.Build<IStorePocos>();
         }
 
-        async Task IRepository.Commit(Guid commitId, IDictionary<String, String> commitHeaders)
+        async Task<Guid> IRepository.Commit(Guid commitId, Guid startingEventId, IDictionary<String, String> commitHeaders)
         {
             var written = 0;
 
@@ -127,6 +127,7 @@ namespace Aggregates.Internal
 
             });
             WrittenEvents.Update(written);
+            return startingEventId;
         }
 
 

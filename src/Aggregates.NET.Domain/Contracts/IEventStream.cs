@@ -14,6 +14,7 @@ namespace Aggregates.Contracts
         Int32 StreamVersion { get; }
         Int32 CommitVersion { get; }
 
+        Int32 TotalUncommitted { get; }
         /// <summary>
         /// All events read from the store + any uncommitted events including OOB events
         /// </summary>
@@ -43,7 +44,7 @@ namespace Aggregates.Contracts
         void Add(IEvent @event, IDictionary<String, String> headers);
         void AddOutOfBand(IEvent @event, IDictionary<String, String> headers);
         void AddSnapshot(Object memento, IDictionary<String, String> headers);
-        Task Commit(Guid commitId, IDictionary<String, String> commitHeaders);
+        Task<Guid> Commit(Guid commitId, Guid startingEventId, IDictionary<String, String> commitHeaders);
 
         IEventStream Clone(IWritableEvent @event = null);
     }

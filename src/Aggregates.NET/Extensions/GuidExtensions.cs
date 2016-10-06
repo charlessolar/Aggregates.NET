@@ -1,0 +1,22 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Aggregates.Extensions
+{
+    // http://stackoverflow.com/questions/30404965/increment-guid-in-c-sharp#30405028
+    public static class GuidExtensions
+    {
+        private static readonly int[] _guidByteOrder =
+            new[] { 15, 14, 13, 12, 11, 10, 9, 8, 6, 7, 4, 5, 0, 1, 2, 3 };
+
+        public static Guid Increment(this Guid guid)
+        {
+            var bytes = guid.ToByteArray();
+            var canIncrement = _guidByteOrder.Any(i => ++bytes[i] != 0);
+            return new Guid(canIncrement ? bytes : new byte[16]);
+        }
+    }
+}

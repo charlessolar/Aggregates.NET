@@ -12,6 +12,6 @@ namespace Aggregates.Internal
     {
         public IEventDescriptor Descriptor { get; set; }
         public IEvent Event { get; set; }
-        public Guid EventId { get; set; }
+        public Guid? EventId { get; set; }
     }
 }

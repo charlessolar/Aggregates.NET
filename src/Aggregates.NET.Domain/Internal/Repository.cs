@@ -49,19 +49,19 @@ namespace Aggregates.Internal
             _store.Builder = _builder;
         }
 
-        async Task IRepository.Commit(Guid commitId, IDictionary<String, String> commitHeaders)
+        async Task<Guid> IRepository.Commit(Guid commitId, Guid startingEventId, IDictionary<String, String> commitHeaders)
         {
             Logger.Write(LogLevel.Debug, () => $"Repository {typeof(T).FullName} starting commit {commitId}");
             var written = 0;
-            await _tracked.Values
-                .Where(x => x.Stream.Uncommitted.Any())
-                .WhenAllAsync(async (tracked) =>
+            foreach( var tracked in _tracked.Values)
             {
+                if (tracked.Stream.TotalUncommitted == 0) return startingEventId;
+
                 var headers = new Dictionary<String, String>(commitHeaders);
 
                 var stream = tracked.Stream;
 
-                Interlocked.Add(ref written, stream.Uncommitted.Count());
+                Interlocked.Add(ref written, stream.TotalUncommitted);
 
                 var conflictRetries = _settings.Get<Int32>("MaxConflictResolves");
 
@@ -78,7 +78,7 @@ namespace Aggregates.Internal
 
                     try
                     {
-                        await stream.Commit(commitId, headers).ConfigureAwait(false);
+                        startingEventId = await stream.Commit(commitId, startingEventId, headers).ConfigureAwait(false);
                         success = true;
                     }
                     catch (VersionException)
@@ -100,12 +100,15 @@ namespace Aggregates.Internal
                         catch (AbandonConflictException abandon)
                         {
                             ConflictsUnresolved.Mark();
-                            Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve", tracked.StreamId, tracked.GetType().FullName);
+                            Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - abandoning resolution", tracked.StreamId, tracked.GetType().FullName);
                             throw new ConflictingCommandException("Could not resolve conflicting events", abandon);
                         }
                         catch(Exception e)
                         {
-                            Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve due to {2}", tracked.StreamId, tracked.GetType().FullName, e.Message);
+                            if (e is ConflictingCommandException)
+                                throw;
+
+                            Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve due to: {2}", tracked.StreamId, tracked.GetType().FullName, e.Message);
                             ConflictsUnresolved.Mark();
                             throw;
                         }
@@ -132,10 +135,11 @@ namespace Aggregates.Internal
                     }
                     sanity--;
                 } while (!success && sanity >= 0);
-            });
+            }
 
             WrittenEvents.Update(written);
             Logger.Write(LogLevel.Debug, () => $"Repository {typeof(T).FullName} finished commit {commitId}");
+            return startingEventId;
         }
 
         private async Task<IEventStream> ResolveConflict(T tracked)

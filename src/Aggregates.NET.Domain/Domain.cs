@@ -34,7 +34,7 @@ namespace Aggregates
                 s.SetDefault("ClaimThreshold", 5);
                 s.SetDefault("ExpireConflict", TimeSpan.FromMinutes(1));
                 s.SetDefault("ClaimLength", TimeSpan.FromMinutes(10));
-                s.SetDefault("CommonalityRequired", 0.95M);
+                s.SetDefault("CommonalityRequired", 0.9M);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)

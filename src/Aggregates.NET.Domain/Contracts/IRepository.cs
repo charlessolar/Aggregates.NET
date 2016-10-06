@@ -10,7 +10,7 @@ namespace Aggregates.Contracts
 {
     public interface IRepository : IDisposable
     {
-        Task Commit(Guid commitId, IDictionary<String, String> headers);
+        Task<Guid> Commit(Guid commitId, Guid startingEventId, IDictionary<String, String> commitHeaders);
     }
 
     public interface IRepository<T> : IRepository where T : class, IEventSource

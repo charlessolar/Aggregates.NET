@@ -53,6 +53,13 @@ namespace Aggregates.Internal
                 return this._pendingShots;
             }
         }
+        public Int32 TotalUncommitted
+        {
+            get
+            {
+                return this.Uncommitted.Count() + this.OOBUncommitted.Count() + this.SnapshotsUncommitted.Count();
+            }
+        }
 
         private readonly IStoreEvents _store;
         private readonly IStoreSnapshots _snapshots;
@@ -142,7 +149,6 @@ namespace Aggregates.Internal
                     Headers = headers
                 },
                 Event = @event,
-                EventId = Guid.NewGuid()
             };
 
             var mutators = _builder.BuildAll<IEventMutator>();
@@ -178,7 +184,7 @@ namespace Aggregates.Internal
             });
         }
 
-        public async Task Commit(Guid commitId, IDictionary<String, String> commitHeaders)
+        public async Task<Guid> Commit(Guid commitId, Guid startingEventId, IDictionary<String, String> commitHeaders)
         {
             Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] in bucket [{this.Bucket}] for type {typeof(T).FullName} commiting {this._uncommitted.Count} events, {this._pendingShots.Count} snapshots, {this._outofband.Count} out of band");
 
@@ -192,17 +198,24 @@ namespace Aggregates.Internal
             {
                 if (_uncommitted.Any())
                 {
+                    // If we increment commit id instead of depending on a commit header, ES will do the concurrency check for us
+                    foreach (var uncommitted in _uncommitted.Where(x => !x.EventId.HasValue))
+                    {
+                        uncommitted.EventId = startingEventId;
+                        startingEventId = startingEventId.Increment();
+                    }
+
                     // Do a quick check if any event in the current stream has the same commit id indicating the effects of this command have already been recorded
                     // Note: if the stream has snapshots we wont be checking ALL previous events - but this is a good spot check
-                    var oldCommits = this._committed.Select(x =>
-                    {
-                        String temp;
-                        if (!x.Descriptor.Headers.TryGetValue(CommitHeader, out temp))
-                            return Guid.Empty;
-                        return Guid.Parse(temp);
-                    });
-                    if (oldCommits.Any(x => x == commitId))
-                        throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
+                    //var oldCommits = this._committed.Select(x =>
+                    //{
+                    //    String temp;
+                    //    if (!x.Descriptor.Headers.TryGetValue(CommitHeader, out temp))
+                    //        return Guid.Empty;
+                    //    return Guid.Parse(temp);
+                    //});
+                    //if (oldCommits.Any(x => x == commitId))
+                    //    throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
 
                     Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] in bucket [{this.Bucket}] committing {_uncommitted.Count} events");
                     await _store.WriteEvents<T>(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders).ConfigureAwait(false);
@@ -243,6 +256,7 @@ namespace Aggregates.Internal
             {
                 throw new PersistenceException(e.Message, e);
             }
+            return startingEventId;
         }
 
 
