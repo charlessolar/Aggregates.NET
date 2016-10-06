@@ -13,6 +13,5 @@ namespace Aggregates.Messages
         Guid Instance { get; set; }
         String Queue { get; set; }
         String CommandType { get; set; }
-        byte[] Mask { get; set; }
     }
 }

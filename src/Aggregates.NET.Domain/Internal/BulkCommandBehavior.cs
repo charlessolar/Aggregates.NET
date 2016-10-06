@@ -19,13 +19,11 @@ namespace Aggregates.Internal
     {
         public String Queue { get; set; }
         public Guid Instance { get; set; }
-        public byte[] Mask { get; set; }
     }
-    internal class ExpiringMask
+    internal class ExpiringClaim
     {
         public String Type { get; set; }
         public DateTime Started { get; set; }
-        public byte[] Mask { get; set; }
     }
 
     // Using PhysicalMessageContext so we can avoid spending the time to deserialize a message we may forward elsewhere
@@ -34,7 +32,7 @@ namespace Aggregates.Internal
     {
         // Todo: classes, perhaps a service, this can be cleaner
         public static readonly Dictionary<String, List<Redirect>> RedirectedTypes = new Dictionary<string, List<Redirect>>();
-        public static readonly Queue<ExpiringMask> Owned = new Queue<ExpiringMask>();
+        public static readonly Queue<ExpiringClaim> Owned = new Queue<ExpiringClaim>();
         public static readonly HashSet<String> DomainInstances = new HashSet<String>();
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(BulkCommandBehavior));
@@ -43,7 +41,7 @@ namespace Aggregates.Internal
 
         private static readonly HashSet<String> IgnoreCache = new HashSet<string>();
         private static readonly HashSet<String> CheckCache = new HashSet<string>();
-        private static readonly ConcurrentDictionary<String, Queue<ExpiringMask>> ClaimCache = new ConcurrentDictionary<String, Queue<ExpiringMask>>();
+        private static readonly ConcurrentDictionary<String, Queue<ExpiringClaim>> ClaimCache = new ConcurrentDictionary<String, Queue<ExpiringClaim>>();
 
         private readonly Int32 _claimThresh;
         private readonly TimeSpan _expireConflict;
@@ -125,19 +123,19 @@ namespace Aggregates.Internal
 
             Logger.Write(LogLevel.Debug, () => $"Caught conflicting command {typeStr} message {context.MessageId} - checking if we can CLAIM command");
 
-            var expMask = new ExpiringMask { Type = typeStr, Started = DateTime.UtcNow, Mask = context.Message.Body };
+            var expMask = new ExpiringClaim { Type = typeStr, Started = DateTime.UtcNow };
             // Store message bytes in cache with expiry
             ClaimCache.AddOrUpdate(typeStr, (_) =>
             {
-                var queue = new Queue<ExpiringMask>();
+                var queue = new Queue<ExpiringClaim>();
                 queue.Enqueue(expMask);
                 return queue;
             }, (_, existing) =>
             {
                 existing.Enqueue(expMask);
 
-                    // Remove expired saved conflicts
-                    ExpiringMask removed = null;
+                // Remove expired saved conflicts
+                ExpiringClaim removed = null;
                 do
                 {
                     var top = existing.Peek();
@@ -153,7 +151,7 @@ namespace Aggregates.Internal
             if (ClaimCache[typeStr].Count < _claimThresh)
                 ex.Throw();
 
-            Queue<ExpiringMask> conflicts;
+            Queue<ExpiringClaim> conflicts;
             ClaimCache.TryRemove(typeStr, out conflicts);
             Logger.Write(LogLevel.Info, () => $"Command {typeStr} message {context.MessageId} has been conflicted {conflicts.Count}/{_claimThresh} times - CLAIMING");
 
@@ -161,7 +159,7 @@ namespace Aggregates.Internal
             {
                 // First, take the opportunity to expire old owned masks
                 // Remove expired saved masks
-                ExpiringMask removed = null;
+                ExpiringClaim removed = null;
                 do
                 {
                     var top = Owned.Peek();
@@ -179,90 +177,13 @@ namespace Aggregates.Internal
                                 e.Queue = _instanceSpecificQueue;
                                 e.Instance = Defaults.Instance;
                                 e.CommandType = removed.Type;
-                                e.Mask = removed.Mask;
                             }, options);
                         });
                     }
                 } while (removed != null);
             }
 
-            var first = conflicts.First();
-            var similarity = conflicts.Skip(1).Select(x =>
-            {
-                    // Jaccard Index for a simple "similarity" check
-                    return (x.Mask.Intersect(first.Mask).Count() / (Decimal)x.Mask.Union(first.Mask).Count());
-            }).ToList();
-
-            Logger.Write(LogLevel.Debug, () => $"Conflicted messages are {Math.Round(similarity.Average() * 100M, 2)}% similar");
-            // If not common enough, drop the one most uncommon and return (leaving the others in the cache for next conflict)
-            if (similarity.Average() < _commonality)
-            {
-                Logger.Warn($"Command {typeStr} message {context.MessageId} has been conflicted {conflicts.Count}/{_claimThresh} times - could not claim because conflicts are only {Math.Round(similarity.Average() * 100M, 2)}% similar we require at least {_commonality * 100M}%");
-
-                var trimmed = new Queue<ExpiringMask>();
-                for (var j = 0; j < similarity.Count(); j++)
-                {
-                    var limbo = conflicts.Dequeue();
-                    if (similarity[j] > _commonality)
-                        trimmed.Enqueue(limbo);
-                }
-
-                ClaimCache.AddOrUpdate(typeStr, (_) => trimmed, (_, existing) =>
-                {
-                    foreach (var c in existing)
-                        trimmed.Enqueue(c);
-                    return trimmed;
-                });
-                ex.Throw();
-            }
-
-            // Similar enough!
-
-            // Compare all the byte streams in cache to each other to create a mask
-            // A mask is something like:
-            // Given messages
-            //      - A blue house on the hill
-            //      - A dog likes to eat
-            // A mask would be
-            //      - A ********s**o****
-            // When deciding to forward a message to a different queue, we'll compare the message bytes to make sure the mask validates
-            var mask = new MemoryStream();
-            var i = 0;
-            var maxLength = conflicts.Select(x => x.Mask.Count()).Min();
-            while ((i + 4) < maxLength)
-            {
-                var segments = conflicts.Select(x =>
-                {
-                    if (x.Mask.Length < (i + 4))
-                        return 0L;
-                    return BitConverter.ToInt32(x.Mask, i);
-                });
-
-                if (segments.Skip(1).All(x => x == segments.First()))
-                    mask.Write(conflicts.First().Mask, i, 4);
-                else
-                    mask.Write(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }, 0, 4);
-
-                i += 4;
-            }
-            var maskArray = mask.ToArray();
-
-            // Trim trailing FFs
-            var end = maskArray.Length;
-            while (maskArray[end - 1] == 0xFF)
-                end--;
-
-            var finalMask = new byte[end];
-            Array.Copy(maskArray, finalMask, finalMask.Length);
-
-            if (finalMask.Length == 0)
-            {
-                Logger.Warn($"Command {typeStr} has been conflicted {conflicts.Count}/{_claimThresh} times - could not claim, failed to generate mask array");
-                ex.Throw();
-            }
-
-
-            Logger.Write(LogLevel.Info, () => $"Claiming command {typeStr} message {context.MessageId} with mask [{Encoding.UTF8.GetString(finalMask)}]");
+            Logger.Write(LogLevel.Info, () => $"Claiming command {typeStr} message {context.MessageId}");
 
             // SEND to each recorded domain instance, Publish is not ideal because the message queue could be full causing the other domains to not get Claim event for a while
             await DomainInstances.WhenAllAsync(x =>
@@ -276,7 +197,6 @@ namespace Aggregates.Internal
                     e.Queue = _instanceSpecificQueue;
                     e.Instance = Defaults.Instance;
                     e.CommandType = typeStr;
-                    e.Mask = finalMask;
                 }, options);
             });
         }
@@ -287,49 +207,14 @@ namespace Aggregates.Internal
             if (!RedirectedTypes.TryGetValue(type, out redirects))
                 return false;
 
+            var redirect = redirects.First();
 
-            Logger.Write(LogLevel.Debug, () => $"Received possibly claimed command {type} message {context.MessageId} - checking masks");
-            foreach (var redirect in redirects)
-            {
-                // Test mask
-                var i = 0;
-                while ((i + 4) < redirect.Mask.Length && i < context.Message.Body.Length)
-                {
-                    if ((i + 4) > context.Message.Body.Length)
-                    {
-                        // If we've run out of Int64's run the last few bytes individually through the mask
-                        for (; i < context.Message.Body.Length; i++)
-                        {
-                            var m = redirect.Mask.ElementAt(i);
-                            var b = context.Message.Body.ElementAt(i);
-                            if ((m & b) != b)
-                                break;
-                        }
-                    }
-                    else
-                    {
+            Logger.Write(LogLevel.Info, () => $"Redirecting claimed command {type} message {context.MessageId} to {redirect.Instance} - mask passed");
 
-                        var maskInt = BitConverter.ToInt32(redirect.Mask, i);
-                        var msgInt = BitConverter.ToInt32(context.Message.Body, i);
+            _redirectedMeter.Mark();
 
-                        if ((maskInt & msgInt) != msgInt)
-                            break;
-                    }
-                    i += 4;
-                }
-                // Mask matches
-                Logger.Write(LogLevel.Info, () => $"Redirecting claimed command {type} message {context.MessageId} to {redirect.Instance} - mask passed");
-
-                _redirectedMeter.Mark();
-
-                await context.ForwardCurrentMessageTo(redirect.Queue);
-                return true;
-
-            }
-            // Didnt match any masks
-            Logger.Write(LogLevel.Debug, () => $"Possibly claimed command {type} message {context.MessageId} - no masks matched");
-
-            return false;
+            await context.ForwardCurrentMessageTo(redirect.Queue);
+            return true;
         }
 
 
@@ -347,15 +232,15 @@ namespace Aggregates.Internal
         {
             if (message.Instance == Defaults.Instance)
             {
-                Logger.Write(LogLevel.Info, () => $"Received own claim command {message.CommandType} with mask [{Encoding.UTF8.GetString(message.Mask)}]");
-                BulkCommandBehavior.Owned.Enqueue(new ExpiringMask { Started = DateTime.UtcNow, Mask = message.Mask, Type = message.CommandType });
+                Logger.Write(LogLevel.Info, () => $"Received own claim for command {message.CommandType}");
+                BulkCommandBehavior.Owned.Enqueue(new ExpiringClaim { Started = DateTime.UtcNow, Type = message.CommandType });
             }
             else
             {
-                Logger.Write(LogLevel.Info, () => $"Received claim for type {message.CommandType} to instance {message.Instance} with mask [{Encoding.UTF8.GetString(message.Mask)}]");
+                Logger.Write(LogLevel.Info, () => $"Received claim for commain {message.CommandType} to instance {message.Instance}");
                 if (!BulkCommandBehavior.RedirectedTypes.ContainsKey(message.CommandType))
                     BulkCommandBehavior.RedirectedTypes[message.CommandType] = new List<Redirect>();
-                BulkCommandBehavior.RedirectedTypes[message.CommandType].Add(new Redirect { Queue = message.Queue, Instance = message.Instance, Mask = message.Mask });
+                BulkCommandBehavior.RedirectedTypes[message.CommandType].Add(new Redirect { Queue = message.Queue, Instance = message.Instance });
             }
 
             return Task.CompletedTask;
@@ -365,14 +250,14 @@ namespace Aggregates.Internal
         {
             if (message.Instance == Defaults.Instance)
             {
-                Logger.Write(LogLevel.Debug, () => $"Surrendered claim on type {message.CommandType} with mask [{Encoding.UTF8.GetString(message.Mask)}]");
+                Logger.Write(LogLevel.Debug, () => $"Surrendered claim on command {message.CommandType}");
             }
             else
             {
-                Logger.Write(LogLevel.Info, () => $"Received surender of claim on type {message.CommandType} to instance {message.Instance} with mask [{Encoding.UTF8.GetString(message.Mask)}]");
+                Logger.Write(LogLevel.Info, () => $"Received surender of claim on type {message.CommandType} to instance {message.Instance}");
                 if (!BulkCommandBehavior.RedirectedTypes.ContainsKey(message.CommandType))
                     return Task.CompletedTask;
-                BulkCommandBehavior.RedirectedTypes[message.CommandType].RemoveAll(x => x.Mask.SequenceEqual(message.Mask));
+                BulkCommandBehavior.RedirectedTypes[message.CommandType].RemoveAll(x => x.Instance == message.Instance);
                 if (BulkCommandBehavior.RedirectedTypes[message.CommandType].Count == 0)
                     BulkCommandBehavior.RedirectedTypes.Remove(message.CommandType);
             }
