@@ -19,7 +19,7 @@ namespace Aggregates
         {
             Defaults(s =>
             {
-                s.SetDefault("ImmediateRetries", 12);
+                s.SetDefault("ImmediateRetries", 3);
                 s.SetDefault("RetryForever", false);
                 s.SetDefault("DelayedRetries", 3);
                 s.SetDefault("SlowAlertThreshold", 1000);

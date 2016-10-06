@@ -83,6 +83,9 @@ namespace Aggregates.Internal
                     }
                     catch (VersionException)
                     {
+                        // If we expected no stream, no reason to try to resolve the conflict
+                        if (stream.CommitVersion == -1)
+                            throw new ConflictingCommandException($"New stream [{tracked.StreamId}] entity {tracked.GetType().FullName} already exists in store");
 
                         try
                         {

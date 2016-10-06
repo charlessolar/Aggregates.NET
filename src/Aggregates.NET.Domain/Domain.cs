@@ -28,7 +28,7 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("ShouldCacheEntities", false);
-                s.SetDefault("MaxConflictResolves", 5);
+                s.SetDefault("MaxConflictResolves", 3);
                 s.SetDefault("StreamGenerator", new StreamIdGenerator((type, bucket, stream) => $"{bucket}.[{type.FullName}].{stream}"));
                 s.SetDefault("WatchConflicts", false);
                 s.SetDefault("ClaimThreshold", 5);
