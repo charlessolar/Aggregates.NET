@@ -219,6 +219,7 @@ namespace Aggregates.Internal
 
                     Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] in bucket [{this.Bucket}] committing {_uncommitted.Count} events");
                     await _store.WriteEvents<T>(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders).ConfigureAwait(false);
+                    this._committed = this._committed.Concat(this._uncommitted);
                     this._uncommitted.Clear();
                 }
                 if (_pendingShots.Any())

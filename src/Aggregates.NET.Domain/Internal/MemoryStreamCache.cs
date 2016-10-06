@@ -40,30 +40,40 @@ namespace Aggregates.Internal
             _stage++;
         }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
 
+        private readonly Boolean _intelligent;
+
+        public MemoryStreamCache(/*Boolean Intelligent = false*/)
+        {
+            _intelligent = false;
+        }
+
         public void Cache(String stream, object cached)
         {
-            if (_uncachable.Contains(stream) || _levelOne.Contains(stream))
+            if (_intelligent && (_uncachable.Contains(stream) || _levelOne.Contains(stream)))
                 return;
 
             _cache.Set(stream, cached, new CacheItemPolicy { AbsoluteExpiration = DateTime.UtcNow + TimeSpan.FromMinutes(5) });
         }
         public void Evict(String stream)
         {
-            if (_uncachable.Contains(stream)) return;
-
-            if (_levelZero.Contains(stream))
+            if (_intelligent)
             {
-                if (_levelOne.Contains(stream))
+                if (_uncachable.Contains(stream)) return;
+
+                if (_levelZero.Contains(stream))
                 {
-                    Logger.Write(LogLevel.Info, () => $"Stream {stream} has been evicted frequenty, marking uncachable for a few minutes");
-                    _uncachable.Add(stream);
+                    if (_levelOne.Contains(stream))
+                    {
+                        Logger.Write(LogLevel.Info, () => $"Stream {stream} has been evicted frequenty, marking uncachable for a few minutes");
+                        _uncachable.Add(stream);
+                    }
+                    else
+                        _levelOne.Add(stream);
                 }
                 else
-                    _levelOne.Add(stream);
-            }
-            else
-                _levelZero.Add(stream);
-            
+                    _levelZero.Add(stream);
+
+            }            
             _cache.Remove(stream);
         }
         public object Retreive(String stream)

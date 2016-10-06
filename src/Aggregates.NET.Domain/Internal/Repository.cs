@@ -79,6 +79,7 @@ namespace Aggregates.Internal
                     try
                     {
                         startingEventId = await stream.Commit(commitId, startingEventId, headers).ConfigureAwait(false);
+                        await _store.Cache<T>(stream);
                         success = true;
                     }
                     catch (VersionException)

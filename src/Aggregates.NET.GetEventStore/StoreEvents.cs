@@ -46,10 +46,21 @@ namespace Aggregates
 
         public Task Evict<T>(String bucket, String streamId) where T: class, IEventSource
         {
+            if (!_shouldCache) return Task.CompletedTask;
+
             var streamName = _streamGen(typeof(T), bucket, streamId);
             _cache.Evict(streamName);
             return Task.CompletedTask;
         }
+        public Task Cache<T>(IEventStream stream) where T : class, IEventSource
+        {
+            if (!_shouldCache) return Task.CompletedTask;
+
+            var streamName = _streamGen(typeof(T), stream.Bucket, stream.StreamId);
+            _cache.Cache(streamName, stream);
+            return Task.CompletedTask;
+        }
+
 
 
         public async Task<IEventStream> GetStream<T>(String bucket, String streamId, Int32? start = null) where T : class, IEventSource
@@ -64,7 +75,7 @@ namespace Aggregates
             if (_shouldCache)
             {
                 var cached = _cache.Retreive(streamName) as IEventStream;
-                if (cached != null)
+                if (cached != null && cached.CommitVersion >= start)
                 {
                     _hitMeter.Mark();
                     Logger.Write(LogLevel.Debug, () => $"Found stream [{streamName}] in cache");
@@ -310,10 +321,7 @@ namespace Aggregates
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
             Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{streamName}].  Expected version: {expectedVersion}");
-
-            if (_shouldCache)
-                _cache.Evict(streamName);
-
+            
             var settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.All,
