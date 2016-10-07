@@ -45,6 +45,9 @@ namespace Aggregates.Internal
             return startingEventId;
         }
     }
+    /// <summary>
+    /// Conflicted events are discarded
+    /// </summary>
     internal class DiscardConflictResolver : IResolveConflicts
     {
         internal static readonly ILog Logger = LogManager.GetLogger(typeof(DiscardConflictResolver));
@@ -52,11 +55,14 @@ namespace Aggregates.Internal
         public Task<Guid> Resolve<T>(T Entity, IEnumerable<IWritableEvent> Uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var stream = Entity.Stream;
-            Logger.Write(LogLevel.Info, () => $"Resolving {Uncommitted.Count()} uncommitted events to stream {stream.StreamId} bucket {stream.Bucket}");
+            Logger.Write(LogLevel.Info, () => $"Discarding {Uncommitted.Count()} conflicting uncommitted events to stream {stream.StreamId} bucket {stream.Bucket}");
 
             return Task.FromResult(startingEventId);
         }
     }
+    /// <summary>
+    /// Pull latest events from store, merge into stream and re-commit
+    /// </summary>
     internal class ResolveStronglyConflictResolver : IResolveConflicts
     {
         internal static readonly ILog Logger = LogManager.GetLogger(typeof(ResolveStronglyConflictResolver));
@@ -102,14 +108,13 @@ namespace Aggregates.Internal
             }
 
             startingEventId = await stream.Commit(commitId, startingEventId, commitHeaders);
-
-
-            await _store.AppendEvents<T>(stream.Bucket, stream.StreamId, Uncommitted, commitHeaders).ConfigureAwait(false);
-            stream.Flush(true);
-
+            
             return startingEventId;
         }
     }
+    /// <summary>
+    /// Save conflicts for later processing, can only be used if the stream can never fail to merge
+    /// </summary>
     internal class ResolveWeaklyConflictResolver : IResolveConflicts
     {
         internal static readonly ILog Logger = LogManager.GetLogger(typeof(ResolveWeaklyConflictResolver));
@@ -127,6 +132,21 @@ namespace Aggregates.Internal
             // After set timeout (default 30s) pull the latest stream and attempt to write them again
             // Perhaps we can leverage bus.DelayedSend, then during times of high load conflicts will wait to be resolved until the message queue is empty
             // might not be the best idea though - as we would have to send to our exact instance which will usually be an empty queue
+
+            throw new NotImplementedException();
+        }
+    }
+    internal class DelegatingConflictResolver : IResolveConflicts
+    {
+        internal static readonly ILog Logger = LogManager.GetLogger(typeof(ResolveWeaklyConflictResolver));
+        
+
+        public Task<Guid> Resolve<T>(T Entity, IEnumerable<IWritableEvent> Uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
+        {
+            // Send the conflict information to a remote cache
+            // A receiver processing the same command and the same stream can look at the cache, if conflicted events are there pull them into the stream
+            // they are about to commit
+            // Advantage of not being too much of a delay, while not blocking processing
 
             throw new NotImplementedException();
         }
