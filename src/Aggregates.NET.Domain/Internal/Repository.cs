@@ -78,10 +78,12 @@ namespace Aggregates.Internal
                     stream.AddSnapshot(memento, headers);
                 }
 
+                var evict = true;
                 try
                 {
                     startingEventId = await stream.Commit(commitId, startingEventId, headers).ConfigureAwait(false);
                     await _store.Cache<T>(stream);
+                    evict = false;
                 }
                 catch (VersionException e)
                 {
@@ -144,21 +146,26 @@ namespace Aggregates.Internal
                             catch (ConflictingCommandException) { }
                         } while (!success && (--tries) > 0);
                         if (!success)
+                        {
+                            await _store.Evict<T>(stream.Bucket, stream.StreamId);
                             throw new ConflictResolutionFailedException("Failed to resolve stream conflict");
-
+                        }
                         await _store.Cache<T>(clean.Stream);
+                        evict = false;
 
                         Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} had version conflicts with store - successfully resolved", tracked.StreamId, tracked.GetType().FullName, stream.StreamVersion);
                         ConflictsResolved.Mark();
                     }
                     catch (AbandonConflictException abandon)
                     {
+                        await _store.Evict<T>(stream.Bucket, stream.StreamId);
                         ConflictsUnresolved.Mark();
                         Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - abandoning resolution", tracked.StreamId, tracked.GetType().FullName);
                         throw new ConflictResolutionFailedException($"Aborted conflict resolution for stream [{tracked.StreamId}] entity {tracked.GetType().FullName}", abandon);
                     }
                     catch (Exception ex)
                     {
+                        await _store.Evict<T>(stream.Bucket, stream.StreamId);
                         ConflictsUnresolved.Mark();
                         Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve due to: {3}: {2}", tracked.StreamId, tracked.GetType().FullName, ex.Message, ex.GetType().Name);
                         throw new ConflictResolutionFailedException($"Failed to resolve conflict for stream [{tracked.StreamId}] entity {tracked.GetType().FullName} due to exception", ex);
@@ -167,21 +174,24 @@ namespace Aggregates.Internal
                 }
                 catch (PersistenceException e)
                 {
-                    WriteErrors.Mark();
                     Logger.WriteFormat(LogLevel.Warn, "Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {3}: {2}", stream.StreamId, stream.Bucket, e.Message, e.GetType().Name);
+                    throw;
                 }
                 catch (DuplicateCommitException)
                 {
-                    WriteErrors.Mark();
                     Logger.WriteFormat(LogLevel.Warn, "Detected a double commit for stream: [{0}] bucket [{1}] - discarding changes for this stream", stream.StreamId, stream.Bucket);
                     // I was throwing this, but if this happens it means the events for this message have already been committed.  Possibly as a partial message failure earlier. 
                     // Im changing to just discard the changes, perhaps can take a deeper look later if this ever bites me on the ass
                     //throw;
                 }
-                catch
+                finally
                 {
-                    WriteErrors.Mark();
-                    throw;
+                    if (evict)
+                    {
+                        await _store.Evict<T>(stream.Bucket, stream.StreamId);
+                        WriteErrors.Mark();
+                    }
+
                 }
 
 

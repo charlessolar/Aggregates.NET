@@ -10,18 +10,6 @@ namespace Aggregates
 {
     public static class Configuration
     {
-        public static void ImmediateRetries(this ExposeSettings settings, Int32 Max)
-        {
-            settings.GetSettings().Set("ImmediateRetries", Max);
-        }
-        public static void DelayedRetries(this ExposeSettings settings, Int32 Max)
-        {
-            settings.GetSettings().Set("DelayedRetries", Max);
-        }
-        public static void RetryForever(this ExposeSettings settings, Boolean Forever)
-        {
-            settings.GetSettings().Set("RetryForever", Forever);
-        }
         public static void SlowAlertThreshold(this ExposeSettings settings, Int32 Milliseconds)
         {
             settings.GetSettings().Set("SlowAlertThreshold", Milliseconds);

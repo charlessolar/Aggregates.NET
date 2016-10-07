@@ -23,7 +23,7 @@ namespace Aggregates.Internal
         public String Bucket { get; private set; }
         public String StreamId { get; private set; }
         public Int32 StreamVersion { get { return this.CommitVersion + this._uncommitted.Count; } }
-        public Int32 CommitVersion { get { return (this.LastSnapshot ?? 0) + this._committed.Count(); } }
+        public Int32 CommitVersion { get { return (this.LastSnapshot ?? 0) + this._committed.Count() - 1; } }
 
         public Object CurrentMemento
         {
@@ -250,9 +250,9 @@ namespace Aggregates.Internal
                     //});
                     //if (oldCommits.Any(x => x == commitId))
                     //    throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
-
+                    
                     Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] in bucket [{this.Bucket}] committing {wip.Count} events");
-                    await _store.WriteEvents<T>(this.Bucket, this.StreamId, this.StreamVersion, wip, commitHeaders).ConfigureAwait(false);
+                    await _store.WriteEvents<T>(this.Bucket, this.StreamId, this.CommitVersion, wip, commitHeaders).ConfigureAwait(false);
                     this._uncommitted = wip;
                     Flush(true);
                 }

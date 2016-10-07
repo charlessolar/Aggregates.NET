@@ -44,7 +44,7 @@ namespace Aggregates.Internal
 
         public MemoryStreamCache(/*Boolean Intelligent = false*/)
         {
-            _intelligent = false;
+            _intelligent = true;
         }
 
         public void Cache(String stream, object cached)
