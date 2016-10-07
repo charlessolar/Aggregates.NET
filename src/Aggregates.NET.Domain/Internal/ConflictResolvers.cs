@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using NServiceBus.Logging;
 using System;
@@ -80,8 +81,16 @@ namespace Aggregates.Internal
             
 
             Logger.Write(LogLevel.Debug, () => $"Merging conflicted events");
-            foreach (var uncommitted in Uncommitted)
-                Entity.Conflict(uncommitted.Event);
+            try
+            {
+                foreach (var uncommitted in Uncommitted)
+                    Entity.Conflict(uncommitted.Event);
+            }
+            catch (NoRouteException e)
+            {
+                Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
+                throw new ConflictResolutionFailedException($"Failed to resolve conflict", e);
+            }
 
             Logger.Write(LogLevel.Debug, () => $"Successfully merged conflicted events");
 

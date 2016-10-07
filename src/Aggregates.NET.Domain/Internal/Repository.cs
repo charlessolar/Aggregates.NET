@@ -100,7 +100,7 @@ namespace Aggregates.Internal
 
                         Logger.Write(LogLevel.Debug, () => $"Attempting to resolve conflict with strategy {ConflictResolution.Conflict}");
 
-                        var clean = await GetUntracked(tracked.Stream);
+                        var clean = await GetUntracked(tracked.Stream.Clone());
 
                         var tries = ConflictResolution.ResolveRetries ?? _settings.Get<Int32>("MaxConflictResolves");
                         var success = false;
