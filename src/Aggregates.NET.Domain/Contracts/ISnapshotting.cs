@@ -8,6 +8,8 @@ namespace Aggregates.Contracts
 {
     public interface ISnapshotting
     {
+        Int32? LastSnapshot { get; }
+
         void RestoreSnapshot(Object snapshot);
         Object TakeSnapshot();
         Boolean ShouldTakeSnapshot();

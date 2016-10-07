@@ -57,6 +57,8 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Aggregate.cs" />
+    <Compile Include="Attributes\OptimisticConcurrencyAttribute.cs" />
+    <Compile Include="ConcurrencyConflict.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="Contracts\IAggregate.cs" />
     <Compile Include="Contracts\IEntity.cs" />
@@ -68,6 +70,9 @@
     <Compile Include="Contracts\INeedProcessor.cs" />
     <Compile Include="Contracts\IOOBHandler.cs" />
     <Compile Include="Contracts\IPocoRepository.cs" />
+    <Compile Include="Exceptions\ConflictResolutionFailedException.cs" />
+    <Compile Include="Exceptions\ConflictingCommandException.cs" />
+    <Compile Include="IResolveConflicts.cs" />
     <Compile Include="Contracts\IStorePocos.cs" />
     <Compile Include="Contracts\IStreamCache.cs" />
     <Compile Include="Exceptions\AbandonConflictException.cs" />
@@ -82,6 +87,7 @@
     <Compile Include="Internal\BulkCommandBehavior.cs" />
     <Compile Include="Internal\CommandUnitOfWork.cs" />
     <Compile Include="Internal\DefaultOOBHandler.cs" />
+    <Compile Include="Internal\ConflictResolvers.cs" />
     <Compile Include="Internal\MemoryStreamCache.cs" />
     <Compile Include="Internal\MutateIncomingCommands.cs" />
     <Compile Include="Internal\NSBOOBHandler.cs" />

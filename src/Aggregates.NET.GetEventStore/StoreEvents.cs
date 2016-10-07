@@ -61,26 +61,24 @@ namespace Aggregates
             return Task.CompletedTask;
         }
 
-
-
-        public async Task<IEventStream> GetStream<T>(String bucket, String streamId, Int32? start = null) where T : class, IEventSource
+        public async Task<IEventStream> GetStream<T>(String bucket, String streamId, ISnapshot snapshot = null) where T: class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
             var events = new List<ResolvedEvent>();
 
-            var sliceStart = start ?? StreamPosition.Start;
+            var sliceStart = snapshot != null ? snapshot.Version + 1 : StreamPosition.Start;
             Logger.Write(LogLevel.Debug, () => $"Retreiving stream [{streamId}] in bucket [{bucket}] starting at {sliceStart}");
 
             var readSize = _nsbSettings.Get<Int32>("ReadSize");
             if (_shouldCache)
             {
-                var cached = _cache.Retreive(streamName) as IEventStream;
-                if (cached != null && cached.CommitVersion >= start)
+                var cached = _cache.Retreive(streamName) as Internal.EventStream<T>;
+                if (cached != null && cached.CommitVersion >= sliceStart)
                 {
                     _hitMeter.Mark();
                     Logger.Write(LogLevel.Debug, () => $"Found stream [{streamName}] in cache");
                     var stream = new Internal.EventStream<T>(cached, Builder, this);
-                    stream.TrimEvents(start);
+                    stream.TrimEvents(sliceStart);
                     return stream;
                 }
                 _missMeter.Mark();
@@ -136,7 +134,7 @@ namespace Aggregates
                 };
             });
 
-            var eventstream = new Internal.EventStream<T>(Builder, this, bucket, streamId, current.LastEventNumber, translatedEvents);
+            var eventstream = new Internal.EventStream<T>(Builder, this, bucket, streamId, translatedEvents, snapshot);
             if (_shouldCache)
                 _cache.Cache(streamName, eventstream.Clone());
 
@@ -146,7 +144,7 @@ namespace Aggregates
         public Task<IEventStream> NewStream<T>(String bucket, String streamId) where T : class, IEventSource
         {
             Logger.Write(LogLevel.Debug, () => $"Creating new stream [{streamId}] in bucket [{bucket}]");
-            IEventStream stream = new Internal.EventStream<T>(Builder, this, bucket, streamId, -1, null);
+            IEventStream stream = new Internal.EventStream<T>(Builder, this, bucket, streamId, null, null);
             return Task.FromResult(stream);
         }
 

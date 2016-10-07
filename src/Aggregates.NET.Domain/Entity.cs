@@ -26,6 +26,13 @@ namespace Aggregates
 
     public abstract class EntityWithMemento<TThis, TId, TParent, TParentId, TMemento> : Entity<TThis, TId, TParent, TParentId>, ISnapshotting where TMemento : class, IMemento<TId> where TParent : Base<TParent, TParentId> where TThis : EntityWithMemento<TThis, TId, TParent, TParentId, TMemento>
     {
+        Int32? ISnapshotting.LastSnapshot
+        {
+            get
+            {
+                return this.Stream.LastSnapshot;
+            }
+        }
         void ISnapshotting.RestoreSnapshot(Object snapshot)
         {
             RestoreSnapshot(snapshot as TMemento);
@@ -39,6 +46,14 @@ namespace Aggregates
         Boolean ISnapshotting.ShouldTakeSnapshot()
         {
             return ShouldTakeSnapshot();
+        }
+
+        public Int32? LastSnapshot
+        {
+            get
+            {
+                return (this as ISnapshotting).LastSnapshot;
+            }
         }
 
         protected abstract void RestoreSnapshot(TMemento memento);

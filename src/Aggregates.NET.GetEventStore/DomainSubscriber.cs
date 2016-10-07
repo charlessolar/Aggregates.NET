@@ -96,7 +96,7 @@ namespace Aggregates
 
                 try
                 {
-                    bus.Publish(@event, options);
+                    bus.Publish(@event, options).Wait();
                 }
                 catch (SubscriptionCanceled)
                 {

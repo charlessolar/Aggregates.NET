@@ -34,6 +34,7 @@ namespace Aggregates.Internal
         public static readonly Dictionary<String, List<Redirect>> RedirectedTypes = new Dictionary<string, List<Redirect>>();
         public static readonly Queue<ExpiringClaim> Owned = new Queue<ExpiringClaim>();
         public static readonly HashSet<String> DomainInstances = new HashSet<String>();
+        public static readonly ConcurrentDictionary<String, Queue<ExpiringClaim>> ClaimCache = new ConcurrentDictionary<String, Queue<ExpiringClaim>>();
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(BulkCommandBehavior));
 
@@ -41,7 +42,6 @@ namespace Aggregates.Internal
 
         private static readonly HashSet<String> IgnoreCache = new HashSet<string>();
         private static readonly HashSet<String> CheckCache = new HashSet<string>();
-        private static readonly ConcurrentDictionary<String, Queue<ExpiringClaim>> ClaimCache = new ConcurrentDictionary<String, Queue<ExpiringClaim>>();
 
         private readonly Int32 _claimThresh;
         private readonly TimeSpan _expireConflict;
@@ -112,11 +112,11 @@ namespace Aggregates.Internal
             ExceptionDispatchInfo ex;
             try
             {
-                // Process next, catch ConflictCommandException
+                // Process next, catch ConflictResolutionFailedException
                 await next().ConfigureAwait(false);
                 return;
             }
-            catch (ConflictingCommandException e)
+            catch (ConflictResolutionFailedException e)
             {
                 ex = ExceptionDispatchInfo.Capture(e);
             }
@@ -209,7 +209,7 @@ namespace Aggregates.Internal
 
             var redirect = redirects.First();
 
-            Logger.Write(LogLevel.Info, () => $"Redirecting claimed command {type} message {context.MessageId} to {redirect.Instance} - mask passed");
+            Logger.Write(LogLevel.Info, () => $"Redirecting claimed command {type} message {context.MessageId} to {redirect.Instance}");
 
             _redirectedMeter.Mark();
 
@@ -219,6 +219,7 @@ namespace Aggregates.Internal
 
 
     }
+    // Todo: if we are using RabbitMq we can actually change the routing topology of senders / receivers 
     internal class RedirectMessageHandler :
         IHandleMessages<Claim>,
         IHandleMessages<Surrender>,
@@ -238,6 +239,9 @@ namespace Aggregates.Internal
             else
             {
                 Logger.Write(LogLevel.Info, () => $"Received claim for commain {message.CommandType} to instance {message.Instance}");
+
+                Queue<ExpiringClaim> temp;
+                BulkCommandBehavior.ClaimCache.TryRemove(message.CommandType, out temp);
                 if (!BulkCommandBehavior.RedirectedTypes.ContainsKey(message.CommandType))
                     BulkCommandBehavior.RedirectedTypes[message.CommandType] = new List<Redirect>();
                 BulkCommandBehavior.RedirectedTypes[message.CommandType].Add(new Redirect { Queue = message.Queue, Instance = message.Instance });

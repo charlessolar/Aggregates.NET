@@ -239,7 +239,7 @@ namespace Aggregates.Internal
 
                 try
                 {
-                    bus.Send(data, options);
+                    bus.Send(data, options).Wait();
                 }
                 catch (SubscriptionCanceled)
                 {
@@ -334,7 +334,7 @@ namespace Aggregates.Internal
 
                 try
                 {
-                    bus.Send(data, options);
+                    bus.Send(data, options).Wait();
                 }
                 catch (SubscriptionCanceled)
                 {

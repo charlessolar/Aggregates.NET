@@ -77,7 +77,6 @@
     <Compile Include="Exceptions\AggregateException.cs" />
     <Compile Include="Exceptions\BusinessException.cs" />
     <Compile Include="Exceptions\CommandRejectedException.cs" />
-    <Compile Include="Exceptions\ConflictingCommandException.cs" />
     <Compile Include="Exceptions\DuplicateCommitException.cs" />
     <Compile Include="Exceptions\NotFoundException.cs" />
     <Compile Include="Exceptions\PersistenceException.cs" />
@@ -124,9 +123,7 @@
     <None Include="Aggregates.NET.nuspec" />
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Attributes\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

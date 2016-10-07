@@ -57,9 +57,5 @@ namespace Aggregates
         {
             settings.GetSettings().Set("ClaimLength", Length);
         }
-        public static void SetCommonalityRequired(this ExposeSettings settings, Decimal CommonalityRequired)
-        {
-            settings.GetSettings().Set("CommonalityRequired", CommonalityRequired);
-        }
     }
 }

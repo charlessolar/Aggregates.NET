@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Extensions;
 using NServiceBus;
 using System;
 using System.Collections.Generic;
@@ -18,7 +19,7 @@ namespace Aggregates.Internal
         }
 
 
-        public Task Publish<T>(String Bucket, String StreamId, IEnumerable<IWritableEvent> Events, IDictionary<String, String> commitHeaders) where T : class, IEventSource
+        public async Task Publish<T>(String Bucket, String StreamId, IEnumerable<IWritableEvent> Events, IDictionary<String, String> commitHeaders) where T : class, IEventSource
         {
             var options = new PublishOptions();
 
@@ -32,8 +33,9 @@ namespace Aggregates.Internal
                 options.SetHeader(header.Key, header.Value?.ToString());
             }
 
-            foreach (var @event in Events)
+            await Events.WhenAllAsync(async (@event) =>
             {
+
                 options.SetHeader("EventId", @event.EventId.ToString());
                 options.SetHeader("EntityType", @event.Descriptor.EntityType);
                 options.SetHeader("Timestamp", @event.Descriptor.Timestamp.ToString());
@@ -45,10 +47,9 @@ namespace Aggregates.Internal
                     options.SetHeader(header.Key, header.Value);
                 }
 
-                _endpoint.Publish(@event, options);
-            }
-
-            return Task.FromResult(0);
+                await _endpoint.Publish(@event, options);
+            });
+            
         }
         public Task<IEnumerable<IWritableEvent>> Retrieve<T>(String Bucket, String StreamId, Int32? Skip = null, Int32? Take = null, Boolean Ascending = true) where T : class, IEventSource
         {

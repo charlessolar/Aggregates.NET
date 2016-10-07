@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    public class ConflictingCommandException : System.AggregateException
+    public class ConflictingCommandException : System.Exception
     {
         public ConflictingCommandException() { }
         public ConflictingCommandException(String message) : base(message) { }

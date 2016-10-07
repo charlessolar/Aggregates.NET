@@ -101,22 +101,19 @@ namespace Aggregates.Internal
             foreach (var @event in events)
                 RouteFor(@event);
         }
-        void IEventSource.Conflict(IEnumerable<IEvent> events)
+        void IEventSource.Conflict(IEvent @event)
         {
-            Logger.Write(LogLevel.Debug, () => $"Attempting to merge {events.Count()} events to entity {this.GetType().FullName} stream {this.StreamId}");
-            foreach (var @event in events)
+            try
             {
-                try
-                {
-                    RouteForConflict(@event);
-                    RouteFor(@event);
+                RouteForConflict(@event);
+                RouteFor(@event);
 
-                    // Todo: Fill with user headers or something
-                    var headers = new Dictionary<String, String>();
-                    Stream.Add(@event, headers);
-                }
-                catch (DiscardEventException) { }
+                // Todo: Fill with user headers or something
+                var headers = new Dictionary<String, String>();
+                Stream.Add(@event, headers);
             }
+            catch (DiscardEventException) { }
+
         }
 
         void IEventSource.Apply(IEvent @event)
@@ -151,7 +148,7 @@ namespace Aggregates.Internal
 
             Raise(@event);
         }
-        
+
         private void Apply(IEvent @event)
         {
             RouteFor(@event);

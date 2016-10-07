@@ -22,9 +22,23 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventStream<>));
         public String Bucket { get; private set; }
         public String StreamId { get; private set; }
-        public Int32 StreamVersion { get { return this._streamVersion + this._uncommitted.Count; } }
-        public Int32 CommitVersion { get { return this._streamVersion; } }
+        public Int32 StreamVersion { get { return this.CommitVersion + this._uncommitted.Count; } }
+        public Int32 CommitVersion { get { return (this.LastSnapshot ?? 0) + this._committed.Count(); } }
 
+        public Object CurrentMemento
+        {
+            get
+            {
+                return this._snapshot?.Payload;
+            }
+        }
+        public Int32? LastSnapshot
+        {
+            get
+            {
+                return this._snapshot?.Version;
+            }
+        }
         public IEnumerable<IWritableEvent> Events
         {
             get
@@ -65,13 +79,13 @@ namespace Aggregates.Internal
         private readonly IStoreSnapshots _snapshots;
         private readonly IOOBHandler _oobHandler;
         private readonly IBuilder _builder;
-        private readonly Int32 _streamVersion;
+        private readonly ISnapshot _snapshot;
         private IEnumerable<IWritableEvent> _committed;
         private IList<IWritableEvent> _uncommitted;
         private IList<IWritableEvent> _outofband;
         private IList<ISnapshot> _pendingShots;
 
-        public EventStream(IBuilder builder, IStoreEvents store, String bucket, String streamId, Int32 streamVersion, IEnumerable<IWritableEvent> events)
+        public EventStream(IBuilder builder, IStoreEvents store, String bucket, String streamId, IEnumerable<IWritableEvent> events, ISnapshot snapshot)
         {
             this._store = store;
             this._snapshots = builder?.Build<IStoreSnapshots>();
@@ -80,7 +94,7 @@ namespace Aggregates.Internal
             this.Bucket = bucket;
             this.StreamId = streamId;
             this._committed = events?.ToList() ?? new List<IWritableEvent>();
-            this._streamVersion = streamVersion;
+            this._snapshot = snapshot;
             this._uncommitted = new List<IWritableEvent>();
             this._outofband = new List<IWritableEvent>();
             this._pendingShots = new List<ISnapshot>();
@@ -88,7 +102,7 @@ namespace Aggregates.Internal
         }
 
         // Special constructor for building from a cached instance
-        internal EventStream(IEventStream clone, IBuilder builder, IStoreEvents store)
+        internal EventStream(EventStream<T> clone, IBuilder builder, IStoreEvents store)
         {
             this._store = store;
             this._snapshots = builder.Build<IStoreSnapshots>();
@@ -96,8 +110,8 @@ namespace Aggregates.Internal
             this._builder = builder;
             this.Bucket = clone.Bucket;
             this.StreamId = clone.StreamId;
-            this._streamVersion = clone.StreamVersion;
-            this._committed = clone.Events.ToList();
+            this._snapshot = clone._snapshot;
+            this._committed = clone._committed.ToList();
             this._uncommitted = new List<IWritableEvent>();
             this._outofband = new List<IWritableEvent>();
             this._pendingShots = new List<ISnapshot>();
@@ -108,7 +122,7 @@ namespace Aggregates.Internal
             // Trim off events earlier than Start (if the stream is from cache its possible a snapshot has been taken since cached)
             if (Start.HasValue && _committed.Any() && _committed.First().Descriptor.Version <= Start.Value)
             {
-                _committed = _committed.Where(x => x.Descriptor.Version > Start.Value);
+                _committed = _committed.Where(x => x.Descriptor.Version >= Start.Value);
             }
         }
 
@@ -123,8 +137,14 @@ namespace Aggregates.Internal
             if (@event != null)
                 committed.Add(@event);
 
-            return new EventStream<T>(null, null, Bucket, StreamId, StreamVersion, committed);
+            return new EventStream<T>(null, null, Bucket, StreamId, committed, _snapshot);
         }
+
+        void IEventStream.Concat(IEnumerable<IWritableEvent> events)
+        {
+            _committed = _committed.Concat(events);
+        }
+
         public Task<IEnumerable<IWritableEvent>> AllEvents(Boolean? backwards)
         {
             if (backwards == true)
@@ -194,12 +214,26 @@ namespace Aggregates.Internal
 
             commitHeaders[CommitHeader] = commitId.ToString();
 
+            if (_outofband.Any())
+            {
+                if (_oobHandler == null)
+                    Logger.Write(LogLevel.Warn, () => $"OOB events were used on stream [{this.StreamId}] but no publishers have been defined!");
+                else
+                {
+                    Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] in bucket [{this.Bucket}] publishing {_outofband.Count} out of band events to {_oobHandler.GetType().Name}");
+                    await _oobHandler.Publish<T>(this.Bucket, this.StreamId, _outofband, commitHeaders).ConfigureAwait(false);
+
+                }
+                this._outofband.Clear();
+            }
+
+            var wip = _uncommitted.ToList();
             try
             {
-                if (_uncommitted.Any())
+                if (wip.Any())
                 {
                     // If we increment commit id instead of depending on a commit header, ES will do the concurrency check for us
-                    foreach (var uncommitted in _uncommitted.Where(x => !x.EventId.HasValue))
+                    foreach (var uncommitted in wip.Where(x => !x.EventId.HasValue))
                     {
                         uncommitted.EventId = startingEventId;
                         startingEventId = startingEventId.Increment();
@@ -217,10 +251,10 @@ namespace Aggregates.Internal
                     //if (oldCommits.Any(x => x == commitId))
                     //    throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
 
-                    Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] in bucket [{this.Bucket}] committing {_uncommitted.Count} events");
-                    await _store.WriteEvents<T>(this.Bucket, this.StreamId, this._streamVersion, _uncommitted, commitHeaders).ConfigureAwait(false);
-                    this._committed = this._committed.Concat(this._uncommitted);
-                    this._uncommitted.Clear();
+                    Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] in bucket [{this.Bucket}] committing {wip.Count} events");
+                    await _store.WriteEvents<T>(this.Bucket, this.StreamId, this.StreamVersion, wip, commitHeaders).ConfigureAwait(false);
+                    this._uncommitted = wip;
+                    Flush(true);
                 }
                 if (_pendingShots.Any())
                 {
@@ -228,22 +262,10 @@ namespace Aggregates.Internal
                     await _snapshots.WriteSnapshots<T>(this.Bucket, this.StreamId, _pendingShots, commitHeaders).ConfigureAwait(false);
                     this._pendingShots.Clear();
                 }
-                if (_outofband.Any())
-                {
-                    if (_oobHandler == null)
-                        Logger.Write(LogLevel.Warn, () => $"OOB events were used on stream [{this.StreamId}] but no publishers have been defined!");
-                    else
-                    {
-                        Logger.Write(LogLevel.Debug, () => $"Event stream [{this.StreamId}] in bucket [{this.Bucket}] publishing {_outofband.Count} out of band events to {_oobHandler.GetType().Name}");
-                        await _oobHandler.Publish<T>(this.Bucket, this.StreamId, _outofband, commitHeaders).ConfigureAwait(false);
-
-                    }
-                    this._outofband.Clear();
-                }
             }
             catch (WrongExpectedVersionException e)
             {
-                throw new VersionException($"Expected version {_streamVersion}", e);
+                throw new VersionException(e.Message, e);
             }
             catch (CannotEstablishConnectionException e)
             {
@@ -260,6 +282,12 @@ namespace Aggregates.Internal
             return startingEventId;
         }
 
+        public void Flush(Boolean committed)
+        {
+            if (committed)
+                this._committed = this._committed.Concat(_uncommitted);
+            this._uncommitted.Clear();
+        }
 
     }
 }

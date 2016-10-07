@@ -12,7 +12,7 @@ namespace Aggregates.Contracts
 
         IEventStream Stream { get; }
         void Hydrate(IEnumerable<IEvent> events);
-        void Conflict(IEnumerable<IEvent> events);
+        void Conflict(IEvent @event);
         void Apply(IEvent @event);
         void Raise(IEvent @event);
     }
