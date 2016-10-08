@@ -277,7 +277,7 @@ namespace Aggregates.Internal
                             !h.StartsWith("$", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.CommitIdHeader, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.RequestResponse, StringComparison.InvariantCultureIgnoreCase) &&
-                            !h.Equals(Defaults.Retries, StringComparison.InvariantCultureIgnoreCase));
+                            !h.Equals(Defaults.Attempts, StringComparison.InvariantCultureIgnoreCase));
 
             foreach (var header in userHeaders)
                 CurrentHeaders[header] = headers[header];

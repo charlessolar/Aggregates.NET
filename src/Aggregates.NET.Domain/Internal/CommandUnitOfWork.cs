@@ -64,7 +64,7 @@ namespace Aggregates.Internal
                         uow.Builder = context.Builder;
 
                         var retries = 0;
-                        context.Extensions.TryGet(Defaults.Retries, out retries);
+                        context.Extensions.TryGet(Defaults.Attempts, out retries);
                         uow.Retries = retries;
 
                         await uow.Begin().ConfigureAwait(false);
