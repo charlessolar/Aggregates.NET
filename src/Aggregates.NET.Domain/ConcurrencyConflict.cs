@@ -1,11 +1,6 @@
-﻿using Aggregates.Contracts;
+﻿using System;
 using Aggregates.Internal;
 using NServiceBus.ObjectBuilder;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates
 {
@@ -28,9 +23,9 @@ namespace Aggregates
         public static ConcurrencyStrategy ResolveWeakly = new ConcurrencyStrategy(ConcurrencyConflict.ResolveWeakly, "ResolveWeakly", (b, _) => b.Build<ResolveWeaklyConflictResolver>());
         public static ConcurrencyStrategy Custom = new ConcurrencyStrategy(ConcurrencyConflict.Custom, "Custom", (b, type) => (IResolveConflicts)b.Build(type));
 
-        public ConcurrencyStrategy(ConcurrencyConflict value, string displayName, ResolverBuilder Builder) : base(value, displayName)
+        public ConcurrencyStrategy(ConcurrencyConflict value, string displayName, ResolverBuilder builder) : base(value, displayName)
         {
-            this.Build = Builder;
+            Build = builder;
         }
 
         public ResolverBuilder Build { get; private set; }

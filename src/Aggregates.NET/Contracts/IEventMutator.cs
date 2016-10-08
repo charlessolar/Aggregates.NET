@@ -1,15 +1,11 @@
-﻿using NServiceBus;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using NServiceBus;
 
 namespace Aggregates.Contracts
 {
     public interface IEventMutator
     {
-        IEvent MutateIncoming(IEvent @event, IReadOnlyDictionary<String, String> headers);
+        IEvent MutateIncoming(IEvent @event, IReadOnlyDictionary<string, string> headers);
         IEvent MutateOutgoing(IEvent @event);
     }
 }

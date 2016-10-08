@@ -1,102 +1,103 @@
-﻿using Aggregates.Contracts;
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Runtime.Caching;
+using System.Threading;
+using Aggregates.Contracts;
 using Aggregates.Extensions;
 using NServiceBus.Logging;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.Caching;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public class MemoryStreamCache : IStreamCache
+    public class MemoryStreamCache : IStreamCache, IDisposable
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(MemoryStreamCache));
-        private readonly static MemoryCache _cache = new MemoryCache("Aggregates Cache", new System.Collections.Specialized.NameValueCollection { { "CacheMemoryLimitMegabytes", "500" } });
+        private static readonly MemoryCache MemCache = new MemoryCache("Aggregates Cache", new NameValueCollection { { "CacheMemoryLimitMegabytes", "500" } });
         // For streams that are changing multiple times a second, no sense to cache them if they get immediately evicted
-        private readonly static HashSet<String> _uncachable = new HashSet<string>();
-        private readonly static HashSet<String> _levelOne = new HashSet<string>();
-        private readonly static HashSet<String> _levelZero = new HashSet<string>();
-        private static Int32 _stage = 0;
-        private static Timer _unachableEviction = new Timer((_) =>
+        private static readonly HashSet<string> Uncachable = new HashSet<string>();
+        private static readonly HashSet<string> LevelOne = new HashSet<string>();
+        private static readonly HashSet<string> LevelZero = new HashSet<string>();
+        private static int _stage;
+        private static readonly Timer _unachableEviction = new Timer(_ =>
         {
             // Clear uncachable every 10 minutes
             if (_stage == 120)
             {
                 _stage = 0;
-                Logger.Write(LogLevel.Debug, () => $"Clearing {_uncachable.Count} uncachable stream names");
-                _uncachable.Clear();
+                Logger.Write(LogLevel.Debug, () => $"Clearing {Uncachable.Count} uncachable stream names");
+                Uncachable.Clear();
             }
             // Clear levelOne every minute
             if (_stage % 12 == 0)
-                _levelOne.Clear();
+                LevelOne.Clear();
 
             // Clear levelZero every 5 seconds
-            _levelZero.Clear();
+            LevelZero.Clear();
 
             _stage++;
         }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
 
-        private readonly Boolean _intelligent;
+        private readonly bool _intelligent;
+        private bool _disposed;
 
         public MemoryStreamCache(/*Boolean Intelligent = false*/)
         {
             _intelligent = true;
         }
 
-        public void Cache(String stream, object cached)
+        public void Cache(string stream, object cached)
         {
-            if (_intelligent && (_uncachable.Contains(stream) || _levelOne.Contains(stream)))
+            if (_intelligent && (Uncachable.Contains(stream) || LevelOne.Contains(stream)))
                 return;
 
-            _cache.Set(stream, cached, new CacheItemPolicy { AbsoluteExpiration = DateTime.UtcNow + TimeSpan.FromMinutes(5) });
+            MemCache.Set(stream, cached, new CacheItemPolicy { AbsoluteExpiration = DateTime.UtcNow + TimeSpan.FromMinutes(5) });
         }
-        public void Evict(String stream)
+        public void Evict(string stream)
         {
             if (_intelligent)
             {
-                if (_uncachable.Contains(stream)) return;
+                if (Uncachable.Contains(stream)) return;
 
-                if (_levelZero.Contains(stream))
+                if (LevelZero.Contains(stream))
                 {
-                    if (_levelOne.Contains(stream))
+                    if (LevelOne.Contains(stream))
                     {
                         Logger.Write(LogLevel.Info, () => $"Stream {stream} has been evicted frequenty, marking uncachable for a few minutes");
-                        _uncachable.Add(stream);
+                        Uncachable.Add(stream);
                     }
                     else
-                        _levelOne.Add(stream);
+                        LevelOne.Add(stream);
                 }
                 else
-                    _levelZero.Add(stream);
+                    LevelZero.Add(stream);
 
-            }            
-            _cache.Remove(stream);
+            }
+            MemCache.Remove(stream);
         }
-        public object Retreive(String stream)
+        public object Retreive(string stream)
         {
-            var cached = _cache.Get(stream);
-            if (cached == null) return null;
+            var cached = MemCache.Get(stream);
 
             return cached;
         }
 
-        public Boolean Update(String stream, object payload)
+        public bool Update(string stream, object payload)
         {
-            var cached = _cache.Get(stream);
-            if (cached == null) return false;
+            var cached = MemCache.Get(stream);
 
-            if (cached is IEventStream && payload is IWritableEvent)
-            {
-                Logger.DebugFormat("Updating cached stream [{0}]", stream);
-                var real = (cached as IEventStream);
-                Cache(stream, real.Clone(payload as IWritableEvent));
-                return true;
-            }
-            return false;
+            if (!(cached is IEventStream) || !(payload is IWritableEvent)) return false;
+
+            Logger.DebugFormat("Updating cached stream [{0}]", stream);
+            var real = (cached as IEventStream);
+            Cache(stream, real.Clone((IWritableEvent) payload));
+            return true;
+        }
+
+        public void Dispose()
+        {
+            if(!_disposed)
+                _unachableEviction.Dispose();
+            _disposed = true;
         }
     }
 }

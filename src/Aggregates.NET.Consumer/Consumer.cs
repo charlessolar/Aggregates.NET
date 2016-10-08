@@ -1,26 +1,20 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using EventStore.ClientAPI;
-using Newtonsoft.Json;
+using Aggregates.Extensions;
+using Aggregates.Internal;
+using Aggregates.Messages;
 using NServiceBus;
 using NServiceBus.Features;
 using NServiceBus.Logging;
-using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
-using Aggregates.Internal;
-using NServiceBus.Pipeline;
-using System.Threading;
-using Aggregates.Extensions;
 
 namespace Aggregates
 {
-    public class ConsumerFeature : Aggregates.Feature
+    public class ConsumerFeature : Feature
     {
-        public ConsumerFeature() : base()
+        public ConsumerFeature()
         {
             Defaults(s =>
             {
@@ -35,7 +29,7 @@ namespace Aggregates
                 description: "Running event mutators for incoming messages"
                 );
             context.Pipeline.Register(
-                behavior: new EventUnitOfWork(context.Settings.Get<Int32>("SlowAlertThreshold")),
+                behavior: new EventUnitOfWork(context.Settings.Get<int>("SlowAlertThreshold")),
                 description: "Begins and Ends event unit of work"
                 );
         }
@@ -43,14 +37,10 @@ namespace Aggregates
 
     public class DurableConsumer : ConsumerFeature
     {
-        public DurableConsumer() : base()
-        {
-        }
-
         protected override void Setup(FeatureConfigurationContext context)
         {
             base.Setup(context);
-            context.RegisterStartupTask((builder) => new ConsumerRunner(builder, context.Settings));
+            context.RegisterStartupTask(builder => new ConsumerRunner(builder, context.Settings));
 
             context.Container.ConfigureComponent<Checkpointer>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DurableSubscriber>(DependencyLifecycle.SingleInstance);
@@ -59,21 +49,17 @@ namespace Aggregates
 
     public class VolatileConsumer : ConsumerFeature
     {
-        public VolatileConsumer() : base()
-        {
-        }
-
         protected override void Setup(FeatureConfigurationContext context)
         {
             base.Setup(context);
-            context.RegisterStartupTask((builder) => new ConsumerRunner(builder, context.Settings));
+            context.RegisterStartupTask(builder => new ConsumerRunner(builder, context.Settings));
 
             context.Container.ConfigureComponent<VolatileSubscriber>(DependencyLifecycle.SingleInstance);
         }
     }
     public class CompetingConsumer : ConsumerFeature
     {
-        public CompetingConsumer() : base()
+        public CompetingConsumer()
         {
             Defaults(s =>
             {
@@ -88,7 +74,7 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             base.Setup(context);
-            context.RegisterStartupTask((builder) => new ConsumerRunner(builder, context.Settings));
+            context.RegisterStartupTask(builder => new ConsumerRunner(builder, context.Settings));
 
             context.Container.ConfigureComponent<CompetingSubscriber>(DependencyLifecycle.SingleInstance);
         }
@@ -99,7 +85,7 @@ namespace Aggregates
         private static readonly ILog Logger = LogManager.GetLogger(typeof(ConsumerRunner));
         private readonly IBuilder _builder;
         private readonly ReadOnlySettings _settings;
-        private Int32 _retryCount;
+        private int _retryCount;
         private DateTime? _lastFailure;
 
         public ConsumerRunner(IBuilder builder, ReadOnlySettings settings)
@@ -133,7 +119,7 @@ namespace Aggregates
                 subscriber.SubscribeToAll(session, _settings.EndpointName());
             };
 
-            await session.Publish<Messages.ConsumerAlive>(x =>
+            await session.Publish<IConsumerAlive>(x =>
             {
                 x.Endpoint = _settings.InstanceSpecificQueue();
                 x.Instance = Defaults.Instance;
@@ -143,7 +129,7 @@ namespace Aggregates
         protected override async Task OnStop(IMessageSession session)
         {
             Logger.Write(LogLevel.Debug, "Stopping event consumer");
-            await session.Publish<Messages.ConsumerDead>(x =>
+            await session.Publish<IConsumerDead>(x =>
             {
                 x.Endpoint = _settings.InstanceSpecificQueue();
                 x.Instance = Defaults.Instance;

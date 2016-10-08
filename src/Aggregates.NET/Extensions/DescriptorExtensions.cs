@@ -1,21 +1,20 @@
-﻿using Aggregates.Contracts;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Globalization;
+using Aggregates.Contracts;
 
 namespace Aggregates.Extensions
 {
     public static class DescriptorExtensions
     {
-        public static IDictionary<String, String> ToDictionary(this IEventDescriptor descriptor)
+        public static IDictionary<string, string> ToDictionary(this IEventDescriptor descriptor)
         {
-            var result = new Dictionary<String, String>();
+            var result = new Dictionary<string, string>
+            {
+                ["Version"] = descriptor.Version.ToString(),
+                ["EntityType"] = descriptor.EntityType,
+                ["Timestamp"] = descriptor.Timestamp.ToString(CultureInfo.InvariantCulture)
+            };
 
-            result["Version"] = descriptor.Version.ToString();
-            result["EntityType"] = descriptor.EntityType;
-            result["Timestamp"] = descriptor.Timestamp.ToString();
 
             return descriptor.Headers.Merge(result);
         }

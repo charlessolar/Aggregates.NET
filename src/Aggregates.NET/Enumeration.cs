@@ -1,12 +1,8 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates
 {
@@ -53,8 +49,8 @@ namespace Aggregates
                 throw new ArgumentNullException();
             }
 
-            this.Value = value;
-            this.DisplayName = displayName;
+            Value = value;
+            DisplayName = displayName;
         }
 
         public int CompareTo(TEnumeration other)
@@ -62,7 +58,7 @@ namespace Aggregates
             return Value.CompareTo(other == default(TEnumeration) ? default(TValue) : other.Value);
         }
 
-        public override sealed string ToString()
+        public sealed override string ToString()
         {
             return DisplayName;
         }
@@ -74,7 +70,7 @@ namespace Aggregates
 
         private static TEnumeration[] GetEnumerations()
         {
-            Type enumerationType = typeof(TEnumeration);
+            var enumerationType = typeof(TEnumeration);
             return enumerationType
                 .GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
                 .Where(info => enumerationType.IsAssignableFrom(info.FieldType))
@@ -86,7 +82,7 @@ namespace Aggregates
         public override bool Equals(object obj)
         {
             if (obj == null || (obj as TEnumeration) == null) return false;
-            return Equals(obj as TEnumeration);
+            return Equals((TEnumeration) obj);
         }
 
         public bool Equals(TEnumeration other)
@@ -109,12 +105,12 @@ namespace Aggregates
             return !Equals(left, right);
         }
 
-        public static Boolean HasValue(TValue value)
+        public static bool HasValue(TValue value)
         {
             return GetAll().Any(x => x.Value.Equals(value));
         }
 
-        public static Boolean HasDisplayName(string displayName)
+        public static bool HasDisplayName(string displayName)
         {
             return GetAll().Any(x => x.DisplayName == displayName);
         }
@@ -141,8 +137,8 @@ namespace Aggregates
 
             if (!TryParse(predicate, out result))
             {
-                string message = string.Format("'{0}' is not a valid {1} in {2}", value, description, typeof(TEnumeration));
-                throw new ArgumentException(message, "value");
+                string message = $"'{value}' is not a valid {description} in {typeof(TEnumeration)}";
+                throw new ArgumentException(message, nameof(value));
             }
 
             return result;

@@ -1,30 +1,22 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Internal;
 using Metrics;
-using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.MessageMutator;
 using NServiceBus.ObjectBuilder;
-using NServiceBus.ObjectBuilder.Common;
-using NServiceBus.Pipeline.Contexts;
-using NServiceBus.Unicast.Messages;
-using NServiceBus.UnitOfWork;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.Serialization;
-using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
     public class UnitOfWork : IUnitOfWork, ICommandUnitOfWork, IEventUnitOfWork, IMutateOutgoingMessages, IMutateIncomingMessages
     {
-        public static String PrefixHeader = "Originating";
-        public static String NotFound = "<NOT FOUND>";
+        public static string PrefixHeader = "Originating";
+        public static string NotFound = "<NOT FOUND>";
 
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(UnitOfWork));
@@ -33,8 +25,8 @@ namespace Aggregates.Internal
 
         private bool _disposed;
         private IDictionary<Type, IRepository> _repositories;
-        private IDictionary<String, IEntityRepository> _entityRepositories;
-        private IDictionary<String, IRepository> _pocoRepositories;
+        private IDictionary<string, IEntityRepository> _entityRepositories;
+        private IDictionary<string, IRepository> _pocoRepositories;
 
         private Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
         private Timer _commandsTimer = Metric.Timer("Commands Duration", Unit.Commands);
@@ -48,20 +40,20 @@ namespace Aggregates.Internal
         private Meter _eventErrorsMeter = Metric.Meter("Event Errors", Unit.Errors);
 
         public IBuilder Builder { get; set; }
-        public Int32 Retries { get; set; }
+        public int Retries { get; set; }
 
         public Guid CommitId { get; private set; }
-        public Object CurrentMessage { get; private set; }
-        public IDictionary<String, String> CurrentHeaders { get; private set; }
+        public object CurrentMessage { get; private set; }
+        public IDictionary<string, string> CurrentHeaders { get; private set; }
 
         public UnitOfWork(IRepositoryFactory repoFactory, IMessageMapper mapper)
         {
             _repoFactory = repoFactory;
             _mapper = mapper;
             _repositories = new Dictionary<Type, IRepository>();
-            _entityRepositories = new Dictionary<String, IEntityRepository>();
-            _pocoRepositories = new Dictionary<String, IRepository>();
-            CurrentHeaders = new Dictionary<String, String>();
+            _entityRepositories = new Dictionary<string, IEntityRepository>();
+            _pocoRepositories = new Dictionary<string, IRepository>();
+            CurrentHeaders = new Dictionary<string, string>();
         }
 
         public void Dispose()
@@ -74,34 +66,28 @@ namespace Aggregates.Internal
         {
             if (_disposed || !disposing)
                 return;
-
-            lock (_repositories)
-            {
+            
                 foreach (var repo in _repositories.Values)
                 {
                     repo.Dispose();
                 }
 
                 _repositories.Clear();
-            }
-            lock (_entityRepositories)
-            {
+
                 foreach (var repo in _entityRepositories.Values)
                 {
                     repo.Dispose();
                 }
 
                 _entityRepositories.Clear();
-            }
-            lock (_pocoRepositories)
-            {
+
                 foreach (var repo in _pocoRepositories.Values)
                 {
                     repo.Dispose();
                 }
 
                 _pocoRepositories.Clear();
-            }
+            
             _disposed = true;
         }
 
@@ -111,12 +97,9 @@ namespace Aggregates.Internal
             var type = typeof(T);
 
             IRepository repository;
-            if (!_repositories.TryGetValue(type, out repository))
-            {
-                repository = (IRepository)_repoFactory.ForAggregate<T>(Builder);
-                lock(_repositories) _repositories[type] = repository;
-            }
-            return (IRepository<T>)repository;
+            if (_repositories.TryGetValue(type, out repository)) return (IRepository<T>) repository;
+            
+            return (IRepository<T>)(_repositories[type] = _repoFactory.ForAggregate<T>(Builder));
         }
         public IEntityRepository<TParent, TParentId, TEntity> For<TParent, TParentId, TEntity>(TParent parent) where TEntity : class, IEntity where TParent : class, IBase<TParentId>
         {
@@ -126,8 +109,8 @@ namespace Aggregates.Internal
             IEntityRepository repository;
             if (_entityRepositories.TryGetValue(key, out repository))
                 return (IEntityRepository<TParent, TParentId, TEntity>)repository;
-
-            return (IEntityRepository<TParent, TParentId, TEntity>)(_entityRepositories[key] = (IEntityRepository)_repoFactory.ForEntity<TParent, TParentId, TEntity>(parent, Builder));
+            
+            return (IEntityRepository<TParent, TParentId, TEntity>)(_entityRepositories[key] = _repoFactory.ForEntity<TParent, TParentId, TEntity>(parent, Builder));
         }
         public IPocoRepository<T> Poco<T>() where T : class, new()
         {
@@ -135,12 +118,9 @@ namespace Aggregates.Internal
             var key = $"{typeof(T).FullName}";
 
             IRepository repository;
-            if (!_pocoRepositories.TryGetValue(key, out repository))
-            {
-                repository = (IRepository)_repoFactory.ForPoco<T>();
-                lock (_repositories) _pocoRepositories[key] = repository;
-            }
-            return (IPocoRepository<T>)repository;
+            if (_pocoRepositories.TryGetValue(key, out repository)) return (IPocoRepository<T>) repository;
+            
+            return (IPocoRepository<T>)(_pocoRepositories[key] = _repoFactory.ForPoco<T>());
         }
         public IPocoRepository<TParent, TParentId, T> Poco<TParent, TParentId, T>(TParent parent) where T : class, new() where TParent : class, IBase<TParentId>
         {
@@ -151,7 +131,7 @@ namespace Aggregates.Internal
             if (_pocoRepositories.TryGetValue(key, out repository))
                 return (IPocoRepository<TParent, TParentId, T>)repository;
 
-            return (IPocoRepository<TParent, TParentId, T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<TParent, TParentId, T>(parent));
+            return (IPocoRepository<TParent, TParentId, T>)(_pocoRepositories[key] = _repoFactory.ForPoco<TParent, TParentId, T>(parent));
         }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
@@ -216,12 +196,12 @@ namespace Aggregates.Internal
 
 
             // Insert all command headers into the commit
-            var headers = new Dictionary<String, String>(CurrentHeaders);
+            var headers = new Dictionary<string, string>(CurrentHeaders);
 
             Logger.Write(LogLevel.Debug, () => $"Starting commit id {CommitId}");
 
             var startingEventId = CommitId;
-            var aggs = _repositories.Values.WhenAllAsync(async (repo) =>
+            var aggs = _repositories.Values.WhenAllAsync(async repo =>
             {
                 try
                 {
@@ -232,7 +212,7 @@ namespace Aggregates.Internal
                     throw new PersistenceException(e.Message, e);
                 }
             });
-            var entities = _entityRepositories.Values.WhenAllAsync(async (repo) =>
+            var entities = _entityRepositories.Values.WhenAllAsync(async repo =>
             {
                 try
                 {
@@ -243,7 +223,7 @@ namespace Aggregates.Internal
                     throw new PersistenceException(e.Message, e);
                 }
             });
-            var pocos = _pocoRepositories.Values.WhenAllAsync(async (repo) =>
+            var pocos = _pocoRepositories.Values.WhenAllAsync(async repo =>
             {
                 try
                 {
@@ -270,7 +250,7 @@ namespace Aggregates.Internal
 
         public Task MutateIncoming(MutateIncomingMessageContext context)
         {
-            this.CurrentMessage = context.Message;
+            CurrentMessage = context.Message;
 
             var headers = context.Headers;
 
@@ -282,10 +262,10 @@ namespace Aggregates.Internal
                 var defaultHeader = "";
                 headers.TryGetValue(header, out defaultHeader);
 
-                if (String.IsNullOrEmpty(defaultHeader))
+                if (string.IsNullOrEmpty(defaultHeader))
                     defaultHeader = NotFound;
 
-                var workHeader = String.Format("{0}.{1}", PrefixHeader, header);
+                var workHeader = $"{PrefixHeader}.{header}";
                 CurrentHeaders[workHeader] = defaultHeader;
             }
 
@@ -296,8 +276,8 @@ namespace Aggregates.Internal
                             !h.StartsWith("NServiceBus", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.StartsWith("$", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.CommitIdHeader, StringComparison.InvariantCultureIgnoreCase) &&
-                            !h.Equals(Defaults.REQUEST_RESPONSE, StringComparison.InvariantCultureIgnoreCase) &&
-                            !h.Equals(Defaults.RETRIES, StringComparison.InvariantCultureIgnoreCase));
+                            !h.Equals(Defaults.RequestResponse, StringComparison.InvariantCultureIgnoreCase) &&
+                            !h.Equals(Defaults.Retries, StringComparison.InvariantCultureIgnoreCase));
 
             foreach (var header in userHeaders)
                 CurrentHeaders[header] = headers[header];
@@ -305,10 +285,10 @@ namespace Aggregates.Internal
 
 
             CommitId = Guid.NewGuid();
-            String messageId;
 
             try
             {
+                string messageId;
                 // Attempt to get MessageId from NServicebus headers
                 // If we maintain a good CommitId convention it should solve the message idempotentcy issue (assuming the storage they choose supports it)
                 if (CurrentHeaders.TryGetValue(Defaults.MessageIdHeader, out messageId))

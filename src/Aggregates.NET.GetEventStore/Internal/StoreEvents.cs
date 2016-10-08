@@ -1,9 +1,10 @@
-﻿using Aggregates.Contracts;
-using Aggregates.Exceptions;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Internal;
 using EventStore.ClientAPI;
-using EventStore.ClientAPI.Exceptions;
 using Metrics;
 using Newtonsoft.Json;
 using NServiceBus;
@@ -11,25 +12,20 @@ using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Aggregates
+namespace Aggregates.Internal
 {
-    public class StoreEvents : IStoreEvents
+    internal class StoreEvents : IStoreEvents
     {
-        private static Meter _hitMeter = Metric.Meter("Stream Cache Hits", Unit.Events);
-        private static Meter _missMeter = Metric.Meter("Stream Cache Misses", Unit.Events);
+        private static readonly Meter HitMeter = Metric.Meter("Stream Cache Hits", Unit.Events);
+        private static readonly Meter MissMeter = Metric.Meter("Stream Cache Misses", Unit.Events);
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreEvents));
         private readonly IEventStoreConnection _client;
         private readonly IMessageMapper _mapper;
         private readonly ReadOnlySettings _nsbSettings;
         private readonly IStreamCache _cache;
-        private readonly Boolean _shouldCache;
+        private readonly bool _shouldCache;
         private readonly StreamIdGenerator _streamGen;
 
         public IBuilder Builder { get; set; }
@@ -40,11 +36,11 @@ namespace Aggregates
             _mapper = mapper;
             _nsbSettings = nsbSettings;
             _cache = cache;
-            _shouldCache = _nsbSettings.Get<Boolean>("ShouldCacheEntities");
+            _shouldCache = _nsbSettings.Get<bool>("ShouldCacheEntities");
             _streamGen = _nsbSettings.Get<StreamIdGenerator>("StreamGenerator");
         }
 
-        public Task Evict<T>(String bucket, String streamId) where T: class, IEventSource
+        public Task Evict<T>(string bucket, string streamId) where T: class, IEventSource
         {
             if (!_shouldCache) return Task.CompletedTask;
 
@@ -61,27 +57,27 @@ namespace Aggregates
             return Task.CompletedTask;
         }
 
-        public async Task<IEventStream> GetStream<T>(String bucket, String streamId, ISnapshot snapshot = null) where T: class, IEventSource
+        public async Task<IEventStream> GetStream<T>(string bucket, string streamId, ISnapshot snapshot = null) where T: class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
             var events = new List<ResolvedEvent>();
 
-            var sliceStart = snapshot != null ? snapshot.Version + 1 : StreamPosition.Start;
+            var sliceStart = snapshot?.Version + 1 ?? StreamPosition.Start;
             Logger.Write(LogLevel.Debug, () => $"Retreiving stream [{streamId}] in bucket [{bucket}] starting at {sliceStart}");
 
-            var readSize = _nsbSettings.Get<Int32>("ReadSize");
+            var readSize = _nsbSettings.Get<int>("ReadSize");
             if (_shouldCache)
             {
-                var cached = _cache.Retreive(streamName) as Internal.EventStream<T>;
+                var cached = _cache.Retreive(streamName) as EventStream<T>;
                 if (cached != null && cached.CommitVersion >= sliceStart)
                 {
-                    _hitMeter.Mark();
+                    HitMeter.Mark();
                     Logger.Write(LogLevel.Debug, () => $"Found stream [{streamName}] in cache");
-                    var stream = new Internal.EventStream<T>(cached, Builder, this);
+                    var stream = new EventStream<T>(cached, Builder, this);
                     stream.TrimEvents(sliceStart);
                     return stream;
                 }
-                _missMeter.Mark();
+                MissMeter.Mark();
             }
 
             var settings = new JsonSerializerSettings
@@ -96,7 +92,7 @@ namespace Aggregates
             do
             {
                 current = await _client.ReadStreamEventsForwardAsync(streamName, sliceStart, readSize, false).ConfigureAwait(false);
-                Logger.Write(LogLevel.Debug, () => $"Retreived {current.Events.Count()} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
+                Logger.Write(LogLevel.Debug, () => $"Retreived {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                 events.AddRange(current.Events);
                 sliceStart = current.NextEventNumber;
@@ -109,7 +105,7 @@ namespace Aggregates
                 return null;
             }
 
-            var compress = _nsbSettings.Get<Boolean>("Compress");
+            var compress = _nsbSettings.Get<bool>("Compress");
 
             var translatedEvents = events.Select(e =>
             {
@@ -126,7 +122,7 @@ namespace Aggregates
 
                 if (@event == null)
                     throw new InvalidOperationException($"Event type {e.Event.EventType} on stream {streamName} does not inherit from IEvent and therefore cannot be read");
-                return new Internal.WritableEvent
+                return new WritableEvent
                 {
                     Descriptor = descriptor,
                     Event = @event,
@@ -134,25 +130,25 @@ namespace Aggregates
                 };
             });
 
-            var eventstream = new Internal.EventStream<T>(Builder, this, bucket, streamId, translatedEvents, snapshot);
+            var eventstream = new EventStream<T>(Builder, this, bucket, streamId, translatedEvents, snapshot);
             if (_shouldCache)
                 await Cache<T>(eventstream);
 
             return eventstream;
         }
 
-        public Task<IEventStream> NewStream<T>(String bucket, String streamId) where T : class, IEventSource
+        public Task<IEventStream> NewStream<T>(string bucket, string streamId) where T : class, IEventSource
         {
             Logger.Write(LogLevel.Debug, () => $"Creating new stream [{streamId}] in bucket [{bucket}]");
-            IEventStream stream = new Internal.EventStream<T>(Builder, this, bucket, streamId, null, null);
+            IEventStream stream = new EventStream<T>(Builder, this, bucket, streamId, null, null);
             return Task.FromResult(stream);
         }
 
-        public async Task<IEnumerable<IWritableEvent>> GetEvents<T>(String bucket, String streamId, Int32? start = null, Int32? count = null) where T : class, IEventSource
+        public async Task<IEnumerable<IWritableEvent>> GetEvents<T>(string bucket, string streamId, int? start = null, int? count = null) where T : class, IEventSource
         {
 
             var streamName = _streamGen(typeof(T), bucket, streamId);
-            var readSize = _nsbSettings.Get<Int32>("ReadSize");
+            var readSize = _nsbSettings.Get<int>("ReadSize");
 
             var settings = new JsonSerializerSettings
             {
@@ -167,9 +163,9 @@ namespace Aggregates
             Logger.Write(LogLevel.Debug, () => $"Getting events from stream [{streamName}] starting at {sliceStart}");
             do
             {
-                var take = Math.Min((count ?? Int32.MaxValue) - events.Count, readSize);
+                var take = Math.Min((count ?? int.MaxValue) - events.Count, readSize);
                 current = await _client.ReadStreamEventsForwardAsync(streamName, sliceStart, take, false).ConfigureAwait(false);
-                Logger.Write(LogLevel.Debug, () => $"Retreived {current.Events.Count()} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
+                Logger.Write(LogLevel.Debug, () => $"Retreived {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                 events.AddRange(current.Events);
 
@@ -177,7 +173,7 @@ namespace Aggregates
             } while (!current.IsEndOfStream);
             Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamName}]");
 
-            var compress = _nsbSettings.Get<Boolean>("Compress");
+            var compress = _nsbSettings.Get<bool>("Compress");
 
             var translatedEvents = events.Select(e =>
             {
@@ -194,7 +190,7 @@ namespace Aggregates
 
                 if (@event == null)
                     throw new InvalidOperationException($"Event type {e.Event.EventType} on stream {streamName} does not inherit from IEvent and therefore cannot be read");
-                return new Internal.WritableEvent
+                return new WritableEvent
                 {
                     Descriptor = descriptor,
                     Event = @event,
@@ -204,10 +200,10 @@ namespace Aggregates
 
             return translatedEvents;
         }
-        public async Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(String bucket, String streamId, Int32? start = null, Int32? count = null) where T : class, IEventSource
+        public async Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(string bucket, string streamId, int? start = null, int? count = null) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
-            var readSize = _nsbSettings.Get<Int32>("ReadSize");
+            var readSize = _nsbSettings.Get<int>("ReadSize");
 
             var settings = new JsonSerializerSettings
             {
@@ -231,9 +227,9 @@ namespace Aggregates
             Logger.Write(LogLevel.Debug, () => $"Getting events backwards from stream [{streamName}] starting at {sliceStart}");
             do
             {
-                var take = Math.Min((count ?? Int32.MaxValue) - events.Count, readSize);
+                var take = Math.Min((count ?? int.MaxValue) - events.Count, readSize);
                 current = await _client.ReadStreamEventsBackwardAsync(streamName, sliceStart, take, false).ConfigureAwait(false);
-                Logger.Write(LogLevel.Debug, () => $"Retreived backwards {current.Events.Count()} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
+                Logger.Write(LogLevel.Debug, () => $"Retreived backwards {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                 events.AddRange(current.Events);
 
@@ -241,7 +237,7 @@ namespace Aggregates
             } while (!current.IsEndOfStream);
             Logger.Write(LogLevel.Debug, () => $"Finished getting all events backward from stream [{streamName}]");
 
-            var compress = _nsbSettings.Get<Boolean>("Compress");
+            var compress = _nsbSettings.Get<bool>("Compress");
 
             var translatedEvents = events.Select(e =>
             {
@@ -258,7 +254,7 @@ namespace Aggregates
 
                 if (@event == null)
                     throw new InvalidOperationException($"Event type {e.Event.EventType} on stream {streamName} does not inherit from IEvent and therefore cannot be read");
-                return new Internal.WritableEvent
+                return new WritableEvent
                 {
                     Descriptor = descriptor,
                     Event = @event,
@@ -269,7 +265,7 @@ namespace Aggregates
             return translatedEvents;
         }
 
-        public async Task AppendEvents<T>(String bucket, String streamId, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders) where T : class, IEventSource
+        public async Task AppendEvents<T>(string bucket, string streamId, IEnumerable<IWritableEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
             Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream [{streamName}].  Expected version: ANY");
@@ -280,7 +276,7 @@ namespace Aggregates
                 Binder = new EventSerializationBinder(_mapper)
             };
 
-            var compress = _nsbSettings.Get<Boolean>("Compress");
+            var compress = _nsbSettings.Get<bool>("Compress");
 
             var translatedEvents = events.Select(e =>
             {
@@ -315,7 +311,7 @@ namespace Aggregates
             await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents).ConfigureAwait(false);
         }
 
-        public async Task WriteEvents<T>(String bucket, String streamId, Int32 expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<String, String> commitHeaders) where T : class, IEventSource
+        public async Task WriteEvents<T>(string bucket, string streamId, int expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
             Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{streamName}].  Expected version: {expectedVersion}");
@@ -326,7 +322,7 @@ namespace Aggregates
                 Binder = new EventSerializationBinder(_mapper)
             };
 
-            var compress = _nsbSettings.Get<Boolean>("Compress");
+            var compress = _nsbSettings.Get<bool>("Compress");
 
             var translatedEvents = events.Select(e =>
             {
@@ -363,12 +359,12 @@ namespace Aggregates
         }
 
 
-        public async Task WriteEventMetadata<T>(String bucket, String streamId, Int32? MaxCount = null, TimeSpan? MaxAge = null, TimeSpan? CacheControl = null) where T : class, IEventSource
+        public async Task WriteEventMetadata<T>(string bucket, string streamId, int? maxCount = null, TimeSpan? maxAge = null, TimeSpan? cacheControl = null) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
-            Logger.Write(LogLevel.Debug, () => $"Writing metadata [ {nameof(MaxCount)}: {MaxCount}, {nameof(MaxAge)}: {MaxAge}, {nameof(CacheControl)}: {CacheControl} ] to stream [{streamName}]");
+            Logger.Write(LogLevel.Debug, () => $"Writing metadata [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl} ] to stream [{streamName}]");
 
-            var metadata = StreamMetadata.Create(maxCount: MaxCount, maxAge: MaxAge, cacheControl: CacheControl);
+            var metadata = StreamMetadata.Create(maxCount: maxCount, maxAge: maxAge, cacheControl: cacheControl);
 
             await _client.SetStreamMetadataAsync(streamName, ExpectedVersion.Any, metadata).ConfigureAwait(false);
         }

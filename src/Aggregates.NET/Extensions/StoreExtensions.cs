@@ -1,19 +1,15 @@
-﻿using Aggregates.Contracts;
-using Aggregates.Internal;
-using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using Aggregates.Internal;
+using Newtonsoft.Json;
 
 namespace Aggregates.Extensions
 {
     public static class StoreExtensions
     {
-        public static byte[] AsByteArray(this String json)
+        public static byte[] AsByteArray(this string json)
         {
             return Encoding.UTF8.GetBytes(json);
         }
@@ -43,17 +39,17 @@ namespace Aggregates.Extensions
             }
         }
 
-        public static String Serialize(this Object @event, JsonSerializerSettings settings)
+        public static string Serialize(this object @event, JsonSerializerSettings settings)
         {
             return JsonConvert.SerializeObject(@event, settings);
         }
 
-        public static String Serialize(this EventDescriptor descriptor, JsonSerializerSettings settings)
+        public static string Serialize(this EventDescriptor descriptor, JsonSerializerSettings settings)
         {
             return JsonConvert.SerializeObject(descriptor, settings);
         }
 
-        public static Object Deserialize(this byte[] bytes, string type, JsonSerializerSettings settings)
+        public static object Deserialize(this byte[] bytes, string type, JsonSerializerSettings settings)
         {
             var json = Encoding.UTF8.GetString(bytes);
             var resolved = Type.GetType(type, false);
@@ -74,7 +70,7 @@ namespace Aggregates.Extensions
             return JsonConvert.DeserializeObject<T>(json);
         }
 
-        public static String toLowerCamelCase(this String type)
+        public static string ToLowerCamelCase(this string type)
         {
             // Unsure if I want to trim the namespaces or not
             var name = type.Substring(type.LastIndexOf('.') + 1);

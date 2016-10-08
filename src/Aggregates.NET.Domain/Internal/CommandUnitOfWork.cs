@@ -1,20 +1,15 @@
-﻿using Aggregates.Contracts;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
 using Aggregates.Extensions;
 using Metrics;
 using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Logging;
-using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
-using NServiceBus.Pipeline.Contexts;
-using NServiceBus.Settings;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
@@ -23,19 +18,19 @@ namespace Aggregates.Internal
     internal class CommandUnitOfWork : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CommandUnitOfWork));
-        private static object SlowLock = new object();
-        private static HashSet<String> SlowCommandTypes = new HashSet<String>();
+        private static readonly object SlowLock = new object();
+        private static readonly HashSet<string> SlowCommandTypes = new HashSet<string>();
 
-        private static Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
-        private static Metrics.Timer _commandsTimer = Metric.Timer("Command Duration", Unit.Commands);
+        private static readonly Meter CommandsMeter = Metric.Meter("Commands", Unit.Commands);
+        private static readonly Timer CommandsTimer = Metric.Timer("Command Duration", Unit.Commands);
 
-        private static Meter _errorsMeter = Metric.Meter("Command Errors", Unit.Errors);
+        private static readonly Meter ErrorsMeter = Metric.Meter("Command Errors", Unit.Errors);
         
-        private readonly Int32 _slowAlert;
+        private readonly int _slowAlert;
 
-        public CommandUnitOfWork(Int32 SlowAlertThreshold)
+        public CommandUnitOfWork(int slowAlertThreshold)
         {
-            _slowAlert = SlowAlertThreshold;
+            _slowAlert = slowAlertThreshold;
         }
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
@@ -56,12 +51,12 @@ namespace Aggregates.Internal
                 verbose = true;
             }
 
-            Stopwatch s = new Stopwatch();
+            var s = new Stopwatch();
             var uows = new ConcurrentStack<ICommandUnitOfWork>();
             try
             {
-                _commandsMeter.Mark();
-                using (_commandsTimer.NewContext())
+                CommandsMeter.Mark();
+                using (CommandsTimer.NewContext())
                 {
                     foreach (var uow in context.Builder.BuildAll<ICommandUnitOfWork>())
                     {
@@ -69,7 +64,7 @@ namespace Aggregates.Internal
                         uow.Builder = context.Builder;
 
                         var retries = 0;
-                        context.Extensions.TryGet<Int32>(Defaults.RETRIES, out retries);
+                        context.Extensions.TryGet(Defaults.Retries, out retries);
                         uow.Retries = retries;
 
                         await uow.Begin().ConfigureAwait(false);
@@ -116,7 +111,7 @@ namespace Aggregates.Internal
             catch (Exception e)
             {
                 Logger.WriteFormat(LogLevel.Warn, "Caught exception '{0}' while executing command {1}", e.GetType().FullName, context.Message.MessageType.FullName);
-                _errorsMeter.Mark();
+                ErrorsMeter.Mark();
                 var trailingExceptions = new List<Exception>();
                 foreach (var uow in uows.Generate())
                 {

@@ -1,16 +1,13 @@
-﻿using Aggregates.Contracts;
-using NServiceBus.ObjectBuilder;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Aggregates.Contracts;
+using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
     public class DefaultRepositoryFactory : IRepositoryFactory
     {
-        private static IDictionary<Type, Type> RepoCache = new Dictionary<Type, Type>();
+        private static readonly IDictionary<Type, Type> RepoCache = new Dictionary<Type, Type>();
 
         public IRepository<T> ForAggregate<T>(IBuilder builder) where T : class, IAggregate
         {

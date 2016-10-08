@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Aggregates
+namespace Aggregates.Exceptions
 {
     public class PersistenceException : Exception
     {
@@ -12,12 +8,12 @@ namespace Aggregates
         {
         }
 
-        public PersistenceException(String message)
+        public PersistenceException(string message)
             : base(message)
         {
         }
 
-        public PersistenceException(String message, Exception innerException)
+        public PersistenceException(string message, Exception innerException)
             : base(message, innerException)
         {
         }

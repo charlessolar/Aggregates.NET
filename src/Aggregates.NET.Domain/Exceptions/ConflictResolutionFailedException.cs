@@ -1,15 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Aggregates
+namespace Aggregates.Exceptions
 {
-    public class ConflictingCommandException : System.Exception
+    public class ConflictingCommandException : Exception
     {
         public ConflictingCommandException() { }
-        public ConflictingCommandException(String message) : base(message) { }
-        public ConflictingCommandException(String message, Exception innerException) : base(message, innerException) { }
+        public ConflictingCommandException(string message) : base(message) { }
+        public ConflictingCommandException(string message, Exception innerException) : base(message, innerException) { }
     }
 }

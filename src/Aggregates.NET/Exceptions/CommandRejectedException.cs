@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Exceptions
 {
@@ -12,12 +8,12 @@ namespace Aggregates.Exceptions
         {
         }
 
-        public CommandRejectedException(String message)
+        public CommandRejectedException(string message)
             : base(message)
         {
         }
 
-        public CommandRejectedException(String message, Exception innerException)
+        public CommandRejectedException(string message, Exception innerException)
             : base(message, innerException)
         {
         }

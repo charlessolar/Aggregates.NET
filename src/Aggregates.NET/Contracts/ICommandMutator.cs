@@ -1,16 +1,11 @@
-﻿using NServiceBus;
-using NServiceBus.ObjectBuilder;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using NServiceBus;
 
 namespace Aggregates.Contracts
 {
     public interface ICommandMutator
     {
-        ICommand MutateIncoming(ICommand command, IReadOnlyDictionary<String, String> headers);
+        ICommand MutateIncoming(ICommand command, IReadOnlyDictionary<string, string> headers);
         ICommand MutateOutgoing(ICommand command);
     }
 }

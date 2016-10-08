@@ -1,15 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Aggregates.Exceptions;
 using NServiceBus;
-using Aggregates.Exceptions;
 
 namespace Aggregates.Messages
 {
-    public interface Reject : IMessage
+    public interface IReject : IMessage
     {
-        String Message { get; set; }
+        BusinessException Exception { get; set; }
+    
+        string Message { get; set; }
     }
 }

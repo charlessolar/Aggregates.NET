@@ -1,28 +1,27 @@
-﻿using Aggregates.Extensions;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.ExceptionServices;
+using System.Threading.Tasks;
+using Aggregates.Exceptions;
+using Aggregates.Extensions;
 using Aggregates.Messages;
 using Metrics;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.Pipeline;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.ExceptionServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
     internal class Redirect
     {
-        public String Queue { get; set; }
+        public string Queue { get; set; }
         public Guid Instance { get; set; }
     }
     internal class ExpiringClaim
     {
-        public String Type { get; set; }
+        public string Type { get; set; }
         public DateTime Started { get; set; }
     }
 
@@ -31,33 +30,33 @@ namespace Aggregates.Internal
         Behavior<IIncomingPhysicalMessageContext>
     {
         // Todo: classes, perhaps a service, this can be cleaner
-        public static readonly Dictionary<String, List<Redirect>> RedirectedTypes = new Dictionary<string, List<Redirect>>();
+        public static readonly Dictionary<string, List<Redirect>> RedirectedTypes = new Dictionary<string, List<Redirect>>();
         public static readonly Queue<ExpiringClaim> Owned = new Queue<ExpiringClaim>();
-        public static readonly HashSet<String> DomainInstances = new HashSet<String>();
-        public static readonly ConcurrentDictionary<String, Queue<ExpiringClaim>> ClaimCache = new ConcurrentDictionary<String, Queue<ExpiringClaim>>();
+        public static readonly HashSet<string> DomainInstances = new HashSet<string>();
+        public static readonly ConcurrentDictionary<string, Queue<ExpiringClaim>> ClaimCache = new ConcurrentDictionary<string, Queue<ExpiringClaim>>();
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(BulkCommandBehavior));
 
-        private static Meter _redirectedMeter = Metric.Meter("Redirected Commands", Unit.Items);
+        private static readonly Meter RedirectedMeter = Metric.Meter("Redirected Commands", Unit.Items);
 
-        private static readonly HashSet<String> IgnoreCache = new HashSet<string>();
-        private static readonly HashSet<String> CheckCache = new HashSet<string>();
+        private static readonly HashSet<string> IgnoreCache = new HashSet<string>();
+        private static readonly HashSet<string> CheckCache = new HashSet<string>();
 
-        private readonly Int32 _claimThresh;
+        private readonly int _claimThresh;
         private readonly TimeSpan _expireConflict;
         private readonly TimeSpan _claimLength;
-        private readonly Decimal _commonality;
-        private readonly String _endpoint;
-        private readonly String _instanceSpecificQueue;
+        private readonly decimal _commonality;
+        private readonly string _endpoint;
+        private readonly string _instanceSpecificQueue;
 
-        public BulkCommandBehavior(Int32 ClaimThreshold, TimeSpan ExpireConflict, TimeSpan ClaimLength, Decimal CommonalityRequired, String Endpoint, String InstanceSpecificQueue)
+        public BulkCommandBehavior(int claimThreshold, TimeSpan expireConflict, TimeSpan claimLength, decimal commonalityRequired, string endpoint, string instanceSpecificQueue)
         {
-            _claimThresh = ClaimThreshold;
-            _expireConflict = ExpireConflict;
-            _claimLength = ClaimLength;
-            _commonality = CommonalityRequired;
-            _endpoint = Endpoint;
-            _instanceSpecificQueue = InstanceSpecificQueue;
+            _claimThresh = claimThreshold;
+            _expireConflict = expireConflict;
+            _claimLength = claimLength;
+            _commonality = commonalityRequired;
+            _endpoint = endpoint;
+            _instanceSpecificQueue = instanceSpecificQueue;
         }
 
         public override async Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)
@@ -79,7 +78,7 @@ namespace Aggregates.Internal
             }
             if (RedirectedTypes.ContainsKey(typeStr))
             {
-                if (await HandleRedirectedType(typeStr, context, next))
+                if (await HandleRedirectedType(typeStr, context))
                     return;
 
                 await next().ConfigureAwait(false);
@@ -125,7 +124,7 @@ namespace Aggregates.Internal
 
             var expMask = new ExpiringClaim { Type = typeStr, Started = DateTime.UtcNow };
             // Store message bytes in cache with expiry
-            ClaimCache.AddOrUpdate(typeStr, (_) =>
+            ClaimCache.AddOrUpdate(typeStr, _ =>
             {
                 var queue = new Queue<ExpiringClaim>();
                 queue.Enqueue(expMask);
@@ -171,7 +170,7 @@ namespace Aggregates.Internal
                             var options = new SendOptions();
                             options.RequireImmediateDispatch();
                             options.SetDestination(x);
-                            return context.Send<Surrender>(e =>
+                            return context.Send<ISurrender>(e =>
                             {
                                 e.Endpoint = _endpoint;
                                 e.Queue = _instanceSpecificQueue;
@@ -191,7 +190,7 @@ namespace Aggregates.Internal
                 var options = new SendOptions();
                 options.RequireImmediateDispatch();
                 options.SetDestination(x);
-                return context.Send<Claim>(e =>
+                return context.Send<IClaim>(e =>
                 {
                     e.Endpoint = _endpoint;
                     e.Queue = _instanceSpecificQueue;
@@ -201,7 +200,7 @@ namespace Aggregates.Internal
             });
         }
 
-        private async Task<Boolean> HandleRedirectedType(String type, IIncomingPhysicalMessageContext context, Func<Task> next)
+        private static async Task<bool> HandleRedirectedType(string type, IIncomingPhysicalMessageContext context)
         {
             List<Redirect> redirects;
             if (!RedirectedTypes.TryGetValue(type, out redirects))
@@ -211,7 +210,7 @@ namespace Aggregates.Internal
 
             Logger.Write(LogLevel.Info, () => $"Redirecting claimed command {type} message {context.MessageId} to {redirect.Instance}");
 
-            _redirectedMeter.Mark();
+            RedirectedMeter.Mark();
 
             await context.ForwardCurrentMessageTo(redirect.Queue);
             return true;
@@ -221,15 +220,15 @@ namespace Aggregates.Internal
     }
     // Todo: if we are using RabbitMq we can actually change the routing topology of senders / receivers 
     internal class RedirectMessageHandler :
-        IHandleMessages<Claim>,
-        IHandleMessages<Surrender>,
-        IHandleMessages<DomainAlive>,
-        IHandleMessages<DomainDead>
+        IHandleMessages<IClaim>,
+        IHandleMessages<ISurrender>,
+        IHandleMessages<IDomainAlive>,
+        IHandleMessages<IDomainDead>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(RedirectMessageHandler));
 
 
-        public Task Handle(Claim message, IMessageHandlerContext context)
+        public Task Handle(IClaim message, IMessageHandlerContext context)
         {
             if (message.Instance == Defaults.Instance)
             {
@@ -250,7 +249,7 @@ namespace Aggregates.Internal
             return Task.CompletedTask;
         }
 
-        public Task Handle(Surrender message, IMessageHandlerContext context)
+        public Task Handle(ISurrender message, IMessageHandlerContext context)
         {
             if (message.Instance == Defaults.Instance)
             {
@@ -269,13 +268,13 @@ namespace Aggregates.Internal
             return Task.CompletedTask;
         }
 
-        public Task Handle(DomainAlive message, IMessageHandlerContext context)
+        public Task Handle(IDomainAlive message, IMessageHandlerContext context)
         {
             BulkCommandBehavior.DomainInstances.Add(message.Endpoint);
             return Task.CompletedTask;
         }
 
-        public Task Handle(DomainDead message, IMessageHandlerContext context)
+        public Task Handle(IDomainDead message, IMessageHandlerContext context)
         {
             BulkCommandBehavior.DomainInstances.Remove(message.Endpoint);
             return Task.CompletedTask;

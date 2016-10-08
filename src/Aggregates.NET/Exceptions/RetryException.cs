@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Exceptions
 {
@@ -11,6 +7,6 @@ namespace Aggregates.Exceptions
     public class RetryException : Exception
     {
         public RetryException() { }
-        public RetryException(String message) : base(message) { }
+        public RetryException(string message) : base(message) { }
     }
 }

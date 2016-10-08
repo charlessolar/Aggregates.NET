@@ -1,23 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using NServiceBus.ObjectBuilder;
 using Aggregates.Contracts;
-using NServiceBus.Settings;
 using NServiceBus;
+using NServiceBus.ObjectBuilder;
+using NServiceBus.Settings;
 
 namespace Aggregates.Internal
 {
     public class Checkpointer : IEventUnitOfWork, IEventMutator
     {
-        public Object CurrentMessage { get; private set; }
-        public IReadOnlyDictionary<String, String> CurrentHeaders { get; private set; }
+        public object CurrentMessage { get; private set; }
+        public IReadOnlyDictionary<string, string> CurrentHeaders { get; private set; }
         public long? CurrentPosition { get; private set; }
 
         public IBuilder Builder { get; set; }
-        public Int32 Retries { get; set; }
+        public int Retries { get; set; }
 
         private readonly IPersistCheckpoints _checkpoints;
         private readonly ReadOnlySettings _settings;
@@ -35,16 +33,16 @@ namespace Aggregates.Internal
         public async Task End(Exception ex = null)
         {
             if (ex != null) return;
-            if(this.CurrentPosition.HasValue)
+            if(CurrentPosition.HasValue)
                 await _checkpoints.Save(_settings.EndpointName(), CurrentPosition.Value).ConfigureAwait(false);
         }
 
-        public IEvent MutateIncoming(IEvent Event, IReadOnlyDictionary<String, String> Headers)
+        public IEvent MutateIncoming(IEvent Event, IReadOnlyDictionary<string, string> headers)
         {
-            this.CurrentHeaders = Headers;
-            this.CurrentMessage = Event;
-            if (Headers.ContainsKey("CommitPosition"))
-                this.CurrentPosition = long.Parse(Headers["CommitPosition"]);
+            CurrentHeaders = headers;
+            CurrentMessage = Event;
+            if (headers.ContainsKey("CommitPosition"))
+                CurrentPosition = long.Parse(headers["CommitPosition"]);
             
             return Event;
         }

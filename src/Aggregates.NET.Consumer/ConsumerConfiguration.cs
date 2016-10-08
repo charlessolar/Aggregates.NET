@@ -1,40 +1,33 @@
-﻿using NServiceBus;
-using NServiceBus.Configuration.AdvanceExtensibility;
-using NServiceBus.Settings;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using NServiceBus.Configuration.AdvanceExtensibility;
 
 namespace Aggregates
 {
 
     public static class ConsumerConfiguration
     {
-        public static void SetBucketHeartbeats(this ExposeSettings settings, Int32 Seconds)
+        public static void SetBucketHeartbeats(this ExposeSettings settings, int seconds)
         {
-            settings.GetSettings().Set("BucketHeartbeats", Seconds);
+            settings.GetSettings().Set("BucketHeartbeats", seconds);
         }
-        public static void SetBucketExpiration(this ExposeSettings settings, Int32 Seconds)
+        public static void SetBucketExpiration(this ExposeSettings settings, int seconds)
         {
-            settings.GetSettings().Set("BucketExpiration", Seconds);
+            settings.GetSettings().Set("BucketExpiration", seconds);
         }
-        public static void SetBucketCount(this ExposeSettings settings, Int32 Count)
+        public static void SetBucketCount(this ExposeSettings settings, int count)
         {
-            settings.GetSettings().Set("BucketCount", Count);
+            settings.GetSettings().Set("BucketCount", count);
         }
-        public static void SetBucketsHandled(this ExposeSettings settings, Int32 Count)
+        public static void SetBucketsHandled(this ExposeSettings settings, int count)
         {
-            settings.GetSettings().Set("BucketsHandled", Count);
+            settings.GetSettings().Set("BucketsHandled", count);
         }
         /// <summary>
         /// When true, application will not consume events unless ALL buckets are claimed
         /// Recommended unless you don't care about ordering
         /// </summary>
-        public static void PauseOnFreeBuckets(this ExposeSettings settings, Boolean Pause)
+        public static void PauseOnFreeBuckets(this ExposeSettings settings, bool pause)
         {
-            settings.GetSettings().Set("PauseOnFreeBuckets", Pause);
+            settings.GetSettings().Set("PauseOnFreeBuckets", pause);
         }
     }
 }

@@ -1,14 +1,13 @@
-﻿using NServiceBus;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using NServiceBus;
 
 namespace Aggregates.Contracts
 {
     public interface IEventSource
     {
-        String Bucket { get; }
-        String StreamId { get; }
-        Int32 Version { get; }
+        string Bucket { get; }
+        string StreamId { get; }
+        int Version { get; }
 
         IEventStream Stream { get; }
         void Hydrate(IEnumerable<IEvent> events);

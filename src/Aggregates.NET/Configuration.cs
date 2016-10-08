@@ -1,53 +1,46 @@
-﻿using NServiceBus;
+﻿using System;
+using NServiceBus;
 using NServiceBus.Configuration.AdvanceExtensibility;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates
 {
     public static class Configuration
     {
-        public static void SlowAlertThreshold(this ExposeSettings settings, Int32 Milliseconds)
+        public static void SlowAlertThreshold(this ExposeSettings settings, int milliseconds)
         {
-            settings.GetSettings().Set("SlowAlertThreshold", Milliseconds);
+            settings.GetSettings().Set("SlowAlertThreshold", milliseconds);
         }
-        public static void SetReadSize(this ExposeSettings settings, Int32 Count)
+        public static void SetReadSize(this ExposeSettings settings, int count)
         {
-            settings.GetSettings().Set("ReadSize", Count);
+            settings.GetSettings().Set("ReadSize", count);
         }
         /// <summary>
         /// Compress events and messages using GZip
         /// </summary>
         /// <param name="settings"></param>
-        /// <param name="Compress"></param>
-        public static void SetCompress(this ExposeSettings settings, Boolean Compress)
+        /// <param name="compress"></param>
+        public static void SetCompress(this ExposeSettings settings, bool compress)
         {
-            settings.GetSettings().Set("Compress", Compress);
+            settings.GetSettings().Set("Compress", compress);
         }
-        public static void ConfigureForAggregates(this RecoverabilitySettings recoverability, Int32 ImmediateRetries = 12, Int32 DelayedRetries = 3, Boolean Forever = false)
+        public static void ConfigureForAggregates(this RecoverabilitySettings recoverability, int immediateRetries = 12, int delayedRetries = 3, bool forever = false)
         {
             var settings = recoverability.GetSettings();
 
-            settings.Set(Defaults.SETUP_CORRECTLY, true);
-            settings.Set("ImmediateRetries", ImmediateRetries);
-            settings.Set("DelayedRetries", DelayedRetries);
-            settings.Set("RetryForever", Forever);
+            settings.Set(Defaults.SetupCorrectly, true);
+            settings.Set("ImmediateRetries", immediateRetries);
+            settings.Set("DelayedRetries", delayedRetries);
+            settings.Set("RetryForever", forever);
 
             // Set immediate retries to our "MaxRetries" setting
             recoverability.Immediate(x =>
             {
-                x.NumberOfRetries(ImmediateRetries);
+                x.NumberOfRetries(immediateRetries);
             });
             recoverability.Delayed(x =>
             {
                 x.TimeIncrease(TimeSpan.FromSeconds(2));
-                if (Forever)
-                    x.NumberOfRetries(Int32.MaxValue);
-                else
-                    x.NumberOfRetries(DelayedRetries);
+                x.NumberOfRetries(forever ? int.MaxValue : delayedRetries);
             });
         }
     }

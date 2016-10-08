@@ -67,7 +67,6 @@
     <Compile Include="Contracts\IEventSource.cs" />
     <Compile Include="Contracts\IEventStream.cs" />
     <Compile Include="Contracts\IHaveEntities.cs" />
-    <Compile Include="Contracts\INeedProcessor.cs" />
     <Compile Include="Contracts\IOOBHandler.cs" />
     <Compile Include="Contracts\IPocoRepository.cs" />
     <Compile Include="Exceptions\ConflictResolutionFailedException.cs" />

@@ -1,7 +1,6 @@
-﻿using System;
-namespace Aggregates
+﻿namespace Aggregates
 {
-    public interface IMemento<TId>
+    public interface IMemento<out TId>
     {
         TId EntityId { get; }
     }

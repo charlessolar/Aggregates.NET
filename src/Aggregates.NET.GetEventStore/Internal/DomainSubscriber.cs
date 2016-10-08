@@ -1,40 +1,29 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Globalization;
+using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
 using Newtonsoft.Json;
-using NServiceBus.Logging;
-using NServiceBus.ObjectBuilder;
-using Aggregates.Internal;
-using System.Threading;
-using Aggregates.Exceptions;
-using NServiceBus.Settings;
-using Aggregates.Contracts;
-using NServiceBus.MessageInterfaces;
 using NServiceBus;
+using NServiceBus.Logging;
+using NServiceBus.MessageInterfaces;
+using NServiceBus.Settings;
 
-namespace Aggregates
+namespace Aggregates.Internal
 {
-    public class DomainSubscriber : IEventSubscriber
+    internal class DomainSubscriber : IEventSubscriber
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(DomainSubscriber));
-        private readonly IBuilder _builder;
         private readonly IEventStoreConnection _client;
-        private readonly IStreamCache _cache;
         private readonly ReadOnlySettings _settings;
         private readonly JsonSerializerSettings _jsonSettings;
 
-        public Boolean ProcessingLive { get; set; }
-        public Action<String, Exception> Dropped { get; set; }
+        public bool ProcessingLive { get; set; }
+        public Action<string, Exception> Dropped { get; set; }
 
-        public DomainSubscriber(IBuilder builder, IEventStoreConnection client, IStreamCache cache, ReadOnlySettings settings, IMessageMapper mapper)
+        public DomainSubscriber(IEventStoreConnection client, ReadOnlySettings settings, IMessageMapper mapper)
         {
-            _builder = builder;
             _client = client;
-            _cache = cache;
             _settings = settings;
             _jsonSettings = new JsonSerializerSettings
             {
@@ -44,10 +33,10 @@ namespace Aggregates
             };
         }
 
-        public void SubscribeToAll(IMessageSession bus, String endpoint)
+        public void SubscribeToAll(IMessageSession bus, string endpoint)
         {
-            var readSize = _settings.Get<Int32>("ReadSize");
-            var compress = _settings.Get<Boolean>("Compress");
+            var readSize = _settings.Get<int>("ReadSize");
+            var compress = _settings.Get<bool>("Compress");
             Logger.Write(LogLevel.Info, () => $"Endpoint '{endpoint}' subscribing to all events from END");
             
             var settings = new CatchUpSubscriptionSettings(readSize * readSize, readSize, false, false);
@@ -64,11 +53,11 @@ namespace Aggregates
                 var descriptor = metadata.Deserialize(_jsonSettings);
 
                 if (descriptor == null) return;
-                
+
                 // Check if the event was written by this domain handler
                 // We don't need to publish events saved by other domain instances
-                String instanceHeader = null;
-                Guid instance = Guid.Empty;
+                string instanceHeader = null;
+                var instance = Guid.Empty;
                 if (descriptor.Headers == null || !descriptor.Headers.TryGetValue(Defaults.InstanceHeader, out instanceHeader) || !Guid.TryParse(instanceHeader, out instance) || instance != Defaults.Instance)
                     return;
 
@@ -90,7 +79,7 @@ namespace Aggregates
                 options.SetHeader("CommitPosition", e.OriginalPosition?.CommitPosition.ToString());
                 options.SetHeader("EntityType", descriptor.EntityType);
                 options.SetHeader("Version", descriptor.Version.ToString());
-                options.SetHeader("Timestamp", descriptor.Timestamp.ToString());
+                options.SetHeader("Timestamp", descriptor.Timestamp.ToString(CultureInfo.InvariantCulture));
                 foreach (var header in descriptor.Headers)
                     options.SetHeader(header.Key, header.Value);
 
@@ -104,7 +93,7 @@ namespace Aggregates
                     throw;
                 }
 
-            }, liveProcessingStarted: (_) =>
+            }, liveProcessingStarted: _ =>
             {
                 Logger.Write(LogLevel.Info, "Live processing started");
                 ProcessingLive = true;
@@ -112,8 +101,7 @@ namespace Aggregates
             {
                 Logger.Write(LogLevel.Warn,  () => $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
                 ProcessingLive = false;
-                if (Dropped != null)
-                    Dropped.Invoke(reason.ToString(), e);
+                Dropped?.Invoke(reason.ToString(), e);
             });
         }
     }

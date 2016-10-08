@@ -1,21 +1,17 @@
-﻿using Aggregates.Exceptions;
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Threading;
+using System.Threading.Tasks;
+using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
-using Metrics;
 using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
 
 namespace Aggregates.Internal
 {
@@ -31,20 +27,20 @@ namespace Aggregates.Internal
         private readonly IManageCompetes _competes;
         private readonly ReadOnlySettings _settings;
         private readonly JsonSerializerSettings _jsonSettings;
-        private readonly HashSet<Int32> _buckets;
-        private readonly IDictionary<Int32, long> _seenBuckets;
-        private readonly System.Threading.Timer _bucketHeartbeats;
-        private readonly System.Threading.Timer _bucketPause;
-        private readonly Int32 _bucketCount;
-        private Boolean _pauseOnFreeBucket;
-        private Boolean _pausedArmed;
-        private Boolean _paused;
-        private Int32? _adopting;
-        private Int64? _adoptingPosition;
-        private Object _lock = new object();
+        private readonly HashSet<int> _buckets;
+        private readonly IDictionary<int, long> _seenBuckets;
+        private readonly Timer _bucketHeartbeats;
+        private readonly Timer _bucketPause;
+        private readonly int _bucketCount;
+        private readonly bool _pauseOnFreeBucket;
+        private bool _pausedArmed;
+        private bool _paused;
+        private int? _adopting;
+        private long? _adoptingPosition;
+        private readonly object _lock = new object();
 
-        public Boolean ProcessingLive { get; set; }
-        public Action<String, Exception> Dropped { get; set; }
+        public bool ProcessingLive { get; set; }
+        public Action<string, Exception> Dropped { get; set; }
 
         public CompetingSubscriber(IBuilder builder, IEventStoreConnection client, IManageCompetes competes, ReadOnlySettings settings, IMessageMapper mapper)
         {
@@ -52,10 +48,10 @@ namespace Aggregates.Internal
             _client = client;
             _competes = competes;
             _settings = settings;
-            _buckets = new HashSet<Int32>();
-            _seenBuckets = new Dictionary<Int32, long>();
-            _bucketCount = _settings.Get<Int32>("BucketCount");
-            _pauseOnFreeBucket = _settings.Get<Boolean>("PauseOnFreeBuckets");
+            _buckets = new HashSet<int>();
+            _seenBuckets = new Dictionary<int, long>();
+            _bucketCount = _settings.Get<int>("BucketCount");
+            _pauseOnFreeBucket = _settings.Get<bool>("PauseOnFreeBuckets");
             _paused = true;
 
             _jsonSettings = new JsonSerializerSettings
@@ -65,21 +61,21 @@ namespace Aggregates.Internal
                 ContractResolver = new EventContractResolver(mapper)
             };
 
-            var period = TimeSpan.FromSeconds(_settings.Get<Int32>("BucketHeartbeats"));
-            _bucketHeartbeats = new System.Threading.Timer((state) =>
+            var period = TimeSpan.FromSeconds(_settings.Get<int>("BucketHeartbeats"));
+            _bucketHeartbeats = new Timer(state =>
             {
                 Logger.Write(LogLevel.Debug, "Processing compete heartbeats");
-                var handledBuckets = _settings.Get<Int32>("BucketsHandled");
-                var expiration = _settings.Get<Int32>("BucketExpiration");
+                var handledBuckets = _settings.Get<int>("BucketsHandled");
+                var expiration = _settings.Get<int>("BucketExpiration");
 
                 var consumer = (CompetingSubscriber)state;
                 var endpointName = consumer._settings.EndpointName();
 
-                var notSeenBuckets = new HashSet<Int32>(consumer._buckets);
-                IDictionary<Int32, long> seenBuckets;
+                var notSeenBuckets = new HashSet<int>(consumer._buckets);
+                IDictionary<int, long> seenBuckets;
                 lock(_lock)
                 {
-                    seenBuckets = new Dictionary<Int32, long>(consumer._seenBuckets);
+                    seenBuckets = new Dictionary<int, long>(consumer._seenBuckets);
                     consumer._seenBuckets.Clear();
                 }
 
@@ -127,8 +123,7 @@ namespace Aggregates.Internal
                         notSeenBuckets.Remove(seen.Key);
                     }
                 }
-
-                var expiredBuckets = new List<Int32>();
+                
                 // Heartbeat the buckets we haven't seen but are still watching
                 foreach (var bucket in notSeenBuckets)
                 {
@@ -149,11 +144,11 @@ namespace Aggregates.Internal
 
             if (!_pauseOnFreeBucket) return;
 
-            _bucketPause = new System.Threading.Timer(state =>
+            _bucketPause = new Timer(state =>
             {
                 var consumer = (CompetingSubscriber)state;
                 var endpointName = consumer._settings.EndpointName();
-                var expiration = _settings.Get<Int32>("BucketExpiration");
+                var expiration = _settings.Get<int>("BucketExpiration");
 
                 var openBuckets = consumer._bucketCount;
 
@@ -171,7 +166,7 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Warn, () => $"Detected {openBuckets} free buckets - pause ARMED");
                     _pausedArmed = true;
                 }
-                else if(openBuckets != 0 && _pausedArmed == true)
+                else if(openBuckets != 0 && _pausedArmed)
                 {
                     Logger.Write(LogLevel.Warn, () => $"Detected {openBuckets} free buckets - PAUSING");
                     _paused = true;
@@ -188,13 +183,13 @@ namespace Aggregates.Internal
         }
         public void Dispose()
         {
-            this._bucketHeartbeats.Dispose();
+            _bucketHeartbeats.Dispose();
         }
 
-        private static void AdoptBucket(CompetingSubscriber consumer, String endpoint, Int32 bucket)
+        private static void AdoptBucket(CompetingSubscriber consumer, string endpoint, int bucket)
         {
-            var handledBuckets = consumer._settings.Get<Int32>("BucketsHandled");
-            var readSize = consumer._settings.Get<Int32>("ReadSize");
+            var handledBuckets = consumer._settings.Get<int>("BucketsHandled");
+            var readSize = consumer._settings.Get<int>("ReadSize");
 
             Logger.Write(LogLevel.Info, () => $"Discovered orphaned bucket {bucket}.. adopting");
             if(!consumer._competes.Adopt(endpoint, bucket, DateTime.UtcNow))
@@ -224,15 +219,15 @@ namespace Aggregates.Internal
                 var data = e.Event.Data.Deserialize(e.Event.EventType, consumer._jsonSettings);
                 if (data == null) return;
 
-                consumer._adoptingPosition = e.OriginalPosition?.CommitPosition ?? consumer._adoptingPosition;
+                consumer._adoptingPosition = e.OriginalPosition.Value.CommitPosition;
 
                 var options = new SendOptions();
 
                 options.RouteToThisInstance();
-                options.SetHeader("CommitPosition", e.OriginalPosition?.CommitPosition.ToString());
+                options.SetHeader("CommitPosition", e.OriginalPosition.Value.CommitPosition.ToString());
                 options.SetHeader("EntityType", descriptor.EntityType);
                 options.SetHeader("Version", descriptor.Version.ToString());
-                options.SetHeader("Timestamp", descriptor.Timestamp.ToString());
+                options.SetHeader("Timestamp", descriptor.Timestamp.ToString(CultureInfo.InvariantCulture));
                 options.SetHeader("Adopting", "1");
                 foreach (var header in descriptor.Headers)
                     options.SetHeader(header.Key, header.Value);
@@ -246,7 +241,7 @@ namespace Aggregates.Internal
                     subscription.Stop();
                     throw;
                 }
-            }, liveProcessingStarted: (sub) =>
+            }, liveProcessingStarted: sub =>
             {
                 sub.Stop();
                 consumer._buckets.Add(bucket);
@@ -263,11 +258,11 @@ namespace Aggregates.Internal
             });
         }
 
-        public void SubscribeToAll(IMessageSession bus, String endpoint)
+        public void SubscribeToAll(IMessageSession bus, string endpoint)
         {
             // To support HA simply save IManageCompetes data to a different db, in this way we can make clusters of consumers
-            var handledBuckets = _settings.Get<Int32>("BucketsHandled");
-            var readSize = _settings.Get<Int32>("ReadSize");
+            var handledBuckets = _settings.Get<int>("BucketsHandled");
+            var readSize = _settings.Get<int>("ReadSize");
             
             // Start competing subscribers from the start, if they are picking up a new bucket they need to start from the begining
             Logger.Write(LogLevel.Info, () => $"Endpoint '{endpoint}' subscribing to all events from START");
@@ -291,20 +286,17 @@ namespace Aggregates.Internal
                         lock(_lock) _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
                         return;
                     }
+                    Logger.Write(LogLevel.Debug, () => $"Attempting to claim bucket {bucket}");
+                    // Returns true if it claimed the bucket
+                    if (_competes.CheckOrSave(endpoint, bucket, e.OriginalPosition.Value.CommitPosition))
+                    {
+                        _buckets.Add(bucket);
+                        Logger.Write(LogLevel.Info, () => $"Claimed bucket {bucket}.  Total claimed: {_buckets.Count}/{handledBuckets}");
+                    }
                     else
                     {
-                        Logger.Write(LogLevel.Debug, () => $"Attempting to claim bucket {bucket}");
-                        // Returns true if it claimed the bucket
-                        if (_competes.CheckOrSave(endpoint, bucket, e.OriginalPosition.Value.CommitPosition))
-                        {
-                            _buckets.Add(bucket);
-                            Logger.Write(LogLevel.Info, () => $"Claimed bucket {bucket}.  Total claimed: {_buckets.Count}/{handledBuckets}");
-                        }
-                        else
-                        {
-                            lock(_lock) _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
-                            return;
-                        }
+                        lock(_lock) _seenBuckets[bucket] = e.OriginalPosition.Value.CommitPosition;
+                        return;
                     }
                 }
                 Logger.Write(LogLevel.Debug, () => $"Event appeared position {e.OriginalPosition?.CommitPosition}... processing - bucket {bucket}");
@@ -322,10 +314,10 @@ namespace Aggregates.Internal
                 var options = new SendOptions();
 
                 options.RouteToThisInstance();
-                options.SetHeader("CommitPosition", e.OriginalPosition?.CommitPosition.ToString());
+                options.SetHeader("CommitPosition", e.OriginalPosition.Value.CommitPosition.ToString());
                 options.SetHeader("EntityType", descriptor.EntityType);
                 options.SetHeader("Version", descriptor.Version.ToString());
-                options.SetHeader("Timestamp", descriptor.Timestamp.ToString());
+                options.SetHeader("Timestamp", descriptor.Timestamp.ToString(CultureInfo.InvariantCulture));
                 foreach (var header in descriptor.Headers)
                     options.SetHeader(header.Key, header.Value);
 
@@ -342,7 +334,7 @@ namespace Aggregates.Internal
                     throw;
                 }
 
-            }, liveProcessingStarted: (_) =>
+            }, liveProcessingStarted: _ =>
             {
                 Logger.Write(LogLevel.Info, "Live processing started");
                 ProcessingLive = true;
@@ -350,8 +342,7 @@ namespace Aggregates.Internal
             {
                 Logger.Write(LogLevel.Warn, () => $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
                 ProcessingLive = false;
-                if (Dropped != null)
-                    Dropped.Invoke(reason.ToString(), e);
+                Dropped?.Invoke(reason.ToString(), e);
             });
         }
 

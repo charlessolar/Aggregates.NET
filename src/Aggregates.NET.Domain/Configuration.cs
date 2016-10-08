@@ -1,18 +1,14 @@
-﻿using NServiceBus.Configuration.AdvanceExtensibility;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System;
+using NServiceBus.Configuration.AdvanceExtensibility;
 
 namespace Aggregates
 {
-    public delegate String StreamIdGenerator(Type entityType, String bucket, String id);
+    public delegate string StreamIdGenerator(Type entityType, string bucket, string id);
 
     public static class Configuration
     {
 
-        public static void ShouldCacheEntities(this ExposeSettings settings, Boolean cache)
+        public static void ShouldCacheEntities(this ExposeSettings settings, bool cache)
         {
             settings.GetSettings().Set("ShouldCacheEntities", cache);
         }
@@ -22,7 +18,7 @@ namespace Aggregates
         /// </summary>
         /// <param name="settings"></param>
         /// <param name="tries"></param>
-        public static void MaxConflictResolves(this ExposeSettings settings, Int32 tries)
+        public static void MaxConflictResolves(this ExposeSettings settings, int tries)
         {
             settings.GetSettings().Set("MaxConflictResolves", tries);
         }
@@ -41,21 +37,21 @@ namespace Aggregates
         {
             settings.GetSettings().Set("StreamGenerator", generator);
         }
-        public static void SetWatchConflicts(this ExposeSettings settings, Boolean Watch)
+        public static void SetWatchConflicts(this ExposeSettings settings, bool watch)
         {
-            settings.GetSettings().Set("WatchConflicts", Watch);
+            settings.GetSettings().Set("WatchConflicts", watch);
         }
-        public static void SetClaimThreshold(this ExposeSettings settings, Int32 Threshold)
+        public static void SetClaimThreshold(this ExposeSettings settings, int threshold)
         {
-            settings.GetSettings().Set("ClaimThreshold", Threshold);
+            settings.GetSettings().Set("ClaimThreshold", threshold);
         }
-        public static void SetExpireConflict(this ExposeSettings settings, TimeSpan Length)
+        public static void SetExpireConflict(this ExposeSettings settings, TimeSpan length)
         {
-            settings.GetSettings().Set("ExpireConflict", Length);
+            settings.GetSettings().Set("ExpireConflict", length);
         }
-        public static void SetClaimLength(this ExposeSettings settings, TimeSpan Length)
+        public static void SetClaimLength(this ExposeSettings settings, TimeSpan length)
         {
-            settings.GetSettings().Set("ClaimLength", Length);
+            settings.GetSettings().Set("ClaimLength", length);
         }
     }
 }

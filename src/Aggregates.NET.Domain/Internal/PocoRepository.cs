@@ -1,15 +1,12 @@
-﻿using Aggregates.Contracts;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Metrics;
 using NServiceBus.Logging;
-using NServiceBus.ObjectBuilder;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
@@ -19,18 +16,18 @@ namespace Aggregates.Internal
 
         private readonly TParent _parent;
 
-        public PocoRepository(TParent parent, IBuilder builder)
-            : base(builder)
+        public PocoRepository(TParent parent, IStorePocos store)
+            : base(store)
         {
             _parent = parent;
         }
         public override Task<T> TryGet<TId>(TId id)
         {
             if (id == null) return null;
-            if (typeof(TId) == typeof(String) && String.IsNullOrEmpty(id as String)) return null;
+            if (typeof(TId) == typeof(string) && string.IsNullOrEmpty(id as string)) return null;
             try
             {
-                return Get<TId>(id);
+                return Get(id);
             }
             catch (NotFoundException) { }
             return null;
@@ -39,7 +36,7 @@ namespace Aggregates.Internal
         public override async Task<T> Get<TId>(TId id)
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving entity id [{id}] from parent {_parent.StreamId} [{typeof(TParent).FullName}] in store");
-            var streamId = String.Format("{0}.{1}", _parent.StreamId, id);
+            var streamId = $"{_parent.StreamId}.{id}";
 
             var entity = await Get(_parent.Bucket, streamId).ConfigureAwait(false);
             (entity as IEventSource<TId>).Id = id;
@@ -50,7 +47,7 @@ namespace Aggregates.Internal
 
         public override async Task<T> New<TId>(TId id)
         {
-            var streamId = String.Format("{0}.{1}", _parent.StreamId, id);
+            var streamId = $"{_parent.StreamId}.{id}";
 
             var entity = await New(_parent.Bucket, streamId).ConfigureAwait(false);
 
@@ -61,7 +58,8 @@ namespace Aggregates.Internal
             }
             catch (NullReferenceException)
             {
-                var message = String.Format("Failed to new up entity {0}, could not set parent id! Information we have indicated entity has id type <{1}> with parent id type <{2}> - please review that this is true", typeof(T).FullName, typeof(TId).FullName, typeof(TParentId).FullName);
+                var message =
+                    $"Failed to new up entity {typeof(T).FullName}, could not set parent id! Information we have indicated entity has id type <{typeof(TId).FullName}> with parent id type <{typeof(TParentId).FullName}> - please review that this is true";
                 Logger.Error(message);
                 throw new ArgumentException(message);
             }
@@ -73,28 +71,26 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(PocoRepository<>));
         private readonly IStorePocos _store;
-        private readonly IBuilder _builder;
 
-        private static Histogram WrittenEvents = Metric.Histogram("Written Pocos", Unit.Events);
-        private static Meter WriteErrors = Metric.Meter("Poco Write Errors", Unit.Errors);
+        private static readonly Histogram WrittenEvents = Metric.Histogram("Written Pocos", Unit.Events);
+        private static readonly Meter WriteErrors = Metric.Meter("Poco Write Errors", Unit.Errors);
 
-        protected readonly IDictionary<Tuple<String, String>, T> _tracked = new Dictionary<Tuple<String, String>, T>();
+        protected readonly IDictionary<Tuple<string, string>, T> Tracked = new Dictionary<Tuple<string, string>, T>();
 
-        private Boolean _disposed;
+        private bool _disposed;
 
-        public PocoRepository(IBuilder builder)
+        public PocoRepository(IStorePocos store)
         {
-            _builder = builder;
-            _store = _builder.Build<IStorePocos>();
+            _store = store;
         }
 
-        async Task<Guid> IRepository.Commit(Guid commitId, Guid startingEventId, IDictionary<String, String> commitHeaders)
+        async Task<Guid> IRepository.Commit(Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders)
         {
             var written = 0;
 
-            await _tracked.WhenAllAsync(async (tracked) =>
+            await Tracked.WhenAllAsync(async tracked =>
             {
-                var headers = new Dictionary<String, String>(commitHeaders);
+                var headers = new Dictionary<string, string>(commitHeaders);
 
                 Interlocked.Add(ref written, 1);
 
@@ -105,7 +101,7 @@ namespace Aggregates.Internal
                 {
                     try
                     {
-                        await _store.Write<T>(tracked.Value, tracked.Key.Item1, tracked.Key.Item2, headers).ConfigureAwait(false);
+                        await _store.Write(tracked.Value, tracked.Key.Item1, tracked.Key.Item2, headers).ConfigureAwait(false);
                         success = true;
                     }
                     catch (PersistenceException e)
@@ -142,7 +138,7 @@ namespace Aggregates.Internal
             if (_disposed || !disposing)
                 return;
 
-            _tracked.Clear();
+            Tracked.Clear();
 
             _disposed = true;
         }
@@ -151,16 +147,16 @@ namespace Aggregates.Internal
         {
             try
             {
-                return Get<TId>(id);
+                return Get(id);
             }
             catch (NotFoundException) { }
             return null;
         }
-        public Task<T> TryGet<TId>(String bucket, TId id)
+        public Task<T> TryGet<TId>(string bucket, TId id)
         {
             try
             {
-                return Get<TId>(bucket, id);
+                return Get(bucket, id);
             }
             catch (NotFoundException) { }
             return null;
@@ -168,43 +164,43 @@ namespace Aggregates.Internal
 
         public virtual Task<T> Get<TId>(TId id)
         {
-            return Get<TId>(Defaults.Bucket, id);
+            return Get(Defaults.Bucket, id);
         }
 
-        public async Task<T> Get<TId>(String bucket, TId id)
+        public async Task<T> Get<TId>(string bucket, TId id)
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving aggregate id [{id}] from bucket [{bucket}] in store");
             var root = await Get(bucket, id.ToString()).ConfigureAwait(false);
             (root as IEventSource<TId>).Id = id;
             return root;
         }
-        public async Task<T> Get(String bucket, String id)
+        public async Task<T> Get(string bucket, string id)
         {
-            var cacheId = new Tuple<String, String>(bucket, id);
+            var cacheId = new Tuple<string, string>(bucket, id);
             T root;
-            if (!_tracked.TryGetValue(cacheId, out root))
-                _tracked[cacheId] = root = await _store.Get<T>(bucket, id).ConfigureAwait(false);
+            if (!Tracked.TryGetValue(cacheId, out root))
+                Tracked[cacheId] = root = await _store.Get<T>(bucket, id).ConfigureAwait(false);
 
             return root;
         }
         
         public virtual Task<T> New<TId>(TId id)
         {
-            return New<TId>(Defaults.Bucket, id);
+            return New(Defaults.Bucket, id);
         }
 
-        public async Task<T> New<TId>(String bucket, TId id)
+        public async Task<T> New<TId>(string bucket, TId id)
         {
             var root = await New(bucket, id.ToString()).ConfigureAwait(false);
             (root as IEventSource<TId>).Id = id;
 
             return root;
         }
-        public Task<T> New(String bucket, String streamId)
+        public Task<T> New(string bucket, string streamId)
         {
             T root;
-            var cacheId = new Tuple<String, String>(bucket, streamId);
-            _tracked[cacheId] = root = new T();
+            var cacheId = new Tuple<string, string>(bucket, streamId);
+            Tracked[cacheId] = root = new T();
 
             return Task.FromResult(root);
         }

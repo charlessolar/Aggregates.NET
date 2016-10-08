@@ -1,9 +1,5 @@
-﻿using NUnit.Framework;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System;
+using NUnit.Framework;
 
 namespace Aggregates.NET.UnitTests.Common
 {
@@ -12,14 +8,14 @@ namespace Aggregates.NET.UnitTests.Common
     {
         private class IntEnum : Enumeration<IntEnum>
         {
-            public static IntEnum One = new IntEnum(1, "One");
+            public static readonly IntEnum One = new IntEnum(1, "One");
 
-            public IntEnum(int value, string displayName) : base(value, displayName) { }
+            private IntEnum(int value, string displayName) : base(value, displayName) { }
         }
-        private class StringEnum : Enumeration<StringEnum, String>
+        private class StringEnum : Enumeration<StringEnum, string>
         {
-            public static StringEnum Test = new StringEnum("test", "Test");
-            public static StringEnum Two = new StringEnum("two", "Two");
+            public static readonly StringEnum Test = new StringEnum("test", "Test");
+            public static readonly StringEnum Two = new StringEnum("two", "Two");
 
             public StringEnum(string value, string displayName) : base(value, displayName) { }
         }

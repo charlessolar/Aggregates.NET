@@ -1,18 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
     public interface IEventDescriptor
     {
-        String EntityType { get; }
+        string EntityType { get; }
 
-        Int32 Version { get; }
+        int Version { get; }
         DateTime Timestamp { get; }
 
-        IDictionary<String, String> Headers { get; }
+        IDictionary<string, string> Headers { get; }
     }
 }

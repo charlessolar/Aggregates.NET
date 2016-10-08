@@ -2,7 +2,7 @@
 using System.Linq;
 using System.Linq.Expressions;
 
-namespace Aggregates.Specifications.Expressions
+namespace Aggregates.Specifications.Expressions.Combining
 {
 
     // ------------------------------------------------------------------------------------------

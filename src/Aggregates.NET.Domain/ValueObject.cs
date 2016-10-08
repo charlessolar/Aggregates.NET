@@ -1,11 +1,7 @@
-﻿using Aggregates.Specifications;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates
 {
@@ -13,48 +9,42 @@ namespace Aggregates
     {
         public readonly T Value;
 
-        public SingleValueObject(T Value = default(T))
+        public SingleValueObject(T value = default(T))
         {
-            this.Value = Value;
+            Value = value;
         }
 
-        public Boolean HasValue
-        {
-            get
-            {
-                return this.Value != null && !this.Value.Equals(default(T));
-            }
-        }
+        public bool HasValue => Value != null && !Value.Equals(default(T));
 
         public override bool Equals(object obj)
         {
             if (obj == null)
                 return false;
 
-            T other = (T)obj;
+            var other = (T)obj;
 
             return Equals(other);
         }
 
         public bool Equals(T other)
         {
-            return this.Equals(new SingleValueObject<T>(other));
+            return Equals(new SingleValueObject<T>(other));
         }
         public virtual bool Equals(SingleValueObject<T> other)
         {
-            return this.HasValue && this.Value.Equals(other.Value);
+            return HasValue && Value.Equals(other.Value);
         }
 
         public override int GetHashCode()
         {
-            return this.Value.GetHashCode();
+            return Value.GetHashCode();
         }
 
 
-        public override String ToString()
+        public override string ToString()
         {
-            if (!this.HasValue) return "";
-            return this.Value.ToString();
+            if (!HasValue) return "";
+            return Value.ToString();
         }
 
 
@@ -89,43 +79,37 @@ namespace Aggregates
     public class ValueObject<T> : IEquatable<T>
         where T : ValueObject<T>
     {
-        private Int32? _cachedHash;
+        private int? _cachedHash;
 
         public override bool Equals(object obj)
         {
             if (obj == null)
                 return false;
 
-            T other = obj as T;
+            var other = obj as T;
 
             return Equals(other);
         }
 
         public override int GetHashCode()
         {
-            if (this._cachedHash.HasValue) return this._cachedHash.Value;
+            // ReSharper disable once NonReadonlyMemberInGetHashCode
+            if (_cachedHash.HasValue) return _cachedHash.Value;
 
             unchecked
             {
-                IEnumerable<FieldInfo> fields = GetFields();
+                var fields = GetFields();
 
-                int startValue = 17;
-                int multiplier = 59;
+                const int startValue = 17;
+                const int multiplier = 59;
 
-                int hashCode = startValue;
+                var hashCode = fields.Select(field => field.GetValue(this)).Where(value => value != null).Aggregate(startValue, (current, value) => (current*multiplier) + value.GetHashCode());
 
-                foreach (FieldInfo field in fields)
-                {
-                    object value = field.GetValue(this);
-
-                    if (value != null)
-                        hashCode = (hashCode * multiplier) + value.GetHashCode();
-                }
-
-                this._cachedHash = hashCode;
+                _cachedHash = hashCode;
             }
 
-            return this._cachedHash.Value;
+            // ReSharper disable once NonReadonlyMemberInGetHashCode
+            return _cachedHash.Value;
         }
 
         public virtual bool Equals(T other)
@@ -133,18 +117,18 @@ namespace Aggregates
             if (other == null)
                 return false;
 
-            Type t = GetType();
-            Type otherType = other.GetType();
+            var t = GetType();
+            var otherType = other.GetType();
 
             if (t != otherType)
                 return false;
 
-            FieldInfo[] fields = t.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            var fields = t.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
 
-            foreach (FieldInfo field in fields)
+            foreach (var field in fields)
             {
-                object value1 = field.GetValue(other);
-                object value2 = field.GetValue(this);
+                var value1 = field.GetValue(other);
+                var value2 = field.GetValue(this);
 
                 if (value1 == null)
                 {
@@ -160,9 +144,9 @@ namespace Aggregates
 
         private IEnumerable<FieldInfo> GetFields()
         {
-            Type t = GetType();
+            var t = GetType();
 
-            List<FieldInfo> fields = new List<FieldInfo>();
+            var fields = new List<FieldInfo>();
 
             while (t != typeof(object))
             {

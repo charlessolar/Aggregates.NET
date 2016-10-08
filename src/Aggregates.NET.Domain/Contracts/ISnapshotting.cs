@@ -1,17 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Aggregates.Contracts
+﻿namespace Aggregates.Contracts
 {
     public interface ISnapshotting
     {
-        Int32? LastSnapshot { get; }
+        int? LastSnapshot { get; }
 
-        void RestoreSnapshot(Object snapshot);
-        Object TakeSnapshot();
-        Boolean ShouldTakeSnapshot();
+        void RestoreSnapshot(object snapshot);
+        object TakeSnapshot();
+        bool ShouldTakeSnapshot();
     }
 }

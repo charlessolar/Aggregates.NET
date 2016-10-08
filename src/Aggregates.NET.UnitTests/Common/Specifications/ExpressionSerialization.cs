@@ -1,10 +1,9 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
-using NUnit.Framework;
 using Aggregates.Specifications;
+using NUnit.Framework;
 
-namespace Aggregates.Unit.Specifications
+namespace Aggregates.NET.UnitTests.Common.Specifications
 {
     [TestFixture]
     public class ExpressionSerialization
@@ -53,7 +52,7 @@ namespace Aggregates.Unit.Specifications
 
 
         // helper to binary serialize an object
-        private static Stream Serialize(Object testSpecification)
+        private static Stream Serialize(object testSpecification)
         {
             var serializedData = new MemoryStream();
             new BinaryFormatter().Serialize(serializedData, testSpecification);

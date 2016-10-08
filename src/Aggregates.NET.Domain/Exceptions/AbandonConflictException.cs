@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Exceptions
 {
@@ -12,6 +8,6 @@ namespace Aggregates.Exceptions
     public class AbandonConflictException :Exception
     {
         public AbandonConflictException() { }
-        public AbandonConflictException(String Message) : base(Message) { }
+        public AbandonConflictException(string message) : base(message) { }
     }
 }

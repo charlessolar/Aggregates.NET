@@ -2,6 +2,7 @@
 using System.Linq.Expressions;
 using System.Xml.Linq;
 using Aggregates.Specifications.Expressions;
+using Aggregates.Specifications.Expressions.Serialization;
 
 namespace Aggregates.Specifications
 {
@@ -9,7 +10,7 @@ namespace Aggregates.Specifications
 	public class AdHocSpecification<T> : Specification<T>
 	{
 		//private readonly Expression<Func<T, bool>> specification;
-	    private readonly String serializedExpressionXml;
+	    private readonly string _serializedExpressionXml;
 
 		public AdHocSpecification(Expression<Func<T, bool>> specification)
 		{
@@ -19,7 +20,7 @@ namespace Aggregates.Specifications
             //this.specification = specification;
 		    var serializer = new ExpressionSerializer();
 		    var serializedExpression = serializer.Serialize(cleanedExpression);
-		    serializedExpressionXml = serializedExpression.ToString();
+		    _serializedExpressionXml = serializedExpression.ToString();
 		}
 
 		public override Expression<Func<T, bool>> Predicate
@@ -27,7 +28,7 @@ namespace Aggregates.Specifications
             get
             {
                 var serializer = new ExpressionSerializer();
-                var serializedExpression = XElement.Parse(serializedExpressionXml);
+                var serializedExpression = XElement.Parse(_serializedExpressionXml);
                 var specification = serializer.Deserialize<Func<T, bool>>(serializedExpression);
                 return specification;
             }

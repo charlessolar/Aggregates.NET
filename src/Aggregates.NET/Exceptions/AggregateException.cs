@@ -1,15 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Aggregates
+namespace Aggregates.Exceptions
 {
     public class AggregateException : Exception
     {
         public AggregateException() { }
-        public AggregateException(String message) : base(message) { }
-        public AggregateException(String message, Exception innerException) : base(message, innerException) { }
+        public AggregateException(string message) : base(message) { }
+        public AggregateException(string message, Exception innerException) : base(message, innerException) { }
     }
 }

@@ -1,15 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Aggregates
+namespace Aggregates.Exceptions
 {
-    public class ConflictResolutionFailedException : System.Exception
+    public class ConflictResolutionFailedException : Exception
     {
         public ConflictResolutionFailedException() { }
-        public ConflictResolutionFailedException(String message) : base(message) { }
-        public ConflictResolutionFailedException(String message, Exception innerException) : base(message, innerException) { }
+        public ConflictResolutionFailedException(string message) : base(message) { }
+        public ConflictResolutionFailedException(string message, Exception innerException) : base(message, innerException) { }
     }
 }

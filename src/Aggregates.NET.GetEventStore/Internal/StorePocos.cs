@@ -1,31 +1,27 @@
-﻿using Aggregates.Contracts;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Internal;
 using EventStore.ClientAPI;
 using Metrics;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
-using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Aggregates
+namespace Aggregates.Internal
 {
-    public class StorePocos : IStorePocos
+    internal class StorePocos : IStorePocos
     {
-        private static Meter _hitMeter = Metric.Meter("Poco Cache Hits", Unit.Events);
-        private static Meter _missMeter = Metric.Meter("Poco Cache Misses", Unit.Events);
+        private static readonly Meter HitMeter = Metric.Meter("Poco Cache Hits", Unit.Events);
+        private static readonly Meter MissMeter = Metric.Meter("Poco Cache Misses", Unit.Events);
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreEvents));
         private readonly IEventStoreConnection _client;
         private readonly ReadOnlySettings _nsbSettings;
         private readonly IStreamCache _cache;
-        private readonly Boolean _shouldCache;
+        private readonly bool _shouldCache;
         private readonly JsonSerializerSettings _settings;
         private readonly StreamIdGenerator _streamGen;
 
@@ -37,11 +33,11 @@ namespace Aggregates
             _nsbSettings = nsbSettings;
             _settings = settings;
             _cache = cache;
-            _shouldCache = _nsbSettings.Get<Boolean>("ShouldCacheEntities");
+            _shouldCache = _nsbSettings.Get<bool>("ShouldCacheEntities");
             _streamGen = _nsbSettings.Get<StreamIdGenerator>("StreamGenerator");
         }
 
-        public Task Evict<T>(String bucket, String streamId) where T : class
+        public Task Evict<T>(string bucket, string streamId) where T : class
         {
             var streamName = _streamGen(typeof(T), bucket + ".POCO", streamId);
             _cache.Evict(streamName);
@@ -49,7 +45,7 @@ namespace Aggregates
         }
 
 
-        public async Task<T> Get<T>(String bucket, String stream) where T : class
+        public async Task<T> Get<T>(string bucket, string stream) where T : class
         {
             var streamName = $"{_streamGen(typeof(T), bucket + ".POCO", stream)}";
             Logger.Write(LogLevel.Debug, () => $"Getting stream [{streamName}]");
@@ -59,12 +55,12 @@ namespace Aggregates
                 var cached = _cache.Retreive(streamName) as T;
                 if (cached != null)
                 {
-                    _hitMeter.Mark();
+                    HitMeter.Mark();
                     Logger.Write(LogLevel.Debug, () => $"Found poco [{stream}] bucket [{bucket}] in cache");
                     // An easy way to make a deep copy
                     return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(cached));
                 }
-                _missMeter.Mark();
+                MissMeter.Mark();
             }
 
             var read = await _client.ReadEventAsync(streamName, StreamPosition.End, false).ConfigureAwait(false);
@@ -72,31 +68,27 @@ namespace Aggregates
                 return null;
 
 
-            var compress = _nsbSettings.Get<Boolean>("Compress");
+            var compress = _nsbSettings.Get<bool>("Compress");
 
             var @event = read.Event.Value.Event;
             var metadata = @event.Metadata;
             var data = @event.Data;
             if (compress)
-            {
-                metadata = metadata.Decompress();
                 data = data.Decompress();
-            }
 
-
-            var descriptor = @event.Metadata.Deserialize(_settings);
+            
             var result = data.Deserialize<T>(_settings);
 
             if (_shouldCache)
                 _cache.Cache(streamName, result);
             return result;
         }
-        public async Task Write<T>(T poco, String bucket, String stream, IDictionary<String, String> commitHeaders)
+        public async Task Write<T>(T poco, string bucket, string stream, IDictionary<string, string> commitHeaders)
         {
             var streamName = $"{_streamGen(typeof(T), bucket + ".POCO", stream)}";
             Logger.Write(LogLevel.Debug, () => $"Writing poco to stream id [{streamName}]");
 
-            var compress = _nsbSettings.Get<Boolean>("Compress");
+            var compress = _nsbSettings.Get<bool>("Compress");
 
             var descriptor = new EventDescriptor
             {

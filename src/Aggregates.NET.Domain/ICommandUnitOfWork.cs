@@ -1,9 +1,6 @@
-﻿using NServiceBus.ObjectBuilder;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System;
 using System.Threading.Tasks;
+using NServiceBus.ObjectBuilder;
 
 namespace Aggregates
 {
@@ -11,7 +8,7 @@ namespace Aggregates
     {
         IBuilder Builder { get; set; }
         // The number of times the command has been re-run due to error
-        Int32 Retries { get; set; }
+        int Retries { get; set; }
 
         Task Begin();
         Task End(Exception ex = null);

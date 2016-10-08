@@ -1,29 +1,19 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Aggregates.Internal;
 using Aggregates.Messages;
-using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Features;
 using NServiceBus.Logging;
-using NServiceBus.MessageInterfaces;
-using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
-using NServiceBus.Pipeline;
-using NServiceBus.Config.ConfigurationSource;
-using NServiceBus.Config;
-using Aggregates.Exceptions;
 
 namespace Aggregates
 {
     public class Domain : ConsumerFeature
     {
-        public Domain() : base()
+        public Domain()
         {
             Defaults(s =>
             {
@@ -53,22 +43,22 @@ namespace Aggregates
             context.Container.ConfigureComponent<DiscardConflictResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<IgnoreConflictResolver>(DependencyLifecycle.InstancePerCall);
 
-            context.Container.ConfigureComponent<Func<Accept>>(y =>
+            context.Container.ConfigureComponent<Func<IAccept>>(y =>
             {
                 var eventFactory = y.Build<IMessageCreator>();
-                return () => { return eventFactory.CreateInstance<Accept>(); };
+                return () => eventFactory.CreateInstance<IAccept>();
             }, DependencyLifecycle.SingleInstance);
 
-            context.Container.ConfigureComponent<Func<String, Reject>>(y =>
+            context.Container.ConfigureComponent<Func<string, IReject>>(y =>
             {
                 var eventFactory = y.Build<IMessageCreator>();
-                return (message) => { return eventFactory.CreateInstance<Reject>(e => { e.Message = message; }); };
+                return message => { return eventFactory.CreateInstance<IReject>(e => { e.Message = message; }); };
             }, DependencyLifecycle.SingleInstance);
-            context.Container.ConfigureComponent<Func<BusinessException, Reject>>(y =>
+            context.Container.ConfigureComponent<Func<BusinessException, IReject>>(y =>
             {
                 var eventFactory = y.Build<IMessageCreator>();
-                return (exception) => {
-                    return eventFactory.CreateInstance<Reject>(e => {
+                return exception => {
+                    return eventFactory.CreateInstance<IReject>(e => {
                         e.Message = "Exception raised";
                     });
                 };
@@ -81,7 +71,7 @@ namespace Aggregates
                 description: "Filters [BusinessException] from processing failures"
                 );
             context.Pipeline.Register(
-                behavior: new CommandUnitOfWork(settings.Get<Int32>("SlowAlertThreshold")),
+                behavior: new CommandUnitOfWork(settings.Get<int>("SlowAlertThreshold")),
                 description: "Begins and Ends command unit of work"
                 );
             context.Pipeline.Register(
@@ -89,9 +79,9 @@ namespace Aggregates
                 description: "Running command mutators for incoming messages"
                 );
 
-            if(settings.Get<Boolean>("WatchConflicts"))
+            if(settings.Get<bool>("WatchConflicts"))
                 context.Pipeline.Register(
-                    behavior: new BulkCommandBehavior(settings.Get<Int32>("ClaimThreshold"), settings.Get<TimeSpan>("ExpireConflict"),settings.Get<TimeSpan>("ClaimLength"), settings.Get<Decimal>("CommonalityRequired"), settings.EndpointName(), settings.InstanceSpecificQueue()),
+                    behavior: new BulkCommandBehavior(settings.Get<int>("ClaimThreshold"), settings.Get<TimeSpan>("ExpireConflict"),settings.Get<TimeSpan>("ClaimLength"), settings.Get<decimal>("CommonalityRequired"), settings.EndpointName(), settings.InstanceSpecificQueue()),
                     description: "Watches commands for many version conflict exceptions, when found it will claim the command type with a byte mask to run only on 1 instance reducing eventstore conflicts considerably"
                     );
 
@@ -113,7 +103,7 @@ namespace Aggregates
             protected override async Task OnStart(IMessageSession session)
             {
                 Logger.Write(LogLevel.Debug, "Starting domain");
-                await session.Publish<Messages.DomainAlive>(x =>
+                await session.Publish<IDomainAlive>(x =>
                 {
                     x.Endpoint = _settings.InstanceSpecificQueue();
                     x.Instance = Aggregates.Defaults.Instance;
@@ -123,7 +113,7 @@ namespace Aggregates
             protected override async Task OnStop(IMessageSession session)
             {
                 Logger.Write(LogLevel.Debug, "Stopping domain");
-                await session.Publish<Messages.DomainDead>(x =>
+                await session.Publish<IDomainDead>(x =>
                 {
                     x.Endpoint = _settings.InstanceSpecificQueue();
                     x.Instance = Aggregates.Defaults.Instance;

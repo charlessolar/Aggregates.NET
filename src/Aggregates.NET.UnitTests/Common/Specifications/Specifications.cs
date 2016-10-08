@@ -1,21 +1,17 @@
-﻿using Aggregates.Specifications;
-using NUnit.Framework;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System;
 using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
+using Aggregates.Specifications;
+using NUnit.Framework;
 
-namespace Aggregates.Unit.Specifications
+namespace Aggregates.NET.UnitTests.Common.Specifications
 {
-    public class Returns : Specification<Boolean>
+    public class Returns : Specification<bool>
     {
         public Returns() { }
-        public Returns(Boolean @return) { Return = @return; }
+        public Returns(bool @return) { Return = @return; }
 
-        public Boolean Return { get; set; }
-        public override Expression<Func<Boolean, Boolean>> Predicate
+        public bool Return { get; set; }
+        public override Expression<Func<bool, bool>> Predicate
         {
             get
             {
@@ -27,55 +23,55 @@ namespace Aggregates.Unit.Specifications
     [TestFixture]
     public class Specifications
     {
-        private Returns False;
-        private Returns True;
+        private Returns _false;
+        private Returns _true;
 
         [SetUp]
         public void Setup()
         {
-            False = new Returns { Return = false };
-            True = new Returns { Return = true };
+            _false = new Returns { Return = false };
+            _true = new Returns { Return = true };
         }
 
         [Test]
         public void and_true()
         {
-            var spec = True & True;
+            var spec = _true & _true;
             Assert.True(spec.IsSatisfiedBy(true));
         }
 
         [Test]
         public void and_false()
         {
-            var spec = True & False;
+            var spec = _true & _false;
             Assert.False(spec.IsSatisfiedBy(true));
         }
 
         [Test]
         public void or_true()
         {
-            var spec = True | False;
+            var spec = _true | _false;
             Assert.True(spec.IsSatisfiedBy(true));
         }
 
         [Test]
         public void or_false()
         {
-            var spec = False | False;
+            var spec = _false | _false;
             Assert.False(spec.IsSatisfiedBy(true));
         }
 
         [Test]
         public void not_true()
         {
-            var spec = !False;
+            var spec = !_false;
             Assert.True(spec.IsSatisfiedBy(true));
         }
 
         [Test]
         public void not_false()
         {
-            var spec = !True;
+            var spec = !_true;
             Assert.False(spec.IsSatisfiedBy(true));
         }
 
@@ -83,13 +79,13 @@ namespace Aggregates.Unit.Specifications
         [Test]
         public void grouping_test()
         {
-            var spec = (True && False) | True;
+            var spec = (_true && _false) | _true;
             Assert.True(spec.IsSatisfiedBy(true));
         }
         [Test]
         public void grouping2_test()
         {
-            var spec = !(True && False) | False;
+            var spec = !(_true && _false) | _false;
             Assert.True(spec.IsSatisfiedBy(true));
         }
     }

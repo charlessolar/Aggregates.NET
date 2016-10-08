@@ -1,10 +1,8 @@
-using Aggregates.Contracts;
-using NServiceBus.MessageMutator;
-using NServiceBus.ObjectBuilder;
-using NServiceBus.UnitOfWork;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Aggregates.Contracts;
+using NServiceBus.ObjectBuilder;
 
 namespace Aggregates
 {
@@ -24,7 +22,7 @@ namespace Aggregates
         
         IBuilder Builder { get; set; }
         Guid CommitId { get; }
-        Object CurrentMessage { get; }
-        IDictionary<String, String> CurrentHeaders { get; }
+        object CurrentMessage { get; }
+        IDictionary<string, string> CurrentHeaders { get; }
     }
 }

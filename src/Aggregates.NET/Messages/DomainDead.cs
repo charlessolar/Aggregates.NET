@@ -1,15 +1,11 @@
-﻿using NServiceBus;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System;
+using NServiceBus;
 
 namespace Aggregates.Messages
 {
-    public interface DomainDead : IEvent
+    public interface IDomainDead : IEvent
     {
-        String Endpoint { get; set; }
+        string Endpoint { get; set; }
         Guid Instance { get; set; }
     }
 }

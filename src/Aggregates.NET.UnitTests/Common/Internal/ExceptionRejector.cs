@@ -1,17 +1,4 @@
-﻿using Aggregates.Contracts;
-using Aggregates.Messages;
-using NServiceBus;
-using NServiceBus.Pipeline;
-using NServiceBus.Pipeline.Contexts;
-using NServiceBus.Settings;
-using NUnit.Framework;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Aggregates.NET.UnitTests.Common.Internal
+﻿namespace Aggregates.NET.UnitTests.Common.Internal
 {
     //[TestFixture]
     //public class ExceptionRejector

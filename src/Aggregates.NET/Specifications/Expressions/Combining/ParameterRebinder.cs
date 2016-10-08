@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq.Expressions;
 
-namespace Aggregates.Specifications.Expressions
+namespace Aggregates.Specifications.Expressions.Combining
 {
 
     // ------------------------------------------------------------------------------------------
@@ -10,10 +10,10 @@ namespace Aggregates.Specifications.Expressions
     // ------------------------------------------------------------------------------------------
     
     public class ParameterRebinder : ExpressionVisitor {
-        private readonly Dictionary<ParameterExpression, ParameterExpression> map;
+        private readonly Dictionary<ParameterExpression, ParameterExpression> _map;
  
         public ParameterRebinder(Dictionary<ParameterExpression, ParameterExpression> map) {
-            this.map = map ?? new Dictionary<ParameterExpression, ParameterExpression>();
+            _map = map ?? new Dictionary<ParameterExpression, ParameterExpression>();
         }
  
         public static Expression ReplaceParameters(Dictionary<ParameterExpression, ParameterExpression> map, Expression exp) {
@@ -22,7 +22,7 @@ namespace Aggregates.Specifications.Expressions
  
         protected override Expression VisitParameter(ParameterExpression p) {
             ParameterExpression replacement;
-            if (map.TryGetValue(p, out replacement)) {
+            if (_map.TryGetValue(p, out replacement)) {
                 p = replacement;
             }
             return base.VisitParameter(p);

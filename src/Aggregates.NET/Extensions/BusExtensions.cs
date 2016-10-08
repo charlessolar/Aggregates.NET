@@ -1,36 +1,28 @@
-﻿using Aggregates.Exceptions;
-using Aggregates.Internal;
+﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Aggregates.Exceptions;
 using Aggregates.Messages;
 using NServiceBus;
 using NServiceBus.Logging;
-using NServiceBus.Unicast;
-using NServiceBus.Unicast.Messages;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Aggregates.Extensions
 {
     public static class BusExtensions
     {
-        private static ILog Logger = LogManager.GetLogger("Bus");
+        private static readonly ILog Logger = LogManager.GetLogger("Bus");
 
         public static void CommandResponse(this IMessage msg)
         {
-            if (msg is Reject)
+            if (msg is IReject)
             {
-                var reject = msg as Reject;
+                var reject = (IReject)msg;
                 Logger.WriteFormat(LogLevel.Warn, "Command was rejected - Message: {0}\n", reject.Message);
-                if (reject != null)
-                    throw new CommandRejectedException(reject.Message);
-                throw new CommandRejectedException();
+                throw new CommandRejectedException(reject.Message, reject.Exception);
             }
-            if (msg is Error)
+            if (msg is IError)
             {
-                var error = msg as Error;
+                var error = (IError)msg;
                 Logger.Warn($"Command Fault!\n{error.Message}");
                 throw new CommandRejectedException($"Command Fault!\n{error.Message}");
             }
@@ -40,54 +32,54 @@ namespace Aggregates.Extensions
 
         public static async Task Command(this IMessageSession ctx, ICommand command)
         {
-            var options = new NServiceBus.SendOptions();
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+            var options = new SendOptions();
+            options.SetHeader(Defaults.RequestResponse, "1");
 
             var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
             response.CommandResponse();
         }
         public static async Task Command(this IMessageSession ctx, string destination, ICommand command)
         {
-            var options = new NServiceBus.SendOptions();
+            var options = new SendOptions();
             options.SetDestination(destination);
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+            options.SetHeader(Defaults.RequestResponse, "1");
 
             var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
             response.CommandResponse();
         }
         public static async Task Command<TCommand>(this IMessageSession ctx, Action<TCommand> command) where TCommand : ICommand
         {
-            var options = new NServiceBus.SendOptions();
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+            var options = new SendOptions();
+            options.SetHeader(Defaults.RequestResponse, "1");
 
             var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
             response.CommandResponse();
         }
-        public static async Task Command<TCommand>(this IMessageSession ctx, Action<TCommand> command, String routingKey) where TCommand : ICommand
+        public static async Task Command<TCommand>(this IMessageSession ctx, Action<TCommand> command, string routingKey) where TCommand : ICommand
         {
-            var options = new NServiceBus.SendOptions();
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+            var options = new SendOptions();
+            options.SetHeader(Defaults.RequestResponse, "1");
 
             var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
             response.CommandResponse();
         }
         public static async Task Command<TCommand>(this IMessageSession ctx, string destination, Action<TCommand> command) where TCommand : ICommand
         {
-            var options = new NServiceBus.SendOptions();
+            var options = new SendOptions();
             options.SetDestination(destination);
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+            options.SetHeader(Defaults.RequestResponse, "1");
 
 
             var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
             response.CommandResponse();
         }
 
-        public static async Task<Boolean> TimeoutCommand(this IMessageSession ctx, ICommand command, TimeSpan Timeout)
+        public static async Task<bool> TimeoutCommand(this IMessageSession ctx, ICommand command, TimeSpan timeout)
         {
-            var options = new NServiceBus.SendOptions();
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+            var options = new SendOptions();
+            options.SetHeader(Defaults.RequestResponse, "1");
 
-            var cancelation = new CancellationTokenSource(Timeout);
+            var cancelation = new CancellationTokenSource(timeout);
             try
             {
                 var response = await ctx.Request<IMessage>(command, options, cancelation.Token).ConfigureAwait(false);
@@ -99,13 +91,13 @@ namespace Aggregates.Extensions
                 return false;
             }
         }
-        public static async Task<Boolean> TimeoutCommand(this IMessageSession ctx, string destination, ICommand command, TimeSpan Timeout)
+        public static async Task<bool> TimeoutCommand(this IMessageSession ctx, string destination, ICommand command, TimeSpan timeout)
         {
-            var options = new NServiceBus.SendOptions();
+            var options = new SendOptions();
             options.SetDestination(destination);
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+            options.SetHeader(Defaults.RequestResponse, "1");
 
-            var cancelation = new CancellationTokenSource(Timeout);
+            var cancelation = new CancellationTokenSource(timeout);
             try
             {
                 var response = await ctx.Request<IMessage>(command, options, cancelation.Token).ConfigureAwait(false);
@@ -117,12 +109,12 @@ namespace Aggregates.Extensions
                 return false;
             }
         }
-        public static async Task<Boolean> TimeoutCommand<TCommand>(this IMessageSession ctx, Action<TCommand> command, TimeSpan Timeout) where TCommand : ICommand
+        public static async Task<bool> TimeoutCommand<TCommand>(this IMessageSession ctx, Action<TCommand> command, TimeSpan timeout) where TCommand : ICommand
         {
-            var options = new NServiceBus.SendOptions();
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+            var options = new SendOptions();
+            options.SetHeader(Defaults.RequestResponse, "1");
 
-            var cancelation = new CancellationTokenSource(Timeout);
+            var cancelation = new CancellationTokenSource(timeout);
             try
             {
                 var response = await ctx.Request<IMessage>(command, options, cancelation.Token).ConfigureAwait(false);
@@ -134,13 +126,13 @@ namespace Aggregates.Extensions
                 return false;
             }
         }
-        public static async Task<Boolean> TimeoutCommand<TCommand>(this IMessageSession ctx, string destination, Action<TCommand> command, TimeSpan Timeout) where TCommand : ICommand
+        public static async Task<bool> TimeoutCommand<TCommand>(this IMessageSession ctx, string destination, Action<TCommand> command, TimeSpan timeout) where TCommand : ICommand
         {
-            var options = new NServiceBus.SendOptions();
+            var options = new SendOptions();
             options.SetDestination(destination);
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "1");
+            options.SetHeader(Defaults.RequestResponse, "1");
 
-            var cancelation = new CancellationTokenSource(Timeout);
+            var cancelation = new CancellationTokenSource(timeout);
             try
             {
                 var response = await ctx.Request<IMessage>(command, options, cancelation.Token).ConfigureAwait(false);
@@ -156,66 +148,63 @@ namespace Aggregates.Extensions
         /// <summary>
         /// Send the command, don't care if its rejected
         /// </summary>
-        /// <param name="bus"></param>
-        /// <param name="command"></param>
-        /// <returns></returns>
         public static async Task PassiveCommand<TCommand>(this IMessageSession ctx, Action<TCommand> command) where TCommand : ICommand
         {
-            var options = new NServiceBus.SendOptions();
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
+            var options = new SendOptions();
+            options.SetHeader(Defaults.RequestResponse, "0");
 
             await ctx.Send(command, options).ConfigureAwait(false);
         }
         public static async Task PassiveCommand(this IMessageSession ctx, ICommand command)
         {
-            var options = new NServiceBus.SendOptions();
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
+            var options = new SendOptions();
+            options.SetHeader(Defaults.RequestResponse, "0");
 
             await ctx.Send(command, options).ConfigureAwait(false);
         }
         public static async Task PassiveCommand<TCommand>(this IMessageSession ctx, string destination, Action<TCommand> command) where TCommand : ICommand
         {
-            var options = new NServiceBus.SendOptions();
+            var options = new SendOptions();
             options.SetDestination(destination);
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
+            options.SetHeader(Defaults.RequestResponse, "0");
 
             await ctx.Send(command, options).ConfigureAwait(false);
         }
         public static async Task PassiveCommand(this IMessageSession ctx, string destination, ICommand command)
         {
-            var options = new NServiceBus.SendOptions();
+            var options = new SendOptions();
             options.SetDestination(destination);
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
+            options.SetHeader(Defaults.RequestResponse, "0");
 
             await ctx.Send(command, options).ConfigureAwait(false);
         }
         public static async Task PassiveCommand<TCommand>(this IMessageHandlerContext ctx, Action<TCommand> command) where TCommand : ICommand
         {
-            var options = new NServiceBus.SendOptions();
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
+            var options = new SendOptions();
+            options.SetHeader(Defaults.RequestResponse, "0");
 
             await ctx.Send(command, options).ConfigureAwait(false);
         }
         public static async Task PassiveCommand(this IMessageHandlerContext ctx, ICommand command)
         {
-            var options = new NServiceBus.SendOptions();
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
+            var options = new SendOptions();
+            options.SetHeader(Defaults.RequestResponse, "0");
 
             await ctx.Send(command, options).ConfigureAwait(false);
         }
         public static async Task PassiveCommand<TCommand>(this IMessageHandlerContext ctx, string destination, Action<TCommand> command) where TCommand : ICommand
         {
-            var options = new NServiceBus.SendOptions();
+            var options = new SendOptions();
             options.SetDestination(destination);
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
+            options.SetHeader(Defaults.RequestResponse, "0");
 
             await ctx.Send(command, options).ConfigureAwait(false);
         }
         public static async Task PassiveCommand(this IMessageHandlerContext ctx, string destination, ICommand command)
         {
-            var options = new NServiceBus.SendOptions();
+            var options = new SendOptions();
             options.SetDestination(destination);
-            options.SetHeader(Defaults.REQUEST_RESPONSE, "0");
+            options.SetHeader(Defaults.RequestResponse, "0");
 
             await ctx.Send(command, options).ConfigureAwait(false);
         }

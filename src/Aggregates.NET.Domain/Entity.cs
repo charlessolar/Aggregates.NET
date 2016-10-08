@@ -1,15 +1,5 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Internal;
-using Aggregates.Specifications;
-using NServiceBus;
-using NServiceBus.Logging;
-using NServiceBus.ObjectBuilder;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates
 {
@@ -19,48 +9,37 @@ namespace Aggregates
     {
         TParent IEntity<TId, TParent, TParentId>.Parent { get; set; }
 
-        public TParent Parent { get { return (this as IEntity<TId, TParent, TParentId>).Parent; } }
+        public TParent Parent => (this as IEntity<TId, TParent, TParentId>).Parent;
     }
 
     public abstract class Entity<TThis, TId, TParent> : Entity<TThis, TId, TParent, TId> where TParent : Base<TParent, TId> where TThis : Entity<TThis, TId, TParent, TId> { }
 
     public abstract class EntityWithMemento<TThis, TId, TParent, TParentId, TMemento> : Entity<TThis, TId, TParent, TParentId>, ISnapshotting where TMemento : class, IMemento<TId> where TParent : Base<TParent, TParentId> where TThis : EntityWithMemento<TThis, TId, TParent, TParentId, TMemento>
     {
-        Int32? ISnapshotting.LastSnapshot
-        {
-            get
-            {
-                return this.Stream.LastSnapshot;
-            }
-        }
-        void ISnapshotting.RestoreSnapshot(Object snapshot)
+        int? ISnapshotting.LastSnapshot => Stream.LastSnapshot;
+
+        void ISnapshotting.RestoreSnapshot(object snapshot)
         {
             RestoreSnapshot(snapshot as TMemento);
         }
 
-        Object ISnapshotting.TakeSnapshot()
+        object ISnapshotting.TakeSnapshot()
         {
             return TakeSnapshot();
         }
 
-        Boolean ISnapshotting.ShouldTakeSnapshot()
+        bool ISnapshotting.ShouldTakeSnapshot()
         {
             return ShouldTakeSnapshot();
         }
 
-        public Int32? LastSnapshot
-        {
-            get
-            {
-                return (this as ISnapshotting).LastSnapshot;
-            }
-        }
+        public int? LastSnapshot => (this as ISnapshotting).LastSnapshot;
 
         protected abstract void RestoreSnapshot(TMemento memento);
 
         protected abstract TMemento TakeSnapshot();
 
-        protected abstract Boolean ShouldTakeSnapshot();
+        protected abstract bool ShouldTakeSnapshot();
 
     }
     public abstract class EntityWithMememto<TThis, TId, TParent, TMemento> : EntityWithMemento<TThis, TId, TParent, TId, TMemento> where TMemento : class, IMemento<TId> where TParent : Base<TParent, TId> where TThis : EntityWithMemento<TThis, TId, TParent, TId, TMemento> { }

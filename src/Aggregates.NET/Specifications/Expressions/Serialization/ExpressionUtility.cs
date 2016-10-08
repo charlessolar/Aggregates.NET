@@ -4,7 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace Aggregates.Specifications.Expressions
+namespace Aggregates.Specifications.Expressions.Serialization
 {
     /// <summary>
     /// ExpressionUtility
@@ -81,7 +81,7 @@ namespace Aggregates.Specifications.Expressions
         private static Expression EnsureConstant(Expression expression)
         {
             if (expression == null)
-                throw new ArgumentNullException("expression");
+                throw new ArgumentNullException(nameof(expression));
 
             return expression;
         }
@@ -100,7 +100,7 @@ namespace Aggregates.Specifications.Expressions
         private static Expression EnsureParameter(Expression expression)
         {
             if (expression == null)
-                throw new ArgumentNullException("expression");
+                throw new ArgumentNullException(nameof(expression));
 
             return expression;
         }
@@ -144,7 +144,7 @@ namespace Aggregates.Specifications.Expressions
                 }
             }
 
-            return list != null ? list.AsReadOnly() : original;
+            return list?.AsReadOnly() ?? original;
         }
 
         private static MemberAssignment EnsureMemberAssignment(MemberAssignment assignment)

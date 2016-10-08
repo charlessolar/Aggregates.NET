@@ -1,51 +1,44 @@
-﻿using Aggregates.Contracts;
-using Aggregates.Exceptions;
-using Aggregates.Extensions;
-using Aggregates.Specifications;
-using NServiceBus;
-using NServiceBus.Logging;
-using NServiceBus.ObjectBuilder;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
 using System.Threading.Tasks;
+using Aggregates.Contracts;
+using Aggregates.Exceptions;
+using Aggregates.Extensions;
+using NServiceBus;
+using NServiceBus.Logging;
+using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    public abstract class Base<TThis, TId> : IBase<TId>, IHaveEntities<TThis, TId>, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver, INeedRepositoryFactory, INeedProcessor where TThis : Base<TThis, TId>
+    public abstract class Base<TThis, TId> : IBase<TId>, IHaveEntities<TThis, TId>, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver where TThis : Base<TThis, TId>
     {
         internal static readonly ILog Logger = LogManager.GetLogger(typeof(Base<,>));
-        private IDictionary<Type, IEntityRepository> _repositories = new Dictionary<Type, IEntityRepository>();
 
-        private IBuilder _builder { get { return (this as INeedBuilder).Builder; } }
-        private IRepositoryFactory _repoFactory { get { return (this as INeedRepositoryFactory).RepositoryFactory; } }
+        private IBuilder Builder => (this as INeedBuilder).Builder;
+        
+        private IMessageCreator EventFactory => (this as INeedEventFactory).EventFactory;
 
-        private IProcessor _processor { get { return (this as INeedProcessor).Processor; } }
-        private IMessageCreator _eventFactory { get { return (this as INeedEventFactory).EventFactory; } }
+        private IRouteResolver Resolver => (this as INeedRouteResolver).Resolver;
 
-        private IRouteResolver _resolver { get { return (this as INeedRouteResolver).Resolver; } }
+        public TId Id => (this as IEventSource<TId>).Id;
 
-        public TId Id { get { return (this as IEventSource<TId>).Id; } }
+        string IEventSource.Bucket => Bucket;
+        string IEventSource.StreamId => StreamId;
 
-        String IEventSource.Bucket { get { return this.Bucket; } }
-        String IEventSource.StreamId { get { return this.StreamId; } }
+        int IEventSource.Version => Version;
 
-        Int32 IEventSource.Version { get { return this.Version; } }
+        public IEventStream Stream => (this as INeedStream).Stream;
+        public string Bucket => Stream.Bucket;
+        public string StreamId => Stream.StreamId;
 
-        public IEventStream Stream { get { return (this as INeedStream).Stream; } }
-        public String Bucket { get { return Stream.Bucket; } }
-        public String StreamId { get { return Stream.StreamId; } }
+        public int Version => Stream.StreamVersion;
 
-        public Int32 Version { get { return Stream.StreamVersion; } }
-
-        public Int32 CommitVersion { get { return Stream.CommitVersion; } }
+        public int CommitVersion => Stream.CommitVersion;
 
         IEventStream INeedStream.Stream { get; set; }
-        IRepositoryFactory INeedRepositoryFactory.RepositoryFactory { get; set; }
-
-        IProcessor INeedProcessor.Processor { get; set; }
+        
         IMessageCreator INeedEventFactory.EventFactory { get; set; }
 
         IRouteResolver INeedRouteResolver.Resolver { get; set; }
@@ -56,19 +49,19 @@ namespace Aggregates.Internal
         public IEntityRepository<TThis, TId, TEntity> For<TEntity>() where TEntity : class, IEntity
         {
             // Get current UOW
-            var uow = _builder.Build<IUnitOfWork>();
+            var uow = Builder.Build<IUnitOfWork>();
             return uow.For<TThis, TId, TEntity>(this as TThis);
         }
         public IPocoRepository<TThis, TId, T> Poco<T>() where T : class, new()
         {
             // Get current UOW
-            var uow = _builder.Build<IUnitOfWork>();
+            var uow = Builder.Build<IUnitOfWork>();
             return uow.Poco<TThis, TId, T>(this as TThis);
         }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
-            var processor = _builder.Build<IProcessor>();
-            return processor.Process<TQuery, TResponse>(_builder, query);
+            var processor = Builder.Build<IProcessor>();
+            return processor.Process<TQuery, TResponse>(Builder, query);
         }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
@@ -79,8 +72,8 @@ namespace Aggregates.Internal
 
         public Task<TResponse> Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>
         {
-            var processor = _builder.Build<IProcessor>();
-            return processor.Compute<TComputed, TResponse>(_builder, computed);
+            var processor = Builder.Build<IProcessor>();
+            return processor.Compute<TComputed, TResponse>(Builder, computed);
         }
         public Task<TResponse> Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>
         {
@@ -97,7 +90,7 @@ namespace Aggregates.Internal
 
         void IEventSource.Hydrate(IEnumerable<IEvent> events)
         {
-            Logger.Write(LogLevel.Debug, () => $"Hydrating {events.Count()} events to entity {this.GetType().FullName} stream {this.StreamId}");
+            Logger.Write(LogLevel.Debug, () => $"Hydrating {events.Count()} events to entity {GetType().FullName} stream {StreamId}");
             foreach (var @event in events)
                 RouteFor(@event);
         }
@@ -109,7 +102,7 @@ namespace Aggregates.Internal
                 RouteFor(@event);
 
                 // Todo: Fill with user headers or something
-                var headers = new Dictionary<String, String>();
+                var headers = new Dictionary<string, string>();
                 Stream.Add(@event, headers);
             }
             catch (DiscardEventException) { }
@@ -132,8 +125,8 @@ namespace Aggregates.Internal
         /// <param name="action"></param>
         protected void Apply<TEvent>(Action<TEvent> action) where TEvent : IEvent
         {
-            Logger.Write(LogLevel.Debug, () => $"Applying event {typeof(TEvent).FullName} to entity {this.GetType().FullName} stream {this.StreamId}");
-            var @event = _eventFactory.CreateInstance(action);
+            Logger.Write(LogLevel.Debug, () => $"Applying event {typeof(TEvent).FullName} to entity {GetType().FullName} stream {StreamId}");
+            var @event = EventFactory.CreateInstance(action);
             Apply(@event);
         }
         /// <summary>
@@ -143,8 +136,8 @@ namespace Aggregates.Internal
         /// <param name="action"></param>
         protected void Raise<TEvent>(Action<TEvent> action) where TEvent : IEvent
         {
-            Logger.Write(LogLevel.Debug, () => $"Raising an OOB event {typeof(TEvent).FullName} on entity {this.GetType().FullName} stream {this.StreamId}");
-            var @event = _eventFactory.CreateInstance(action);
+            Logger.Write(LogLevel.Debug, () => $"Raising an OOB event {typeof(TEvent).FullName} on entity {GetType().FullName} stream {StreamId}");
+            var @event = EventFactory.CreateInstance(action);
 
             Raise(@event);
         }
@@ -154,21 +147,23 @@ namespace Aggregates.Internal
             RouteFor(@event);
 
             // Todo: Fill with user headers or something
-            var headers = new Dictionary<String, String>();
+            var headers = new Dictionary<string, string>();
             Stream.Add(@event, headers);
         }
         private void Raise(IEvent @event)
         {
-            var headers = new Dictionary<String, String>();
-            headers["Bucket"] = this.Bucket;
-            headers["StreamId"] = this.StreamId;
+            var headers = new Dictionary<string, string>
+            {
+                ["Bucket"] = Bucket,
+                ["StreamId"] = StreamId
+            };
 
             Stream.AddOutOfBand(@event, headers);
         }
 
         internal void RouteFor(IEvent @event)
         {
-            var route = _resolver.Resolve(this, @event.GetType());
+            var route = Resolver.Resolve(this, @event.GetType());
             if (route == null)
             {
                 Logger.Write(LogLevel.Debug, () => $"Failed to route event {@event.GetType().FullName} on type {typeof(TThis).FullName}");
@@ -179,7 +174,7 @@ namespace Aggregates.Internal
         }
         internal void RouteForConflict(IEvent @event)
         {
-            var route = _resolver.Conflict(this, @event.GetType());
+            var route = Resolver.Conflict(this, @event.GetType());
             if (route == null)
                 throw new NoRouteException($"Failed to route {@event.GetType().FullName} for conflict resolution on entity {typeof(TThis).FullName} stream id {StreamId}.  If you want to handle conflicts here, define a new method of signature `private void Conflict({@event.GetType().Name} e)`");
 

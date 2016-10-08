@@ -1,18 +1,4 @@
-﻿using Aggregates.Contracts;
-using Aggregates.Internal;
-using NServiceBus;
-using NServiceBus.MessageInterfaces;
-using NServiceBus.Pipeline;
-using NServiceBus.Settings;
-using NUnit.Framework;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace Aggregates.NET.UnitTests.Common.Internal
+﻿namespace Aggregates.NET.UnitTests.Common.Internal
 {
     //[TestFixture]
     //public class MutateOutgoingCommands

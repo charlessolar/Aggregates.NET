@@ -1,17 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Exceptions;
-using Aggregates.Messages;
-using NServiceBus;
-using NServiceBus.ObjectBuilder;
-using NServiceBus.Pipeline;
-using NServiceBus.Pipeline.Contexts;
-using NServiceBus.Logging;
-using Metrics;
 using Aggregates.Extensions;
+using Aggregates.Messages;
+using Metrics;
+using NServiceBus;
+using NServiceBus.Logging;
+using NServiceBus.Pipeline;
 
 namespace Aggregates.Internal
 {
@@ -19,7 +14,7 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CommandAcceptor));
 
-        private static Meter _errorsMeter = Metric.Meter("Business Exceptions", Unit.Errors);        
+        private static readonly Meter ErrorsMeter = Metric.Meter("Business Exceptions", Unit.Errors);        
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
@@ -30,23 +25,23 @@ namespace Aggregates.Internal
                     await next().ConfigureAwait(false);
 
                     // Only need to reply if the client expects it
-                    if (context.MessageHeaders.ContainsKey(Defaults.REQUEST_RESPONSE) && context.MessageHeaders[Defaults.REQUEST_RESPONSE] == "1")
+                    if (context.MessageHeaders.ContainsKey(Defaults.RequestResponse) && context.MessageHeaders[Defaults.RequestResponse] == "1")
                     {
                         // Tell the sender the command was accepted
-                        var accept = context.Builder.Build<Func<Accept>>();
+                        var accept = context.Builder.Build<Func<IAccept>>();
                         await context.Reply(accept()).ConfigureAwait(false);
                     }
                 }
                 catch (BusinessException e)
                 {
                     Logger.Write(LogLevel.Info, () => $"Caught business exception: {e.Message}");
-                    if (!context.MessageHeaders.ContainsKey(Defaults.REQUEST_RESPONSE) || context.MessageHeaders[Defaults.REQUEST_RESPONSE] != "1")
+                    if (!context.MessageHeaders.ContainsKey(Defaults.RequestResponse) || context.MessageHeaders[Defaults.RequestResponse] != "1")
                         return; // Dont throw, business exceptions are not message failures
 
-                    _errorsMeter.Mark();
+                    ErrorsMeter.Mark();
                     Logger.Write(LogLevel.Debug, () => $"Command {context.Message.MessageType.FullName} was rejected\nException: {e.Message}");
                     // Tell the sender the command was rejected due to a business exception
-                    var rejection = context.Builder.Build<Func<BusinessException, Reject>>();
+                    var rejection = context.Builder.Build<Func<BusinessException, IReject>>();
                     await context.Reply(rejection(e)).ConfigureAwait(false);
                 }
                 return;

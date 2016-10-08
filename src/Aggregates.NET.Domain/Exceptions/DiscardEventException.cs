@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Exceptions
 {
@@ -12,6 +8,6 @@ namespace Aggregates.Exceptions
     public class DiscardEventException : Exception
     {
         public DiscardEventException() { }
-        public DiscardEventException(String Message) : base(Message) { }
+        public DiscardEventException(string message) : base(message) { }
     }
 }

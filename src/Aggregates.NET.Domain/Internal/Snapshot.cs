@@ -1,21 +1,16 @@
-﻿using Aggregates.Contracts;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Aggregates;
+﻿using System;
+using Aggregates.Contracts;
 
 namespace Aggregates.Internal
 {
     public class Snapshot : ISnapshot
     {
-        public String Bucket { get; set; }
-        public String Stream { get; set; }
-        public Int32 Version { get; set; }
-        public Object Payload { get; set; }
+        public string Bucket { get; set; }
+        public string Stream { get; set; }
+        public int Version { get; set; }
+        public object Payload { get; set; }
 
-        public String EntityType { get; set; }
+        public string EntityType { get; set; }
         public DateTime Timestamp { get; set; }
     }
 }

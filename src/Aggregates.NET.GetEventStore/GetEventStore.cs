@@ -1,21 +1,14 @@
-﻿using System;
-using Newtonsoft.Json;
+﻿using Aggregates.Internal;
 using NServiceBus;
 using NServiceBus.Features;
-using NServiceBus.MessageInterfaces;
-using Aggregates.Internal;
 
-namespace Aggregates.GetEventStore
+namespace Aggregates
 {
     public class GetEventStore : NServiceBus.Features.Feature
     {
-        public GetEventStore()
-        {
-        }
-
         protected override void Setup(FeatureConfigurationContext context)
         {
-            context.RegisterStartupTask((builder) => new ConsumerRunner(builder, context.Settings));
+            context.RegisterStartupTask(builder => new ConsumerRunner(builder, context.Settings));
             
             context.Container.ConfigureComponent<StoreEvents>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<StoreSnapshots>(DependencyLifecycle.InstancePerCall);

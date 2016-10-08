@@ -1,4 +1,10 @@
-﻿using Aggregates.Attributes;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+using Aggregates.Attributes;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
@@ -7,14 +13,7 @@ using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
+using AggregateException = Aggregates.Exceptions.AggregateException;
 
 namespace Aggregates.Internal
 {
@@ -25,7 +24,7 @@ namespace Aggregates.Internal
 
     public class Repository<T> : IRepository<T> where T : class, IEventSource
     {
-        private static OptimisticConcurrencyAttribute ConflictResolution = null;
+        private static OptimisticConcurrencyAttribute _conflictResolution;
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Repository<>));
         private readonly IStoreEvents _store;
@@ -33,15 +32,15 @@ namespace Aggregates.Internal
         private readonly IBuilder _builder;
         private readonly ReadOnlySettings _settings;
 
-        private static Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Events);
-        private static Meter Conflicts = Metric.Meter("Conflicts", Unit.Items);
-        private static Meter ConflictsResolved = Metric.Meter("Conflicts Resolved", Unit.Items);
-        private static Meter ConflictsUnresolved = Metric.Meter("Conflicts Unesolved", Unit.Items);
-        private static Meter WriteErrors = Metric.Meter("Event Write Errors", Unit.Errors);
+        private static readonly Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Events);
+        private static readonly Meter Conflicts = Metric.Meter("Conflicts", Unit.Items);
+        private static readonly Meter ConflictsResolved = Metric.Meter("Conflicts Resolved", Unit.Items);
+        private static readonly Meter ConflictsUnresolved = Metric.Meter("Conflicts Unesolved", Unit.Items);
+        private static readonly Meter WriteErrors = Metric.Meter("Event Write Errors", Unit.Errors);
 
-        protected readonly IDictionary<String, T> _tracked = new Dictionary<String, T>();
+        protected readonly IDictionary<string, T> Tracked = new Dictionary<string, T>();
 
-        private Boolean _disposed;
+        private bool _disposed;
 
         public Repository(IBuilder builder)
         {
@@ -52,20 +51,20 @@ namespace Aggregates.Internal
             _store.Builder = _builder;
 
             // Conflict resolution is strong by default
-            if (ConflictResolution == null)
-                ConflictResolution = (OptimisticConcurrencyAttribute)Attribute.GetCustomAttribute(typeof(T), typeof(OptimisticConcurrencyAttribute))
+            if (_conflictResolution == null)
+                _conflictResolution = (OptimisticConcurrencyAttribute)Attribute.GetCustomAttribute(typeof(T), typeof(OptimisticConcurrencyAttribute))
                     ?? new OptimisticConcurrencyAttribute(ConcurrencyConflict.ResolveStrongly);
         }
 
-        async Task<Guid> IRepository.Commit(Guid commitId, Guid startingEventId, IDictionary<String, String> commitHeaders)
+        async Task<Guid> IRepository.Commit(Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders)
         {
             Logger.Write(LogLevel.Debug, () => $"Repository {typeof(T).FullName} starting commit {commitId}");
             var written = 0;
-            foreach (var tracked in _tracked.Values)
+            foreach (var tracked in Tracked.Values)
             {
                 if (tracked.Stream.TotalUncommitted == 0) return startingEventId;
 
-                var headers = new Dictionary<String, String>(commitHeaders);
+                var headers = new Dictionary<string, string>(commitHeaders);
 
                 var stream = tracked.Stream;
 
@@ -98,20 +97,20 @@ namespace Aggregates.Internal
                         Logger.Write(LogLevel.Debug, () => $"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} version {stream.StreamVersion} has version conflicts with store - Message: {e.Message}");
                         // make new clean entity
 
-                        Logger.Write(LogLevel.Debug, () => $"Attempting to resolve conflict with strategy {ConflictResolution.Conflict}");
+                        Logger.Write(LogLevel.Debug, () => $"Attempting to resolve conflict with strategy {_conflictResolution.Conflict}");
 
                         var uncommitted = stream.Uncommitted.ToList();
                         stream.Flush(false);
                         var clean = await GetUntracked(stream);
 
-                        var tries = ConflictResolution.ResolveRetries ?? _settings.Get<Int32>("MaxConflictResolves");
+                        var tries = _conflictResolution.ResolveRetries ?? _settings.Get<int>("MaxConflictResolves");
                         var success = false;
                         do
                         {
                             try
                             {
-                                var strategy = ConflictResolution.Conflict.Build(_builder, ConflictResolution.Resolver);
-                                startingEventId = await strategy.Resolve<T>(clean, uncommitted, commitId, startingEventId, commitHeaders);
+                                var strategy = _conflictResolution.Conflict.Build(_builder, _conflictResolution.Resolver);
+                                startingEventId = await strategy.Resolve(clean, uncommitted, commitId, startingEventId, commitHeaders);
 
                                 success = true;
                             }
@@ -186,22 +185,22 @@ namespace Aggregates.Internal
             if (_disposed || !disposing)
                 return;
 
-            _tracked.Clear();
+            Tracked.Clear();
 
             _disposed = true;
         }
 
         public virtual Task<T> TryGet<TId>(TId id)
         {
-            return TryGet<TId>(Defaults.Bucket, id);
+            return TryGet(Defaults.Bucket, id);
         }
-        public async Task<T> TryGet<TId>(String bucket, TId id)
+        public async Task<T> TryGet<TId>(string bucket, TId id)
         {
             if (id == null) return null;
-            if (typeof(TId) == typeof(String) && String.IsNullOrEmpty(id as String)) return null;
+            if (typeof(TId) == typeof(string) && string.IsNullOrEmpty(id as string)) return null;
             try
             {
-                return await Get<TId>(bucket, id).ConfigureAwait(false);
+                return await Get(bucket, id).ConfigureAwait(false);
             }
             catch (NotFoundException) { }
             return null;
@@ -209,26 +208,26 @@ namespace Aggregates.Internal
 
         public virtual Task<T> Get<TId>(TId id)
         {
-            return Get<TId>(Defaults.Bucket, id);
+            return Get(Defaults.Bucket, id);
         }
 
-        public async Task<T> Get<TId>(String bucket, TId id)
+        public async Task<T> Get<TId>(string bucket, TId id)
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving aggregate id [{id}] in bucket [{bucket}] for type {typeof(T).FullName} in store");
             var root = await Get(bucket, id.ToString()).ConfigureAwait(false);
             (root as IEventSource<TId>).Id = id;
             return root;
         }
-        public async Task<T> Get(String bucket, String id)
+        public async Task<T> Get(string bucket, string id)
         {
-            var cacheId = String.Format("{0}.{1}", bucket, id);
+            var cacheId = $"{bucket}.{id}";
             T root;
-            if (!_tracked.TryGetValue(cacheId, out root))
-                _tracked[cacheId] = root = await GetUntracked(bucket, id).ConfigureAwait(false);
+            if (!Tracked.TryGetValue(cacheId, out root))
+                Tracked[cacheId] = root = await GetUntracked(bucket, id).ConfigureAwait(false);
 
             return root;
         }
-        private async Task<T> GetUntracked(String bucket, string streamId)
+        private async Task<T> GetUntracked(string bucket, string streamId)
         {
             var snapshot = await _snapstore.GetSnapshot<T>(bucket, streamId).ConfigureAwait(false);
             var stream = await _store.GetStream<T>(bucket, streamId, snapshot).ConfigureAwait(false);
@@ -241,38 +240,37 @@ namespace Aggregates.Internal
         }
         private Task<T> GetUntracked(IEventStream stream)
         {
-            T root;
             // Call the 'private' constructor
-            root = Newup(stream, _builder);
+            var root = Newup(stream, _builder);
 
-            if (stream.CurrentMemento != null && root is ISnapshotting)
-                ((ISnapshotting)root).RestoreSnapshot(stream.CurrentMemento);
+            if (stream.CurrentMemento != null)
+                (root as ISnapshotting)?.RestoreSnapshot(stream.CurrentMemento);
 
-            (root as IEventSource).Hydrate(stream.Events.Select(e => e.Event));
+            root.Hydrate(stream.Committed.Select(e => e.Event));
 
             return Task.FromResult(root);
         }
 
         public virtual Task<T> New<TId>(TId id)
         {
-            return New<TId>(Defaults.Bucket, id);
+            return New(Defaults.Bucket, id);
         }
 
-        public async Task<T> New<TId>(String bucket, TId id)
+        public async Task<T> New<TId>(string bucket, TId id)
         {
             var root = await New(bucket, id.ToString()).ConfigureAwait(false);
             (root as IEventSource<TId>).Id = id;
 
             return root;
         }
-        public async Task<T> New(String bucket, String streamId)
+        public async Task<T> New(string bucket, string streamId)
         {
             Logger.Write(LogLevel.Debug, () => $"Creating new stream id [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} in store");
             var stream = await _store.NewStream<T>(bucket, streamId).ConfigureAwait(false);
             var root = Newup(stream, _builder);
 
-            var cacheId = String.Format("{0}.{1}", bucket, streamId);
-            _tracked[cacheId] = root;
+            var cacheId = $"{bucket}.{streamId}";
+            Tracked[cacheId] = root;
             return root;
         }
 
@@ -295,10 +293,6 @@ namespace Aggregates.Internal
                 (root as INeedEventFactory).EventFactory = builder.Build<IMessageCreator>();
             if (root is INeedRouteResolver)
                 (root as INeedRouteResolver).Resolver = builder.Build<IRouteResolver>();
-            if (root is INeedRepositoryFactory)
-                (root as INeedRepositoryFactory).RepositoryFactory = builder.Build<IRepositoryFactory>();
-            if (root is INeedProcessor)
-                (root as INeedProcessor).Processor = builder.Build<IProcessor>();
 
             return root;
         }

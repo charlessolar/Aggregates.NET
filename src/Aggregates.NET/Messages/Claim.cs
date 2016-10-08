@@ -1,17 +1,13 @@
-﻿using NServiceBus;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System;
+using NServiceBus;
 
 namespace Aggregates.Messages
 {
-    public interface Claim : IEvent
+    public interface IClaim : IEvent
     {
-        String Endpoint { get; set; }
+        string Endpoint { get; set; }
         Guid Instance { get; set; }
-        String Queue { get; set; }
-        String CommandType { get; set; }
+        string Queue { get; set; }
+        string CommandType { get; set; }
     }
 }

@@ -1,20 +1,15 @@
-﻿using Aggregates.Contracts;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
 using Aggregates.Extensions;
 using Metrics;
 using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Logging;
-using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
-using NServiceBus.Pipeline.Contexts;
-using NServiceBus.Settings;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
@@ -23,19 +18,19 @@ namespace Aggregates.Internal
     internal class EventUnitOfWork : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventUnitOfWork));
-        private static object SlowLock = new object();
-        private static HashSet<String> SlowEventTypes = new HashSet<String>();
+        private static readonly object SlowLock = new object();
+        private static readonly HashSet<string> SlowEventTypes = new HashSet<string>();
 
-        private static Meter _eventsMeter = Metric.Meter("Events", Unit.Commands);
-        private static Metrics.Timer _eventsTimer = Metric.Timer("Event Duration", Unit.Commands);
+        private static readonly Meter EventsMeter = Metric.Meter("Events", Unit.Commands);
+        private static readonly Timer EventsTimer = Metric.Timer("Event Duration", Unit.Commands);
 
-        private static Meter _errorsMeter = Metric.Meter("Event Errors", Unit.Errors);
+        private static readonly Meter ErrorsMeter = Metric.Meter("Event Errors", Unit.Errors);
         
-        private readonly Int32 _slowAlert;
+        private readonly int _slowAlert;
 
-        public EventUnitOfWork(Int32 SlowAlertThreshold)
+        public EventUnitOfWork(int slowAlertThreshold)
         {
-            _slowAlert = SlowAlertThreshold;
+            _slowAlert = slowAlertThreshold;
         }
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
@@ -56,12 +51,12 @@ namespace Aggregates.Internal
                 verbose = true;
             }
 
-            Stopwatch s = new Stopwatch();
+            var s = new Stopwatch();
             var uows = new ConcurrentStack<IEventUnitOfWork>();
             try
             {
-                _eventsMeter.Mark();
-                using (_eventsTimer.NewContext())
+                EventsMeter.Mark();
+                using (EventsTimer.NewContext())
                 {
                     foreach (var uow in context.Builder.BuildAll<IEventUnitOfWork>())
                     {
@@ -69,7 +64,7 @@ namespace Aggregates.Internal
                         uow.Builder = context.Builder;
 
                         var retries = 0;
-                        context.Extensions.TryGet<Int32>(Defaults.RETRIES, out retries);
+                        context.Extensions.TryGet(Defaults.Retries, out retries);
                         uow.Retries = retries;
 
                         await uow.Begin().ConfigureAwait(false);
@@ -114,7 +109,7 @@ namespace Aggregates.Internal
             catch (Exception e)
             {
                 Logger.WriteFormat(LogLevel.Warn, "Caught exception '{0}' while executing event", e);
-                _errorsMeter.Mark();
+                ErrorsMeter.Mark();
                 var trailingExceptions = new List<Exception>();
                 foreach (var uow in uows.Generate())
                 {

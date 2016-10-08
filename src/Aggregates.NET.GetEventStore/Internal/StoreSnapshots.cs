@@ -1,33 +1,27 @@
-﻿using Aggregates.Contracts;
-using Aggregates.Exceptions;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Internal;
 using EventStore.ClientAPI;
-using EventStore.ClientAPI.Exceptions;
 using Metrics;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
-using NServiceBus.MessageInterfaces;
 using NServiceBus.Settings;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Aggregates
+namespace Aggregates.Internal
 {
-    public class StoreSnapshots : IStoreSnapshots
+    internal class StoreSnapshots : IStoreSnapshots
     {
-        private static Meter _hitMeter = Metric.Meter("Snapshot Cache Hits", Unit.Events);
-        private static Meter _missMeter = Metric.Meter("Snapshot Cache Misses", Unit.Events);
+        private static readonly Meter HitMeter = Metric.Meter("Snapshot Cache Hits", Unit.Events);
+        private static readonly Meter MissMeter = Metric.Meter("Snapshot Cache Misses", Unit.Events);
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreSnapshots));
         private readonly IEventStoreConnection _client;
         private readonly ReadOnlySettings _nsbSettings;
         private readonly IStreamCache _cache;
-        private readonly Boolean _shouldCache;
+        private readonly bool _shouldCache;
         private readonly JsonSerializerSettings _settings;
         private readonly StreamIdGenerator _streamGen;
 
@@ -37,18 +31,18 @@ namespace Aggregates
             _nsbSettings = nsbSettings;
             _settings = settings;
             _cache = cache;
-            _shouldCache = _nsbSettings.Get<Boolean>("ShouldCacheEntities");
+            _shouldCache = _nsbSettings.Get<bool>("ShouldCacheEntities");
             _streamGen = _nsbSettings.Get<StreamIdGenerator>("StreamGenerator");
         }
 
-        public Task Evict<T>(String bucket, String streamId) where T : class, IEventSource
+        public Task Evict<T>(string bucket, string streamId) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket + ".SNAP", streamId);
             _cache.Evict(streamName);
             return Task.CompletedTask;
         }
 
-        public async Task<ISnapshot> GetSnapshot<T>(String bucket, String streamId) where T : class, IEventSource
+        public async Task<ISnapshot> GetSnapshot<T>(string bucket, string streamId) where T : class, IEventSource
         {
             var streamName = $"{_streamGen(typeof(T), bucket + ".SNAP", streamId)}";
             Logger.Write(LogLevel.Debug, () => $"Getting snapshot for stream [{streamName}]");
@@ -58,18 +52,18 @@ namespace Aggregates
                 var cached = _cache.Retreive(streamName) as ISnapshot;
                 if (cached != null)
                 {
-                    _hitMeter.Mark();
+                    HitMeter.Mark();
                     Logger.Write(LogLevel.Debug, () => $"Found snapshot [{streamName}] in cache");
                     return cached;
                 }
-                _missMeter.Mark();
+                MissMeter.Mark();
             }
 
             var read = await _client.ReadEventAsync(streamName, StreamPosition.End, false).ConfigureAwait(false);
             if (read.Status != EventReadStatus.Success || !read.Event.HasValue)
                 return null;
 
-            var compress = _nsbSettings.Get<Boolean>("Compress");
+            var compress = _nsbSettings.Get<bool>("Compress");
 
             var @event = read.Event.Value.Event;
             var metadata = @event.Metadata;
@@ -99,12 +93,12 @@ namespace Aggregates
         }
 
 
-        public async Task WriteSnapshots<T>(String bucket, String streamId, IEnumerable<ISnapshot> snapshots, IDictionary<String, String> commitHeaders) where T : class, IEventSource
+        public async Task WriteSnapshots<T>(string bucket, string streamId, IEnumerable<ISnapshot> snapshots, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var streamName = $"{_streamGen(typeof(T), bucket + ".SNAP", streamId)}";
             Logger.Write(LogLevel.Debug, () => $"Writing {snapshots.Count()} snapshots to stream [{streamName}]");
 
-            var compress = _nsbSettings.Get<Boolean>("Compress");
+            var compress = _nsbSettings.Get<bool>("Compress");
 
             var translatedEvents = snapshots.Select(e =>
             {

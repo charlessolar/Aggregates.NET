@@ -1,25 +1,24 @@
-﻿using Aggregates.Contracts;
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Threading.Tasks;
+using Aggregates.Contracts;
 using Aggregates.Extensions;
 using NServiceBus;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public class NSBOOBHandler : IOOBHandler
+    public class NsboobHandler : IOobHandler
     {
         private readonly IMessageSession _endpoint;
 
-        public NSBOOBHandler(IMessageSession endpoint)
+        public NsboobHandler(IMessageSession endpoint)
         {
             _endpoint = endpoint;
         }
 
 
-        public async Task Publish<T>(String Bucket, String StreamId, IEnumerable<IWritableEvent> Events, IDictionary<String, String> commitHeaders) where T : class, IEventSource
+        public async Task Publish<T>(string bucket, string streamId, IEnumerable<IWritableEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var options = new PublishOptions();
 
@@ -30,15 +29,15 @@ namespace Aggregates.Internal
                     //is added by bus in v5
                     continue;
                 }
-                options.SetHeader(header.Key, header.Value?.ToString());
+                options.SetHeader(header.Key, header.Value);
             }
 
-            await Events.WhenAllAsync(async (@event) =>
+            await events.WhenAllAsync(async @event =>
             {
 
                 options.SetHeader("EventId", @event.EventId.ToString());
                 options.SetHeader("EntityType", @event.Descriptor.EntityType);
-                options.SetHeader("Timestamp", @event.Descriptor.Timestamp.ToString());
+                options.SetHeader("Timestamp", @event.Descriptor.Timestamp.ToString(CultureInfo.InvariantCulture));
                 options.SetHeader("Version", @event.Descriptor.Version.ToString());
 
 
@@ -51,7 +50,7 @@ namespace Aggregates.Internal
             });
             
         }
-        public Task<IEnumerable<IWritableEvent>> Retrieve<T>(String Bucket, String StreamId, Int32? Skip = null, Int32? Take = null, Boolean Ascending = true) where T : class, IEventSource
+        public Task<IEnumerable<IWritableEvent>> Retrieve<T>(string bucket, string streamId, int? skip = null, int? take = null, bool ascending = true) where T : class, IEventSource
         {
             throw new NotImplementedException("NSB OOB handler does not support retrieving OOB events");
         }

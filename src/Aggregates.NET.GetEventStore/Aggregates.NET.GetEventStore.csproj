@@ -59,13 +59,13 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
-    <Compile Include="DomainSubscriber.cs" />
-    <Compile Include="EventStream.cs" />
+    <Compile Include="Internal\DomainSubscriber.cs" />
+    <Compile Include="Internal\EventStream.cs" />
     <Compile Include="GetEventStore.cs" />
-    <Compile Include="StoreEvents.cs" />
-    <Compile Include="StoreExtensions.cs" />
-    <Compile Include="StorePocos.cs" />
-    <Compile Include="StoreSnapshots.cs" />
+    <Compile Include="Internal\StoreEvents.cs" />
+    <Compile Include="Extensions\StoreExtensions.cs" />
+    <Compile Include="Internal\StorePocos.cs" />
+    <Compile Include="Internal\StoreSnapshots.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Aggregates.NET.Consumer\Aggregates.NET.Consumer.csproj">
