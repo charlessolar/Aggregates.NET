@@ -57,7 +57,7 @@ namespace Aggregates
             if (!_shouldCache) return Task.CompletedTask;
 
             var streamName = _streamGen(typeof(T), stream.Bucket, stream.StreamId);
-            _cache.Cache(streamName, stream);
+            _cache.Cache(streamName, stream.Clone());
             return Task.CompletedTask;
         }
 
@@ -136,7 +136,7 @@ namespace Aggregates
 
             var eventstream = new Internal.EventStream<T>(Builder, this, bucket, streamId, translatedEvents, snapshot);
             if (_shouldCache)
-                _cache.Cache(streamName, eventstream.Clone());
+                await Cache<T>(eventstream);
 
             return eventstream;
         }

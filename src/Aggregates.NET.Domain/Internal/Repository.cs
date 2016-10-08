@@ -100,7 +100,9 @@ namespace Aggregates.Internal
 
                         Logger.Write(LogLevel.Debug, () => $"Attempting to resolve conflict with strategy {ConflictResolution.Conflict}");
 
-                        var clean = await GetUntracked(tracked.Stream.Clone());
+                        var uncommitted = stream.Uncommitted.ToList();
+                        stream.Flush(false);
+                        var clean = await GetUntracked(stream);
 
                         var tries = ConflictResolution.ResolveRetries ?? _settings.Get<Int32>("MaxConflictResolves");
                         var success = false;
@@ -108,39 +110,9 @@ namespace Aggregates.Internal
                         {
                             try
                             {
-                                switch (ConflictResolution.Conflict)
-                                {
-                                    case ConcurrencyConflict.ResolveStrongly:
-                                    {
-                                            var strategy = _builder.Build<ResolveStronglyConflictResolver>();
-                                            startingEventId = await strategy.Resolve<T>(clean, stream.Uncommitted, commitId, startingEventId, commitHeaders);
-                                            break;
-                                        }
-                                    case ConcurrencyConflict.Ignore:
-                                        {
-                                            var strategy = _builder.Build<IgnoreConflictResolver>();
-                                            startingEventId = await strategy.Resolve<T>(clean, stream.Uncommitted, commitId, startingEventId, commitHeaders);
-                                            break;
-                                        }
-                                    case ConcurrencyConflict.Discard:
-                                        {
-                                            var strategy = _builder.Build<DiscardConflictResolver>();
-                                            startingEventId = await strategy.Resolve<T>(clean, stream.Uncommitted, commitId, startingEventId, commitHeaders);
-                                            break;
-                                        }
-                                    case ConcurrencyConflict.ResolveWeakly:
-                                        {
-                                            var strategy = _builder.Build<ResolveWeaklyConflictResolver>();
-                                            startingEventId = await strategy.Resolve<T>(clean, stream.Uncommitted, commitId, startingEventId, commitHeaders);
-                                            break;
-                                        }
-                                    case ConcurrencyConflict.Custom:
-                                        {
-                                            var strategy = (IResolveConflicts)_builder.Build(ConflictResolution.Resolver);
-                                            startingEventId = await strategy.Resolve<T>(clean, stream.Uncommitted, commitId, startingEventId, commitHeaders);
-                                            break;
-                                        }
-                                }
+                                var strategy = ConflictResolution.Conflict.Build(_builder, ConflictResolution.Resolver);
+                                startingEventId = await strategy.Resolve<T>(clean, uncommitted, commitId, startingEventId, commitHeaders);
+
                                 success = true;
                             }
                             catch (ConflictingCommandException) { }
@@ -201,7 +173,7 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Repository {typeof(T).FullName} finished commit {commitId}");
             return startingEventId;
         }
-        
+
 
         public void Dispose()
         {

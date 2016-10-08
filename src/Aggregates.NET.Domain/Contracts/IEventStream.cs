@@ -18,7 +18,7 @@ namespace Aggregates.Contracts
 
         Int32 TotalUncommitted { get; }
         /// <summary>
-        /// All events read from the store + any uncommitted events including OOB events
+        /// All events read from the store
         /// </summary>
         IEnumerable<IWritableEvent> Events { get; }
         /// <summary>

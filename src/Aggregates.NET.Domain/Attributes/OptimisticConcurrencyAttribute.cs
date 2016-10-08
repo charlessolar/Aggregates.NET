@@ -17,7 +17,7 @@ namespace Aggregates.Attributes
     {
         public OptimisticConcurrencyAttribute(ConcurrencyConflict Conflict = ConcurrencyConflict.ResolveStrongly, Int32 ResolveRetries = -1, Type Resolver = null)
         {
-            this.Conflict = Conflict;
+            this.Conflict = ConcurrencyStrategy.FromValue(Conflict);
             this.ResolveRetries = ResolveRetries;
             this.Resolver = Resolver;
 
@@ -27,7 +27,7 @@ namespace Aggregates.Attributes
                 throw new ArgumentException("Conflict resolver must inherit from IResolveConflicts");
         }
 
-        public ConcurrencyConflict Conflict { get; private set; }
+        public ConcurrencyStrategy Conflict { get; private set; }
         public Int32? ResolveRetries { get; private set; }
         public Type Resolver { get; private set; }
     }

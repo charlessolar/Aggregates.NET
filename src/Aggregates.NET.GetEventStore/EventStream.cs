@@ -43,7 +43,7 @@ namespace Aggregates.Internal
         {
             get
             {
-                return this._committed.Concat(this._uncommitted);
+                return this._committed;
             }
         }
         public IEnumerable<IWritableEvent> Uncommitted
@@ -136,7 +136,7 @@ namespace Aggregates.Internal
             var committed = _committed.ToList();
             if (@event != null)
                 committed.Add(@event);
-
+            
             return new EventStream<T>(null, null, Bucket, StreamId, committed, _snapshot);
         }
 
