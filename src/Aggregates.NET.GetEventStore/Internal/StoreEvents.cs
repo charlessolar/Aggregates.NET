@@ -73,9 +73,7 @@ namespace Aggregates.Internal
                 {
                     HitMeter.Mark();
                     Logger.Write(LogLevel.Debug, () => $"Found stream [{streamName}] in cache");
-                    var stream = new EventStream<T>(cached, Builder, this);
-                    stream.TrimEvents(sliceStart);
-                    return stream;
+                    return new EventStream<T>(cached, Builder, this, snapshot);
                 }
                 MissMeter.Mark();
             }

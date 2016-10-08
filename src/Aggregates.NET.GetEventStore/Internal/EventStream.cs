@@ -56,6 +56,7 @@ namespace Aggregates.Internal
             StreamId = streamId;
             Committed = events?.ToList() ?? new List<IWritableEvent>();
             _snapshot = snapshot;
+
             _uncommitted = new List<IWritableEvent>();
             _outofband = new List<IWritableEvent>();
             _pendingShots = new List<ISnapshot>();
@@ -63,7 +64,7 @@ namespace Aggregates.Internal
         }
 
         // Special constructor for building from a cached instance
-        internal EventStream(EventStream<T> clone, IBuilder builder, IStoreEvents store)
+        internal EventStream(IEventStream clone, IBuilder builder, IStoreEvents store, ISnapshot snapshot)
         {
             _store = store;
             _snapshots = builder.Build<IStoreSnapshots>();
@@ -71,19 +72,15 @@ namespace Aggregates.Internal
             _builder = builder;
             Bucket = clone.Bucket;
             StreamId = clone.StreamId;
-            _snapshot = clone._snapshot;
+            _snapshot = snapshot;
             Committed = clone.Committed.ToList();
             _uncommitted = new List<IWritableEvent>();
             _outofband = new List<IWritableEvent>();
             _pendingShots = new List<ISnapshot>();
 
-        }
-        internal void TrimEvents(int? start)
-        {
-            // Trim off events earlier than Start (if the stream is from cache its possible a snapshot has been taken since cached)
-            if (start.HasValue && Committed.Any() && Committed.First().Descriptor.Version < start.Value)
+            if (_snapshot != null && Committed.Any() && Committed.First().Descriptor.Version <= _snapshot.Version)
             {
-                Committed = Committed.Where(x => x.Descriptor.Version >= start.Value);
+                Committed = Committed.Where(x => x.Descriptor.Version > _snapshot.Version);
             }
         }
 
@@ -153,7 +150,7 @@ namespace Aggregates.Internal
 
         public void AddSnapshot(object memento, IDictionary<string, string> headers)
         {
-            _pendingShots.Add(new Snapshot
+            var snapshot = new Snapshot
             {
                 Bucket = Bucket,
                 Stream = StreamId,
@@ -161,7 +158,8 @@ namespace Aggregates.Internal
                 Version = StreamVersion,
                 EntityType = memento.GetType().AssemblyQualifiedName,
                 Timestamp = DateTime.UtcNow
-            });
+            };
+            _pendingShots.Add(snapshot);
         }
 
         public async Task<Guid> Commit(Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders)
@@ -246,7 +244,10 @@ namespace Aggregates.Internal
         {
             if (committed)
                 Committed = Committed.Concat(_uncommitted);
+
             _uncommitted.Clear();
+            _pendingShots.Clear();
+            _outofband.Clear();
         }
 
     }
