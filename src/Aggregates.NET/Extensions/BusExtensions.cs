@@ -14,15 +14,15 @@ namespace Aggregates.Extensions
 
         public static void CommandResponse(this IMessage msg)
         {
-            if (msg is IReject)
+            if (msg is Reject)
             {
-                var reject = (IReject)msg;
+                var reject = (Reject)msg;
                 Logger.WriteFormat(LogLevel.Warn, "Command was rejected - Message: {0}\n", reject.Message);
                 throw new CommandRejectedException(reject.Message, reject.Exception);
             }
-            if (msg is IError)
+            if (msg is Error)
             {
-                var error = (IError)msg;
+                var error = (Error)msg;
                 Logger.Warn($"Command Fault!\n{error.Message}");
                 throw new CommandRejectedException($"Command Fault!\n{error.Message}");
             }

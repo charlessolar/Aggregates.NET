@@ -3,7 +3,7 @@ using NServiceBus;
 
 namespace Aggregates.Messages
 {
-    public interface IReject : IMessage
+    public interface Reject : IMessage
     {
         BusinessException Exception { get; set; }
     

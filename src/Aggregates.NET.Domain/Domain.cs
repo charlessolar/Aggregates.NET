@@ -43,22 +43,22 @@ namespace Aggregates
             context.Container.ConfigureComponent<DiscardConflictResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<IgnoreConflictResolver>(DependencyLifecycle.InstancePerCall);
 
-            context.Container.ConfigureComponent<Func<IAccept>>(y =>
+            context.Container.ConfigureComponent<Func<Accept>>(y =>
             {
                 var eventFactory = y.Build<IMessageCreator>();
-                return () => eventFactory.CreateInstance<IAccept>();
+                return () => eventFactory.CreateInstance<Accept>();
             }, DependencyLifecycle.SingleInstance);
 
-            context.Container.ConfigureComponent<Func<string, IReject>>(y =>
+            context.Container.ConfigureComponent<Func<string, Reject>>(y =>
             {
                 var eventFactory = y.Build<IMessageCreator>();
-                return message => { return eventFactory.CreateInstance<IReject>(e => { e.Message = message; }); };
+                return message => { return eventFactory.CreateInstance<Reject>(e => { e.Message = message; }); };
             }, DependencyLifecycle.SingleInstance);
-            context.Container.ConfigureComponent<Func<BusinessException, IReject>>(y =>
+            context.Container.ConfigureComponent<Func<BusinessException, Reject>>(y =>
             {
                 var eventFactory = y.Build<IMessageCreator>();
                 return exception => {
-                    return eventFactory.CreateInstance<IReject>(e => {
+                    return eventFactory.CreateInstance<Reject>(e => {
                         e.Message = "Exception raised";
                     });
                 };
@@ -103,7 +103,7 @@ namespace Aggregates
             protected override async Task OnStart(IMessageSession session)
             {
                 Logger.Write(LogLevel.Debug, "Starting domain");
-                await session.Publish<IDomainAlive>(x =>
+                await session.Publish<DomainAlive>(x =>
                 {
                     x.Endpoint = _settings.InstanceSpecificQueue();
                     x.Instance = Aggregates.Defaults.Instance;
@@ -113,7 +113,7 @@ namespace Aggregates
             protected override async Task OnStop(IMessageSession session)
             {
                 Logger.Write(LogLevel.Debug, "Stopping domain");
-                await session.Publish<IDomainDead>(x =>
+                await session.Publish<DomainDead>(x =>
                 {
                     x.Endpoint = _settings.InstanceSpecificQueue();
                     x.Instance = Aggregates.Defaults.Instance;

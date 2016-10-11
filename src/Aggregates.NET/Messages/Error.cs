@@ -2,7 +2,7 @@
 
 namespace Aggregates.Messages
 {
-    public interface IError : IMessage
+    public interface Error : IMessage
     {
         string Message { get; set; }
     }

@@ -170,7 +170,7 @@ namespace Aggregates.Internal
                             var options = new SendOptions();
                             options.RequireImmediateDispatch();
                             options.SetDestination(x);
-                            return context.Send<ISurrender>(e =>
+                            return context.Send<Surrender>(e =>
                             {
                                 e.Endpoint = _endpoint;
                                 e.Queue = _instanceSpecificQueue;
@@ -190,7 +190,7 @@ namespace Aggregates.Internal
                 var options = new SendOptions();
                 options.RequireImmediateDispatch();
                 options.SetDestination(x);
-                return context.Send<IClaim>(e =>
+                return context.Send<Claim>(e =>
                 {
                     e.Endpoint = _endpoint;
                     e.Queue = _instanceSpecificQueue;
@@ -220,15 +220,15 @@ namespace Aggregates.Internal
     }
     // Todo: if we are using RabbitMq we can actually change the routing topology of senders / receivers 
     internal class RedirectMessageHandler :
-        IHandleMessages<IClaim>,
-        IHandleMessages<ISurrender>,
-        IHandleMessages<IDomainAlive>,
-        IHandleMessages<IDomainDead>
+        IHandleMessages<Claim>,
+        IHandleMessages<Surrender>,
+        IHandleMessages<DomainAlive>,
+        IHandleMessages<DomainDead>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(RedirectMessageHandler));
 
 
-        public Task Handle(IClaim message, IMessageHandlerContext context)
+        public Task Handle(Claim message, IMessageHandlerContext context)
         {
             if (message.Instance == Defaults.Instance)
             {
@@ -249,7 +249,7 @@ namespace Aggregates.Internal
             return Task.CompletedTask;
         }
 
-        public Task Handle(ISurrender message, IMessageHandlerContext context)
+        public Task Handle(Surrender message, IMessageHandlerContext context)
         {
             if (message.Instance == Defaults.Instance)
             {
@@ -268,13 +268,13 @@ namespace Aggregates.Internal
             return Task.CompletedTask;
         }
 
-        public Task Handle(IDomainAlive message, IMessageHandlerContext context)
+        public Task Handle(DomainAlive message, IMessageHandlerContext context)
         {
             BulkCommandBehavior.DomainInstances.Add(message.Endpoint);
             return Task.CompletedTask;
         }
 
-        public Task Handle(IDomainDead message, IMessageHandlerContext context)
+        public Task Handle(DomainDead message, IMessageHandlerContext context)
         {
             BulkCommandBehavior.DomainInstances.Remove(message.Endpoint);
             return Task.CompletedTask;

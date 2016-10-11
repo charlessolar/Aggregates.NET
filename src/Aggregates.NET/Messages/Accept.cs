@@ -2,7 +2,7 @@
 
 namespace Aggregates.Messages
 {
-    public interface IAccept : IMessage
+    public interface Accept : IMessage
     {
     }
 }

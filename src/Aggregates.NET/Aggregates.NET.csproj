@@ -98,8 +98,8 @@
     <Compile Include="Internal\WritableEvent.cs" />
     <Compile Include="Messages\Accept.cs" />
     <Compile Include="Messages\Claim.cs" />
-    <Compile Include="Messages\ConsumerAlive.cs" />
-    <Compile Include="Messages\ConsumerDead.cs" />
+    <Compile Include="Messages\EndpointAlive.cs" />
+    <Compile Include="Messages\EndpointDead.cs" />
     <Compile Include="Messages\DomainAlive.cs" />
     <Compile Include="Messages\DomainDead.cs" />
     <Compile Include="Messages\Error.cs" />

@@ -28,7 +28,7 @@ namespace Aggregates.Internal
                     if (context.MessageHeaders.ContainsKey(Defaults.RequestResponse) && context.MessageHeaders[Defaults.RequestResponse] == "1")
                     {
                         // Tell the sender the command was accepted
-                        var accept = context.Builder.Build<Func<IAccept>>();
+                        var accept = context.Builder.Build<Func<Accept>>();
                         await context.Reply(accept()).ConfigureAwait(false);
                     }
                 }
@@ -41,7 +41,7 @@ namespace Aggregates.Internal
                     ErrorsMeter.Mark();
                     Logger.Write(LogLevel.Debug, () => $"Command {context.Message.MessageType.FullName} was rejected\nException: {e.Message}");
                     // Tell the sender the command was rejected due to a business exception
-                    var rejection = context.Builder.Build<Func<BusinessException, IReject>>();
+                    var rejection = context.Builder.Build<Func<BusinessException, Reject>>();
                     await context.Reply(rejection(e)).ConfigureAwait(false);
                 }
                 return;

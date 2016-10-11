@@ -3,7 +3,7 @@ using NServiceBus;
 
 namespace Aggregates.Messages
 {
-    public interface IConsumerAlive : IEvent
+    public interface EndpointDead : IEvent
     {
         string Endpoint { get; set; }
         Guid Instance { get; set; }

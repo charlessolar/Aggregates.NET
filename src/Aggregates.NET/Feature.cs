@@ -1,9 +1,15 @@
 ﻿using System;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Aggregates.Extensions;
 using Aggregates.Internal;
 using Aggregates.Messages;
 using NServiceBus;
 using NServiceBus.Features;
+using NServiceBus.Logging;
+using NServiceBus.ObjectBuilder;
+using NServiceBus.Settings;
 
 namespace Aggregates
 {
@@ -24,6 +30,8 @@ namespace Aggregates
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
+            context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue()));
+
             // Check that aggregates has been properly setup
             if (!context.Settings.Get<bool>(Aggregates.Defaults.SetupCorrectly))
                 throw new InvalidOperationException("Endpoint not setup correctly!  Please call [endpointConfiguration.Recoverability.ConfigureForAggregates] before enabling this feature.  (Sorry I can't set recoverability myself)");
@@ -45,7 +53,7 @@ namespace Aggregates
             // We are sending IEvents, which NSB doesn't like out of the box - so turn that check off
             context.Pipeline.Remove("EnforceSendBestPractices");
 
-            context.Container.ConfigureComponent<Func<Exception, string, IError>>(y =>
+            context.Container.ConfigureComponent<Func<Exception, string, Error>>(y =>
             {
                 var eventFactory = y.Build<IMessageCreator>();
                 return (exception, message) => {
@@ -70,7 +78,7 @@ namespace Aggregates
                     }
                     var aggregateException = exception as AggregateException;
                     if (aggregateException == null)
-                        return eventFactory.CreateInstance<IError>(e => { e.Message = sb.ToString(); });
+                        return eventFactory.CreateInstance<Error>(e => { e.Message = sb.ToString(); });
 
                     sb.AppendLine("---BEGIN Aggregate Exception---");
                     var aggException = aggregateException;
@@ -84,11 +92,42 @@ namespace Aggregates
                         sb.AppendLine("---END Inner Exception---");
                     }
 
-                    return eventFactory.CreateInstance<IError>(e => {
+                    return eventFactory.CreateInstance<Error>(e => {
                         e.Message = sb.ToString();
                     });
                 };
             }, DependencyLifecycle.SingleInstance);
+        }
+    }
+
+    public class EndpointRunner : FeatureStartupTask
+    {
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(EndpointRunner));
+        private readonly String _instanceQueue;
+
+        public EndpointRunner(String instanceQueue)
+        {
+            _instanceQueue = instanceQueue;
+        }
+        protected override async Task OnStart(IMessageSession session)
+        {
+            Logger.Write(LogLevel.Debug, "Starting endpoint");
+
+            await session.Publish<EndpointAlive>(x =>
+            {
+                x.Endpoint = _instanceQueue;
+                x.Instance = Defaults.Instance;
+            }).ConfigureAwait(false);
+
+        }
+        protected override async Task OnStop(IMessageSession session)
+        {
+            Logger.Write(LogLevel.Debug, "Stopping endpoint");
+            await session.Publish<EndpointDead>(x =>
+            {
+                x.Endpoint = _instanceQueue;
+                x.Instance = Defaults.Instance;
+            }).ConfigureAwait(false);
         }
     }
 }

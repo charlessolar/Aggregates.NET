@@ -40,7 +40,6 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             base.Setup(context);
-            context.RegisterStartupTask(builder => new ConsumerRunner(builder, context.Settings));
 
             context.Container.ConfigureComponent<Checkpointer>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DurableSubscriber>(DependencyLifecycle.SingleInstance);
@@ -52,7 +51,6 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             base.Setup(context);
-            context.RegisterStartupTask(builder => new ConsumerRunner(builder, context.Settings));
 
             context.Container.ConfigureComponent<VolatileSubscriber>(DependencyLifecycle.SingleInstance);
         }
@@ -74,66 +72,9 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             base.Setup(context);
-            context.RegisterStartupTask(builder => new ConsumerRunner(builder, context.Settings));
 
             context.Container.ConfigureComponent<CompetingSubscriber>(DependencyLifecycle.SingleInstance);
         }
     }
-
-    public class ConsumerRunner : FeatureStartupTask
-    {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(ConsumerRunner));
-        private readonly IBuilder _builder;
-        private readonly ReadOnlySettings _settings;
-        private int _retryCount;
-        private DateTime? _lastFailure;
-
-        public ConsumerRunner(IBuilder builder, ReadOnlySettings settings)
-        {
-            _builder = builder;
-            _settings = settings;
-        }
-
-        private TimeSpan CalculateSleep()
-        {
-            if (_lastFailure.HasValue)
-            {
-                var lastSleep = (1 << _retryCount);
-                if ((DateTime.UtcNow - _lastFailure.Value).TotalSeconds > (lastSleep * 5))
-                    _retryCount = 0;
-            }
-            _retryCount++;
-            _lastFailure = DateTime.UtcNow;
-            // 8 seconds minimum sleep
-            return TimeSpan.FromSeconds(1 << ((_retryCount / 2) + 2));
-        }
-
-        protected override async Task OnStart(IMessageSession session)
-        {
-            Logger.Write(LogLevel.Debug, "Starting event consumer");
-            var subscriber = _builder.Build<IEventSubscriber>();
-            subscriber.SubscribeToAll(session, _settings.EndpointName());
-            subscriber.Dropped = (reason, ex) =>
-            {
-                Thread.Sleep(CalculateSleep());
-                subscriber.SubscribeToAll(session, _settings.EndpointName());
-            };
-
-            await session.Publish<IConsumerAlive>(x =>
-            {
-                x.Endpoint = _settings.InstanceSpecificQueue();
-                x.Instance = Defaults.Instance;
-            }).ConfigureAwait(false);
-
-        }
-        protected override async Task OnStop(IMessageSession session)
-        {
-            Logger.Write(LogLevel.Debug, "Stopping event consumer");
-            await session.Publish<IConsumerDead>(x =>
-            {
-                x.Endpoint = _settings.InstanceSpecificQueue();
-                x.Instance = Defaults.Instance;
-            }).ConfigureAwait(false);
-        }
-    }
+    
 }
