@@ -1,8 +1,10 @@
 version: 0.3.0.{build}-beta
 
 #cache:
-  #- src\packages
+#  - src\packages
 
+platform: Any CPU
+configuration: Release
   
 assembly_info:
   patch: true
@@ -10,9 +12,13 @@ assembly_info:
   assembly_version: "{version}"
   assembly_file_version: "{version}"
   assembly_informational_version: "{version}"
+  
+init:
+  - echo %APPVEYOR_BUILD_VERSION%
+  
+before_build:
+  - nuget restore src/Aggregates.NET.sln -DisableParallelProcessing
 
-platform: Any CPU
-configuration: Release
 
 build:
   parallel: true                  # enable MSBuild parallel builds
