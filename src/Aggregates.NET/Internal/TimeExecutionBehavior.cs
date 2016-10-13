@@ -39,7 +39,7 @@ namespace Aggregates.Internal
                 {
                     lock (SlowLock) SlowCommandTypes.Remove(messageTypeIdentifier);
                     Logger.Write(LogLevel.Info,
-                        () => $"Command {messageTypeIdentifier} was previously detected as slow, switching to more verbose logging (for this instance)\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}");
+                        () => $"Message {messageTypeIdentifier} was previously detected as slow, switching to more verbose logging (for this instance)\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}");
                     Defaults.MinimumLogging.Value = LogLevel.Info;
                     verbose = true;
                 }
@@ -56,13 +56,13 @@ namespace Aggregates.Internal
                 if (elapsed > _slowAlert)
                 {
                     Logger.Write(LogLevel.Warn,
-                        () => $" - SLOW ALERT - Processing command {messageTypeIdentifier} took {elapsed} ms\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}");
+                        () => $" - SLOW ALERT - Processing message {messageTypeIdentifier} took {elapsed} ms\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}");
                     if (!verbose)
                         lock (SlowLock) SlowCommandTypes.Add(messageTypeIdentifier);
                 }
                 else
                     Logger.Write(LogLevel.Debug,
-                        () => $"Processing command {messageTypeIdentifier} took {elapsed} ms");
+                        () => $"Processing message {messageTypeIdentifier} took {elapsed} ms");
 
             }
             finally
@@ -70,7 +70,7 @@ namespace Aggregates.Internal
                 if (verbose)
                 {
                     Logger.Write(LogLevel.Info,
-                        () => $"Finished processing command {messageTypeIdentifier} verbosely - resetting log level");
+                        () => $"Finished processing message {messageTypeIdentifier} verbosely - resetting log level");
                     Defaults.MinimumLogging.Value = null;
                 }
             }
