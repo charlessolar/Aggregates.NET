@@ -32,6 +32,8 @@ namespace Aggregates
         {
             context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue()));
 
+            context.Container.ConfigureComponent<MemoryDelayed>(DependencyLifecycle.InstancePerCall);
+
             // Check that aggregates has been properly setup
             if (!context.Settings.Get<bool>(Aggregates.Defaults.SetupCorrectly))
                 throw new InvalidOperationException("Endpoint not setup correctly!  Please call [endpointConfiguration.Recoverability.ConfigureForAggregates] before enabling this feature.  (Sorry I can't set recoverability myself)");

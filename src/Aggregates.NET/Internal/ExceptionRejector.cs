@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.Pipeline;
+using NServiceBus.Transport;
 
 namespace Aggregates.Internal
 {
@@ -54,8 +55,7 @@ namespace Aggregates.Internal
                     throw;
 
                 // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth
-                var intent = (MessageIntentEnum)Enum.Parse(typeof(MessageIntentEnum), context.Message.Headers[Headers.MessageIntent], true);
-                if (intent != MessageIntentEnum.Send) return;
+                if (context.Message.GetMesssageIntent() != MessageIntentEnum.Send) return;
 
 
                 Logger.WriteFormat(LogLevel.Warn, $"Message {context.MessageId} has failed after {attempts} retries!\nException: {e.GetType().FullName}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");

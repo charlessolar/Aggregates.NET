@@ -100,10 +100,10 @@ namespace Aggregates.Internal
 
             Logger.Write(LogLevel.Debug, () => "Successfully merged conflicted events");
 
-            if (stream.StreamVersion != stream.CommitVersion && entity is ISnapshotting && ((ISnapshotting) entity).ShouldTakeSnapshot())
+            if (stream.StreamVersion != stream.CommitVersion && entity is ISnapshotting && ((ISnapshotting)entity).ShouldTakeSnapshot())
             {
                 Logger.Write(LogLevel.Debug, () => $"Taking snapshot of {typeof(T).FullName} id [{entity.StreamId}] version {stream.StreamVersion}");
-                var memento = ((ISnapshotting) entity).TakeSnapshot();
+                var memento = ((ISnapshotting)entity).TakeSnapshot();
                 stream.AddSnapshot(memento, commitHeaders);
             }
 
@@ -120,20 +120,62 @@ namespace Aggregates.Internal
         internal static readonly ILog Logger = LogManager.GetLogger(typeof(ResolveWeaklyConflictResolver));
 
         private readonly IStoreEvents _store;
+        private readonly IDelayedChannel _delay;
 
-        public ResolveWeaklyConflictResolver(IStoreEvents eventstore)
+        public ResolveWeaklyConflictResolver(IStoreEvents eventstore, IDelayedChannel delay)
         {
             _store = eventstore;
+            _delay = delay;
         }
 
-        public Task<Guid> Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
+        public async Task<Guid> Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             // Store conflicting events in memory
-            // After set timeout (default 30s) pull the latest stream and attempt to write them again
-            // Perhaps we can leverage bus.DelayedSend, then during times of high load conflicts will wait to be resolved until the message queue is empty
-            // might not be the best idea though - as we would have to send to our exact instance which will usually be an empty queue
+            // After 100 or so pile up pull the latest stream and attempt to write them again
 
-            throw new NotImplementedException();
+            foreach (var @event in uncommitted)
+                await _delay.AddToQueue(entity.StreamId, @event);
+
+            if (await _delay.Size(entity.StreamId) < 100)
+                return startingEventId;
+
+            uncommitted = (await _delay.Pull(entity.StreamId)).Cast<IWritableEvent>();
+            var stream = entity.Stream;
+            Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream {stream.StreamId} bucket {stream.Bucket}");
+
+            var latestEvents = await _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1).ConfigureAwait(false);
+            Logger.Write(LogLevel.Debug, () => $"Stream is {latestEvents.Count()} events behind store");
+
+            var writableEvents = latestEvents as IWritableEvent[] ?? latestEvents.ToArray();
+            stream.Concat(writableEvents);
+            entity.Hydrate(writableEvents.Select(x => x.Event));
+
+
+            Logger.Write(LogLevel.Debug, () => "Merging conflicted events");
+            try
+            {
+                foreach (var u in uncommitted)
+                    entity.Conflict(u.Event);
+            }
+            catch (NoRouteException e)
+            {
+                Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
+                throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
+            }
+
+            Logger.Write(LogLevel.Debug, () => "Successfully merged conflicted events");
+
+            if (stream.StreamVersion != stream.CommitVersion && entity is ISnapshotting && ((ISnapshotting)entity).ShouldTakeSnapshot())
+            {
+                Logger.Write(LogLevel.Debug, () => $"Taking snapshot of {typeof(T).FullName} id [{entity.StreamId}] version {stream.StreamVersion}");
+                var memento = ((ISnapshotting)entity).TakeSnapshot();
+                stream.AddSnapshot(memento, commitHeaders);
+            }
+
+            startingEventId = await stream.Commit(commitId, startingEventId, commitHeaders);
+
+            return startingEventId;
+
         }
     }
     internal class DelegatingConflictResolver : IResolveConflicts
