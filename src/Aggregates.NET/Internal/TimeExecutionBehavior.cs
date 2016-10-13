@@ -46,22 +46,23 @@ namespace Aggregates.Internal
 
                 // Use TotalProcessorTime instead of Stopwatch because stopwatch includes time wasted in .NET internals
                 // like GC or waiting for IO
-                var start = Process.GetCurrentProcess().TotalProcessorTime;
+                var start = Stopwatch.GetTimestamp();
 
                 await next().ConfigureAwait(false);
 
-                var end = Process.GetCurrentProcess().TotalProcessorTime;
+                var end = Stopwatch.GetTimestamp();
+                var elapsed = (end - start) * (1.0 / Stopwatch.Frequency) * 1000;
 
-                if ((end-start).TotalMilliseconds > _slowAlert)
+                if (elapsed > _slowAlert)
                 {
                     Logger.Write(LogLevel.Warn,
-                        () => $" - SLOW ALERT - Processing command {messageTypeIdentifier} took {(end - start).TotalMilliseconds} ms\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}");
+                        () => $" - SLOW ALERT - Processing command {messageTypeIdentifier} took {elapsed} ms\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}");
                     if (!verbose)
                         lock (SlowLock) SlowCommandTypes.Add(messageTypeIdentifier);
                 }
                 else
                     Logger.Write(LogLevel.Debug,
-                        () => $"Processing command {messageTypeIdentifier} took {(end - start).TotalMilliseconds} ms");
+                        () => $"Processing command {messageTypeIdentifier} took {elapsed} ms");
 
             }
             finally
