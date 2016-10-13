@@ -212,7 +212,6 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {wip.Count} events");
                     await _store.WriteEvents<T>(Bucket, StreamId, CommitVersion, wip, commitHeaders).ConfigureAwait(false);
                     _uncommitted = wip;
-                    Flush(true);
                 }
                 if (_pendingShots.Any())
                 {
@@ -220,6 +219,7 @@ namespace Aggregates.Internal
                     await _snapshots.WriteSnapshots<T>(Bucket, StreamId, _pendingShots, commitHeaders).ConfigureAwait(false);
                     _pendingShots.Clear();
                 }
+                Flush(true);
             }
             catch (WrongExpectedVersionException e)
             {
