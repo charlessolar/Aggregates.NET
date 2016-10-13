@@ -71,7 +71,7 @@ namespace Aggregates
                 description: "Filters [BusinessException] from processing failures"
                 );
             context.Pipeline.Register(
-                behavior: new CommandUnitOfWork(settings.Get<int>("SlowAlertThreshold")),
+                behavior: new CommandUnitOfWork(),
                 description: "Begins and Ends command unit of work"
                 );
             context.Pipeline.Register(

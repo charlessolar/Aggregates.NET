@@ -1,0 +1,92 @@
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Transactions;
+using Aggregates.Attributes;
+using Aggregates.Contracts;
+using Aggregates.Extensions;
+using NServiceBus.Logging;
+using NServiceBus.MessageInterfaces;
+using NServiceBus.Pipeline;
+using NServiceBus.Sagas;
+
+namespace Aggregates.Internal
+{
+    internal class BulkInvokeHandlerTerminator : PipelineTerminator<IInvokeHandlerContext>
+    {
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(BulkInvokeHandlerTerminator));
+
+        private static readonly ConcurrentDictionary<string, int> IsDelayed = new ConcurrentDictionary<string, int>();
+        private static readonly HashSet<string> IsNotDelayed = new HashSet<string>();
+
+        private readonly IMessageMapper _mapper;
+        private readonly IDelayedChannel _channel;
+
+        public BulkInvokeHandlerTerminator(IMessageMapper mapper, IDelayedChannel channel)
+        {
+            _mapper = mapper;
+            _channel = channel;
+        }
+
+        protected override async Task Terminate(IInvokeHandlerContext context)
+        {
+            var msgType = context.MessageBeingHandled.GetType();
+            if (!msgType.IsInterface)
+                msgType = _mapper.GetMappedTypeFor(msgType);
+
+            context.Extensions.Set(new State
+            {
+                ScopeWasPresent = Transaction.Current != null
+            });
+            
+            var messageHandler = context.MessageHandler;
+
+            var key = $"{messageHandler.HandlerType.FullName}.{msgType.FullName}";
+            if (IsNotDelayed.Contains(key))
+            {
+                await messageHandler.Invoke(context.MessageBeingHandled, context).ConfigureAwait(false);
+                return;
+            }
+            if (IsDelayed.ContainsKey(key))
+            {
+                Logger.Write(LogLevel.Debug, () => $"Delaying message {msgType.FullName} delivery");
+                var size = await _channel.AddToQueue(key, context.MessageBeingHandled).ConfigureAwait(false);
+
+                int count;
+                IsDelayed.TryGetValue(key, out count);
+
+                if (size <= count) return;
+                Logger.Write(LogLevel.Debug, () => $"Threshold hit - bulk processing {msgType.FullName}");
+                var msgs = await _channel.Pull(key);
+
+                foreach(var msg in msgs)
+                    await messageHandler.Invoke(msg, context).ConfigureAwait(false);
+
+                return;
+            }
+
+            var attr =
+                (DelayedAttribute) Attribute.GetCustomAttribute(messageHandler.HandlerType, typeof(DelayedAttribute));
+            if (attr == null || attr.Type != msgType)
+            {
+                IsNotDelayed.Add(key);
+            }
+            else
+            {
+                Logger.Write(LogLevel.Debug,
+                    () => $"Found delayed handler {messageHandler.HandlerType.FullName} for message {msgType.FullName}");
+                IsDelayed.TryAdd(key, attr.Count);
+            }
+            await Terminate(context).ConfigureAwait(false);
+        }
+        
+
+        public class State
+        {
+            public bool ScopeWasPresent { get; set; }
+        }
+    }
+}

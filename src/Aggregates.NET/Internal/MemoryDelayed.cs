@@ -18,14 +18,16 @@ namespace Aggregates.Internal
             return Task.FromResult(!Store.TryGetValue(channel, out existing) ? 0 : existing.Count);
         }
 
-        public Task AddToQueue(string channel, object queued)
+        public Task<int> AddToQueue(string channel, object queued)
         {
+            var count = 1;
             Store.AddOrUpdate(channel, (_) => new List<object> { queued }, (_, existing) =>
             {
                 existing.Add(queued);
+                count = existing.Count;
                 return existing;
             });
-            return Task.CompletedTask;
+            return Task.FromResult(count);
         }
 
         public Task<IEnumerable<object>> Pull(string channel)

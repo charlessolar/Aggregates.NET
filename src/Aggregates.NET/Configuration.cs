@@ -1,4 +1,5 @@
 ﻿using System;
+using Metrics.Sampling;
 using NServiceBus;
 using NServiceBus.Configuration.AdvanceExtensibility;
 
@@ -10,11 +11,18 @@ namespace Aggregates
         {
             settings.GetSettings().Set("SlowAlertThreshold", milliseconds);
         }
+
         public static void SetReadSize(this ExposeSettings settings, int count)
         {
             settings.GetSettings().Set("ReadSize", count);
         }
-        /// <summary>
+
+        public static void EnableSlowAlerts(this ExposeSettings settings, bool expose)
+        {
+            settings.GetSettings().Set("SlowAlerts", expose);
+        }
+
+    /// <summary>
         /// Compress events and messages using GZip
         /// </summary>
         /// <param name="settings"></param>

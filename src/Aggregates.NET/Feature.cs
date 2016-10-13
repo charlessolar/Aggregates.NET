@@ -22,9 +22,10 @@ namespace Aggregates
                 s.SetDefault("ImmediateRetries", 3);
                 s.SetDefault("RetryForever", false);
                 s.SetDefault("DelayedRetries", 3);
-                s.SetDefault("SlowAlertThreshold", 1000);
                 s.SetDefault("ReadSize", 200);
                 s.SetDefault("Compress", false);
+                s.SetDefault("SlowAlertThreshold", 1000);
+                s.SetDefault("SlowAlerts", false);
             });
             
         }
@@ -51,6 +52,13 @@ namespace Aggregates
                 behavior: typeof(MutateOutgoingEvents),
                 description: "runs command mutators on outgoing events"
                 );
+            context.Pipeline.Replace("InvokeHandlers", (b) => b.Build<BulkInvokeHandlerTerminator>(), "Replaces default invoke handlers with one that supports our custom delayed invoker");
+
+            if(context.Settings.Get<bool>("SlowAlerts"))
+                context.Pipeline.Register(
+                    behavior: new TimeExecutionBehavior(settings.Get<int>("SlowAlertThreshold")), 
+                    description: "times the execution of messages and reports anytime they are slow"
+                    );
 
             // We are sending IEvents, which NSB doesn't like out of the box - so turn that check off
             context.Pipeline.Remove("EnforceSendBestPractices");

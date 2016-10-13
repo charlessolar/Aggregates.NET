@@ -217,7 +217,6 @@ namespace Aggregates.Internal
                 {
                     Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {_pendingShots.Count} snapshots");
                     await _snapshots.WriteSnapshots<T>(Bucket, StreamId, _pendingShots, commitHeaders).ConfigureAwait(false);
-                    _pendingShots.Clear();
                 }
                 Flush(true);
             }

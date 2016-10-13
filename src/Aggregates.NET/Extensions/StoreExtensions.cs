@@ -67,7 +67,7 @@ namespace Aggregates.Extensions
         public static T Deserialize<T>(this byte[] bytes, JsonSerializerSettings settings)
         {
             var json = Encoding.UTF8.GetString(bytes);
-            return JsonConvert.DeserializeObject<T>(json);
+            return JsonConvert.DeserializeObject<T>(json, settings);
         }
 
         public static string ToLowerCamelCase(this string type)
