@@ -1,5 +1,4 @@
 ﻿using System;
-using Metrics.Sampling;
 using NServiceBus;
 using NServiceBus.Configuration.AdvanceExtensibility;
 

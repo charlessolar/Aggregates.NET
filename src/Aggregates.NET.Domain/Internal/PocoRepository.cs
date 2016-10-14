@@ -121,7 +121,7 @@ namespace Aggregates.Internal
                     }
                 } while (!success && count < 5);
 
-            });
+            }).ConfigureAwait(false);
             WrittenEvents.Update(written);
             return startingEventId;
         }

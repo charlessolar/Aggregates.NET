@@ -7,7 +7,6 @@ using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
-using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
 
 namespace Aggregates.Internal

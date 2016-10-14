@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
-using NServiceBus.Settings;
 
 namespace Aggregates.Internal
 {
@@ -70,7 +68,7 @@ namespace Aggregates.Internal
                 new byte[] { }
             );
 
-            var result=await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, @event);
+            var result = await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, @event).ConfigureAwait(false);
 
             return result.NextExpectedVersion - start;
         }
@@ -101,7 +99,7 @@ namespace Aggregates.Internal
                 snap.Serialize(new JsonSerializerSettings()).AsByteArray(),
                 new byte[] { }
             );
-            await _client.AppendToStreamAsync($"{streamName}.SNAP", ExpectedVersion.Any, @event);
+            await _client.AppendToStreamAsync($"{streamName}.SNAP", ExpectedVersion.Any, @event).ConfigureAwait(false);
 
             var events = new List<ResolvedEvent>();
             StreamEventsSlice current;

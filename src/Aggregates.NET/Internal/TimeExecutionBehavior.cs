@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Extensions;
-using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.Pipeline;

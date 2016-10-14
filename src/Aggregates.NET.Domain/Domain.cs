@@ -71,7 +71,7 @@ namespace Aggregates
                 description: "Filters [BusinessException] from processing failures"
                 );
             context.Pipeline.Register(
-                behavior: new CommandUnitOfWork(),
+                behavior: typeof(CommandUnitOfWork),
                 description: "Begins and Ends command unit of work"
                 );
             context.Pipeline.Register(

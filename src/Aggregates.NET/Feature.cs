@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Extensions;
 using Aggregates.Internal;
@@ -8,8 +7,6 @@ using Aggregates.Messages;
 using NServiceBus;
 using NServiceBus.Features;
 using NServiceBus.Logging;
-using NServiceBus.ObjectBuilder;
-using NServiceBus.Settings;
 
 namespace Aggregates
 {

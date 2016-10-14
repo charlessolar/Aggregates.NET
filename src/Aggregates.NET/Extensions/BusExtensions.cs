@@ -14,12 +14,14 @@ namespace Aggregates.Extensions
 
         public static void CommandResponse(this IMessage msg)
         {
+            // ReSharper disable once CanBeReplacedWithTryCastAndCheckForNull
             if (msg is Reject)
             {
                 var reject = (Reject)msg;
                 Logger.WriteFormat(LogLevel.Warn, "Command was rejected - Message: {0}\n", reject.Message);
                 throw new CommandRejectedException(reject.Message, reject.Exception);
             }
+            // ReSharper disable once CanBeReplacedWithTryCastAndCheckForNull
             if (msg is Error)
             {
                 var error = (Error)msg;

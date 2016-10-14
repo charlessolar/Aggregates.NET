@@ -46,8 +46,8 @@ namespace Aggregates.Internal
                     options.SetHeader(header.Key, header.Value);
                 }
 
-                await _endpoint.Publish(@event, options);
-            });
+                await _endpoint.Publish(@event, options).ConfigureAwait(false);
+            }).ConfigureAwait(false);
             
         }
         public Task<IEnumerable<IWritableEvent>> Retrieve<T>(string bucket, string streamId, int? skip = null, int? take = null, bool ascending = true) where T : class, IEventSource

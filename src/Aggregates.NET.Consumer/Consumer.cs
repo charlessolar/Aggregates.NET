@@ -1,14 +1,6 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Aggregates.Extensions;
-using Aggregates.Internal;
-using Aggregates.Messages;
+﻿using Aggregates.Internal;
 using NServiceBus;
 using NServiceBus.Features;
-using NServiceBus.Logging;
-using NServiceBus.ObjectBuilder;
-using NServiceBus.Settings;
 
 namespace Aggregates
 {
@@ -29,7 +21,7 @@ namespace Aggregates
                 description: "Running event mutators for incoming messages"
                 );
             context.Pipeline.Register(
-                behavior: new EventUnitOfWork(context.Settings.Get<int>("SlowAlertThreshold")),
+                behavior: typeof(EventUnitOfWork),
                 description: "Begins and Ends event unit of work"
                 );
         }

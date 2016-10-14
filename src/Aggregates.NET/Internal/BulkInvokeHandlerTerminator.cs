@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Transactions;
 using Aggregates.Attributes;
@@ -11,7 +10,6 @@ using Aggregates.Extensions;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.Pipeline;
-using NServiceBus.Sagas;
 
 namespace Aggregates.Internal
 {
@@ -60,7 +58,7 @@ namespace Aggregates.Internal
 
                 if (size <= count) return;
                 Logger.Write(LogLevel.Debug, () => $"Threshold hit - bulk processing {msgType.FullName}");
-                var msgs = await _channel.Pull(key);
+                var msgs = await _channel.Pull(key).ConfigureAwait(false);
 
                 foreach (var msg in msgs)
                     await messageHandler.Invoke(msg, context).ConfigureAwait(false);

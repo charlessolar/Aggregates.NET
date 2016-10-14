@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Aggregates.Extensions;
 using Metrics;
-using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.Pipeline;
@@ -96,7 +94,7 @@ namespace Aggregates.Internal
                     trailingExceptions.Insert(0, e);
                     e = new System.AggregateException(trailingExceptions);
                 }
-                throw;
+                throw e;
             }
         }
     }

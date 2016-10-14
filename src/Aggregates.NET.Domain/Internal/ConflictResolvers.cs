@@ -26,7 +26,7 @@ namespace Aggregates.Internal
         public async Task<Guid> Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var stream = entity.Stream;
-            Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream {stream.StreamId} bucket {stream.Bucket}");
+            Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] bucket [{stream.Bucket}]");
 
             foreach (var u in uncommitted)
             {
@@ -54,7 +54,7 @@ namespace Aggregates.Internal
         public Task<Guid> Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var stream = entity.Stream;
-            Logger.Write(LogLevel.Info, () => $"Discarding {uncommitted.Count()} conflicting uncommitted events to stream {stream.StreamId} bucket {stream.Bucket}");
+            Logger.Write(LogLevel.Info, () => $"Discarding {uncommitted.Count()} conflicting uncommitted events to stream [{stream.StreamId}] bucket [{stream.Bucket}]");
 
             return Task.FromResult(startingEventId);
         }
@@ -76,7 +76,7 @@ namespace Aggregates.Internal
         public async Task<Guid> Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var stream = entity.Stream;
-            Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream {stream.StreamId} bucket {stream.Bucket}");
+            Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] bucket [{stream.Bucket}]");
 
             var latestEvents = await _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1).ConfigureAwait(false);
             Logger.Write(LogLevel.Debug, () => $"Stream is {latestEvents.Count()} events behind store");
@@ -107,7 +107,7 @@ namespace Aggregates.Internal
                 stream.AddSnapshot(memento, commitHeaders);
             }
 
-            startingEventId = await stream.Commit(commitId, startingEventId, commitHeaders);
+            startingEventId = await stream.Commit(commitId, startingEventId, commitHeaders).ConfigureAwait(false);
             
             return startingEventId;
         }
@@ -134,14 +134,15 @@ namespace Aggregates.Internal
             // After 100 or so pile up pull the latest stream and attempt to write them again
 
             foreach (var @event in uncommitted)
-                await _delay.AddToQueue(entity.StreamId, @event);
+                await _delay.AddToQueue(entity.StreamId, @event).ConfigureAwait(false);
 
-            if (await _delay.Size(entity.StreamId) < 100)
+            if (await _delay.Size(entity.StreamId).ConfigureAwait(false) < 100)
                 return startingEventId;
 
-            uncommitted = (await _delay.Pull(entity.StreamId)).Cast<IWritableEvent>();
             var stream = entity.Stream;
-            Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream {stream.StreamId} bucket {stream.Bucket}");
+            Logger.Write(LogLevel.Debug, () => $"Starting weak conflict resolve for stream [{stream.StreamId}] bucket [{stream.Bucket}]");
+            uncommitted = (await _delay.Pull(entity.StreamId).ConfigureAwait(false)).Cast<IWritableEvent>();
+            Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] bucket [{stream.Bucket}]");
 
             var latestEvents = await _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1).ConfigureAwait(false);
             Logger.Write(LogLevel.Debug, () => $"Stream is {latestEvents.Count()} events behind store");
@@ -173,7 +174,7 @@ namespace Aggregates.Internal
                 stream.AddSnapshot(memento, commitHeaders);
             }
 
-            startingEventId = await stream.Commit(commitId, startingEventId, commitHeaders);
+            startingEventId = await stream.Commit(commitId, startingEventId, commitHeaders).ConfigureAwait(false);
 
             return startingEventId;
 

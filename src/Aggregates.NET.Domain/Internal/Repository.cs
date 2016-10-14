@@ -81,7 +81,7 @@ namespace Aggregates.Internal
                 try
                 {
                     startingEventId = await stream.Commit(commitId, startingEventId, headers).ConfigureAwait(false);
-                    await _store.Cache<T>(stream);
+                    await _store.Cache<T>(stream).ConfigureAwait(false);
                     evict = false;
                 }
                 catch (VersionException e)
@@ -101,7 +101,7 @@ namespace Aggregates.Internal
 
                         var uncommitted = stream.Uncommitted.ToList();
                         stream.Flush(false);
-                        var clean = await GetUntracked(stream);
+                        var clean = await GetUntracked(stream).ConfigureAwait(false);
 
                         var tries = _conflictResolution.ResolveRetries ?? _settings.Get<int>("MaxConflictResolves");
                         var success = false;
@@ -110,7 +110,7 @@ namespace Aggregates.Internal
                             try
                             {
                                 var strategy = _conflictResolution.Conflict.Build(_builder, _conflictResolution.Resolver);
-                                startingEventId = await strategy.Resolve(clean, uncommitted, commitId, startingEventId, commitHeaders);
+                                startingEventId = await strategy.Resolve(clean, uncommitted, commitId, startingEventId, commitHeaders).ConfigureAwait(false);
 
                                 success = true;
                             }
@@ -118,10 +118,10 @@ namespace Aggregates.Internal
                         } while (!success && (--tries) > 0);
                         if (!success)
                         {
-                            await _store.Evict<T>(stream.Bucket, stream.StreamId);
+                            await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
                             throw new ConflictResolutionFailedException("Failed to resolve stream conflict");
                         }
-                        await _store.Cache<T>(clean.Stream);
+                        await _store.Cache<T>(clean.Stream).ConfigureAwait(false);
                         evict = false;
 
                         Logger.WriteFormat(LogLevel.Debug, "Stream [{0}] entity {1} version {2} had version conflicts with store - successfully resolved", tracked.StreamId, tracked.GetType().FullName, stream.StreamVersion);
@@ -129,14 +129,14 @@ namespace Aggregates.Internal
                     }
                     catch (AbandonConflictException abandon)
                     {
-                        await _store.Evict<T>(stream.Bucket, stream.StreamId);
+                        await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
                         ConflictsUnresolved.Mark();
                         Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - abandoning resolution", tracked.StreamId, tracked.GetType().FullName);
                         throw new ConflictResolutionFailedException($"Aborted conflict resolution for stream [{tracked.StreamId}] entity {tracked.GetType().FullName}", abandon);
                     }
                     catch (Exception ex)
                     {
-                        await _store.Evict<T>(stream.Bucket, stream.StreamId);
+                        await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
                         ConflictsUnresolved.Mark();
                         Logger.WriteFormat(LogLevel.Error, "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve due to: {3}: {2}", tracked.StreamId, tracked.GetType().FullName, ex.Message, ex.GetType().Name);
                         throw new ConflictResolutionFailedException($"Failed to resolve conflict for stream [{tracked.StreamId}] entity {tracked.GetType().FullName} due to exception", ex);
@@ -159,7 +159,7 @@ namespace Aggregates.Internal
                 {
                     if (evict)
                     {
-                        await _store.Evict<T>(stream.Bucket, stream.StreamId);
+                        await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
                         WriteErrors.Mark();
                     }
 
@@ -236,7 +236,7 @@ namespace Aggregates.Internal
             if (stream == null || stream.StreamVersion == -1)
                 throw new NotFoundException($"Aggregate stream [{streamId}] in bucket [{bucket}] type {typeof(T).FullName} not found");
 
-            return await GetUntracked(stream);
+            return await GetUntracked(stream).ConfigureAwait(false);
         }
         private Task<T> GetUntracked(IEventStream stream)
         {

@@ -130,7 +130,7 @@ namespace Aggregates.Internal
 
             var eventstream = new EventStream<T>(Builder, this, bucket, streamId, translatedEvents, snapshot);
             if (_shouldCache)
-                await Cache<T>(eventstream);
+                await Cache<T>(eventstream).ConfigureAwait(false);
 
             return eventstream;
         }

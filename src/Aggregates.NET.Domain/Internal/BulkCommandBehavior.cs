@@ -78,7 +78,7 @@ namespace Aggregates.Internal
             }
             if (RedirectedTypes.ContainsKey(typeStr))
             {
-                if (await HandleRedirectedType(typeStr, context))
+                if (await HandleRedirectedType(typeStr, context).ConfigureAwait(false))
                     return;
 
                 await next().ConfigureAwait(false);
@@ -197,7 +197,7 @@ namespace Aggregates.Internal
                     e.Instance = Defaults.Instance;
                     e.CommandType = typeStr;
                 }, options);
-            });
+            }).ConfigureAwait(false);
         }
 
         private static async Task<bool> HandleRedirectedType(string type, IIncomingPhysicalMessageContext context)
@@ -212,7 +212,7 @@ namespace Aggregates.Internal
 
             RedirectedMeter.Mark();
 
-            await context.ForwardCurrentMessageTo(redirect.Queue);
+            await context.ForwardCurrentMessageTo(redirect.Queue).ConfigureAwait(false);
             return true;
         }
 

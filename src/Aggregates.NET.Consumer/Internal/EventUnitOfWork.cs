@@ -6,7 +6,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aggregates.Extensions;
 using Metrics;
-using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.Pipeline;
@@ -18,21 +17,12 @@ namespace Aggregates.Internal
     internal class EventUnitOfWork : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventUnitOfWork));
-        private static readonly object SlowLock = new object();
-        private static readonly HashSet<string> SlowEventTypes = new HashSet<string>();
 
         private static readonly Meter EventsMeter = Metric.Meter("Events", Unit.Commands);
         private static readonly Timer EventsTimer = Metric.Timer("Event Duration", Unit.Commands);
 
         private static readonly Meter ErrorsMeter = Metric.Meter("Event Errors", Unit.Errors);
         
-        private readonly int _slowAlert;
-
-        public EventUnitOfWork(int slowAlertThreshold)
-        {
-            _slowAlert = slowAlertThreshold;
-        }
-
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
             if (!(context.Message.Instance is IEvent))
