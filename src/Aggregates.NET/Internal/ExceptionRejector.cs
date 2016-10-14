@@ -20,11 +20,13 @@ namespace Aggregates.Internal
         private static readonly ConcurrentDictionary<string, int> RetryRegistry = new ConcurrentDictionary<string, int>();
         private static readonly Meter ErrorsMeter = Metric.Meter("Message Faults", Unit.Errors);
         private readonly int _immediate;
+        private readonly int _delayed;
         private readonly bool _forever;
 
-        public ExceptionRejector(int immediateRetries, bool forever)
+        public ExceptionRejector(int immediateRetries, int delayedRetries, bool forever)
         {
             _immediate = immediateRetries;
+            _delayed = delayedRetries;
             _forever = forever;
         }
 
@@ -41,12 +43,19 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
-                if (attempts < _immediate)
+                if (attempts <= _immediate)
                 {
                     Logger.WriteFormat(LogLevel.Warn, $"Message {context.MessageId} has faulted! {attempts}/{_immediate} times\nException: {e.GetType().FullName}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");
                     RetryRegistry.TryAdd(messageId, attempts + 1);
                     throw;
                 }
+                var delayedTriesStr = "";
+                int delayedRetries;
+                if(!context.MessageHeaders.TryGetValue(Headers.DelayedRetries, out delayedTriesStr) || !Int32.TryParse(delayedTriesStr, out delayedRetries))
+                    delayedRetries = 0;
+                if (delayedRetries <= _delayed)
+                    throw;
+
                 // At this point message is dead - should be moved to error queue, send message to client that their request was rejected due to error 
                 ErrorsMeter.Mark();
 

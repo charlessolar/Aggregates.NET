@@ -22,7 +22,7 @@ namespace Aggregates
             settings.GetSettings().Set("SlowAlerts", expose);
         }
 
-    /// <summary>
+        /// <summary>
         /// Compress events and messages using GZip
         /// </summary>
         /// <param name="settings"></param>

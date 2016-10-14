@@ -162,6 +162,7 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
                 throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
             }
+            
 
             Logger.Write(LogLevel.Debug, () => "Successfully merged conflicted events");
 
