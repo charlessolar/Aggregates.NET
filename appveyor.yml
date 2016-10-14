@@ -1,7 +1,7 @@
 version: 0.3.0.{build}-beta
 
-#cache:
-#  - src\packages
+cache:
+  - src\packages
 
 platform: Any CPU
 configuration: Release

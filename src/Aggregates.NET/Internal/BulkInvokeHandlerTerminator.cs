@@ -41,7 +41,7 @@ namespace Aggregates.Internal
             {
                 ScopeWasPresent = Transaction.Current != null
             });
-            
+
             var messageHandler = context.MessageHandler;
 
             var key = $"{messageHandler.HandlerType.FullName}.{msgType.FullName}";
@@ -62,15 +62,17 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Debug, () => $"Threshold hit - bulk processing {msgType.FullName}");
                 var msgs = await _channel.Pull(key);
 
-                foreach(var msg in msgs)
+                foreach (var msg in msgs)
                     await messageHandler.Invoke(msg, context).ConfigureAwait(false);
 
                 return;
             }
 
-            var attr =
-                (DelayedAttribute) Attribute.GetCustomAttribute(messageHandler.HandlerType, typeof(DelayedAttribute));
-            if (attr == null || attr.Type != msgType)
+            var attrs =
+                Attribute.GetCustomAttributes(messageHandler.HandlerType, typeof(DelayedAttribute))
+                    .Cast<DelayedAttribute>();
+            var single = attrs.SingleOrDefault(x => x.Type == msgType);
+            if (single == null)
             {
                 IsNotDelayed.Add(key);
             }
@@ -78,11 +80,11 @@ namespace Aggregates.Internal
             {
                 Logger.Write(LogLevel.Debug,
                     () => $"Found delayed handler {messageHandler.HandlerType.FullName} for message {msgType.FullName}");
-                IsDelayed.TryAdd(key, attr.Count);
+                IsDelayed.TryAdd(key, single.Count);
             }
             await Terminate(context).ConfigureAwait(false);
         }
-        
+
 
         public class State
         {
