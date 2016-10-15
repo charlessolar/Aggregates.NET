@@ -64,29 +64,6 @@ namespace Aggregates.Internal
             return Task.CompletedTask;
         }
 
-        private async Task<bool> CheckFrozen<T>(string bucket, string streamId) where T : class, IEventSource
-        {
-            var streamName = _streamGen(typeof(T), bucket, streamId);
-            var streamMeta = await _client.GetStreamMetadataAsync(streamName).ConfigureAwait(false);
-            if (!(streamMeta.StreamMetadata?.CustomKeys.Contains("frozen") ?? false))
-                return false;
-
-            // ReSharper disable once PossibleNullReferenceException
-            var owner = streamMeta.StreamMetadata.GetValue<string>("owner");
-            if (owner == Defaults.Instance.ToString())
-                return false;
-
-            // ReSharper disable once PossibleNullReferenceException
-            var time = streamMeta.StreamMetadata.GetValue<long>("frozen");
-            if ((DateTime.UtcNow.ToUnixTime() - time) > 60)
-            {
-                Logger.Warn($"Stream [{streamName}] has been frozen for over 15 seconds!  Unfreezing");
-                await Unfreeze<T>(bucket, streamId).ConfigureAwait(false);
-                return false;
-            }
-            return true;
-        }
-
         public async Task<IEventStream> GetStream<T>(string bucket, string streamId, ISnapshot snapshot = null) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
@@ -123,7 +100,7 @@ namespace Aggregates.Internal
 
             var readSize = _nsbSettings.Get<int>("ReadSize");
             StreamEventsSlice current;
-            Logger.Write(LogLevel.Debug, () => $"Getting events from stream [{streamName}] starting at {sliceStart}");
+            Logger.Write(LogLevel.Debug, () => $"Reading events for stream [{streamName}] starting at {sliceStart} from store");
 
             using (ReadTime.NewContext())
             {
@@ -522,5 +499,28 @@ namespace Aggregates.Internal
                 throw new FrozenException();
             }
         }
+        private async Task<bool> CheckFrozen<T>(string bucket, string streamId) where T : class, IEventSource
+        {
+            var streamName = _streamGen(typeof(T), bucket, streamId);
+            var streamMeta = await _client.GetStreamMetadataAsync(streamName).ConfigureAwait(false);
+            if (!(streamMeta.StreamMetadata?.CustomKeys.Contains("frozen") ?? false))
+                return false;
+
+            // ReSharper disable once PossibleNullReferenceException
+            var owner = streamMeta.StreamMetadata.GetValue<string>("owner");
+            if (owner == Defaults.Instance.ToString())
+                return false;
+
+            // ReSharper disable once PossibleNullReferenceException
+            var time = streamMeta.StreamMetadata.GetValue<long>("frozen");
+            if ((DateTime.UtcNow.ToUnixTime() - time) > 60)
+            {
+                Logger.Warn($"Stream [{streamName}] has been frozen for over 60 seconds!  Unfreezing");
+                await Unfreeze<T>(bucket, streamId).ConfigureAwait(false);
+                return false;
+            }
+            return true;
+        }
+
     }
 }

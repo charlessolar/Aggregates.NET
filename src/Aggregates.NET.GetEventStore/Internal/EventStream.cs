@@ -28,7 +28,7 @@ namespace Aggregates.Internal
         public object CurrentMemento => _snapshot?.Payload;
         public int? LastSnapshot => _snapshot?.Version;
 
-        public IEnumerable<IWritableEvent> Committed { get; private set; }
+        public IEnumerable<IWritableEvent> Committed => _committed;
 
         public IEnumerable<IWritableEvent> Uncommitted => _uncommitted;
 
@@ -42,6 +42,7 @@ namespace Aggregates.Internal
         private readonly IOobHandler _oobHandler;
         private readonly IBuilder _builder;
         private readonly ISnapshot _snapshot;
+        private IEnumerable<IWritableEvent> _committed;
         private IList<IWritableEvent> _uncommitted;
         private readonly IList<IWritableEvent> _outofband;
         private readonly IList<ISnapshot> _pendingShots;
@@ -54,7 +55,7 @@ namespace Aggregates.Internal
             _builder = builder;
             Bucket = bucket;
             StreamId = streamId;
-            Committed = events?.ToList() ?? new List<IWritableEvent>();
+            _committed = events?.ToList() ?? new List<IWritableEvent>();
             _snapshot = snapshot;
 
             _uncommitted = new List<IWritableEvent>();
@@ -73,14 +74,14 @@ namespace Aggregates.Internal
             Bucket = clone.Bucket;
             StreamId = clone.StreamId;
             _snapshot = snapshot;
-            Committed = clone.Committed.ToList();
+            _committed = clone.Committed.ToList();
             _uncommitted = new List<IWritableEvent>();
             _outofband = new List<IWritableEvent>();
             _pendingShots = new List<ISnapshot>();
 
             if (_snapshot != null && Committed.Any() && Committed.First().Descriptor.Version <= _snapshot.Version)
             {
-                Committed = Committed.Where(x => x.Descriptor.Version > _snapshot.Version);
+                _committed = _committed.Where(x => x.Descriptor.Version > _snapshot.Version);
             }
         }
 
@@ -100,7 +101,7 @@ namespace Aggregates.Internal
 
         void IEventStream.Concat(IEnumerable<IWritableEvent> events)
         {
-            Committed = Committed.Concat(events);
+            _committed = _committed.Concat(events);
         }
 
         public Task<IEnumerable<IWritableEvent>> AllEvents(bool? backwards)
@@ -242,7 +243,7 @@ namespace Aggregates.Internal
         public void Flush(bool committed)
         {
             if (committed)
-                Committed = Committed.Concat(_uncommitted);
+                _committed = _committed.Concat(_uncommitted);
 
             _uncommitted.Clear();
             _pendingShots.Clear();

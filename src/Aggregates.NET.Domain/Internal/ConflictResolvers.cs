@@ -196,7 +196,7 @@ namespace Aggregates.Internal
                 {
                     Logger.Write(LogLevel.Debug,
                         () =>
-                                $"Taking snapshot of {typeof(T).FullName} id [{entity.StreamId}] version {stream.StreamVersion}");
+                                $"Taking snapshot of [{typeof(T).FullName}] id [{entity.StreamId}] version {stream.StreamVersion}");
                     var memento = ((ISnapshotting) entity).TakeSnapshot();
                     stream.AddSnapshot(memento, commitHeaders);
                 }

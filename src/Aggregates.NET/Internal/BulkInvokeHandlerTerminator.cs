@@ -42,6 +42,8 @@ namespace Aggregates.Internal
 
             var messageHandler = context.MessageHandler;
 
+            Logger.Write(LogLevel.Debug, () => $"Invoking handle for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
+
             var key = $"{messageHandler.HandlerType.FullName}.{msgType.FullName}";
             if (IsNotDelayed.Contains(key))
             {

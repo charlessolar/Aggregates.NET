@@ -79,7 +79,7 @@ namespace Aggregates.Internal
                     {
                         Logger.Write(LogLevel.Debug,
                             () =>
-                                    $"Taking snapshot of {tracked.GetType().FullName} id [{tracked.StreamId}] version {tracked.Version}");
+                                    $"Taking snapshot of [{tracked.GetType().FullName}] id [{tracked.StreamId}] version {tracked.Version}");
                         var memento = (tracked as ISnapshotting).TakeSnapshot();
                         stream.AddSnapshot(memento, headers);
                     }
@@ -97,8 +97,7 @@ namespace Aggregates.Internal
                         if (stream.CommitVersion == -1)
                             throw new ConflictResolutionFailedException(
                                 $"New stream [{tracked.StreamId}] entity {tracked.GetType().FullName} already exists in store");
-
-                        WriteErrors.Mark();
+                        
                         Conflicts.Mark();
                         try
                         {
@@ -128,7 +127,6 @@ namespace Aggregates.Internal
                                 }
                                 catch (ConflictingCommandException)
                                 {
-                                    await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
                                     throw new ConflictResolutionFailedException("Failed to resolve stream conflict");
                                 }
                                 await _store.Cache<T>(clean.Stream).ConfigureAwait(false);
@@ -142,7 +140,6 @@ namespace Aggregates.Internal
                         }
                         catch (AbandonConflictException abandon)
                         {
-                            await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
                             ConflictsUnresolved.Mark();
                             Logger.WriteFormat(LogLevel.Error,
                                 "Stream [{0}] entity {1} has version conflicts with store - abandoning resolution",
@@ -153,7 +150,6 @@ namespace Aggregates.Internal
                         }
                         catch (Exception ex)
                         {
-                            await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
                             ConflictsUnresolved.Mark();
                             Logger.WriteFormat(LogLevel.Error,
                                 "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve due to: {3}: {2}",
@@ -254,7 +250,10 @@ namespace Aggregates.Internal
         }
         private async Task<T> GetUntracked(string bucket, string streamId)
         {
-            var snapshot = await _snapstore.GetSnapshot<T>(bucket, streamId).ConfigureAwait(false);
+            ISnapshot snapshot = null;
+            if(typeof(ISnapshotting).IsAssignableFrom(typeof(T)))
+                snapshot = await _snapstore.GetSnapshot<T>(bucket, streamId).ConfigureAwait(false);
+
             var stream = await _store.GetStream<T>(bucket, streamId, snapshot).ConfigureAwait(false);
 
             // Get requires the stream exists

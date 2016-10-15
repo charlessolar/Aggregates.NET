@@ -58,6 +58,7 @@ namespace Aggregates.Internal
                 }
                 MissMeter.Mark();
             }
+            Logger.Write(LogLevel.Debug, () => $"Reading snapshot for stream [{streamName}] from store");
 
             var read = await _client.ReadEventAsync(streamName, StreamPosition.End, false).ConfigureAwait(false);
             if (read.Status != EventReadStatus.Success || !read.Event.HasValue)
