@@ -125,7 +125,7 @@ namespace Aggregates.Internal
             StreamEventsSlice current;
             Logger.Write(LogLevel.Debug, () => $"Getting events from stream [{streamName}] starting at {sliceStart}");
 
-            using (var ctx = ReadTime.NewContext())
+            using (ReadTime.NewContext())
             {
                 do
                 {
@@ -206,7 +206,7 @@ namespace Aggregates.Internal
             var sliceStart = start ?? StreamPosition.Start;
             Logger.Write(LogLevel.Debug, () => $"Getting events from stream [{streamName}] starting at {sliceStart}");
 
-            using (var ctx = ReadTime.NewContext())
+            using (ReadTime.NewContext())
             {
                 do
                 {
@@ -280,7 +280,7 @@ namespace Aggregates.Internal
 
             Logger.Write(LogLevel.Debug, () => $"Getting events backwards from stream [{streamName}] starting at {sliceStart}");
 
-            using (var ctx = ReadTime.NewContext())
+            using (ReadTime.NewContext())
             {
                 do
                 {
@@ -372,7 +372,7 @@ namespace Aggregates.Internal
                     );
             }).ToList();
 
-            using (var ctx = WriteTime.NewContext())
+            using (WriteTime.NewContext())
             {
                 await
                     _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents).ConfigureAwait(false);
@@ -426,7 +426,7 @@ namespace Aggregates.Internal
                     );
             }).ToList();
 
-            using (var ctx = WriteTime.NewContext())
+            using (WriteTime.NewContext())
             {
                 await _client.AppendToStreamAsync(streamName, expectedVersion, translatedEvents).ConfigureAwait(false);
             }

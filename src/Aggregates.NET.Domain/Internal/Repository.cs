@@ -38,6 +38,7 @@ namespace Aggregates.Internal
         private static readonly Meter ConflictsUnresolved = Metric.Meter("Conflicts Unresolved", Unit.Items);
         private static readonly Meter WriteErrors = Metric.Meter("Event Write Errors", Unit.Errors);
         private static readonly Metrics.Timer CommitTime = Metric.Timer("Repository Commit Time", Unit.Items);
+        private static readonly Metrics.Timer ConflictResolutionTime = Metric.Timer("Conflict Resolution Time", Unit.Items);
 
         protected readonly IDictionary<string, T> Tracked = new Dictionary<string, T>();
 
@@ -61,7 +62,7 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Repository {typeof(T).FullName} starting commit {commitId}");
             var written = 0;
-            using (var ctx = CommitTime.NewContext())
+            using (CommitTime.NewContext())
             {
                 foreach (var tracked in Tracked.Values)
                 {
@@ -109,14 +110,12 @@ namespace Aggregates.Internal
                             Logger.Write(LogLevel.Debug,
                                 () => $"Attempting to resolve conflict with strategy {_conflictResolution.Conflict}");
 
-                            var uncommitted = stream.Uncommitted.ToList();
-                            stream.Flush(false);
-                            var clean = await GetUntracked(stream).ConfigureAwait(false);
-
-                            var tries = _conflictResolution.ResolveRetries ?? _settings.Get<int>("MaxConflictResolves");
-                            var success = false;
-                            do
+                            using (ConflictResolutionTime.NewContext())
                             {
+                                var uncommitted = stream.Uncommitted.ToList();
+                                stream.Flush(false);
+                                var clean = await GetUntracked(stream).ConfigureAwait(false);
+
                                 try
                                 {
                                     var strategy = _conflictResolution.Conflict.Build(_builder,
@@ -126,19 +125,15 @@ namespace Aggregates.Internal
                                             strategy.Resolve(clean, uncommitted, commitId, startingEventId,
                                                 commitHeaders).ConfigureAwait(false);
 
-                                    success = true;
                                 }
                                 catch (ConflictingCommandException)
                                 {
+                                    await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
+                                    throw new ConflictResolutionFailedException("Failed to resolve stream conflict");
                                 }
-                            } while (!success && (--tries) > 0);
-                            if (!success)
-                            {
-                                await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
-                                throw new ConflictResolutionFailedException("Failed to resolve stream conflict");
+                                await _store.Cache<T>(clean.Stream).ConfigureAwait(false);
+                                evict = false;
                             }
-                            await _store.Cache<T>(clean.Stream).ConfigureAwait(false);
-                            evict = false;
 
                             Logger.WriteFormat(LogLevel.Debug,
                                 "Stream [{0}] entity {1} version {2} had version conflicts with store - successfully resolved",

@@ -193,7 +193,7 @@ namespace Aggregates.Internal
             var headers = new Dictionary<string, string>(CurrentHeaders);
 
             Logger.Write(LogLevel.Debug, () => $"Starting commit id {CommitId}");
-            using (var ctx = CommitTime.NewContext())
+            using (CommitTime.NewContext())
             {
                 var startingEventId = CommitId;
                 foreach(var repo in _repositories.Values)
