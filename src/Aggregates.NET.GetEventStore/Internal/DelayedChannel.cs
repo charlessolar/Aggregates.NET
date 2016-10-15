@@ -14,6 +14,7 @@ namespace Aggregates.Internal
     {
         public class Snapshot
         {
+            public DateTime Created { get; set; }
             public int Position { get; set; }
         }
         private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreSnapshots));
@@ -23,6 +24,21 @@ namespace Aggregates.Internal
         public DelayedChannel(IEventStoreConnection client)
         {
             _client = client;
+        }
+
+        public async Task<TimeSpan?> Age(string channel)
+        {
+            var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
+            var streamName = $"DELAY.{channel}";
+            Logger.Write(LogLevel.Debug, () => $"Getting age of delayed channel [{channel}]");
+            
+            var read = await _client.ReadEventAsync($"{streamName}.SNAP", StreamPosition.End, false).ConfigureAwait(false);
+            if (read.Status == EventReadStatus.Success && read.Event.HasValue)
+            {
+                var snapshot = read.Event.Value.Event.Data.Deserialize<Snapshot>(settings);
+                return DateTime.UtcNow - snapshot.Created;
+            }
+            return null;
         }
 
         public async Task<int> Size(string channel)
@@ -91,7 +107,7 @@ namespace Aggregates.Internal
             if (read.Status != EventReadStatus.Success)
                 return new object[] { }.AsEnumerable();
 
-            var snap = new Snapshot { Position = read.EventNumber };
+            var snap = new Snapshot { Created = DateTime.UtcNow, Position = read.EventNumber };
             var @event = new EventData(
                 Guid.NewGuid(),
                 typeof(Snapshot).AssemblyQualifiedName,

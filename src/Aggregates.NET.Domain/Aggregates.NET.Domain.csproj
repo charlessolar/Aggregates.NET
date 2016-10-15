@@ -71,6 +71,7 @@
     <Compile Include="Contracts\IPocoRepository.cs" />
     <Compile Include="Exceptions\ConflictResolutionFailedException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
+    <Compile Include="Exceptions\FrozenException.cs" />
     <Compile Include="IResolveConflicts.cs" />
     <Compile Include="Contracts\IStorePocos.cs" />
     <Compile Include="Contracts\IStreamCache.cs" />

@@ -50,7 +50,7 @@ namespace Aggregates.Internal
     internal class DiscardConflictResolver : IResolveConflicts
     {
         internal static readonly ILog Logger = LogManager.GetLogger(typeof(DiscardConflictResolver));
-        
+
         public Task<Guid> Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var stream = entity.Stream;
@@ -78,37 +78,51 @@ namespace Aggregates.Internal
             var stream = entity.Stream;
             Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] bucket [{stream.Bucket}]");
 
-            var latestEvents = await _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1).ConfigureAwait(false);
-            Logger.Write(LogLevel.Debug, () => $"Stream is {latestEvents.Count()} events behind store");
-
-            var writableEvents = latestEvents as IWritableEvent[] ?? latestEvents.ToArray();
-            stream.Concat(writableEvents);
-            entity.Hydrate(writableEvents.Select(x => x.Event));
-            
-
-            Logger.Write(LogLevel.Debug, () => "Merging conflicted events");
             try
             {
-                foreach (var u in uncommitted)
-                    entity.Conflict(u.Event);
+                await _store.Freeze<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
+
+                var latestEvents =
+                    await
+                        _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1)
+                            .ConfigureAwait(false);
+                Logger.Write(LogLevel.Debug, () => $"Stream is {latestEvents.Count()} events behind store");
+
+                var writableEvents = latestEvents as IWritableEvent[] ?? latestEvents.ToArray();
+                stream.Concat(writableEvents);
+                entity.Hydrate(writableEvents.Select(x => x.Event));
+
+
+                Logger.Write(LogLevel.Debug, () => "Merging conflicted events");
+                try
+                {
+                    foreach (var u in uncommitted)
+                        entity.Conflict(u.Event);
+                }
+                catch (NoRouteException e)
+                {
+                    Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
+                    throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
+                }
+
+                Logger.Write(LogLevel.Debug, () => "Successfully merged conflicted events");
+
+                if (stream.StreamVersion != stream.CommitVersion && entity is ISnapshotting &&
+                    ((ISnapshotting) entity).ShouldTakeSnapshot())
+                {
+                    Logger.Write(LogLevel.Debug,
+                        () =>
+                                $"Taking snapshot of {typeof(T).FullName} id [{entity.StreamId}] version {stream.StreamVersion}");
+                    var memento = ((ISnapshotting) entity).TakeSnapshot();
+                    stream.AddSnapshot(memento, commitHeaders);
+                }
+
+                startingEventId = await stream.Commit(commitId, startingEventId, commitHeaders).ConfigureAwait(false);
             }
-            catch (NoRouteException e)
+            finally
             {
-                Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
-                throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
+                await _store.Unfreeze<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
             }
-
-            Logger.Write(LogLevel.Debug, () => "Successfully merged conflicted events");
-
-            if (stream.StreamVersion != stream.CommitVersion && entity is ISnapshotting && ((ISnapshotting)entity).ShouldTakeSnapshot())
-            {
-                Logger.Write(LogLevel.Debug, () => $"Taking snapshot of {typeof(T).FullName} id [{entity.StreamId}] version {stream.StreamVersion}");
-                var memento = ((ISnapshotting)entity).TakeSnapshot();
-                stream.AddSnapshot(memento, commitHeaders);
-            }
-
-            startingEventId = await stream.Commit(commitId, startingEventId, commitHeaders).ConfigureAwait(false);
-            
             return startingEventId;
         }
     }
@@ -136,64 +150,67 @@ namespace Aggregates.Internal
             foreach (var @event in uncommitted)
                 await _delay.AddToQueue(entity.StreamId, @event).ConfigureAwait(false);
 
-            if (await _delay.Size(entity.StreamId).ConfigureAwait(false) < 100)
+            // Todo: make 30 seconds configurable
+            if (await _delay.Age(entity.StreamId).ConfigureAwait(false) < TimeSpan.FromSeconds(30))
                 return startingEventId;
 
             var stream = entity.Stream;
             Logger.Write(LogLevel.Debug, () => $"Starting weak conflict resolve for stream [{stream.StreamId}] bucket [{stream.Bucket}]");
-            uncommitted = (await _delay.Pull(entity.StreamId).ConfigureAwait(false)).Cast<IWritableEvent>();
-            Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] bucket [{stream.Bucket}]");
-
-            var latestEvents = await _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1).ConfigureAwait(false);
-            Logger.Write(LogLevel.Debug, () => $"Stream is {latestEvents.Count()} events behind store");
-
-            var writableEvents = latestEvents as IWritableEvent[] ?? latestEvents.ToArray();
-            stream.Concat(writableEvents);
-            entity.Hydrate(writableEvents.Select(x => x.Event));
-
-
-            Logger.Write(LogLevel.Debug, () => "Merging conflicted events");
             try
             {
-                foreach (var u in uncommitted)
-                    entity.Conflict(u.Event);
+                await _store.Freeze<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
+
+                uncommitted = (await _delay.Pull(entity.StreamId).ConfigureAwait(false)).Cast<IWritableEvent>();
+                Logger.Write(LogLevel.Info,
+                    () =>
+                            $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] bucket [{stream.Bucket}]");
+
+                var latestEvents =
+                    await
+                        _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1)
+                            .ConfigureAwait(false);
+                Logger.Write(LogLevel.Debug, () => $"Stream is {latestEvents.Count()} events behind store");
+
+                var writableEvents = latestEvents as IWritableEvent[] ?? latestEvents.ToArray();
+                stream.Concat(writableEvents);
+                entity.Hydrate(writableEvents.Select(x => x.Event));
+
+
+                Logger.Write(LogLevel.Debug, () => "Merging conflicted events");
+                try
+                {
+                    foreach (var u in uncommitted)
+                        entity.Conflict(u.Event);
+                }
+                catch (NoRouteException e)
+                {
+                    Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
+                    throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
+                }
+
+
+                Logger.Write(LogLevel.Debug, () => "Successfully merged conflicted events");
+
+                if (stream.StreamVersion != stream.CommitVersion && entity is ISnapshotting &&
+                    ((ISnapshotting) entity).ShouldTakeSnapshot())
+                {
+                    Logger.Write(LogLevel.Debug,
+                        () =>
+                                $"Taking snapshot of {typeof(T).FullName} id [{entity.StreamId}] version {stream.StreamVersion}");
+                    var memento = ((ISnapshotting) entity).TakeSnapshot();
+                    stream.AddSnapshot(memento, commitHeaders);
+                }
+
+                startingEventId = await stream.Commit(commitId, startingEventId, commitHeaders).ConfigureAwait(false);
             }
-            catch (NoRouteException e)
+            finally
             {
-                Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
-                throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
+                await _store.Unfreeze<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
             }
-            
-
-            Logger.Write(LogLevel.Debug, () => "Successfully merged conflicted events");
-
-            if (stream.StreamVersion != stream.CommitVersion && entity is ISnapshotting && ((ISnapshotting)entity).ShouldTakeSnapshot())
-            {
-                Logger.Write(LogLevel.Debug, () => $"Taking snapshot of {typeof(T).FullName} id [{entity.StreamId}] version {stream.StreamVersion}");
-                var memento = ((ISnapshotting)entity).TakeSnapshot();
-                stream.AddSnapshot(memento, commitHeaders);
-            }
-
-            startingEventId = await stream.Commit(commitId, startingEventId, commitHeaders).ConfigureAwait(false);
-
             return startingEventId;
 
         }
-    }
-    internal class DelegatingConflictResolver : IResolveConflicts
-    {
-        internal static readonly ILog Logger = LogManager.GetLogger(typeof(ResolveWeaklyConflictResolver));
-        
 
-        public Task<Guid> Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
-        {
-            // Send the conflict information to a remote cache
-            // A receiver processing the same command and the same stream can look at the cache, if conflicted events are there pull them into the stream
-            // they are about to commit
-            // Advantage of not being too much of a delay, while not blocking processing
-
-            throw new NotImplementedException();
-        }
     }
 
 }

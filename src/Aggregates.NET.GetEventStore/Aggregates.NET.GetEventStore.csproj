@@ -59,6 +59,8 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="Events\Frozen.cs" />
+    <Compile Include="Events\Unfrozen.cs" />
     <Compile Include="Internal\DelayedChannel.cs" />
     <Compile Include="Internal\DomainSubscriber.cs" />
     <Compile Include="Internal\EventStream.cs" />

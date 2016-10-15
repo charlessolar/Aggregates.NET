@@ -29,12 +29,10 @@ namespace Aggregates.Internal
         private IDictionary<string, IRepository> _pocoRepositories;
 
         private Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
-        private Timer _commandsTimer = Metric.Timer("Commands Duration", Unit.Commands);
         private Counter _commandsConcurrent = Metric.Counter("Concurrent Commands", Unit.Commands);
         private Meter _eventsMeter = Metric.Meter("Events", Unit.Commands);
-        private Timer _eventsTimer = Metric.Timer("Events Duration", Unit.Commands);
         private Counter _eventsConcurrent = Metric.Counter("Concurrent Events", Unit.Commands);
-        private TimerContext _timerContext;
+        private static readonly Metrics.Timer CommitTime = Metric.Timer("UOW Commit Time", Unit.Items);
 
         private Meter _errorsMeter = Metric.Meter("Command Errors", Unit.Errors);
         private Meter _eventErrorsMeter = Metric.Meter("Event Errors", Unit.Errors);
@@ -158,7 +156,6 @@ namespace Aggregates.Internal
         {
             _commandsMeter.Mark();
             _commandsConcurrent.Increment();
-            _timerContext = _commandsTimer.NewContext();
             return Task.FromResult(true);
         }
 
@@ -170,14 +167,12 @@ namespace Aggregates.Internal
                 _errorsMeter.Mark();
 
             _commandsConcurrent.Decrement();
-            _timerContext.Dispose();
         }
 
         Task IEventUnitOfWork.Begin()
         {
             _eventsMeter.Mark();
             _eventsConcurrent.Increment();
-            _timerContext = _eventsTimer.NewContext();
             return Task.FromResult(true);
         }
         async Task IEventUnitOfWork.End(Exception ex)
@@ -188,7 +183,6 @@ namespace Aggregates.Internal
                 _errorsMeter.Mark();
 
             _eventsConcurrent.Decrement();
-            _timerContext.Dispose();
         }
 
         private async Task Commit()
@@ -199,42 +193,44 @@ namespace Aggregates.Internal
             var headers = new Dictionary<string, string>(CurrentHeaders);
 
             Logger.Write(LogLevel.Debug, () => $"Starting commit id {CommitId}");
-
-            var startingEventId = CommitId;
-            var aggs = _repositories.Values.WhenAllAsync(async repo =>
+            using (var ctx = CommitTime.NewContext())
             {
-                try
+                var startingEventId = CommitId;
+                foreach(var repo in _repositories.Values)
                 {
-                    startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
+                    try
+                    {
+                        startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
+                    }
+                    catch (StorageException e)
+                    {
+                        throw new PersistenceException(e.Message, e);
+                    }
                 }
-                catch (StorageException e)
+                foreach (var repo in _entityRepositories.Values)
                 {
-                    throw new PersistenceException(e.Message, e);
+                    try
+                    {
+                        startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
+                    }
+                    catch (StorageException e)
+                    {
+                        throw new PersistenceException(e.Message, e);
+                    }
                 }
-            });
-            var entities = _entityRepositories.Values.WhenAllAsync(async repo =>
-            {
-                try
+                foreach (var repo in _pocoRepositories.Values)
                 {
-                    startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
+                    try
+                    {
+                        startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
+                    }
+                    catch (StorageException e)
+                    {
+                        throw new PersistenceException(e.Message, e);
+                    }
                 }
-                catch (StorageException e)
-                {
-                    throw new PersistenceException(e.Message, e);
-                }
-            });
-            var pocos = _pocoRepositories.Values.WhenAllAsync(async repo =>
-            {
-                try
-                {
-                    startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
-                }
-                catch (StorageException e)
-                {
-                    throw new PersistenceException(e.Message, e);
-                }
-            });
-            await Task.WhenAll(aggs, entities, pocos).ConfigureAwait(false);
+                
+            }
             Logger.Write(LogLevel.Debug, () => $"Commit id {CommitId} complete");
         }
 

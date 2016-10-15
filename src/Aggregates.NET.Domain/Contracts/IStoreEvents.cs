@@ -19,7 +19,10 @@ namespace Aggregates.Contracts
 
         Task AppendEvents<T>(string bucket, string streamId, IEnumerable<IWritableEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource;
 
-        Task WriteEventMetadata<T>(string bucket, string streamId, int? maxCount = null, TimeSpan? maxAge = null, TimeSpan? cacheControl = null) where T : class, IEventSource;
+        Task WriteStreamMetadata<T>(string bucket, string streamId, int? maxCount = null, TimeSpan? maxAge = null, TimeSpan? cacheControl = null) where T : class, IEventSource;
+
+        Task Freeze<T>(string bucket, string streamId) where T : class, IEventSource;
+        Task Unfreeze<T>(string bucket, string streamId) where T : class, IEventSource;
 
         IBuilder Builder { get; set; }
     }

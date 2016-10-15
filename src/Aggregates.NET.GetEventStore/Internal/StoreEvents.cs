@@ -1,11 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
+using Aggregates.Events;
+using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
+using EventStore.ClientAPI.Exceptions;
 using Metrics;
+using Metrics.Utils;
 using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Logging;
@@ -19,6 +24,8 @@ namespace Aggregates.Internal
     {
         private static readonly Meter HitMeter = Metric.Meter("Stream Cache Hits", Unit.Events);
         private static readonly Meter MissMeter = Metric.Meter("Stream Cache Misses", Unit.Events);
+        private static readonly Metrics.Timer ReadTime = Metric.Timer("EventStore Read Time", Unit.Events);
+        private static readonly Metrics.Timer WriteTime = Metric.Timer("EventStore Write Time", Unit.Events);
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreEvents));
         private readonly IEventStoreConnection _client;
@@ -40,7 +47,7 @@ namespace Aggregates.Internal
             _streamGen = _nsbSettings.Get<StreamIdGenerator>("StreamGenerator");
         }
 
-        public Task Evict<T>(string bucket, string streamId) where T: class, IEventSource
+        public Task Evict<T>(string bucket, string streamId) where T : class, IEventSource
         {
             if (!_shouldCache) return Task.CompletedTask;
 
@@ -57,7 +64,30 @@ namespace Aggregates.Internal
             return Task.CompletedTask;
         }
 
-        public async Task<IEventStream> GetStream<T>(string bucket, string streamId, ISnapshot snapshot = null) where T: class, IEventSource
+        private async Task<bool> CheckFrozen<T>(string bucket, string streamId) where T : class, IEventSource
+        {
+            var streamName = _streamGen(typeof(T), bucket, streamId);
+            var streamMeta = await _client.GetStreamMetadataAsync(streamName).ConfigureAwait(false);
+            if (!(streamMeta.StreamMetadata?.CustomKeys.Contains("frozen") ?? false))
+                return false;
+
+            // ReSharper disable once PossibleNullReferenceException
+            var owner = streamMeta.StreamMetadata.GetValue<string>("owner");
+            if (owner == Defaults.Instance.ToString())
+                return false;
+
+            // ReSharper disable once PossibleNullReferenceException
+            var time = streamMeta.StreamMetadata.GetValue<long>("frozen");
+            if ((DateTime.UtcNow.ToUnixTime() - time) > 60)
+            {
+                Logger.Warn($"Stream [{streamName}] has been frozen for over 15 seconds!  Unfreezing");
+                await Unfreeze<T>(bucket, streamId).ConfigureAwait(false);
+                return false;
+            }
+            return true;
+        }
+
+        public async Task<IEventStream> GetStream<T>(string bucket, string streamId, ISnapshot snapshot = null) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
             var events = new List<ResolvedEvent>();
@@ -65,7 +95,12 @@ namespace Aggregates.Internal
             var sliceStart = snapshot?.Version + 1 ?? StreamPosition.Start;
             Logger.Write(LogLevel.Debug, () => $"Retreiving stream [{streamId}] in bucket [{bucket}] starting at {sliceStart}");
 
-            var readSize = _nsbSettings.Get<int>("ReadSize");
+            while (await CheckFrozen<T>(bucket, streamId).ConfigureAwait(false))
+            {
+                Logger.Write(LogLevel.Debug, () => $"Stream [{streamName}] is frozen - waiting");
+                Thread.Sleep(100);
+            }
+
             if (_shouldCache)
             {
                 var cached = _cache.Retreive(streamName) as EventStream<T>;
@@ -85,16 +120,27 @@ namespace Aggregates.Internal
                 ContractResolver = new EventContractResolver(_mapper)
             };
 
+
+            var readSize = _nsbSettings.Get<int>("ReadSize");
             StreamEventsSlice current;
             Logger.Write(LogLevel.Debug, () => $"Getting events from stream [{streamName}] starting at {sliceStart}");
-            do
-            {
-                current = await _client.ReadStreamEventsForwardAsync(streamName, sliceStart, readSize, false).ConfigureAwait(false);
-                Logger.Write(LogLevel.Debug, () => $"Retreived {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
-                events.AddRange(current.Events);
-                sliceStart = current.NextEventNumber;
-            } while (!current.IsEndOfStream);
+            using (var ctx = ReadTime.NewContext())
+            {
+                do
+                {
+                    current =
+                        await _client.ReadStreamEventsForwardAsync(streamName, sliceStart, readSize, false)
+                            .ConfigureAwait(false);
+
+                    Logger.Write(LogLevel.Debug,
+                        () =>
+                                $"Retreived {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
+
+                    events.AddRange(current.Events);
+                    sliceStart = current.NextEventNumber;
+                } while (!current.IsEndOfStream);
+            }
             Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamName}]");
 
             if (current.Status == SliceReadStatus.StreamNotFound)
@@ -159,18 +205,28 @@ namespace Aggregates.Internal
             StreamEventsSlice current;
             var sliceStart = start ?? StreamPosition.Start;
             Logger.Write(LogLevel.Debug, () => $"Getting events from stream [{streamName}] starting at {sliceStart}");
-            do
+
+            using (var ctx = ReadTime.NewContext())
             {
-                var take = Math.Min((count ?? int.MaxValue) - events.Count, readSize);
-                current = await _client.ReadStreamEventsForwardAsync(streamName, sliceStart, take, false).ConfigureAwait(false);
-                Logger.Write(LogLevel.Debug, () => $"Retreived {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
+                do
+                {
+                    var take = Math.Min((count ?? int.MaxValue) - events.Count, readSize);
 
-                events.AddRange(current.Events);
+                    current =
+                        await _client.ReadStreamEventsForwardAsync(streamName, sliceStart, take, false)
+                            .ConfigureAwait(false);
 
-                sliceStart = current.NextEventNumber;
-            } while (!current.IsEndOfStream);
+                    Logger.Write(LogLevel.Debug,
+                        () =>
+                                $"Retreived {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
+
+                    events.AddRange(current.Events);
+
+                    sliceStart = current.NextEventNumber;
+                } while (!current.IsEndOfStream);
+            }
+
             Logger.Write(LogLevel.Debug, () => $"Finished getting events from stream [{streamName}]");
-
             var compress = _nsbSettings.Get<bool>("Compress");
 
             var translatedEvents = events.Select(e =>
@@ -223,16 +279,26 @@ namespace Aggregates.Internal
             }
 
             Logger.Write(LogLevel.Debug, () => $"Getting events backwards from stream [{streamName}] starting at {sliceStart}");
-            do
+
+            using (var ctx = ReadTime.NewContext())
             {
-                var take = Math.Min((count ?? int.MaxValue) - events.Count, readSize);
-                current = await _client.ReadStreamEventsBackwardAsync(streamName, sliceStart, take, false).ConfigureAwait(false);
-                Logger.Write(LogLevel.Debug, () => $"Retreived backwards {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
+                do
+                {
+                    var take = Math.Min((count ?? int.MaxValue) - events.Count, readSize);
 
-                events.AddRange(current.Events);
+                    current =
+                        await _client.ReadStreamEventsBackwardAsync(streamName, sliceStart, take, false)
+                            .ConfigureAwait(false);
 
-                sliceStart = current.NextEventNumber;
-            } while (!current.IsEndOfStream);
+                    Logger.Write(LogLevel.Debug,
+                        () =>
+                                $"Retreived backwards {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
+
+                    events.AddRange(current.Events);
+
+                    sliceStart = current.NextEventNumber;
+                } while (!current.IsEndOfStream);
+            }
             Logger.Write(LogLevel.Debug, () => $"Finished getting all events backward from stream [{streamName}]");
 
             var compress = _nsbSettings.Get<bool>("Compress");
@@ -306,14 +372,21 @@ namespace Aggregates.Internal
                     );
             }).ToList();
 
-            await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents).ConfigureAwait(false);
+            using (var ctx = WriteTime.NewContext())
+            {
+                await
+                    _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents).ConfigureAwait(false);
+            }
         }
 
         public async Task WriteEvents<T>(string bucket, string streamId, int expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
             Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{streamName}].  Expected version: {expectedVersion}");
-            
+
+            if (await CheckFrozen<T>(bucket, streamId).ConfigureAwait(false))
+                throw new FrozenException();
+
             var settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.All,
@@ -353,18 +426,101 @@ namespace Aggregates.Internal
                     );
             }).ToList();
 
-            await _client.AppendToStreamAsync(streamName, expectedVersion, translatedEvents).ConfigureAwait(false);
+            using (var ctx = WriteTime.NewContext())
+            {
+                await _client.AppendToStreamAsync(streamName, expectedVersion, translatedEvents).ConfigureAwait(false);
+            }
         }
 
 
-        public async Task WriteEventMetadata<T>(string bucket, string streamId, int? maxCount = null, TimeSpan? maxAge = null, TimeSpan? cacheControl = null) where T : class, IEventSource
+        public async Task WriteStreamMetadata<T>(string bucket, string streamId, int? maxCount = null, TimeSpan? maxAge = null, TimeSpan? cacheControl = null) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
             Logger.Write(LogLevel.Debug, () => $"Writing metadata [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl} ] to stream [{streamName}]");
 
-            var metadata = StreamMetadata.Create(maxCount: maxCount, maxAge: maxAge, cacheControl: cacheControl);
+            var existing = await _client.GetStreamMetadataAsync(streamName).ConfigureAwait(false);
+
+            var metadata = StreamMetadata.Build();
+
+            if ((maxCount ?? existing.StreamMetadata?.MaxCount).HasValue)
+                metadata.SetMaxCount((maxCount ?? existing.StreamMetadata?.MaxCount).Value);
+            if ((maxAge ?? existing.StreamMetadata?.MaxAge).HasValue)
+                metadata.SetMaxAge((maxAge ?? existing.StreamMetadata?.MaxAge).Value);
+            if ((cacheControl ?? existing.StreamMetadata?.CacheControl).HasValue)
+                metadata.SetCacheControl((cacheControl ?? existing.StreamMetadata?.CacheControl).Value);
 
             await _client.SetStreamMetadataAsync(streamName, ExpectedVersion.Any, metadata).ConfigureAwait(false);
+        }
+
+        public async Task Freeze<T>(string bucket, string streamId) where T : class, IEventSource
+        {
+            var streamName = _streamGen(typeof(T), bucket, streamId);
+            Logger.Write(LogLevel.Debug, () => $"Freezing stream [{streamName}]");
+
+
+            var existing = await _client.GetStreamMetadataAsync(streamName).ConfigureAwait(false);
+
+            if ((existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false))
+                throw new FrozenException();
+
+            var metadata = StreamMetadata.Build();
+
+            if ((existing.StreamMetadata?.MaxCount).HasValue)
+                metadata.SetMaxCount((existing.StreamMetadata?.MaxCount).Value);
+            if ((existing.StreamMetadata?.MaxAge).HasValue)
+                metadata.SetMaxAge((existing.StreamMetadata?.MaxAge).Value);
+            if ((existing.StreamMetadata?.CacheControl).HasValue)
+                metadata.SetCacheControl((existing.StreamMetadata?.CacheControl).Value);
+
+            metadata.SetCustomProperty("frozen", DateTime.UtcNow.ToUnixTime());
+            metadata.SetCustomProperty("owner", Defaults.Instance.ToString());
+
+            try
+            {
+                await
+                    _client.SetStreamMetadataAsync(streamName, existing.MetastreamVersion, metadata)
+                        .ConfigureAwait(false);
+            }
+            catch (WrongExpectedVersionException)
+            {
+                Logger.Write(LogLevel.Warn, () => $"Freeze: stream [{streamName}] someone froze before us");
+                throw new FrozenException();
+            }
+        }
+
+        public async Task Unfreeze<T>(string bucket, string streamId) where T : class, IEventSource
+        {
+            var streamName = _streamGen(typeof(T), bucket, streamId);
+            Logger.Write(LogLevel.Debug, () => $"Unfreezing stream [{streamName}]");
+
+            var existing = await _client.GetStreamMetadataAsync(streamName).ConfigureAwait(false);
+
+            if (existing.StreamMetadata == null || (existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) == false || existing.StreamMetadata?.GetValue<string>("owner") != Defaults.Instance.ToString())
+            {
+                Logger.Write(LogLevel.Debug, () => $"Unfreeze: stream [{streamName}] is not frozen");
+                return;
+            }
+
+
+            var metadata = StreamMetadata.Build();
+
+            if ((existing.StreamMetadata?.MaxCount).HasValue)
+                metadata.SetMaxCount((existing.StreamMetadata?.MaxCount).Value);
+            if ((existing.StreamMetadata?.MaxAge).HasValue)
+                metadata.SetMaxAge((existing.StreamMetadata?.MaxAge).Value);
+            if ((existing.StreamMetadata?.CacheControl).HasValue)
+                metadata.SetCacheControl((existing.StreamMetadata?.CacheControl).Value);
+
+
+            try
+            {
+                await _client.SetStreamMetadataAsync(streamName, existing.MetastreamVersion, metadata).ConfigureAwait(false);
+            }
+            catch (WrongExpectedVersionException)
+            {
+                Logger.Write(LogLevel.Warn, () => $"Unfreeze: stream [{streamName}] metadata is inconsistent");
+                throw new FrozenException();
+            }
         }
     }
 }

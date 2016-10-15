@@ -136,6 +136,8 @@ namespace Aggregates.Internal
 
                 await _client.SetStreamMetadataAsync(streamName, ExpectedVersion.Any, metadata).ConfigureAwait(false);
             }
+            if (_shouldCache)
+                _cache.Cache(streamName, snapshots.Last());
         }
         
     }

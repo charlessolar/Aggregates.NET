@@ -23,7 +23,7 @@ namespace Aggregates.Internal
             // if the stream is new, also write stream metadata to limit the number of events stored
             // OOB events are by definition not mission critical so we can save a bit of space by scavaging old data
             if (writableEvents.Any(x => x.Descriptor.Version == 0))
-                await _store.WriteEventMetadata<T>(bucket + ".OOB", streamId, maxCount: 200000).ConfigureAwait(false);
+                await _store.WriteStreamMetadata<T>(bucket + ".OOB", streamId, maxCount: 200000).ConfigureAwait(false);
         }
         public Task<IEnumerable<IWritableEvent>> Retrieve<T>(string bucket, string streamId, int? skip = null, int? take = null, bool ascending = true) where T : class, IEventSource
         {
