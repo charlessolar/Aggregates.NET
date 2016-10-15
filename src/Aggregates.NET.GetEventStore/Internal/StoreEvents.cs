@@ -72,13 +72,15 @@ namespace Aggregates.Internal
             var sliceStart = snapshot?.Version + 1 ?? StreamPosition.Start;
             Logger.Write(LogLevel.Debug, () => $"Retreiving stream [{streamId}] in bucket [{bucket}] starting at {sliceStart}");
 
+            var didSleep = false;
             while (await CheckFrozen<T>(bucket, streamId).ConfigureAwait(false))
             {
                 Logger.Write(LogLevel.Debug, () => $"Stream [{streamName}] is frozen - waiting");
+                didSleep = true;
                 Thread.Sleep(100);
             }
 
-            if (_shouldCache)
+            if (_shouldCache && !didSleep)
             {
                 var cached = _cache.Retreive(streamName) as EventStream<T>;
                 if (cached != null && cached.CommitVersion >= sliceStart)

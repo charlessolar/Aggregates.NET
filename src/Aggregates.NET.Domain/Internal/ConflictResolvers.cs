@@ -203,6 +203,14 @@ namespace Aggregates.Internal
 
                 startingEventId = await stream.Commit(commitId, startingEventId, commitHeaders).ConfigureAwait(false);
             }
+            catch (VersionException)
+            {
+                // Failed to merge - throw all conflicted events BACK on the queue
+                foreach (var @event in uncommitted)
+                    await _delay.AddToQueue(entity.StreamId, @event).ConfigureAwait(false);
+
+                throw;
+            }
             finally
             {
                 await _store.Unfreeze<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
