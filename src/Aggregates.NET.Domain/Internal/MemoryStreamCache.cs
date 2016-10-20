@@ -42,7 +42,7 @@ namespace Aggregates.Internal
 
         public MemoryStreamCache(/*Boolean Intelligent = false*/)
         {
-            _intelligent = true;
+            _intelligent = false;
         }
 
         public void Cache(string stream, object cached)
@@ -50,10 +50,13 @@ namespace Aggregates.Internal
             if (_intelligent && (Uncachable.Contains(stream) || LevelOne.Contains(stream)))
                 return;
 
-            MemCache.Set(stream, cached, new CacheItemPolicy { AbsoluteExpiration = DateTime.UtcNow + TimeSpan.FromMinutes(5) });
+            Logger.Write(LogLevel.Debug, () => $"Caching stream [{stream}]");
+            var future = new DateTimeOffset().AddMinutes(1);
+            MemCache.Set(stream, cached, new CacheItemPolicy { AbsoluteExpiration = future });
         }
         public void Evict(string stream)
         {
+            Logger.Write(LogLevel.Debug, () => $"Evicting stream [{stream}] from cache");
             if (_intelligent)
             {
                 if (Uncachable.Contains(stream)) return;
@@ -62,7 +65,7 @@ namespace Aggregates.Internal
                 {
                     if (LevelOne.Contains(stream))
                     {
-                        Logger.Write(LogLevel.Info, () => $"Stream {stream} has been evicted frequenty, marking uncachable for a few minutes");
+                        Logger.Write(LogLevel.Info, () => $"Stream [{stream}] has been evicted frequenty, marking uncachable for a few minutes");
                         Uncachable.Add(stream);
                     }
                     else
