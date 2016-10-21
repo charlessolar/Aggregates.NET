@@ -12,7 +12,7 @@ namespace Aggregates.Internal
     public class MemoryStreamCache : IStreamCache, IDisposable
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(MemoryStreamCache));
-        private static readonly MemoryCache MemCache = new MemoryCache("Aggregates Cache", new NameValueCollection { { "CacheMemoryLimitMegabytes", "500" } });
+        private static readonly MemoryCache MemCache = MemoryCache.Default;
         // For streams that are changing multiple times a second, no sense to cache them if they get immediately evicted
         private static readonly HashSet<string> Uncachable = new HashSet<string>();
         private static readonly HashSet<string> LevelOne = new HashSet<string>();
@@ -20,15 +20,15 @@ namespace Aggregates.Internal
         private static int _stage;
         private static readonly Timer _unachableEviction = new Timer(_ =>
         {
-            // Clear uncachable every 10 minutes
-            if (_stage == 120)
+            // Clear uncachable every 1 minute
+            if (_stage == 12)
             {
                 _stage = 0;
                 Logger.Write(LogLevel.Debug, () => $"Clearing {Uncachable.Count} uncachable stream names");
                 Uncachable.Clear();
             }
-            // Clear levelOne every minute
-            if (_stage % 12 == 0)
+            // Clear levelOne every 10 seconds
+            if (_stage % 2 == 0)
                 LevelOne.Clear();
 
             // Clear levelZero every 5 seconds
@@ -42,7 +42,7 @@ namespace Aggregates.Internal
 
         public MemoryStreamCache(/*Boolean Intelligent = false*/)
         {
-            _intelligent = false;
+            _intelligent = true;
         }
 
         public void Cache(string stream, object cached)
