@@ -181,6 +181,7 @@ namespace Aggregates.Internal
                         if (evict)
                         {
                             await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
+                            await _snapstore.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
                             WriteErrors.Mark();
                         }
 

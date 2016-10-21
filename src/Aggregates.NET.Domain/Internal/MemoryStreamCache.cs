@@ -1,7 +1,7 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Runtime.Caching;
 using System.Threading;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
@@ -12,7 +12,11 @@ namespace Aggregates.Internal
     public class MemoryStreamCache : IStreamCache, IDisposable
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(MemoryStreamCache));
-        private static readonly MemoryCache MemCache = MemoryCache.Default;
+
+        private static readonly ConcurrentDictionary<string, object> MemCache =
+            new ConcurrentDictionary<string, object>();
+
+
         // For streams that are changing multiple times a second, no sense to cache them if they get immediately evicted
         private static readonly HashSet<string> Uncachable = new HashSet<string>();
         private static readonly HashSet<string> LevelOne = new HashSet<string>();
@@ -42,7 +46,7 @@ namespace Aggregates.Internal
 
         public MemoryStreamCache(/*Boolean Intelligent = false*/)
         {
-            _intelligent = true;
+            _intelligent = false;
         }
 
         public void Cache(string stream, object cached)
@@ -51,8 +55,7 @@ namespace Aggregates.Internal
                 return;
 
             Logger.Write(LogLevel.Debug, () => $"Caching stream [{stream}]");
-            var future = new DateTimeOffset().AddMinutes(1);
-            MemCache.Set(stream, cached, new CacheItemPolicy { AbsoluteExpiration = future });
+            MemCache.AddOrUpdate(stream, (_) => cached, (_, e) => cached);
         }
         public void Evict(string stream)
         {
@@ -75,18 +78,23 @@ namespace Aggregates.Internal
                     LevelZero.Add(stream);
 
             }
-            MemCache.Remove(stream);
+            object e;
+            MemCache.TryRemove(stream, out e);
         }
         public object Retreive(string stream)
         {
-            var cached = MemCache.Get(stream);
+            object cached;
+            if (!MemCache.TryGetValue(stream, out cached))
+                cached = null;
+            if(cached == null)
+                Logger.Write(LogLevel.Debug, () => $"Stream [{stream}] is not in cache");
 
             return cached;
         }
 
         public bool Update(string stream, object payload)
         {
-            var cached = MemCache.Get(stream);
+            var cached = Retreive(stream);
 
             if (!(cached is IEventStream) || !(payload is IWritableEvent)) return false;
 
