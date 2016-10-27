@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
-using Aggregates.Events;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
