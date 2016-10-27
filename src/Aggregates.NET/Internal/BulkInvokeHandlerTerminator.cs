@@ -62,7 +62,7 @@ namespace Aggregates.Internal
                 if (delayed.Delay.HasValue)
                 {
                     var oldest = await _channel.Age(key).ConfigureAwait(false);
-                    if (oldest < delayed.Delay) return;
+                    if (oldest < TimeSpan.FromMilliseconds(delayed.Delay.Value)) return;
                 }
                 Logger.Write(LogLevel.Debug, () => $"Threshold hit - bulk processing {msgType.FullName}");
                 var msgs = await _channel.Pull(key).ConfigureAwait(false);
