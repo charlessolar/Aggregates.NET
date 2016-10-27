@@ -17,7 +17,7 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(BulkInvokeHandlerTerminator));
 
-        private static readonly ConcurrentDictionary<string, int> IsDelayed = new ConcurrentDictionary<string, int>();
+        private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
         private static readonly HashSet<string> IsNotDelayed = new HashSet<string>();
 
         private readonly IMessageMapper _mapper;
@@ -55,10 +55,15 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Debug, () => $"Delaying message {msgType.FullName} delivery");
                 var size = await _channel.AddToQueue(key, context.MessageBeingHandled).ConfigureAwait(false);
 
-                int count;
-                IsDelayed.TryGetValue(key, out count);
+                DelayedAttribute delayed;
+                IsDelayed.TryGetValue(key, out delayed);
 
-                if (size <= count) return;
+                if (delayed.Count.HasValue && size <= delayed.Count.Value) return;
+                if (delayed.Delay.HasValue)
+                {
+                    var oldest = await _channel.Age(key).ConfigureAwait(false);
+                    if (oldest < delayed.Delay) return;
+                }
                 Logger.Write(LogLevel.Debug, () => $"Threshold hit - bulk processing {msgType.FullName}");
                 var msgs = await _channel.Pull(key).ConfigureAwait(false);
 
@@ -80,7 +85,7 @@ namespace Aggregates.Internal
             {
                 Logger.Write(LogLevel.Debug,
                     () => $"Found delayed handler {messageHandler.HandlerType.FullName} for message {msgType.FullName}");
-                IsDelayed.TryAdd(key, single.Count);
+                IsDelayed.TryAdd(key, single);
             }
             await Terminate(context).ConfigureAwait(false);
         }

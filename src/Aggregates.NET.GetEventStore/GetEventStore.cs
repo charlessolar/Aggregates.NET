@@ -13,6 +13,14 @@ namespace Aggregates
 {
     public class GetEventStore : NServiceBus.Features.Feature
     {
+        public GetEventStore()
+        {
+            Defaults(s =>
+            {
+                s.SetDefault("EventStoreDelayed", false);
+            });
+        }
+
         protected override void Setup(FeatureConfigurationContext context)
         {
             context.RegisterStartupTask(builder => new EventStoreRunner(builder, context.Settings));
@@ -21,6 +29,10 @@ namespace Aggregates
             context.Container.ConfigureComponent<StoreSnapshots>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<StorePocos>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DomainSubscriber>(DependencyLifecycle.SingleInstance);
+
+            bool useDelayed;
+            if (context.Settings.TryGet<bool>("EventStoreDelayed", out useDelayed) && useDelayed)
+                context.Container.ConfigureComponent<DelayedChannel>(DependencyLifecycle.InstancePerCall);
         }
 
     }

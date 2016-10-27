@@ -22,7 +22,7 @@ namespace Aggregates.Internal
         private static readonly HashSet<string> LevelOne = new HashSet<string>();
         private static readonly HashSet<string> LevelZero = new HashSet<string>();
         private static int _stage;
-        private static readonly Timer _unachableEviction = new Timer(_ =>
+        private static readonly Timer UncachableEviction = new Timer(_ =>
         {
             // Clear uncachable every 1 minute
             if (_stage == 12)
@@ -107,7 +107,7 @@ namespace Aggregates.Internal
         public void Dispose()
         {
             if(!_disposed)
-                _unachableEviction.Dispose();
+                UncachableEviction.Dispose();
             _disposed = true;
         }
     }
