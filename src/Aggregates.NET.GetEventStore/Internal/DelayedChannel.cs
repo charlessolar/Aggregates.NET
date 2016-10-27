@@ -7,6 +7,7 @@ using Aggregates.Extensions;
 using EventStore.ClientAPI;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
+using NServiceBus.MessageInterfaces;
 
 namespace Aggregates.Internal
 {
@@ -20,10 +21,12 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreSnapshots));
 
         private readonly IEventStoreConnection _client;
+        private readonly IMessageMapper _mapper;
 
-        public DelayedChannel(IEventStoreConnection client)
+        public DelayedChannel(IEventStoreConnection client, IMessageMapper mapper)
         {
             _client = client;
+            _mapper = mapper;
         }
 
         public async Task<TimeSpan?> Age(string channel)
@@ -63,10 +66,15 @@ namespace Aggregates.Internal
 
         public async Task<int> AddToQueue(string channel, object queued)
         {
-            var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
             var streamName = $"DELAY.{channel}";
             Logger.Write(LogLevel.Debug, () => $"Appending delayed object to channel [{channel}]");
 
+            var settings = new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All,
+                Binder = new EventSerializationBinder(_mapper),
+                ContractResolver = new EventContractResolver(_mapper)
+            };
 
             var start = StreamPosition.Start;
             var read = await _client.ReadEventAsync($"{streamName}.SNAP", StreamPosition.End, false).ConfigureAwait(false);
@@ -91,10 +99,9 @@ namespace Aggregates.Internal
 
         public async Task<IEnumerable<object>> Pull(string channel)
         {
-            var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
             var streamName = $"DELAY.{channel}";
             Logger.Write(LogLevel.Debug, () => $"Pulling delayed objects from channel [{channel}]");
-
+            
             var start = StreamPosition.Start;
             var read = await _client.ReadEventAsync($"{streamName}.SNAP", StreamPosition.End, false).ConfigureAwait(false);
             if (read.Status == EventReadStatus.Success && read.Event.HasValue)
@@ -131,6 +138,13 @@ namespace Aggregates.Internal
                 start = current.NextEventNumber;
             } while (!current.IsEndOfStream);
             Logger.Write(LogLevel.Debug, () => $"Finished getting all delayed from channel [{channel}]");
+
+            var settings = new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.All,
+                Binder = new EventSerializationBinder(_mapper),
+                ContractResolver = new EventContractResolver(_mapper)
+            };
 
             return events.Select(x => x.Event.Data.Deserialize<object>(settings));
         }
