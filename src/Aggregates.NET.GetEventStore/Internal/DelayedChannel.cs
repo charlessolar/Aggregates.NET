@@ -103,18 +103,18 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Pulling delayed objects from channel [{channel}]");
             
             var start = StreamPosition.Start;
-            var read = await _client.ReadEventAsync($"{streamName}.SNAP", StreamPosition.End, false).ConfigureAwait(false);
-            if (read.Status == EventReadStatus.Success && read.Event.HasValue)
+            var read = await _client.ReadStreamEventsBackwardAsync($"{streamName}.SNAP", StreamPosition.End, 1, false).ConfigureAwait(false);
+            if (read.Status == SliceReadStatus.Success && read.Events.Any())
             {
-                var snapshot = read.Event.Value.Event.Data.Deserialize<Snapshot>(new JsonSerializerSettings());
+                var snapshot = read.Events[0].Event.Data.Deserialize<Snapshot>(new JsonSerializerSettings());
                 start = snapshot.Position + 1;
             }
-            read = await _client.ReadEventAsync(streamName, StreamPosition.End, false).ConfigureAwait(false);
+            read = await _client.ReadStreamEventsBackwardAsync(streamName, StreamPosition.End, 1, false).ConfigureAwait(false);
 
-            if (read.Status != EventReadStatus.Success)
+            if (read.Status != SliceReadStatus.Success)
                 return new object[] { }.AsEnumerable();
 
-            var snap = new Snapshot { Created = DateTime.UtcNow, Position = read.EventNumber };
+            var snap = new Snapshot { Created = DateTime.UtcNow, Position = read.LastEventNumber };
             var @event = new EventData(
                 Guid.NewGuid(),
                 typeof(Snapshot).AssemblyQualifiedName,
@@ -126,11 +126,11 @@ namespace Aggregates.Internal
 
             var events = new List<ResolvedEvent>();
             StreamEventsSlice current;
-            Logger.Write(LogLevel.Debug, () => $"Getting {read.EventNumber - start} delayed from channel [{channel}] starting at {start}");
+            Logger.Write(LogLevel.Debug, () => $"Getting {read.LastEventNumber - start} delayed from channel [{channel}] starting at {start}");
             do
             {
                 var take = 100;
-                current = await _client.ReadStreamEventsBackwardAsync(streamName, start, take, false).ConfigureAwait(false);
+                current = await _client.ReadStreamEventsForwardAsync(streamName, start, take, false).ConfigureAwait(false);
                 Logger.Write(LogLevel.Debug, () => $"Retreived {current.Events.Length} delayed from position {start}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                 events.AddRange(current.Events);
