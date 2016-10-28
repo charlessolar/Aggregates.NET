@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
+using EventStore.ClientAPI.Exceptions;
+using Metrics.Utils;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
@@ -109,12 +112,12 @@ namespace Aggregates.Internal
                 var snapshot = read.Events[0].Event.Data.Deserialize<Snapshot>(new JsonSerializerSettings());
                 start = snapshot.Position + 1;
             }
-            read = await _client.ReadStreamEventsBackwardAsync(streamName, StreamPosition.End, 1, false).ConfigureAwait(false);
+            var endOfChannel = await _client.ReadStreamEventsBackwardAsync(streamName, StreamPosition.End, 1, false).ConfigureAwait(false);
 
-            if (read.Status != SliceReadStatus.Success)
+            if (endOfChannel.Status != SliceReadStatus.Success)
                 return new object[] { }.AsEnumerable();
 
-            var snap = new Snapshot { Created = DateTime.UtcNow, Position = read.LastEventNumber };
+            var snap = new Snapshot { Created = DateTime.UtcNow, Position = endOfChannel.LastEventNumber };
             var @event = new EventData(
                 Guid.NewGuid(),
                 typeof(Snapshot).AssemblyQualifiedName,
@@ -122,11 +125,21 @@ namespace Aggregates.Internal
                 snap.Serialize(new JsonSerializerSettings()).AsByteArray(),
                 new byte[] { }
             );
-            await _client.AppendToStreamAsync($"{streamName}.SNAP", ExpectedVersion.Any, @event).ConfigureAwait(false);
-
+            try
+            {
+                // Attempt to save the new snapshot at the same point, if failed assume someone else beat us to it (they did)
+                Logger.Write(LogLevel.Debug, () => $"Failed to save updated snapshot for channel [{channel}]");
+                await
+                    _client.AppendToStreamAsync($"{streamName}.SNAP", start == StreamPosition.Start ? ExpectedVersion.NoStream : read.LastEventNumber, @event)
+                        .ConfigureAwait(false);
+            }
+            catch (WrongExpectedVersionException)
+            {
+                return new object[] {}.AsEnumerable();
+            }
             var events = new List<ResolvedEvent>();
             StreamEventsSlice current;
-            Logger.Write(LogLevel.Debug, () => $"Getting {read.LastEventNumber - start} delayed from channel [{channel}] starting at {start}");
+            Logger.Write(LogLevel.Debug, () => $"Getting {endOfChannel.LastEventNumber - start} delayed from channel [{channel}] starting at {start}");
             do
             {
                 var take = 100;
@@ -148,5 +161,6 @@ namespace Aggregates.Internal
 
             return events.Select(x => x.Event.Data.Deserialize<object>(settings));
         }
+        
     }
 }
