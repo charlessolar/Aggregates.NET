@@ -12,6 +12,9 @@ namespace Aggregates.Attributes
                 this.Count = Count;
             if(DelayMs != -1)
                 this.Delay = DelayMs;
+
+            if (Count > 200000)
+                throw new ArgumentException($"{nameof(Count)} too large - maximum is 200000");
         }
 
         public Type Type { get; private set; }

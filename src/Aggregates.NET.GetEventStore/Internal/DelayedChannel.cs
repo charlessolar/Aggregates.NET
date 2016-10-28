@@ -132,6 +132,13 @@ namespace Aggregates.Internal
                 await
                     _client.AppendToStreamAsync($"{streamName}.SNAP", start == StreamPosition.Start ? ExpectedVersion.NoStream : read.LastEventNumber, @event)
                         .ConfigureAwait(false);
+                if (start == StreamPosition.Start)
+                {
+                    // Only need to keep a few snapshots around
+                    var metadata = StreamMetadata.Build().SetMaxCount(5);
+                    await _client.SetStreamMetadataAsync($"{streamName}.SNAP", ExpectedVersion.Any, metadata).ConfigureAwait(false);
+                }
+
             }
             catch (WrongExpectedVersionException)
             {
@@ -139,19 +146,28 @@ namespace Aggregates.Internal
             }
             var events = new List<ResolvedEvent>();
             StreamEventsSlice current;
+            var currentPos = start;
             Logger.Write(LogLevel.Debug, () => $"Getting {endOfChannel.LastEventNumber - start} delayed from channel [{channel}] starting at {start}");
             do
             {
                 var take = 100;
-                current = await _client.ReadStreamEventsForwardAsync(streamName, start, take, false).ConfigureAwait(false);
-                Logger.Write(LogLevel.Debug, () => $"Retreived {current.Events.Length} delayed from position {start}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
+                current = await _client.ReadStreamEventsForwardAsync(streamName, currentPos, take, false).ConfigureAwait(false);
+                Logger.Write(LogLevel.Debug, () => $"Retreived {current.Events.Length} delayed from position {currentPos}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                 events.AddRange(current.Events);
 
-                start = current.NextEventNumber;
+                currentPos = current.NextEventNumber;
             } while (!current.IsEndOfStream);
             Logger.Write(LogLevel.Debug, () => $"Finished getting all delayed from channel [{channel}]");
 
+            if (start != StreamPosition.Start)
+            {
+                // Tell eventstore it can scavage all the events now
+                var metadata = StreamMetadata.Build().SetTruncateBefore(start);
+                await _client.SetStreamMetadataAsync(streamName, ExpectedVersion.Any, metadata).ConfigureAwait(false);
+            }
+
+            // Todo: there is no real way to know if the data retrieved this way was processed.  If one of the delayed events causes an error the entire batch will be lost...
             var settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.All,
