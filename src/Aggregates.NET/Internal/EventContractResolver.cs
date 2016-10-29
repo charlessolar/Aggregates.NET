@@ -19,6 +19,7 @@ namespace Aggregates.Internal
         protected override JsonObjectContract CreateObjectContract(Type objectType)
         {
             var mappedTypeFor = _mapper.GetMappedTypeFor(objectType);
+
             if (mappedTypeFor == null)
                 return base.CreateObjectContract(objectType);
 
@@ -27,7 +28,6 @@ namespace Aggregates.Internal
             objectContract.DefaultCreator = () => _mapper.CreateInstance(mappedTypeFor);
 
             return objectContract;
-
         }
     }
 
@@ -44,9 +44,7 @@ namespace Aggregates.Internal
 
         public override void BindToName(Type serializedType, out string assemblyName, out string typeName)
         {
-            var mappedType = serializedType;
-            if (!serializedType.IsInterface)
-                mappedType = _mapper.GetMappedTypeFor(serializedType) ?? serializedType;
+            var mappedType = _mapper.GetMappedTypeFor(serializedType) ?? serializedType;
 
             assemblyName = null;
             typeName = mappedType.AssemblyQualifiedName;
