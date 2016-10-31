@@ -37,21 +37,5 @@ namespace Aggregates
         {
             settings.GetSettings().Set("StreamGenerator", generator);
         }
-        public static void SetWatchConflicts(this ExposeSettings settings, bool watch)
-        {
-            settings.GetSettings().Set("WatchConflicts", watch);
-        }
-        public static void SetClaimThreshold(this ExposeSettings settings, int threshold)
-        {
-            settings.GetSettings().Set("ClaimThreshold", threshold);
-        }
-        public static void SetExpireConflict(this ExposeSettings settings, TimeSpan length)
-        {
-            settings.GetSettings().Set("ExpireConflict", length);
-        }
-        public static void SetClaimLength(this ExposeSettings settings, TimeSpan length)
-        {
-            settings.GetSettings().Set("ClaimLength", length);
-        }
     }
 }

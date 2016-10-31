@@ -18,8 +18,10 @@ namespace Aggregates.Internal
 
         protected override JsonObjectContract CreateObjectContract(Type objectType)
         {
-            var mappedTypeFor = _mapper.GetMappedTypeFor(objectType);
-
+            var mappedTypeFor = objectType;
+            if (!mappedTypeFor.IsInterface)
+                mappedTypeFor = _mapper.GetMappedTypeFor(objectType);
+            
             if (mappedTypeFor == null)
                 return base.CreateObjectContract(objectType);
 
@@ -49,7 +51,5 @@ namespace Aggregates.Internal
             assemblyName = null;
             typeName = mappedType.AssemblyQualifiedName;
         }
-
-
     }
 }

@@ -20,11 +20,6 @@ namespace Aggregates
                 s.SetDefault("ShouldCacheEntities", false);
                 s.SetDefault("MaxConflictResolves", 3);
                 s.SetDefault("StreamGenerator", new StreamIdGenerator((type, bucket, stream) => $"{bucket}.[{type.FullName}].{stream}"));
-                s.SetDefault("WatchConflicts", false);
-                s.SetDefault("ClaimThreshold", 5);
-                s.SetDefault("ExpireConflict", TimeSpan.FromMinutes(1));
-                s.SetDefault("ClaimLength", TimeSpan.FromMinutes(10));
-                s.SetDefault("CommonalityRequired", 0.9M);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
@@ -78,12 +73,7 @@ namespace Aggregates
                 behavior: typeof(MutateIncomingCommands),
                 description: "Running command mutators for incoming messages"
                 );
-
-            if(settings.Get<bool>("WatchConflicts"))
-                context.Pipeline.Register(
-                    behavior: new BulkCommandBehavior(settings.Get<int>("ClaimThreshold"), settings.Get<TimeSpan>("ExpireConflict"),settings.Get<TimeSpan>("ClaimLength"), settings.Get<decimal>("CommonalityRequired"), settings.EndpointName(), settings.InstanceSpecificQueue()),
-                    description: "Watches commands for many version conflict exceptions, when found it will claim the command type with a byte mask to run only on 1 instance reducing eventstore conflicts considerably"
-                    );
+            
 
             //context.Pipeline.Register<SafetyNetRegistration>();
             //context.Pipeline.Register<TesterBehaviorRegistration>();

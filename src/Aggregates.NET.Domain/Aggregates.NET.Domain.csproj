@@ -83,7 +83,6 @@
     <Compile Include="IHandleComputed.cs" />
     <Compile Include="IBase.cs" />
     <Compile Include="Internal\Base.cs" />
-    <Compile Include="Internal\BulkCommandBehavior.cs" />
     <Compile Include="Internal\CommandUnitOfWork.cs" />
     <Compile Include="Internal\DefaultOOBHandler.cs" />
     <Compile Include="Internal\ConflictResolvers.cs" />
