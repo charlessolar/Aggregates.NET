@@ -32,17 +32,14 @@ Current features include -
 - Value Objects
 - Snapshotting
 - Specifications
-- Multithreaded event dispatching
 - Type safe Unit of Work and Repository pattern
 - Automatic saving and publishing of domain events
 - Out of band events (events saved or published which do not affect business logic of entity)
-- Scalable event consumers via competing consumer
-- Async event and message handling (in NSB 5!)
+- Async!
 - Message idempotency
-- Automatic conflict resolution (when possible)
+- Intelligent and configurable conflict resolution
 - Advanced performance logging
 - NO internal IOC container (NServicebus used for resolutions)
-- [Thorough sample](https://github.com/volak/DDD.Enterprise.Example)
 
 
 Status
@@ -60,4 +57,6 @@ Documentation
 -------------
 
 * [Wiki](https://github.com/volak/Aggregates.NET/wiki)
-* [Example](https://github.com/volak/DDD.Enterprise.Example/)
+* [Simple Examples](https://github.com/volak/Aggregates.NET/tree/master/samples)
+* [Enterprise Example](https://github.com/volak/DDD.Enterprise.Example/)
+

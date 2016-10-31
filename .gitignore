@@ -156,3 +156,4 @@ $RECYCLE.BIN/
 .DS_Store
 src/packages/
 src/Aggregates.NET.sln.ide/
+samples/HelloWorld/packages/
