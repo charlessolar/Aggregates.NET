@@ -170,7 +170,8 @@ namespace Aggregates.Internal
             var settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.All,
-                Binder = new EventSerializationBinder(_mapper)
+                Binder = new EventSerializationBinder(_mapper),
+                ContractResolver = new EventContractResolver(_mapper)
             };
 
             return events.Select(x => x.Event.Data.Deserialize<object>(settings));
