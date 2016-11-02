@@ -49,32 +49,6 @@ namespace Aggregates.Extensions
             var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
             response.CommandResponse();
         }
-        public static async Task Command<TCommand>(this IMessageSession ctx, Action<TCommand> command) where TCommand : ICommand
-        {
-            var options = new SendOptions();
-            options.SetHeader(Defaults.RequestResponse, "1");
-
-            var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
-            response.CommandResponse();
-        }
-        public static async Task Command<TCommand>(this IMessageSession ctx, Action<TCommand> command, string routingKey) where TCommand : ICommand
-        {
-            var options = new SendOptions();
-            options.SetHeader(Defaults.RequestResponse, "1");
-
-            var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
-            response.CommandResponse();
-        }
-        public static async Task Command<TCommand>(this IMessageSession ctx, string destination, Action<TCommand> command) where TCommand : ICommand
-        {
-            var options = new SendOptions();
-            options.SetDestination(destination);
-            options.SetHeader(Defaults.RequestResponse, "1");
-
-
-            var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
-            response.CommandResponse();
-        }
 
         public static async Task<bool> TimeoutCommand(this IMessageSession ctx, ICommand command, TimeSpan timeout)
         {
@@ -94,41 +68,6 @@ namespace Aggregates.Extensions
             }
         }
         public static async Task<bool> TimeoutCommand(this IMessageSession ctx, string destination, ICommand command, TimeSpan timeout)
-        {
-            var options = new SendOptions();
-            options.SetDestination(destination);
-            options.SetHeader(Defaults.RequestResponse, "1");
-
-            var cancelation = new CancellationTokenSource(timeout);
-            try
-            {
-                var response = await ctx.Request<IMessage>(command, options, cancelation.Token).ConfigureAwait(false);
-                response.CommandResponse();
-                return true;
-            }
-            catch (TaskCanceledException)
-            {
-                return false;
-            }
-        }
-        public static async Task<bool> TimeoutCommand<TCommand>(this IMessageSession ctx, Action<TCommand> command, TimeSpan timeout) where TCommand : ICommand
-        {
-            var options = new SendOptions();
-            options.SetHeader(Defaults.RequestResponse, "1");
-
-            var cancelation = new CancellationTokenSource(timeout);
-            try
-            {
-                var response = await ctx.Request<IMessage>(command, options, cancelation.Token).ConfigureAwait(false);
-                response.CommandResponse();
-                return true;
-            }
-            catch (TaskCanceledException)
-            {
-                return false;
-            }
-        }
-        public static async Task<bool> TimeoutCommand<TCommand>(this IMessageSession ctx, string destination, Action<TCommand> command, TimeSpan timeout) where TCommand : ICommand
         {
             var options = new SendOptions();
             options.SetDestination(destination);
