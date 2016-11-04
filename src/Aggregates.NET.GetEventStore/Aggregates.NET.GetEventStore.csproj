@@ -61,7 +61,6 @@
     </Compile>
     <Compile Include="Configuration.cs" />
     <Compile Include="Internal\DelayedChannel.cs" />
-    <Compile Include="Internal\DomainSubscriber.cs" />
     <Compile Include="Internal\EventStream.cs" />
     <Compile Include="GetEventStore.cs" />
     <Compile Include="Internal\StoreEvents.cs" />

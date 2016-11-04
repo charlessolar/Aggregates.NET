@@ -11,7 +11,7 @@ using NServiceBus.Settings;
 
 namespace Aggregates
 {
-    public class Domain : ConsumerFeature
+    public class Domain : NServiceBus.Features.Feature
     {
         public Domain()
         {
@@ -24,8 +24,6 @@ namespace Aggregates
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
-            base.Setup(context);
-
             context.RegisterStartupTask(() => new DomainStart(context.Settings));
 
             context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);

@@ -31,8 +31,8 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="EventStore.ClientAPI, Version=3.9.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\EventStore.Client.3.9.0\lib\net40\EventStore.ClientAPI.dll</HintPath>
+    <Reference Include="EventStore.ClientAPI, Version=3.9.2.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\EventStore.Client.3.9.2\lib\net40\EventStore.ClientAPI.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Metrics, Version=0.3.7.0, Culture=neutral, processorArchitecture=MSIL">
@@ -60,20 +60,16 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Exceptions\DiscriminatorException.cs" />
+    <Compile Include="Exceptions\EndpointVersionException.cs" />
     <Compile Include="Exceptions\SubscriptionCanceled.cs" />
     <Compile Include="Extensions\StackExtensions.cs" />
+    <Compile Include="Internal\EventSubscriber.cs" />
     <Compile Include="Internal\EventUnitOfWork.cs" />
-    <Compile Include="Internal\CompetingSubscriber.cs" />
     <Compile Include="Consumer.cs" />
     <Compile Include="ConsumerConfiguration.cs" />
-    <Compile Include="Internal\DurableSubscriber.cs" />
     <Compile Include="IEventSubscriber.cs" />
-    <Compile Include="IManageCompetes.cs" />
-    <Compile Include="Internal\Checkpointer.cs" />
     <Compile Include="Internal\MutateIncomingEvents.cs" />
-    <Compile Include="IPersistCheckpoints.cs" />
     <Compile Include="IEventUnitOfWork.cs" />
-    <Compile Include="Internal\VolatileSubscriber.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Aggregates.NET.Consumer.nuspec">
