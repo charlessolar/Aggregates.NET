@@ -20,6 +20,7 @@ using NServiceBus.MessageInterfaces;
 using NServiceBus.Pipeline;
 using NServiceBus.Transport;
 using NServiceBus.Unicast;
+using NServiceBus.Unicast.Messages;
 using MessageContext = NServiceBus.Transport.MessageContext;
 
 namespace Aggregates.Internal
@@ -38,7 +39,8 @@ namespace Aggregates.Internal
         private readonly MessageHandlerRegistry _registry;
         private readonly IEventStoreConnection _connection;
         private readonly JsonSerializerSettings _settings;
-        
+        private readonly MessageMetadataRegistry _messageMeta;
+
         private EventStorePersistentSubscriptionBase _subscription;
 
         private bool _disposed;
@@ -47,13 +49,14 @@ namespace Aggregates.Internal
         public Action<string, Exception> Dropped { get; set; }
 
         public EventSubscriber(MessageHandlerRegistry registry,
-            IEventStoreConnection connection, IMessageMapper mapper)
+            IEventStoreConnection connection, IMessageMapper mapper, MessageMetadataRegistry messageMeta)
         {
             _registry = registry;
             _connection = connection;
+            _messageMeta = messageMeta;
             _settings = new JsonSerializerSettings
             {
-                TypeNameHandling = TypeNameHandling.All,
+                TypeNameHandling = TypeNameHandling.Auto,
                 Binder = new EventSerializationBinder(mapper),
                 ContractResolver = new EventContractResolver(mapper)
             };
@@ -167,7 +170,7 @@ namespace Aggregates.Internal
                 {
                     var headers = new Dictionary<string, string>(descriptor.Headers)
                     {
-                        [Headers.EnclosedMessageTypes] = @event.EventType,
+                        [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(Type.GetType(@event.EventType)),
                         [Headers.MessageId] = @event.EventId.ToString()
                     };
 
@@ -218,6 +221,19 @@ namespace Aggregates.Internal
             _disposed = true;
             _concurrencyLimit.Dispose();
             _subscription.Stop(TimeSpan.FromSeconds(5));
+        }
+
+        string SerializeEnclosedMessageTypes(Type messageType)
+        {
+            var metadata = _messageMeta.GetMessageMetadata(messageType);
+
+            var assemblyQualifiedNames = new HashSet<string>();
+            foreach (var type in metadata.MessageHierarchy)
+            {
+                assemblyQualifiedNames.Add(type.AssemblyQualifiedName);
+            }
+
+            return string.Join(";", assemblyQualifiedNames);
         }
     }
 }

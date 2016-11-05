@@ -9,5 +9,6 @@ namespace Aggregates.Internal
         public IEventDescriptor Descriptor { get; set; }
         public object Event { get; set; }
         public Guid? EventId { get; set; }
+    
     }
 }

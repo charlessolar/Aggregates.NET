@@ -36,8 +36,8 @@ namespace Aggregates.Internal
             var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
             Logger.Write(LogLevel.Debug, () => $"Getting age of delayed channel [{channel}]");
 
-            var read = await _store.GetEvents($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
-            if (read != null)
+            var read = await _store.GetEventsBackwards($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
+            if (read != null && read.Any())
             {
                 var snapshot = read.Single().Event as Snapshot;
                 return DateTime.UtcNow - snapshot.Created;
@@ -51,13 +51,13 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Getting size of delayed channel [{channel}]");
             
             var start = StreamPosition.Start;
-            var read = await _store.GetEvents($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
-            if (read != null)
+            var read = await _store.GetEventsBackwards($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
+            if (read != null && read.Any())
             {
                 var snapshot = read.Single().Event as Snapshot;
                 start = snapshot.Position + 1;
             }
-            read = await _store.GetEvents(streamName, StreamPosition.End, 1).ConfigureAwait(false);
+            read = await _store.GetEventsBackwards(streamName, StreamPosition.End, 1).ConfigureAwait(false);
             if (read != null)
                 return read.Single().Descriptor.Version - start;
             
@@ -80,8 +80,8 @@ namespace Aggregates.Internal
             };
 
             var start = StreamPosition.Start;
-            var read = await _store.GetEvents($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
-            if (read != null)
+            var read = await _store.GetEventsBackwards($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
+            if (read != null && read.Any())
             {
                 var snapshot = read.Single().Event as Snapshot;
                 start = snapshot.Position + 1;
@@ -98,8 +98,8 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Pulling delayed objects from channel [{channel}]");
 
             var start = StreamPosition.Start;
-            var read = await _store.GetEvents($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
-            if (read != null)
+            var read = await _store.GetEventsBackwards($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
+            if (read != null && read.Any())
             {
                 var snapshot = read.Single().Event as Snapshot;
                 start = snapshot.Position + 1;
@@ -121,7 +121,7 @@ namespace Aggregates.Internal
             try
             {
                 if (await _store.WriteEvents($"{streamName}.SNAP", new[] {@event}, null,
-                            expectedVersion: read?.Single().Descriptor.Version) == 1)
+                            expectedVersion: (read?.Any() ?? false) ? read?.Single().Descriptor.Version : (int?)null) == 1)
                     await _store.WriteMetadata($"{streamName}.SNAP", maxCount: 5).ConfigureAwait(false);
             }
             catch (VersionException)
@@ -130,8 +130,8 @@ namespace Aggregates.Internal
                 return new object[] {}.AsEnumerable();
             }
             
-                // We've read all delayed events, tell eventstore it can scavage all of them
-                await _store.WriteMetadata(streamName, truncateBefore: snap.Position).ConfigureAwait(false);
+            // We've read all delayed events, tell eventstore it can scavage all of them
+            await _store.WriteMetadata(streamName, truncateBefore: snap.Position).ConfigureAwait(false);
             
 
             // Todo: there is no real way to know if the data retrieved this way was processed.  If one of the delayed events causes an error the entire batch will be lost...

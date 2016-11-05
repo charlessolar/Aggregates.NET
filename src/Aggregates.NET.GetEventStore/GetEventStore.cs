@@ -20,7 +20,11 @@ namespace Aggregates
 
         protected override void Setup(FeatureConfigurationContext context)
         {
-            context.Container.ConfigureComponent<StoreEvents>(DependencyLifecycle.InstancePerCall);
+            var settings = context.Settings;
+            context.Container.ConfigureComponent<EventStoreDelayed>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent(b => 
+                new StoreEvents(b.Build<IEventStoreConnection>(), b.Build<IMessageMapper>(), settings.Get<int>("ReadSize"), settings.Get<bool>("Compress")), 
+                DependencyLifecycle.InstancePerCall);
         }
 
     }

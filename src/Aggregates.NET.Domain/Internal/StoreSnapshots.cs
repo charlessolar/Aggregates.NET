@@ -56,7 +56,7 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Reading snapshot for stream [{streamName}] from store");
 
 
-            var read = await _store.GetEvents(streamName, StreamPosition.End, 1).ConfigureAwait(false);
+            var read = await _store.GetEventsBackwards(streamName, StreamPosition.End, 1).ConfigureAwait(false);
 
             if (read == null || !read.Any())
                 return null;

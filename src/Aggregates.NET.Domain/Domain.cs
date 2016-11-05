@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Aggregates.Internal;
@@ -26,9 +27,20 @@ namespace Aggregates
         {
             context.RegisterStartupTask(() => new DomainStart(context.Settings));
 
-            context.Container.ConfigureComponent<StoreStreams>(DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<StoreSnapshots>(DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<StorePocos>(DependencyLifecycle.InstancePerCall);
+            var settings = context.Settings;
+            context.Container.ConfigureComponent(b => 
+                new StoreStreams(b.Build<IStoreEvents>(), b.Build<IStreamCache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
+                DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent(b =>
+                new StoreSnapshots(b.Build<IStoreEvents>(), b.Build<IStreamCache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
+                DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent(b =>
+                new StorePocos(b.Build<IStoreEvents>(), b.Build<IStreamCache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
+                DependencyLifecycle.InstancePerCall);
+
+            context.Container.ConfigureComponent(b =>
+                new DefaultOobHandler(b.Build<IStoreEvents>(), settings.Get<StreamIdGenerator>("StreamGenerator")),
+                DependencyLifecycle.InstancePerCall);
 
             context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
@@ -61,8 +73,7 @@ namespace Aggregates
                 };
             }, DependencyLifecycle.SingleInstance);
 
-
-            var settings = context.Settings;
+            
             context.Pipeline.Register(
                 behavior: typeof(CommandAcceptor),
                 description: "Filters [BusinessException] from processing failures"

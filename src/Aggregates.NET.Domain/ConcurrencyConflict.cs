@@ -1,6 +1,8 @@
 ﻿using System;
+using Aggregates.Contracts;
 using Aggregates.Internal;
 using NServiceBus.ObjectBuilder;
+using NServiceBus.Settings;
 
 namespace Aggregates
 {
@@ -17,7 +19,13 @@ namespace Aggregates
 
     public class ConcurrencyStrategy : Enumeration<ConcurrencyStrategy, ConcurrencyConflict>
     {
-        public static ConcurrencyStrategy Ignore = new ConcurrencyStrategy(ConcurrencyConflict.Ignore, "Ignore", (b, _) => b.Build<IgnoreConflictResolver>());
+        public static ConcurrencyStrategy Ignore = new ConcurrencyStrategy(ConcurrencyConflict.Ignore, "Ignore",
+            (b, _) =>
+            {
+                var settings = b.Build<ReadOnlySettings>();
+                return new IgnoreConflictResolver(b.Build<IStoreEvents>(),
+                    settings.Get<StreamIdGenerator>("StreamGenerator"));
+            });
         public static ConcurrencyStrategy Discard = new ConcurrencyStrategy(ConcurrencyConflict.Discard, "Discard", (b, _) => b.Build<DiscardConflictResolver>());
         public static ConcurrencyStrategy ResolveStrongly = new ConcurrencyStrategy(ConcurrencyConflict.ResolveStrongly, "ResolveStrongly", (b, _) => b.Build<ResolveStronglyConflictResolver>());
         public static ConcurrencyStrategy ResolveWeakly = new ConcurrencyStrategy(ConcurrencyConflict.ResolveWeakly, "ResolveWeakly", (b, _) => b.Build<ResolveWeaklyConflictResolver>());

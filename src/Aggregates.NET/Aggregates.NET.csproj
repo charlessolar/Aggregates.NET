@@ -97,7 +97,6 @@
     <Compile Include="Extensions\TaskExtensions.cs" />
     <Compile Include="Feature.cs" />
     <Compile Include="Internal\BulkInvokeHandlerTerminator.cs" />
-    <Compile Include="Internal\EventStoreDelayed.cs" />
     <Compile Include="Internal\ExceptionRejector.cs" />
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />

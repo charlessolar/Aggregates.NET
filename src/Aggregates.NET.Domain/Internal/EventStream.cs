@@ -115,7 +115,7 @@ namespace Aggregates.Internal
         private IWritableEvent MakeWritableEvent(IEvent @event, IDictionary<string, string> headers, bool version = true)
         {
 
-            IWritableEvent writable = new WritableEvent
+            var writable = new WritableEvent
             {
                 Descriptor = new EventDescriptor
                 {

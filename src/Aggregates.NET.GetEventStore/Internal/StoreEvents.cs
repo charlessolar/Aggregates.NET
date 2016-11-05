@@ -42,7 +42,7 @@ namespace Aggregates.Internal
 
             var settings = new JsonSerializerSettings
             {
-                TypeNameHandling = TypeNameHandling.All,
+                TypeNameHandling = TypeNameHandling.Auto,
                 Binder = new EventSerializationBinder(_mapper),
                 ContractResolver = new EventContractResolver(_mapper)
             };
@@ -101,7 +101,7 @@ namespace Aggregates.Internal
                     Event = @event,
                     EventId = e.Event.EventId
                 };
-            });
+            }).ToList();
 
             return translatedEvents;
         }
@@ -111,7 +111,7 @@ namespace Aggregates.Internal
         {
             var settings = new JsonSerializerSettings
             {
-                TypeNameHandling = TypeNameHandling.All,
+                TypeNameHandling = TypeNameHandling.Auto,
                 Binder = new EventSerializationBinder(_mapper),
                 ContractResolver = new EventContractResolver(_mapper)
             };
@@ -126,30 +126,38 @@ namespace Aggregates.Internal
                 // Read 1 event from the end, to figure out where start should be
                 var result = await _client.ReadStreamEventsBackwardAsync(stream, StreamPosition.End, 1, false).ConfigureAwait(false);
                 sliceStart = result.NextEventNumber - start.Value;
+
+                // Special case if only 1 event is requested no reason to read any more
+                if (count == 1)
+                    events.AddRange(result.Events);
             }
 
-            Logger.Write(LogLevel.Debug, () => $"Reading events backwards from stream [{stream}] starting at {sliceStart}");
-
-            using (ReadTime.NewContext())
+            if (count > 1)
             {
-                do
+                Logger.Write(LogLevel.Debug,
+                    () => $"Reading events backwards from stream [{stream}] starting at {sliceStart}");
+
+                using (ReadTime.NewContext())
                 {
-                    var take = Math.Min((count ?? int.MaxValue) - events.Count, _readsize);
+                    do
+                    {
+                        var take = Math.Min((count ?? int.MaxValue) - events.Count, _readsize);
 
-                    current =
-                        await _client.ReadStreamEventsBackwardAsync(stream, sliceStart, take, false)
-                            .ConfigureAwait(false);
+                        current =
+                            await _client.ReadStreamEventsBackwardAsync(stream, sliceStart, take, false)
+                                .ConfigureAwait(false);
 
-                    Logger.Write(LogLevel.Debug,
-                        () =>
-                                $"Retreived backwards {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
+                        Logger.Write(LogLevel.Debug,
+                            () =>
+                                    $"Retreived backwards {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
-                    events.AddRange(current.Events);
+                        events.AddRange(current.Events);
 
-                    sliceStart = current.NextEventNumber;
-                } while (!current.IsEndOfStream);
+                        sliceStart = current.NextEventNumber;
+                    } while (!current.IsEndOfStream);
+                }
+                Logger.Write(LogLevel.Debug, () => $"Finished reading all events backward from stream [{stream}]");
             }
-            Logger.Write(LogLevel.Debug, () => $"Finished reading all events backward from stream [{stream}]");
 
             var translatedEvents = events.Select(e =>
             {
@@ -165,13 +173,17 @@ namespace Aggregates.Internal
                 var descriptor = metadata.Deserialize(settings);
                 var @event = data.Deserialize(e.Event.EventType, settings);
 
+                // Special case if event was written without a version - substitue the position from store
+                if (descriptor.Version == 0)
+                    descriptor.Version = e.Event.EventNumber;
+
                 return new WritableEvent
                 {
                     Descriptor = descriptor,
                     Event = @event,
                     EventId = e.Event.EventId
                 };
-            });
+            }).ToList();
 
             return translatedEvents;
         }
@@ -184,8 +196,9 @@ namespace Aggregates.Internal
 
             var settings = new JsonSerializerSettings
             {
-                //TypeNameHandling = TypeNameHandling.All,
-                Binder = new EventSerializationBinder(_mapper)
+                TypeNameHandling = TypeNameHandling.Auto,
+                Binder = new EventSerializationBinder(_mapper),
+                //ContractResolver = new EventContractResolver(_mapper)
             };
 
             var translatedEvents = events.Select(e =>
@@ -200,7 +213,7 @@ namespace Aggregates.Internal
 
                 var mappedType = e.Event.GetType();
                 if (!mappedType.IsInterface)
-                    mappedType = _mapper.GetMappedTypeFor(e.Event.GetType());
+                    mappedType = _mapper.GetMappedTypeFor(mappedType) ?? mappedType;
 
 
                 var @event = e.Event.Serialize(settings).AsByteArray();
