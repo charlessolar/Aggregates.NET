@@ -73,7 +73,7 @@ namespace Aggregates
                 _settings.Get<int>("ReadSize")).ConfigureAwait(false);
 
 
-            _subscriber.Subscribe(_cancellationTokenSource.Token).Wait();
+            await _subscriber.Subscribe(_cancellationTokenSource.Token).ConfigureAwait(false);
             _subscriber.Dropped = (reason, ex) =>
             {
                 if (_cancellationTokenSource.IsCancellationRequested)

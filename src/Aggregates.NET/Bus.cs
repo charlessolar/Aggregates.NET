@@ -15,6 +15,7 @@ namespace Aggregates
         internal static IEndpointInstance Instance;
         internal static Func<MessageContext, Task> OnMessage;
         internal static Func<ErrorContext, Task<ErrorHandleResult>> OnError;
+        internal static PushRuntimeSettings PushSettings;
 
         public static async Task<IEndpointInstance> Start( EndpointConfiguration configuration)
         {
@@ -69,7 +70,9 @@ namespace Aggregates
                 var recoverabilityMethod = recoverabilityExecutor.GetType()
                     .GetMethod("Invoke", BindingFlags.Instance | BindingFlags.Public);
                 OnError = (c) => (Task<ErrorHandleResult>)recoverabilityMethod.Invoke(recoverabilityExecutor, new object[] { c });
-
+                PushSettings = (PushRuntimeSettings)main.GetType()
+                        .GetField("pushSettings", BindingFlags.Instance | BindingFlags.NonPublic)
+                        .GetValue(main);
 
                 return instance;
             }

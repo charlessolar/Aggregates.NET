@@ -33,7 +33,7 @@ namespace Aggregates.Internal
         private string _endpoint;
         private int _readsize;
 
-        private readonly SemaphoreSlim _concurrencyLimit;
+        private SemaphoreSlim _concurrencyLimit;
 
         private readonly MessageHandlerRegistry _registry;
         private readonly IEventStoreConnection _connection;
@@ -57,8 +57,6 @@ namespace Aggregates.Internal
                 Binder = new EventSerializationBinder(mapper),
                 ContractResolver = new EventContractResolver(mapper)
             };
-            // Todo: make configurable
-            _concurrencyLimit = new SemaphoreSlim(5);
 
         }
 
@@ -125,7 +123,7 @@ namespace Aggregates.Internal
                 var settings = PersistentSubscriptionSettings.Create()
                     .WithReadBatchOf(_readsize)
                     .WithLiveBufferSizeOf(_readsize * _readsize)
-                    .CheckPointAfter(TimeSpan.FromSeconds(10))
+                    .CheckPointAfter(TimeSpan.FromSeconds(15))
                     .ResolveLinkTos()
                     .StartFromCurrent()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned)
@@ -146,6 +144,10 @@ namespace Aggregates.Internal
                     Logger.Warn($"Could not find NSBs onMessage handler yet - if this persists there is a problem.");
                     subscription.Stop(TimeSpan.FromSeconds(30));
                 }
+
+                if (_concurrencyLimit == null)
+                    _concurrencyLimit = new SemaphoreSlim(Bus.PushSettings.MaxConcurrency);
+
                 var @event = e.Event;
                 if (!@event.IsJson)
                 {
