@@ -70,6 +70,7 @@
     <Compile Include="IEventSubscriber.cs" />
     <Compile Include="Internal\MutateIncomingEvents.cs" />
     <Compile Include="IEventUnitOfWork.cs" />
+    <Compile Include="Internal\Pipeline.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Aggregates.NET.Consumer.nuspec">

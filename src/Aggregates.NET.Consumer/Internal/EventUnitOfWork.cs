@@ -71,7 +71,7 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
-                Logger.WriteFormat(LogLevel.Warn, "Caught exception '{0}' while executing event", e);
+                Logger.Warn($"Caught exception '{e.GetType().FullName}' while executing command {context.Message.MessageType.FullName}");
                 ErrorsMeter.Mark();
                 var trailingExceptions = new List<Exception>();
                 foreach (var uow in uows.Generate())

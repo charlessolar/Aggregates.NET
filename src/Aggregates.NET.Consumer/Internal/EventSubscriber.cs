@@ -17,32 +17,28 @@ using NServiceBus;
 using NServiceBus.Extensibility;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
+using NServiceBus.Pipeline;
 using NServiceBus.Transport;
 using NServiceBus.Unicast;
 using MessageContext = NServiceBus.Transport.MessageContext;
 
 namespace Aggregates.Internal
 {
-    internal class EventSubscriber : IEventSubscriber, IDisposable
+    internal class EventSubscriber : IEventSubscriber
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventSubscriber));
         private static readonly TransportTransaction transportTranaction = new TransportTransaction();
         private static readonly ContextBag contextBag = new ContextBag();
-
+        
         private string _endpoint;
         private int _readsize;
 
         private readonly SemaphoreSlim _concurrencyLimit;
-        private readonly CancellationTokenSource _cancellationTokenSource;
 
         private readonly MessageHandlerRegistry _registry;
         private readonly IEventStoreConnection _connection;
         private readonly JsonSerializerSettings _settings;
-
-        private readonly Func<MessageContext, Task> _onMessage;
-        private readonly Func<ErrorContext, Task<ErrorHandleResult>> _onError;
-        private readonly PushSettings _pushSettings;
-
+        
         private EventStorePersistentSubscriptionBase _subscription;
 
         private bool _disposed;
@@ -50,7 +46,7 @@ namespace Aggregates.Internal
         public bool ProcessingLive { get; set; }
         public Action<string, Exception> Dropped { get; set; }
 
-        public EventSubscriber(IPushMessages messagePusher, MessageHandlerRegistry registry,
+        public EventSubscriber(MessageHandlerRegistry registry,
             IEventStoreConnection connection, IMessageMapper mapper)
         {
             _registry = registry;
@@ -63,39 +59,7 @@ namespace Aggregates.Internal
             };
             // Todo: make configurable
             _concurrencyLimit = new SemaphoreSlim(5);
-            _cancellationTokenSource = new CancellationTokenSource();
 
-
-            // We want eventstore to push message directly into NSB
-            // That way we can have all the fun stuff like retries, error queues, incoming/outgoing mutators etc
-            // But NSB doesn't have a way to just insert a message directly into the pipeline
-            // You can SendLocal which will send the event out to the transport then back again but in addition to being a
-            // waste of time its not safe incase this instance goes down because we'd have ACKed the event now sitting 
-            // unprocessed on the instance specific queue.
-            //
-            // The only way I can find to call into the pipeline directly is to highjack these private fields on
-            // the RabbitMq transport message pump.
-            // Yes other transports are possible I just don't have a reason to support them (yet)
-
-            var msgPushType = messagePusher.GetType();
-            var property = msgPushType.GetField("onMessage", BindingFlags.Instance | BindingFlags.NonPublic);
-            if (property == null)
-                throw new ArgumentException(
-                    "Could not start event subscriber - RabbitMQ is required for Aggregates.NET at this time");
-
-            _onMessage = (Func<MessageContext, Task>)property.GetValue(messagePusher);
-            property = msgPushType.GetField("onError", BindingFlags.Instance | BindingFlags.NonPublic);
-            if (property == null)
-                throw new ArgumentException(
-                    "Could not start event subscriber - RabbitMQ is required for Aggregates.NET at this time");
-
-            _onError = (Func<ErrorContext, Task<ErrorHandleResult>>)property.GetValue(messagePusher);
-            property = msgPushType.GetField("settings", BindingFlags.Instance | BindingFlags.NonPublic);
-            if (property == null)
-                throw new ArgumentException(
-                    "Could not start event subscriber - RabbitMQ is required for Aggregates.NET at this time");
-
-            _pushSettings = (PushSettings)property.GetValue(messagePusher);
         }
 
         public async Task Setup(string endpoint, int readsize)
@@ -103,16 +67,17 @@ namespace Aggregates.Internal
             _endpoint = endpoint;
             _readsize = readsize;
 
+
             if (!_connection.Settings.GossipSeeds.Any())
                 throw new ArgumentException(
                     "Eventstore connection settings does not contain gossip seeds (even if single host call SetGossipSeedEndPoints and SetClusterGossipPort)");
-        
+
             var manager = new ProjectionsManager(_connection.Settings.Log,
                 new IPEndPoint(_connection.Settings.GossipSeeds[0].EndPoint.Address, _connection.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
 
             var discoveredEvents = _registry.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).ToList();
 
-            var stream = $"{_endpoint}.{Assembly.GetExecutingAssembly().GetName().Version}";
+            var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
 
             // Link all events we are subscribing to to a stream
             var functions =
@@ -136,21 +101,32 @@ namespace Aggregates.Internal
             }
             catch (ProjectionCommandFailedException)
             {
-                // Projection doesn't exist 
-                await manager.CreateContinuousAsync(stream, definition, _connection.Settings.DefaultUserCredentials).ConfigureAwait(false);
+                try
+                {
+                    // Projection doesn't exist 
+                    await
+                        manager.CreateContinuousAsync(stream, definition, _connection.Settings.DefaultUserCredentials)
+                            .ConfigureAwait(false);
+                }
+                catch (ProjectionCommandConflictException)
+                {
+                }
             }
         }
 
-        public async Task Subscribe()
+        public async Task Subscribe(CancellationToken cancelToken)
         {
-            var stream = $"{_endpoint}.{Assembly.GetExecutingAssembly().GetName().Version}";
+            var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
 
             Logger.Write(LogLevel.Info, () => $"Endpoint [{_endpoint}] connecting to subscription group [{stream}]");
 
             try
             {
                 var settings = PersistentSubscriptionSettings.Create()
-                    .WithLiveBufferSizeOf(_readsize)
+                    .WithReadBatchOf(_readsize)
+                    .WithLiveBufferSizeOf(_readsize * _readsize)
+                    .CheckPointAfter(TimeSpan.FromSeconds(10))
+                    .ResolveLinkTos()
                     .StartFromCurrent()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned)
                     .Build();
@@ -164,22 +140,34 @@ namespace Aggregates.Internal
 
             _subscription = await _connection.ConnectToPersistentSubscriptionAsync(stream, stream, (subscription, e) =>
             {
-                Logger.Write(LogLevel.Debug, () => $"Event appeared position {e.OriginalPosition?.CommitPosition}");
-                // Unsure if we need to care about events from eventstore currently
-                if (!e.Event.IsJson) return;
-                
-                var descriptor = e.Event.Metadata.Deserialize(_settings);
-                var data = e.Event.Data.Deserialize(e.Event.EventType, _settings);
 
-                // Data is null for certain irrelevant eventstore messages (and we don't need to store position or snapshots)
-                if (data == null) return;
-                if (_cancellationTokenSource.IsCancellationRequested) return;
+                if (Bus.OnMessage == null || Bus.OnError == null)
+                {
+                    Logger.Warn($"Could not find NSBs onMessage handler yet - if this persists there is a problem.");
+                    subscription.Stop(TimeSpan.FromSeconds(30));
+                }
+                var @event = e.Event;
+                if (!@event.IsJson)
+                {
+                    subscription.Acknowledge(e);
+                    return;
+                }
+                Logger.Write(LogLevel.Debug, () => $"Event appeared stream [{@event.EventStreamId}] number {@event.EventNumber}");
 
-                _concurrencyLimit.Wait(_cancellationTokenSource.Token);
+
+                var descriptor = @event.Metadata.Deserialize(_settings);
+
+                if (cancelToken.IsCancellationRequested) return;
+
+                _concurrencyLimit.Wait(cancelToken);
 
                 Task.Run(async () =>
                 {
-                    var headers = new Dictionary<string, string>(descriptor.Headers);
+                    var headers = new Dictionary<string, string>(descriptor.Headers)
+                    {
+                        [Headers.EnclosedMessageTypes] = @event.EventType,
+                        [Headers.MessageId] = @event.EventId.ToString()
+                    };
 
                     using (var tokenSource = new CancellationTokenSource())
                     {
@@ -191,26 +179,26 @@ namespace Aggregates.Internal
                         {
                             try
                             {
-                                var messageContext = new MessageContext(e.Event.EventId.ToString(), headers,
-                                    e.Event.Data ?? new byte[0], transportTranaction, tokenSource, contextBag);
-                                await _onMessage(messageContext).ConfigureAwait(false);
+                                var messageContext = new MessageContext(@event.EventId.ToString(), headers,
+                                    @event.Data ?? new byte[0], transportTranaction, tokenSource, contextBag);
+                                await Bus.OnMessage(messageContext).ConfigureAwait(false);
                                 processed = true;
                             }
                             catch (Exception ex)
                             {
                                 ++numberOfDeliveryAttempts;
-                                var errorContext = new ErrorContext(ex, headers, e.Event.EventId.ToString(),
-                                    e.Event.Data ?? new byte[0], transportTranaction, numberOfDeliveryAttempts);
-                                errorHandled = await _onError(errorContext).ConfigureAwait(false) ==
+                                var errorContext = new ErrorContext(ex, headers, @event.EventId.ToString(),
+                                    @event.Data ?? new byte[0], transportTranaction, numberOfDeliveryAttempts);
+                                errorHandled = await Bus.OnError(errorContext).ConfigureAwait(false) ==
                                                ErrorHandleResult.Handled;
                             }
                         }
 
-                        if (processed && !tokenSource.IsCancellationRequested)
-                            subscription.Acknowledge(e);
+                        //if (processed || errorHandled)
+                        subscription.Acknowledge(e);
                         _concurrencyLimit.Release();
                     }
-                }, _cancellationTokenSource.Token);
+                }, cancelToken);
 
             }, subscriptionDropped: (_, reason, e) =>
             {
@@ -226,7 +214,6 @@ namespace Aggregates.Internal
                 return;
 
             _disposed = true;
-            _cancellationTokenSource.Cancel();
             _concurrencyLimit.Dispose();
             _subscription.Stop(TimeSpan.FromSeconds(5));
         }

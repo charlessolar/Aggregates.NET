@@ -313,7 +313,7 @@ namespace Aggregates.Internal
 
             var settings = new JsonSerializerSettings
             {
-                TypeNameHandling = TypeNameHandling.All,
+                //TypeNameHandling = TypeNameHandling.All,
                 Binder = new EventSerializationBinder(_mapper)
             };
 
@@ -366,7 +366,7 @@ namespace Aggregates.Internal
 
             var settings = new JsonSerializerSettings
             {
-                TypeNameHandling = TypeNameHandling.All,
+                //TypeNameHandling = TypeNameHandling.All,
                 Binder = new EventSerializationBinder(_mapper)
             };
 

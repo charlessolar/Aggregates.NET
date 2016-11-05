@@ -22,7 +22,7 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             context.RegisterStartupTask(builder => new EventStoreRunner(builder.Build<IEventSubscriber>(), context.Settings));
-            
+
             context.Container.ConfigureComponent<EventSubscriber>(DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register(
@@ -35,18 +35,20 @@ namespace Aggregates
                 );
         }
     }
-    internal class EventStoreRunner : FeatureStartupTask
+    internal class EventStoreRunner : FeatureStartupTask, IDisposable
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventStoreRunner));
         private readonly ReadOnlySettings _settings;
         private readonly IEventSubscriber _subscriber;
         private int _retryCount;
         private DateTime? _lastFailure;
+        private readonly CancellationTokenSource _cancellationTokenSource;
 
         public EventStoreRunner(IEventSubscriber subscriber, ReadOnlySettings settings)
         {
             _subscriber = subscriber;
             _settings = settings;
+            _cancellationTokenSource = new CancellationTokenSource();
         }
 
         private TimeSpan CalculateSleep()
@@ -65,23 +67,37 @@ namespace Aggregates
 
         protected override async Task OnStart(IMessageSession session)
         {
-            Logger.Write(LogLevel.Debug, "Starting event consumer");
+            Logger.Write(LogLevel.Info, "Starting event consumer");
             await _subscriber.Setup(
                 _settings.EndpointName(),
                 _settings.Get<int>("ReadSize")).ConfigureAwait(false);
 
-            await _subscriber.Subscribe().ConfigureAwait(false);
+
+            _subscriber.Subscribe(_cancellationTokenSource.Token).Wait();
             _subscriber.Dropped = (reason, ex) =>
             {
+                if (_cancellationTokenSource.IsCancellationRequested)
+                {
+                    Logger.Write(LogLevel.Info, () => $"Event consumer stopped - cancelation requested");
+                    return;
+                }
+
+                Logger.Warn($"Event consumer stopped due to exception: {ex.Message}.  Will restart", ex);
                 Thread.Sleep(CalculateSleep());
-                _subscriber.Subscribe().Wait();
+                _subscriber.Subscribe(_cancellationTokenSource.Token).Wait();
             };
         }
 
         protected override Task OnStop(IMessageSession session)
         {
-            Logger.Write(LogLevel.Debug, "Stopping event consumer");
+            Logger.Write(LogLevel.Info, "Stopping event consumer");
             return Task.CompletedTask;
+        }
+
+        public void Dispose()
+        {
+            _cancellationTokenSource.Cancel();
+            _subscriber.Dispose();
         }
     }
 

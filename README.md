@@ -3,7 +3,7 @@
 Aggregates.NET
 ==============
 
-Aggregates.NET is a framework to help developers integrate the excellent [NServicebus](https://github.com/Particular/NServiceBus) and [EventStore](https://github.com/EventStore/EventStore) libraries together.
+Aggregates.NET is a framework to help developers integrate the excellent [NServiceBus](https://github.com/Particular/NServiceBus) and [EventStore](https://github.com/EventStore/EventStore) libraries together.
 
 This library contains code to help create and manage domain driven design objects such as Aggregates, Entities, Value Objects, etc.  This framework is by far not the only option, other libraries include:
 
@@ -22,7 +22,7 @@ As of the pre-release branch Aggregates.NET is now running on NSB 6.0 - enjoy!
 What will Aggregates.NET do for you?
 ------------------------------------
 
-We fill in the gap between EventStore and NServicebus.  Commands from NServicebus are applied to aggregate objects via message handlers and events generated via the aggregates are saved to the event stream and published to the bus.
+We fill in the gap between EventStore and NServiceBus.  Commands from NServiceBus are applied to aggregate objects via message handlers and events generated via the aggregates are saved to the event stream and published to the bus.
 
 Current features include -
 
@@ -39,7 +39,8 @@ Current features include -
 - Message idempotency
 - Intelligent and configurable conflict resolution
 - Advanced performance logging
-- NO internal IOC container (NServicebus used for resolutions)
+- NO internal IOC container (NServiceBus used for resolutions)
+- Automatic configuration of competing consumers for event consumers
 
 
 Status
