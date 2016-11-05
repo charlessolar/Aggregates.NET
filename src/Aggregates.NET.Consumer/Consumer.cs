@@ -17,6 +17,7 @@ namespace Aggregates
         {
             Defaults(s =>
             {
+                s.SetDefault("EventStoreDelayed", false);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
@@ -24,6 +25,10 @@ namespace Aggregates
             context.RegisterStartupTask(builder => new EventStoreRunner(builder.Build<IEventSubscriber>(), context.Settings));
 
             context.Container.ConfigureComponent<EventSubscriber>(DependencyLifecycle.SingleInstance);
+
+            bool useDelayed;
+            if (context.Settings.TryGet<bool>("EventStoreDelayed", out useDelayed) && useDelayed)
+                context.Container.ConfigureComponent<EventStoreDelayed>(DependencyLifecycle.InstancePerCall);
 
             context.Pipeline.Register(
                 behavior: typeof(MutateIncomingEvents),

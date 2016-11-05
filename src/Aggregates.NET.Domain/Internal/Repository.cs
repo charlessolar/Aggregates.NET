@@ -27,7 +27,7 @@ namespace Aggregates.Internal
         private static OptimisticConcurrencyAttribute _conflictResolution;
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Repository<>));
-        private readonly IStoreEvents _store;
+        private readonly IStoreStreams _store;
         private readonly IStoreSnapshots _snapstore;
         private readonly IBuilder _builder;
         private readonly ReadOnlySettings _settings;
@@ -48,7 +48,7 @@ namespace Aggregates.Internal
         {
             _builder = builder;
             _snapstore = _builder.Build<IStoreSnapshots>();
-            _store = _builder.Build<IStoreEvents>();
+            _store = _builder.Build<IStoreStreams>();
             _settings = _builder.Build<ReadOnlySettings>();
             _store.Builder = _builder;
 
@@ -271,7 +271,7 @@ namespace Aggregates.Internal
             if (stream.CurrentMemento != null)
                 (root as ISnapshotting)?.RestoreSnapshot(stream.CurrentMemento);
 
-            root.Hydrate(stream.Committed.Select(e => e.Event));
+            root.Hydrate(stream.Committed.Select(e => e.Event as IEvent));
 
             return Task.FromResult(root);
         }

@@ -75,6 +75,7 @@
     <Compile Include="Contracts\IDelayedChannel.cs" />
     <Compile Include="Contracts\IEventDescriptor.cs" />
     <Compile Include="Contracts\IEventMutator.cs" />
+    <Compile Include="Contracts\IStoreEvents.cs" />
     <Compile Include="Contracts\IWritableEvent.cs" />
     <Compile Include="Defaults.cs" />
     <Compile Include="Enumeration.cs" />
@@ -85,6 +86,7 @@
     <Compile Include="Exceptions\NotFoundException.cs" />
     <Compile Include="Exceptions\PersistenceException.cs" />
     <Compile Include="Exceptions\RetryException.cs" />
+    <Compile Include="Exceptions\VersionException.cs" />
     <Compile Include="Extensions\BusExtensions.cs" />
     <Compile Include="Extensions\DescriptorExtensions.cs" />
     <Compile Include="Extensions\DictionaryExtensions.cs" />
@@ -95,12 +97,14 @@
     <Compile Include="Extensions\TaskExtensions.cs" />
     <Compile Include="Feature.cs" />
     <Compile Include="Internal\BulkInvokeHandlerTerminator.cs" />
+    <Compile Include="Internal\EventStoreDelayed.cs" />
     <Compile Include="Internal\ExceptionRejector.cs" />
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />
     <Compile Include="Internal\MemoryDelayed.cs" />
     <Compile Include="Internal\MutateOutgoingEvents.cs" />
     <Compile Include="Internal\MutateOutgoingCommands.cs" />
+    <Compile Include="Internal\StreamPosition.cs" />
     <Compile Include="Internal\TimeExecutionBehavior.cs" />
     <Compile Include="Internal\WritableEvent.cs" />
     <Compile Include="Messages\Accept.cs" />

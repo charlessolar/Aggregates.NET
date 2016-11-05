@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
+using NServiceBus;
 using NServiceBus.Logging;
 
 namespace Aggregates.Internal
@@ -17,10 +18,12 @@ namespace Aggregates.Internal
         internal static readonly ILog Logger = LogManager.GetLogger(typeof(IgnoreConflictResolver));
 
         private readonly IStoreEvents _store;
+        private readonly StreamIdGenerator _streamGen;
 
-        public IgnoreConflictResolver(IStoreEvents eventstore)
+        public IgnoreConflictResolver(IStoreEvents store, StreamIdGenerator streamGen)
         {
-            _store = eventstore;
+            _store = store;
+            _streamGen = streamGen;
         }
 
         public async Task<Guid> Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
@@ -35,10 +38,11 @@ namespace Aggregates.Internal
                     u.EventId = startingEventId;
                     startingEventId = startingEventId.Increment();
                 }
-                entity.Apply(u.Event);
+                entity.Apply(u.Event as IEvent);
             }
 
-            await _store.AppendEvents<T>(stream.Bucket, stream.StreamId, uncommitted, commitHeaders).ConfigureAwait(false);
+            var streamName = _streamGen(typeof(T), stream.Bucket, stream.StreamId);
+            await _store.WriteEvents(streamName, uncommitted, commitHeaders).ConfigureAwait(false);
             stream.Flush(true);
 
             return startingEventId;
@@ -66,9 +70,9 @@ namespace Aggregates.Internal
     {
         internal static readonly ILog Logger = LogManager.GetLogger(typeof(ResolveStronglyConflictResolver));
 
-        private readonly IStoreEvents _store;
+        private readonly IStoreStreams _store;
 
-        public ResolveStronglyConflictResolver(IStoreEvents eventstore)
+        public ResolveStronglyConflictResolver(IStoreStreams eventstore)
         {
             _store = eventstore;
         }
@@ -90,14 +94,14 @@ namespace Aggregates.Internal
 
                 var writableEvents = latestEvents as IWritableEvent[] ?? latestEvents.ToArray();
                 stream.Concat(writableEvents);
-                entity.Hydrate(writableEvents.Select(x => x.Event));
+                entity.Hydrate(writableEvents.Select(x => x.Event as IEvent));
 
 
                 Logger.Write(LogLevel.Debug, () => "Merging conflicted events");
                 try
                 {
                     foreach (var u in uncommitted)
-                        entity.Conflict(u.Event);
+                        entity.Conflict(u.Event as IEvent);
                 }
                 catch (NoRouteException e)
                 {
@@ -133,10 +137,10 @@ namespace Aggregates.Internal
     {
         internal static readonly ILog Logger = LogManager.GetLogger(typeof(ResolveWeaklyConflictResolver));
 
-        private readonly IStoreEvents _store;
+        private readonly IStoreStreams _store;
         private readonly IDelayedChannel _delay;
 
-        public ResolveWeaklyConflictResolver(IStoreEvents eventstore, IDelayedChannel delay)
+        public ResolveWeaklyConflictResolver(IStoreStreams eventstore, IDelayedChannel delay)
         {
             _store = eventstore;
             _delay = delay;
@@ -173,14 +177,14 @@ namespace Aggregates.Internal
 
                 var writableEvents = latestEvents as IWritableEvent[] ?? latestEvents.ToArray();
                 stream.Concat(writableEvents);
-                entity.Hydrate(writableEvents.Select(x => x.Event));
+                entity.Hydrate(writableEvents.Select(x => x.Event as IEvent));
 
 
                 Logger.Write(LogLevel.Debug, () => "Merging conflicted events");
                 try
                 {
                     foreach (var u in uncommitted)
-                        entity.Conflict(u.Event);
+                        entity.Conflict(u.Event as IEvent);
                 }
                 catch (NoRouteException e)
                 {

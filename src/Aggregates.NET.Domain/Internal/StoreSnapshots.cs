@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
-using EventStore.ClientAPI;
 using Metrics;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
@@ -12,27 +11,23 @@ using NServiceBus.Settings;
 
 namespace Aggregates.Internal
 {
-    internal class StoreSnapshots : IStoreSnapshots
+    class StoreSnapshots : IStoreSnapshots
     {
         private static readonly Meter HitMeter = Metric.Meter("Snapshot Cache Hits", Unit.Events);
         private static readonly Meter MissMeter = Metric.Meter("Snapshot Cache Misses", Unit.Events);
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreSnapshots));
-        private readonly IEventStoreConnection _client;
-        private readonly ReadOnlySettings _nsbSettings;
+        private readonly IStoreEvents _store;
         private readonly IStreamCache _cache;
         private readonly bool _shouldCache;
-        private readonly JsonSerializerSettings _settings;
         private readonly StreamIdGenerator _streamGen;
 
-        public StoreSnapshots(IEventStoreConnection client, ReadOnlySettings nsbSettings, IStreamCache cache, JsonSerializerSettings settings)
+        public StoreSnapshots(IStoreEvents store, IStreamCache cache, bool shouldCache, StreamIdGenerator streamGen)
         {
-            _client = client;
-            _nsbSettings = nsbSettings;
-            _settings = settings;
+            _store = store;
             _cache = cache;
-            _shouldCache = _nsbSettings.Get<bool>("ShouldCacheEntities");
-            _streamGen = _nsbSettings.Get<StreamIdGenerator>("StreamGenerator");
+            _shouldCache = shouldCache;
+            _streamGen = streamGen;
         }
 
         public Task Evict<T>(string bucket, string streamId) where T : class, IEventSource
@@ -60,37 +55,28 @@ namespace Aggregates.Internal
             }
             Logger.Write(LogLevel.Debug, () => $"Reading snapshot for stream [{streamName}] from store");
 
-            var read = await _client.ReadEventAsync(streamName, StreamPosition.End, false).ConfigureAwait(false);
-            if (read.Status != EventReadStatus.Success || !read.Event.HasValue)
+
+            var read = await _store.GetEvents(streamName, StreamPosition.End, 1).ConfigureAwait(false);
+
+            if (read == null || !read.Any())
                 return null;
 
-            var compress = _nsbSettings.Get<bool>("Compress");
 
-            var @event = read.Event.Value.Event;
-            var metadata = @event.Metadata;
-            var data = @event.Data;
-            if (compress)
-            {
-                metadata = metadata.Decompress();
-                data = data.Decompress();
-            }
-
-            var descriptor = @event.Metadata.Deserialize(_settings);
-            var result = data.Deserialize(@event.EventType, _settings);
+            var @event = read.Single();
             var snapshot = new Snapshot
             {
-                EntityType = descriptor.EntityType,
+                EntityType = @event.Descriptor.EntityType,
                 Bucket = bucket,
                 Stream = streamId,
-                Timestamp = descriptor.Timestamp,
-                Version = descriptor.Version,
-                Payload = result
+                Timestamp = @event.Descriptor.Timestamp,
+                Version = @event.Descriptor.Version,
+                Payload = @event.Event
             };
-
 
             if (_shouldCache)
                 _cache.Cache(streamName, snapshot);
             return snapshot;
+            
         }
 
 
@@ -98,8 +84,7 @@ namespace Aggregates.Internal
         {
             var streamName = $"{_streamGen(typeof(T), bucket + ".SNAP", streamId)}";
             Logger.Write(LogLevel.Debug, () => $"Writing {snapshots.Count()} snapshots to stream [{streamName}]");
-
-            var compress = _nsbSettings.Get<bool>("Compress");
+            
 
             var translatedEvents = snapshots.Select(e =>
             {
@@ -111,32 +96,18 @@ namespace Aggregates.Internal
                     Headers = commitHeaders
                 };
 
-                var @event = e.Payload.Serialize(_settings).AsByteArray();
-                var metadata = descriptor.Serialize(_settings).AsByteArray();
-                if (compress)
+                return new WritableEvent
                 {
-                    @event = @event.Compress();
-                    metadata = metadata.Compress();
-                }
-                return new EventData(
-                    Guid.NewGuid(),
-                    e.Payload.GetType().AssemblyQualifiedName,
-                    !compress,
-                    @event,
-                    metadata
-                    );
+                    Descriptor = descriptor,
+                    Event = e.Payload,
+                    EventId = Guid.NewGuid()
+                };
             }).ToList();
 
+
+            if (await _store.WriteEvents(streamName, translatedEvents, commitHeaders).ConfigureAwait(false) == 1)
+                await _store.WriteMetadata(streamName, maxCount: 10).ConfigureAwait(false);
             
-            var result = await _client.AppendToStreamAsync(streamName, ExpectedVersion.Any, translatedEvents).ConfigureAwait(false);
-            if( result.NextExpectedVersion == 1)
-            {
-                Logger.Write(LogLevel.Debug, () => $"Writing metadata to snapshot stream [{streamName}]");
-
-                var metadata = StreamMetadata.Create(maxCount: 10);
-
-                await _client.SetStreamMetadataAsync(streamName, ExpectedVersion.Any, metadata).ConfigureAwait(false);
-            }
             if (_shouldCache)
                 _cache.Cache(streamName, snapshots.Last());
         }

@@ -26,6 +26,10 @@ namespace Aggregates
         {
             context.RegisterStartupTask(() => new DomainStart(context.Settings));
 
+            context.Container.ConfigureComponent<StoreStreams>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<StoreSnapshots>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<StorePocos>(DependencyLifecycle.InstancePerCall);
+
             context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);

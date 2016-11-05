@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using EventStore.ClientAPI.Exceptions;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
@@ -13,7 +12,7 @@ using NServiceBus.ObjectBuilder;
 namespace Aggregates.Internal
 {
 
-    internal class EventStream<T> : IEventStream where T : class, IEventSource
+    class EventStream<T> : IEventStream where T : class, IEventSource
     {
         private const string CommitHeader = "CommitId";
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventStream<>));
@@ -37,7 +36,7 @@ namespace Aggregates.Internal
 
         public int TotalUncommitted => Uncommitted.Count() + OobUncommitted.Count() + SnapshotsUncommitted.Count();
 
-        private readonly IStoreEvents _store;
+        private readonly IStoreStreams _store;
         private readonly IStoreSnapshots _snapshots;
         private readonly IOobHandler _oobHandler;
         private readonly IBuilder _builder;
@@ -47,7 +46,7 @@ namespace Aggregates.Internal
         private readonly IList<IWritableEvent> _outofband;
         private readonly IList<ISnapshot> _pendingShots;
 
-        public EventStream(IBuilder builder, IStoreEvents store, string bucket, string streamId, IEnumerable<IWritableEvent> events, ISnapshot snapshot)
+        public EventStream(IBuilder builder, IStoreStreams store, string bucket, string streamId, IEnumerable<IWritableEvent> events, ISnapshot snapshot)
         {
             _store = store;
             _snapshots = builder?.Build<IStoreSnapshots>();
@@ -65,7 +64,7 @@ namespace Aggregates.Internal
         }
 
         // Special constructor for building from a cached instance
-        internal EventStream(IEventStream clone, IBuilder builder, IStoreEvents store, ISnapshot snapshot)
+        internal EventStream(IEventStream clone, IBuilder builder, IStoreStreams store, ISnapshot snapshot)
         {
             _store = store;
             _snapshots = builder.Build<IStoreSnapshots>();
@@ -134,7 +133,7 @@ namespace Aggregates.Internal
             foreach (var mutate in mutators)
             {
                 Logger.Write(LogLevel.Debug, () => $"Mutating outgoing event {@event.GetType().FullName} with mutator {mutate.GetType().FullName}");
-                writable.Event = mutate.MutateOutgoing(writable.Event);
+                writable.Event = mutate.MutateOutgoing((IEvent)writable.Event);
             }
             return writable;
         }
@@ -187,56 +186,25 @@ namespace Aggregates.Internal
             }
 
             var wip = _uncommitted.ToList();
-            try
+            if (wip.Any())
             {
-                if (wip.Any())
+                // If we increment commit id instead of depending on a commit header, ES will do the concurrency check for us
+                foreach (var uncommitted in wip.Where(x => !x.EventId.HasValue))
                 {
-                    // If we increment commit id instead of depending on a commit header, ES will do the concurrency check for us
-                    foreach (var uncommitted in wip.Where(x => !x.EventId.HasValue))
-                    {
-                        uncommitted.EventId = startingEventId;
-                        startingEventId = startingEventId.Increment();
-                    }
-
-                    // Do a quick check if any event in the current stream has the same commit id indicating the effects of this command have already been recorded
-                    // Note: if the stream has snapshots we wont be checking ALL previous events - but this is a good spot check
-                    //var oldCommits = this._committed.Select(x =>
-                    //{
-                    //    String temp;
-                    //    if (!x.Descriptor.Headers.TryGetValue(CommitHeader, out temp))
-                    //        return Guid.Empty;
-                    //    return Guid.Parse(temp);
-                    //});
-                    //if (oldCommits.Any(x => x == commitId))
-                    //    throw new DuplicateCommitException($"Probable duplicate message handled - discarding commit id {commitId}");
-
-                    Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {wip.Count} events");
-                    await _store.WriteEvents<T>(Bucket, StreamId, CommitVersion, wip, commitHeaders).ConfigureAwait(false);
-                    _uncommitted = wip;
+                    uncommitted.EventId = startingEventId;
+                    startingEventId = startingEventId.Increment();
                 }
-                if (_pendingShots.Any())
-                {
-                    Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {_pendingShots.Count} snapshots");
-                    await _snapshots.WriteSnapshots<T>(Bucket, StreamId, _pendingShots, commitHeaders).ConfigureAwait(false);
-                }
-                Flush(true);
+                
+                Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {wip.Count} events");
+                await _store.WriteEvents<T>(Bucket, StreamId, CommitVersion, wip, commitHeaders).ConfigureAwait(false);
+                _uncommitted = wip;
             }
-            catch (WrongExpectedVersionException e)
+            if (_pendingShots.Any())
             {
-                throw new VersionException(e.Message, e);
+                Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {_pendingShots.Count} snapshots");
+                await _snapshots.WriteSnapshots<T>(Bucket, StreamId, _pendingShots, commitHeaders).ConfigureAwait(false);
             }
-            catch (CannotEstablishConnectionException e)
-            {
-                throw new PersistenceException(e.Message, e);
-            }
-            catch (OperationTimedOutException e)
-            {
-                throw new PersistenceException(e.Message, e);
-            }
-            catch (EventStoreConnectionException e)
-            {
-                throw new PersistenceException(e.Message, e);
-            }
+            Flush(true);
             return startingEventId;
         }
 

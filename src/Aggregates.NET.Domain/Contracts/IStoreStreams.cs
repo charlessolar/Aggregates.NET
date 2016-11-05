@@ -5,7 +5,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Contracts
 {
-    public interface IStoreEvents
+    public interface IStoreStreams
     {
         Task Evict<T>(string bucket, string streamId) where T : class, IEventSource;
         Task Cache<T>(IEventStream stream) where T : class, IEventSource;
@@ -16,10 +16,6 @@ namespace Aggregates.Contracts
         Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(string bucket, string streamId, int? start = null, int? count = null) where T : class, IEventSource;
 
         Task WriteEvents<T>(string bucket, string streamId, int expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource;
-
-        Task AppendEvents<T>(string bucket, string streamId, IEnumerable<IWritableEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource;
-
-        Task WriteStreamMetadata<T>(string bucket, string streamId, int? maxCount = null, TimeSpan? maxAge = null, TimeSpan? cacheControl = null) where T : class, IEventSource;
 
         Task Freeze<T>(string bucket, string streamId) where T : class, IEventSource;
         Task Unfreeze<T>(string bucket, string streamId) where T : class, IEventSource;

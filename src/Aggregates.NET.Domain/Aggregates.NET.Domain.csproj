@@ -71,6 +71,10 @@
     <Compile Include="Exceptions\ConflictResolutionFailedException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
     <Compile Include="Exceptions\FrozenException.cs" />
+    <Compile Include="Internal\EventStream.cs" />
+    <Compile Include="Internal\StorePocos.cs" />
+    <Compile Include="Internal\StoreSnapshots.cs" />
+    <Compile Include="Internal\StoreStreams.cs" />
     <Compile Include="IResolveConflicts.cs" />
     <Compile Include="Contracts\IStorePocos.cs" />
     <Compile Include="Contracts\IStreamCache.cs" />
@@ -106,10 +110,9 @@
     <Compile Include="Contracts\IRouteResolver.cs" />
     <Compile Include="Contracts\ISnapshot.cs" />
     <Compile Include="Contracts\ISnapshotting.cs" />
-    <Compile Include="Contracts\IStoreEvents.cs" />
+    <Compile Include="Contracts\IStoreStreams.cs" />
     <Compile Include="Entity.cs" />
     <Compile Include="Exceptions\StorageException.cs" />
-    <Compile Include="Exceptions\VersionException.cs" />
     <Compile Include="Internal\DefaultRepositoryFactory.cs" />
     <Compile Include="Internal\DefaultRouteResolver.cs" />
     <Compile Include="Internal\EntityRepository.cs" />
