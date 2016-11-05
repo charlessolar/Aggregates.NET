@@ -10,6 +10,7 @@ namespace Aggregates.Internal
     internal class MemoryDelayed : IDelayedChannel
     {
         private static readonly ConcurrentDictionary<string, Tuple<DateTime, LinkedList<object>>> Store = new ConcurrentDictionary<string, Tuple<DateTime, LinkedList<object>>>();
+        private static readonly Dictionary<string, Tuple<DateTime, LinkedList<object>>> InFlight = new Dictionary<string, Tuple<DateTime, LinkedList<object>>>();
 
         public Task<TimeSpan?> Age(string channel)
         {
@@ -43,7 +44,32 @@ namespace Aggregates.Internal
         public Task<IEnumerable<object>> Pull(string channel)
         {
             Tuple<DateTime, LinkedList<object>> existing;
-            return Task.FromResult(!Store.TryRemove(channel, out existing) ? new object[] {}.AsEnumerable() : existing.Item2.AsEnumerable());
+            if (InFlight.ContainsKey(channel) || !Store.TryRemove(channel, out existing))
+                return Task.FromResult(new object[] {}.AsEnumerable());
+
+            InFlight[channel] = existing;
+
+            return Task.FromResult(existing.Item2.AsEnumerable());
+        }
+
+        public Task Ack(string channel)
+        {
+            InFlight.Remove(channel);
+            return Task.CompletedTask;
+        }
+
+        public Task NAck(string channel)
+        {
+            var inflight = InFlight[channel];
+            InFlight.Remove(channel);
+
+            Store.AddOrUpdate(channel, (_) => inflight, (_, existing) =>
+            {
+                foreach (var item in existing.Item2)
+                    inflight.Item2.AddLast(item);
+                return inflight;
+            });
+            return Task.CompletedTask;
         }
     }
 }

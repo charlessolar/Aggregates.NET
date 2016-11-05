@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Text;
 using System.Threading.Tasks;
+using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Aggregates.Messages;
 using Metrics;
@@ -22,12 +23,14 @@ namespace Aggregates.Internal
         private readonly int _immediate;
         private readonly int _delayed;
         private readonly bool _forever;
+        private readonly IDelayedChannel _channel;
 
-        public ExceptionRejector(int immediateRetries, int delayedRetries, bool forever)
+        public ExceptionRejector(int immediateRetries, int delayedRetries, bool forever, IDelayedChannel channel)
         {
             _immediate = immediateRetries;
             _delayed = delayedRetries;
             _forever = forever;
+            _channel = channel;
         }
 
         public override async Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)
@@ -40,9 +43,26 @@ namespace Aggregates.Internal
                 context.Extensions.Set(Defaults.Attempts, attempts);
 
                 await next().ConfigureAwait(false);
+
+                // Ack any delayed channels we processed
+                BulkInvokeHandlerTerminator.State state;
+                if (context.Extensions.TryGet(out state))
+                {
+                    foreach (var channel in state.DelaysUsed)
+                        await _channel.Ack(channel).ConfigureAwait(false);
+                }
+
             }
             catch (Exception e)
             {
+                // Exception - we'll need to but delayed objects back (NAck)
+                BulkInvokeHandlerTerminator.State state;
+                if (context.Extensions.TryGet(out state))
+                {
+                    foreach (var channel in state.DelaysUsed)
+                        await _channel.NAck(channel).ConfigureAwait(false);
+                }
+
                 if (attempts <= _immediate)
                 {
                     Logger.WriteFormat(LogLevel.Warn, $"Message {context.MessageId} has faulted! {attempts}/{_immediate} times\nException: {e.GetType().FullName}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");

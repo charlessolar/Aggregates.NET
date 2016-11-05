@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Text;
 using System.Threading.Tasks;
+using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Aggregates.Internal;
 using Aggregates.Messages;
@@ -38,8 +39,8 @@ namespace Aggregates
             
             var settings = context.Settings;
             context.Pipeline.Register(
-                behavior: new ExceptionRejector(settings.Get<int>("ImmediateRetries"), settings.Get<int>("DelayedRetries"), settings.Get<bool>("RetryForever")),
-                description: "Watches message faults, sends error replies to client when message moves to error queue"
+                b => new ExceptionRejector(settings.Get<int>("ImmediateRetries"), settings.Get<int>("DelayedRetries"), settings.Get<bool>("RetryForever"), b.Build<IDelayedChannel>()),
+                "Watches message faults, sends error replies to client when message moves to error queue"
                 );
             context.Pipeline.Register(
                 behavior: typeof(MutateOutgoingCommands),

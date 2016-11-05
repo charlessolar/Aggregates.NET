@@ -5,9 +5,9 @@ namespace Aggregates
 
     public static class ConsumerConfiguration
     {
-        public static void UseEventStoreDelayedChannel(this ExposeSettings settings, bool use)
+        public static void WithExtraStats(this ExposeSettings settings, bool use)
         {
-            settings.GetSettings().Set("EventStoreDelayed", use);
+            settings.GetSettings().Set("ExtraStats", use);
         }
     }
 }

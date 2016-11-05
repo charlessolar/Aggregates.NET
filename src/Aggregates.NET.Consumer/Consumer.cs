@@ -17,6 +17,7 @@ namespace Aggregates
         {
             Defaults(s =>
             {
+                s.SetDefault("ExtraStats", false);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
@@ -70,7 +71,8 @@ namespace Aggregates
             Logger.Write(LogLevel.Info, "Starting event consumer");
             await _subscriber.Setup(
                 _settings.EndpointName(),
-                _settings.Get<int>("ReadSize")).ConfigureAwait(false);
+                _settings.Get<int>("ReadSize"),
+                _settings.Get<bool>("ExtraStats")).ConfigureAwait(false);
 
 
             await _subscriber.Subscribe(_cancellationTokenSource.Token).ConfigureAwait(false);

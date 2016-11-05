@@ -40,12 +40,18 @@ namespace Aggregates.Internal
         {
             var msgType = context.MessageBeingHandled.GetType();
             if (!msgType.IsInterface)
-                msgType = _mapper.GetMappedTypeFor(msgType);
+                msgType = _mapper.GetMappedTypeFor(msgType) ?? msgType;
 
-            context.Extensions.Set(new State
+            State state;
+            if (!context.Extensions.TryGet(out state))
             {
-                ScopeWasPresent = Transaction.Current != null
-            });
+                state = new State
+                {
+                    ScopeWasPresent = Transaction.Current != null,
+                    DelaysUsed = new List<string>()
+                };
+                context.Extensions.Set(state);
+            }
 
             var messageHandler = context.MessageHandler;
 
@@ -86,6 +92,8 @@ namespace Aggregates.Internal
                 foreach (var msg in msgs.Cast<DelayedMessage>())
                     await messageHandler.Invoke(msg.Message, context).ConfigureAwait(false);
 
+                state.DelaysUsed.Add(key);
+                context.Extensions.Set(state);
                 return;
             }
 
@@ -110,6 +118,7 @@ namespace Aggregates.Internal
         public class State
         {
             public bool ScopeWasPresent { get; set; }
+            public List<string> DelaysUsed { get; set; }
         }
     }
 }

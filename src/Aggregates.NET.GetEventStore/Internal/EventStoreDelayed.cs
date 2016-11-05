@@ -21,6 +21,7 @@ namespace Aggregates.Internal
             public int Position { get; set; }
         }
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventStoreDelayed));
+        private static readonly Dictionary<string, Tuple<int?, Snapshot>> InFlight = new Dictionary<string, Tuple<int?, Snapshot>>();
 
         private readonly IStoreEvents _store;
         private readonly IMessageMapper _mapper;
@@ -96,6 +97,17 @@ namespace Aggregates.Internal
         {
             var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
             Logger.Write(LogLevel.Debug, () => $"Pulling delayed objects from channel [{channel}]");
+            
+            // Check if someone else is already processing
+            try
+            {
+                await _store.WriteMetadata(streamName, frozen: true, owner: Defaults.Instance).ConfigureAwait(false);
+            }
+            catch (FrozenException)
+            {
+                Logger.Write(LogLevel.Debug, () => $"Delayed channel [{channel}] is currently frozen");
+                return new object[] { }.AsEnumerable();
+            }
 
             var start = StreamPosition.Start;
             var read = await _store.GetEventsBackwards($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
@@ -111,32 +123,50 @@ namespace Aggregates.Internal
             if (delayed == null || !delayed.Any())
                 return new object[] { }.AsEnumerable();
 
-            // First write a new snapshot
+
+            // Record events as InFlight
             var snap = new Snapshot { Created = DateTime.UtcNow, Position = delayed.Last().Descriptor.Version };
+            InFlight.Add(channel, new Tuple<int?, Snapshot>((read?.Any() ?? false) ? read?.Single().Descriptor.Version : (int?)null, snap));
+            
+            return delayed.Select(x => x.Event);
+        }
+
+        public async Task Ack(string channel)
+        {
+            if (!InFlight.ContainsKey(channel))
+                return;
+
+            var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
+            var snap = InFlight[channel];
+            InFlight.Remove(channel);
+
             var @event = new WritableEvent
             {
-                Descriptor = new EventDescriptor {EntityType = "DELAY", Timestamp = DateTime.UtcNow},
-                Event = snap
+                Descriptor = new EventDescriptor { EntityType = "DELAY", Timestamp = DateTime.UtcNow },
+                Event = snap.Item2
             };
             try
             {
-                if (await _store.WriteEvents($"{streamName}.SNAP", new[] {@event}, null,
-                            expectedVersion: (read?.Any() ?? false) ? read?.Single().Descriptor.Version : (int?)null) == 1)
+                if (await _store.WriteEvents($"{streamName}.SNAP", new[] { @event }, null,
+                        expectedVersion: snap.Item1).ConfigureAwait(false) == 1)
                     await _store.WriteMetadata($"{streamName}.SNAP", maxCount: 5).ConfigureAwait(false);
             }
             catch (VersionException)
             {
-                Logger.Write(LogLevel.Debug, () => $"Failed to save updated snapshot for channel [{channel}]");
-                return new object[] {}.AsEnumerable();
+                Logger.Write(LogLevel.Error, () => $"Failed to save updated snapshot for channel [{channel}]");
+                throw;
             }
-            
             // We've read all delayed events, tell eventstore it can scavage all of them
-            await _store.WriteMetadata(streamName, truncateBefore: snap.Position).ConfigureAwait(false);
-            
-
-            // Todo: there is no real way to know if the data retrieved this way was processed.  If one of the delayed events causes an error the entire batch will be lost...
-            return delayed.Select(x => x.Event);
+            await _store.WriteMetadata(streamName, truncateBefore: snap.Item2.Position, frozen: false).ConfigureAwait(false);
         }
-        
+
+        public async Task NAck(string channel)
+        {
+            // Remove the freeze so someone else can run the delayed
+            var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
+            InFlight.Remove(channel);
+            // We've read all delayed events, tell eventstore it can scavage all of them
+            await _store.WriteMetadata(streamName, frozen: false).ConfigureAwait(false);
+        }
     }
 }

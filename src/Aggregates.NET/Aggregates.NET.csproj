@@ -86,7 +86,6 @@
     <Compile Include="Exceptions\FrozenException.cs" />
     <Compile Include="Exceptions\NotFoundException.cs" />
     <Compile Include="Exceptions\PersistenceException.cs" />
-    <Compile Include="Exceptions\RetryException.cs" />
     <Compile Include="Exceptions\VersionException.cs" />
     <Compile Include="Extensions\BusExtensions.cs" />
     <Compile Include="Extensions\DescriptorExtensions.cs" />

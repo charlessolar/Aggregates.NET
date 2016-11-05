@@ -33,6 +33,7 @@ namespace Aggregates.Internal
         
         private string _endpoint;
         private int _readsize;
+        private bool _extraStats;
 
         private SemaphoreSlim _concurrencyLimit;
 
@@ -63,10 +64,11 @@ namespace Aggregates.Internal
 
         }
 
-        public async Task Setup(string endpoint, int readsize)
+        public async Task Setup(string endpoint, int readsize, bool extraStats)
         {
             _endpoint = endpoint;
             _readsize = readsize;
+            _extraStats = extraStats;
 
 
             if (!_connection.Settings.GossipSeeds.Any())
@@ -125,12 +127,14 @@ namespace Aggregates.Internal
             {
                 var settings = PersistentSubscriptionSettings.Create()
                     .WithReadBatchOf(_readsize)
-                    .WithLiveBufferSizeOf(_readsize * _readsize)
+                    .WithLiveBufferSizeOf(_readsize*_readsize)
                     .CheckPointAfter(TimeSpan.FromSeconds(15))
                     .ResolveLinkTos()
                     .StartFromCurrent()
-                    .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned)
-                    .Build();
+                    .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
+                if (_extraStats)
+                    settings.WithExtraStatistics();
+
                 await
                     _connection.CreatePersistentSubscriptionAsync(stream, stream, settings,
                         _connection.Settings.DefaultUserCredentials).ConfigureAwait(false);
@@ -162,7 +166,11 @@ namespace Aggregates.Internal
 
                 var descriptor = @event.Metadata.Deserialize(_settings);
 
-                if (cancelToken.IsCancellationRequested) return;
+                if (cancelToken.IsCancellationRequested)
+                {
+                    subscription.Stop(TimeSpan.FromSeconds(30));
+                    return;
+                }
 
                 _concurrencyLimit.Wait(cancelToken);
 
@@ -199,7 +207,6 @@ namespace Aggregates.Internal
                             }
                         }
 
-                        //if (processed || errorHandled)
                         subscription.Acknowledge(e);
                         _concurrencyLimit.Release();
                     }
