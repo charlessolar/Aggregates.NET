@@ -63,13 +63,8 @@
     <Compile Include="GetEventStore.cs" />
     <Compile Include="Internal\EventStoreDelayed.cs" />
     <Compile Include="Internal\StoreEvents.cs" />
-    <Compile Include="Extensions\StoreExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Aggregates.NET.Domain\Aggregates.NET.Domain.csproj">
-      <Project>{44aba11e-6abd-4bdf-9fb4-02c2852baadf}</Project>
-      <Name>Aggregates.NET.Domain</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj">
       <Project>{ec7040e2-7a13-4447-900d-6ed57328e5df}</Project>
       <Name>Aggregates.NET</Name>

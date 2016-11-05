@@ -70,7 +70,6 @@
     <Compile Include="Contracts\IPocoRepository.cs" />
     <Compile Include="Exceptions\ConflictResolutionFailedException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
-    <Compile Include="Exceptions\FrozenException.cs" />
     <Compile Include="Internal\EventStream.cs" />
     <Compile Include="Internal\StorePocos.cs" />
     <Compile Include="Internal\StoreSnapshots.cs" />
