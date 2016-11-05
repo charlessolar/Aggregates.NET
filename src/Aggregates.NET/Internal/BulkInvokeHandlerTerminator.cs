@@ -13,6 +13,13 @@ using NServiceBus.Pipeline;
 
 namespace Aggregates.Internal
 {
+    internal class DelayedMessage
+    {
+        public string MessageId { get; set; }
+        public IDictionary<string, string> Headers { get; set; }
+        public object Message { get; set; }
+        public DateTime Received { get; set; }
+    }
     internal class BulkInvokeHandlerTerminator : PipelineTerminator<IInvokeHandlerContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(BulkInvokeHandlerTerminator));
@@ -52,8 +59,17 @@ namespace Aggregates.Internal
             }
             if (IsDelayed.ContainsKey(key))
             {
+                var msgPkg = new DelayedMessage
+                {
+                    MessageId = context.MessageId,
+                    Headers = context.Headers,
+                    Message = context.MessageBeingHandled,
+                    Received = DateTime.UtcNow,
+                };
+
+
                 Logger.Write(LogLevel.Debug, () => $"Delaying message {msgType.FullName} delivery");
-                var size = await _channel.AddToQueue(key, context.MessageBeingHandled).ConfigureAwait(false);
+                var size = await _channel.AddToQueue(key, msgPkg).ConfigureAwait(false);
 
                 DelayedAttribute delayed;
                 IsDelayed.TryGetValue(key, out delayed);
@@ -67,8 +83,8 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Debug, () => $"Threshold hit - bulk processing {msgType.FullName}");
                 var msgs = await _channel.Pull(key).ConfigureAwait(false);
 
-                foreach (var msg in msgs)
-                    await messageHandler.Invoke(msg, context).ConfigureAwait(false);
+                foreach (var msg in msgs.Cast<DelayedMessage>())
+                    await messageHandler.Invoke(msg.Message, context).ConfigureAwait(false);
 
                 return;
             }
