@@ -71,7 +71,7 @@ namespace Aggregates
                     .GetMethod("Invoke", BindingFlags.Instance | BindingFlags.Public);
                 OnError = (c) => (Task<ErrorHandleResult>)recoverabilityMethod.Invoke(recoverabilityExecutor, new object[] { c });
                 PushSettings = (PushRuntimeSettings)main.GetType()
-                        .GetField("pushSettings", BindingFlags.Instance | BindingFlags.NonPublic)
+                        .GetField("pushRuntimeSettings", BindingFlags.Instance | BindingFlags.NonPublic)
                         .GetValue(main);
 
                 return instance;
