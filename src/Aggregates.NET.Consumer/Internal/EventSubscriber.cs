@@ -127,10 +127,9 @@ namespace Aggregates.Internal
             {
                 var settings = PersistentSubscriptionSettings.Create()
                     .WithReadBatchOf(_readsize)
-                    .WithLiveBufferSizeOf(_readsize*_readsize)
-                    .CheckPointAfter(TimeSpan.FromSeconds(15))
+                    .CheckPointAfter(TimeSpan.FromSeconds(5))
                     .ResolveLinkTos()
-                    .StartFromCurrent()
+                    .StartFromBeginning()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                 if (_extraStats)
                     settings.WithExtraStatistics();
@@ -146,10 +145,10 @@ namespace Aggregates.Internal
             _subscription = await _connection.ConnectToPersistentSubscriptionAsync(stream, stream, (subscription, e) =>
             {
 
-                if (Bus.OnMessage == null || Bus.OnError == null)
+                while (Bus.OnMessage == null || Bus.OnError == null)
                 {
                     Logger.Warn($"Could not find NSBs onMessage handler yet - if this persists there is a problem.");
-                    subscription.Stop(TimeSpan.FromSeconds(30));
+                    Thread.Sleep(500);
                 }
 
                 if (_concurrencyLimit == null)
@@ -182,6 +181,7 @@ namespace Aggregates.Internal
                         [Headers.MessageId] = @event.EventId.ToString()
                     };
 
+                    Logger.Write(LogLevel.Debug, () => $"Processing event number {@event.EventNumber} from stream [{@event.EventStreamId}]");
                     using (var tokenSource = new CancellationTokenSource())
                     {
                         var processed = false;
@@ -207,6 +207,7 @@ namespace Aggregates.Internal
                             }
                         }
 
+                        Logger.Write(LogLevel.Debug, () => $"Acknowledging event number {@event.EventNumber} from stream [{@event.EventStreamId}]");
                         subscription.Acknowledge(e);
                         _concurrencyLimit.Release();
                     }

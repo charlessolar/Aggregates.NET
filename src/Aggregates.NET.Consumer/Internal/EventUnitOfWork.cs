@@ -4,9 +4,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Metrics;
 using NServiceBus;
+using NServiceBus.Extensibility;
 using NServiceBus.Logging;
 using NServiceBus.Pipeline;
 
@@ -22,6 +24,13 @@ namespace Aggregates.Internal
         private static readonly Timer EventsTimer = Metric.Timer("Event Duration", Unit.Commands);
 
         private static readonly Meter ErrorsMeter = Metric.Meter("Event Errors", Unit.Errors);
+
+        private readonly IPersistence _persistence;
+
+        public EventUnitOfWork(IPersistence persistence)
+        {
+            _persistence = persistence;
+        }
         
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
@@ -46,6 +55,12 @@ namespace Aggregates.Internal
                         var retries = 0;
                         context.Extensions.TryGet(Defaults.Attempts, out retries);
                         uow.Retries = retries;
+
+                        var savedBag =
+                            await _persistence.Remove($"{context.MessageId}-{uow.GetType().FullName}")
+                                    .ConfigureAwait(false);
+
+                        uow.Bag = savedBag ?? new ContextBag();
 
                         await uow.Begin().ConfigureAwait(false);
                     }
@@ -84,6 +99,7 @@ namespace Aggregates.Internal
                     {
                         trailingExceptions.Add(endException);
                     }
+                    await _persistence.Save($"{context.MessageId}-{uow.GetType().FullName}", uow.Bag).ConfigureAwait(false);
                 }
 
 

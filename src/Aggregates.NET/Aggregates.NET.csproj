@@ -75,6 +75,7 @@
     <Compile Include="Contracts\IDelayedChannel.cs" />
     <Compile Include="Contracts\IEventDescriptor.cs" />
     <Compile Include="Contracts\IEventMutator.cs" />
+    <Compile Include="Contracts\IPersistence.cs" />
     <Compile Include="Contracts\IStoreEvents.cs" />
     <Compile Include="Contracts\IWritableEvent.cs" />
     <Compile Include="Defaults.cs" />
@@ -101,6 +102,7 @@
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />
     <Compile Include="Internal\MemoryDelayed.cs" />
+    <Compile Include="Internal\MemoryPersistence.cs" />
     <Compile Include="Internal\MutateOutgoingEvents.cs" />
     <Compile Include="Internal\MutateOutgoingCommands.cs" />
     <Compile Include="Internal\StreamPosition.cs" />

@@ -6,6 +6,7 @@ using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Metrics;
+using NServiceBus.Extensibility;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.MessageMutator;
@@ -39,6 +40,7 @@ namespace Aggregates.Internal
 
         public IBuilder Builder { get; set; }
         public int Retries { get; set; }
+        public ContextBag Bag { get; set; }
 
         public Guid CommitId { get; private set; }
         public object CurrentMessage { get; private set; }
@@ -187,8 +189,6 @@ namespace Aggregates.Internal
 
         private async Task Commit()
         {
-
-
             // Insert all command headers into the commit
             var headers = new Dictionary<string, string>(CurrentHeaders);
 
