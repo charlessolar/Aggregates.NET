@@ -69,14 +69,16 @@ namespace Aggregates.Internal
             _endpoint = endpoint;
             _readsize = readsize;
             _extraStats = extraStats;
-
-
+            
             if (!_connection.Settings.GossipSeeds.Any())
                 throw new ArgumentException(
                     "Eventstore connection settings does not contain gossip seeds (even if single host call SetGossipSeedEndPoints and SetClusterGossipPort)");
 
             var manager = new ProjectionsManager(_connection.Settings.Log,
                 new IPEndPoint(_connection.Settings.GossipSeeds[0].EndPoint.Address, _connection.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
+
+            // We use this system projection - so enable it
+            await manager.EnableAsync("$by_event_type", _connection.Settings.DefaultUserCredentials).ConfigureAwait(false);
 
             var discoveredEvents = _registry.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).ToList();
 
@@ -87,8 +89,12 @@ namespace Aggregates.Internal
                 discoveredEvents
                     .Select(eventType => $"'{eventType.AssemblyQualifiedName}': function(s,e) {{ linkTo('{stream}', e); }}")
                     .Aggregate((cur, next) => $"{cur},\n{next}");
+            var eventTypes =
+                discoveredEvents
+                    .Select(eventType => $"'$et-{eventType.AssemblyQualifiedName}'")
+                    .Aggregate((cur, next) => $"{cur},{next}");
 
-            var definition = $"fromAll().when({{\n{functions}\n}})";
+            var definition = $"fromStreams([{eventTypes}]).when({{\n{functions}\n}})";
 
             try
             {
