@@ -97,13 +97,16 @@ namespace Aggregates.Internal
         {
             var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
             Logger.Write(LogLevel.Debug, () => $"Pulling delayed objects from channel [{channel}]");
-            
+
             // Check if someone else is already processing
+            if (InFlight.ContainsKey(channel))
+                return new object[] { }.AsEnumerable();
+
             try
             {
                 await _store.WriteMetadata(streamName, frozen: true, owner: Defaults.Instance).ConfigureAwait(false);
             }
-            catch (FrozenException)
+            catch(VersionException)
             {
                 Logger.Write(LogLevel.Debug, () => $"Delayed channel [{channel}] is currently frozen");
                 return new object[] { }.AsEnumerable();
