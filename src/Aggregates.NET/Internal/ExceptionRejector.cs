@@ -24,14 +24,12 @@ namespace Aggregates.Internal
         private readonly int _immediate;
         private readonly int _delayed;
         private readonly bool _forever;
-        private readonly IDelayedChannel _channel;
 
-        public ExceptionRejector(int immediateRetries, int delayedRetries, bool forever, IDelayedChannel channel)
+        public ExceptionRejector(int immediateRetries, int delayedRetries, bool forever)
         {
             _immediate = immediateRetries;
             _delayed = delayedRetries;
             _forever = forever;
-            _channel = channel;
         }
 
         public override async Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)

@@ -9,6 +9,7 @@ using Aggregates.Contracts;
 using Aggregates.Extensions;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
+using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
 
 namespace Aggregates.Internal
@@ -27,17 +28,19 @@ namespace Aggregates.Internal
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
         private static readonly HashSet<string> IsNotDelayed = new HashSet<string>();
 
+        private readonly IBuilder _builder;
         private readonly IMessageMapper _mapper;
-        private readonly IDelayedChannel _channel;
 
-        public BulkInvokeHandlerTerminator(IMessageMapper mapper, IDelayedChannel channel)
+        public BulkInvokeHandlerTerminator(IBuilder builder, IMessageMapper mapper)
         {
+            _builder = builder;
             _mapper = mapper;
-            _channel = channel;
         }
-
+        
         protected override async Task Terminate(IInvokeHandlerContext context)
         {
+            var channel = _builder.Build<IDelayedChannel>();
+
             var msgType = context.MessageBeingHandled.GetType();
             if (!msgType.IsInterface)
                 msgType = _mapper.GetMappedTypeFor(msgType) ?? msgType;
@@ -69,7 +72,7 @@ namespace Aggregates.Internal
 
 
                 Logger.Write(LogLevel.Debug, () => $"Delaying message {msgType.FullName} delivery");
-                var size = await _channel.AddToQueue(key, msgPkg).ConfigureAwait(false);
+                var size = await channel.AddToQueue(key, msgPkg).ConfigureAwait(false);
 
                 DelayedAttribute delayed;
                 IsDelayed.TryGetValue(key, out delayed);
@@ -77,11 +80,11 @@ namespace Aggregates.Internal
                 if (delayed.Count.HasValue && size <= delayed.Count.Value) return;
                 if (delayed.Delay.HasValue)
                 {
-                    var oldest = await _channel.Age(key).ConfigureAwait(false);
+                    var oldest = await channel.Age(key).ConfigureAwait(false);
                     if (oldest < TimeSpan.FromMilliseconds(delayed.Delay.Value)) return;
                 }
                 Logger.Write(LogLevel.Debug, () => $"Threshold hit - bulk processing {msgType.FullName}");
-                var msgs = await _channel.Pull(key).ConfigureAwait(false);
+                var msgs = await channel.Pull(key).ConfigureAwait(false);
 
                 Logger.Write(LogLevel.Debug, () => $"Invoking handle {msgs.Count()} times for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
                 foreach (var msg in msgs.Cast<DelayedMessage>())

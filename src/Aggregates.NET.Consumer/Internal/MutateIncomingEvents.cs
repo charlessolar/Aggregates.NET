@@ -39,7 +39,7 @@ namespace Aggregates.Internal
             description: "Running event mutators for incoming messages"
         )
         {
-            InsertAfter("EventUnitOfWork");
+            InsertAfter("ApplicationUnitOfWork");
         }
     }
 }

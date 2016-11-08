@@ -38,7 +38,7 @@ namespace Aggregates.Internal
             description: "Running command mutators for incoming messages"
         )
         {
-            InsertAfter("CommandUnitOfWork");
+            InsertAfter("ApplicationUnitOfWork");
         }
     }
 }

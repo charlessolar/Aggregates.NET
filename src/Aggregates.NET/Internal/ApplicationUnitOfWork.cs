@@ -14,16 +14,14 @@ using NServiceBus.Pipeline;
 
 namespace Aggregates.Internal
 {
-
-
     internal class ApplicationUnitOfWork : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(ApplicationUnitOfWork));
 
-        private static readonly Meter EventsMeter = Metric.Meter("Events", Unit.Events);
-        private static readonly Timer EventsTimer = Metric.Timer("Event Duration", Unit.Events);
+        private static readonly Meter EventsMeter = Metric.Meter("Messages", Unit.Items);
+        private static readonly Timer EventsTimer = Metric.Timer("Message Duration", Unit.Items);
 
-        private static readonly Meter ErrorsMeter = Metric.Meter("Event Errors", Unit.Errors);
+        private static readonly Meter ErrorsMeter = Metric.Meter("Message Errors", Unit.Errors);
 
         private readonly IPersistence _persistence;
 
@@ -34,12 +32,6 @@ namespace Aggregates.Internal
         
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
-            if (!(context.Message.Instance is IEvent))
-            {
-                await next().ConfigureAwait(false);
-                return;
-            }
-
             var s = new Stopwatch();
             var uows = new ConcurrentStack<IApplicationUnitOfWork>();
             try
@@ -87,7 +79,7 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
-                Logger.Warn($"Caught exception '{e.GetType().FullName}' while executing event {context.Message.MessageType.FullName}");
+                Logger.Warn($"Caught exception '{e.GetType().FullName}' while executing message {context.Message.MessageType.FullName}");
                 ErrorsMeter.Mark();
                 var trailingExceptions = new List<Exception>();
                 foreach (var uow in uows.Generate())

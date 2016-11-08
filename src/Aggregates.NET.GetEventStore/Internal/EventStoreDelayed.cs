@@ -29,15 +29,28 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventStoreDelayed));
 
         private readonly IStoreEvents _store;
-        private readonly IMessageMapper _mapper;
 
         private Dictionary<string, Tuple<int?, Snapshot>> _inFlight;
         private List<Tuple<string, WritableEvent>> _uncommitted;
 
-        public EventStoreDelayed(IStoreEvents store, IMessageMapper mapper)
+        public EventStoreDelayed(IStoreEvents store)
         {
             _store = store;
-            _mapper = mapper;
+        }
+
+
+        public Task Begin()
+        {
+            _uncommitted = new List<Tuple<string, WritableEvent>>();
+            _inFlight = new Dictionary<string, Tuple<int?, Snapshot>>();
+            return Task.CompletedTask;
+        }
+
+        public Task End(Exception ex = null)
+        {
+            var streams = _uncommitted.GroupBy(x => x.Item1).Select(x => _store.WriteEvents(x.Key, x.Select(y => y.Item2), null));
+
+            return Task.WhenAll(streams.Concat(_inFlight.Select(x => ex == null ? Ack(x.Key) : NAck(x.Key))));
         }
 
         public async Task<TimeSpan?> Age(string channel)
@@ -188,19 +201,5 @@ namespace Aggregates.Internal
             await _store.WriteMetadata(streamName, frozen: false).ConfigureAwait(false);
         }
 
-
-        public Task Begin()
-        {
-            _uncommitted = new List<Tuple<string, WritableEvent>>();
-            _inFlight = new Dictionary<string, Tuple<int?, Snapshot>>();
-            return Task.CompletedTask;
-        }
-
-        public Task End(Exception ex = null)
-        {
-            var streams = _uncommitted.GroupBy(x => x.Item1).Select(x => _store.WriteEvents(x.Key, x.Select(y => y.Item2), null));
-
-            return Task.WhenAll(streams.Concat(_inFlight.Select(x => ex == null ? Ack(x.Key) : NAck(x.Key))));
-        }
     }
 }

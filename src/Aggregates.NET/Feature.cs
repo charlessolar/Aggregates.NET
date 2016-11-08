@@ -40,7 +40,7 @@ namespace Aggregates
             
             var settings = context.Settings;
             context.Pipeline.Register(
-                b => new ExceptionRejector(settings.Get<int>("ImmediateRetries"), settings.Get<int>("DelayedRetries"), settings.Get<bool>("RetryForever"), b.Build<IDelayedChannel>()),
+                b => new ExceptionRejector(settings.Get<int>("ImmediateRetries"), settings.Get<int>("DelayedRetries"), settings.Get<bool>("RetryForever")),
                 "Watches message faults, sends error replies to client when message moves to error queue"
                 );
             context.Pipeline.Register(
