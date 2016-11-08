@@ -81,12 +81,10 @@
     <Compile Include="Exceptions\DiscardEventException.cs" />
     <Compile Include="Exceptions\NoRouteException.cs" />
     <Compile Include="Extensions\StreamExtensions.cs" />
-    <Compile Include="ICommandUnitOfWork.cs" />
     <Compile Include="IComputed.cs" />
     <Compile Include="IHandleComputed.cs" />
     <Compile Include="IBase.cs" />
     <Compile Include="Internal\Base.cs" />
-    <Compile Include="Internal\CommandUnitOfWork.cs" />
     <Compile Include="Internal\DefaultOOBHandler.cs" />
     <Compile Include="Internal\ConflictResolvers.cs" />
     <Compile Include="Internal\MemoryStreamCache.cs" />

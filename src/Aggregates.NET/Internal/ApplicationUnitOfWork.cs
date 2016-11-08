@@ -16,9 +16,9 @@ namespace Aggregates.Internal
 {
 
 
-    internal class EventUnitOfWork : Behavior<IIncomingLogicalMessageContext>
+    internal class ApplicationUnitOfWork : Behavior<IIncomingLogicalMessageContext>
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(EventUnitOfWork));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(ApplicationUnitOfWork));
 
         private static readonly Meter EventsMeter = Metric.Meter("Events", Unit.Events);
         private static readonly Timer EventsTimer = Metric.Timer("Event Duration", Unit.Events);
@@ -27,7 +27,7 @@ namespace Aggregates.Internal
 
         private readonly IPersistence _persistence;
 
-        public EventUnitOfWork(IPersistence persistence)
+        public ApplicationUnitOfWork(IPersistence persistence)
         {
             _persistence = persistence;
         }
@@ -41,13 +41,13 @@ namespace Aggregates.Internal
             }
 
             var s = new Stopwatch();
-            var uows = new ConcurrentStack<IEventUnitOfWork>();
+            var uows = new ConcurrentStack<IApplicationUnitOfWork>();
             try
             {
                 EventsMeter.Mark();
                 using (EventsTimer.NewContext())
                 {
-                    foreach (var uow in context.Builder.BuildAll<IEventUnitOfWork>())
+                    foreach (var uow in context.Builder.BuildAll<IApplicationUnitOfWork>())
                     {
                         uows.Push(uow);
                         uow.Builder = context.Builder;
@@ -87,7 +87,7 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
-                Logger.Warn($"Caught exception '{e.GetType().FullName}' while executing command {context.Message.MessageType.FullName}");
+                Logger.Warn($"Caught exception '{e.GetType().FullName}' while executing event {context.Message.MessageType.FullName}");
                 ErrorsMeter.Mark();
                 var trailingExceptions = new List<Exception>();
                 foreach (var uow in uows.Generate())
@@ -113,12 +113,12 @@ namespace Aggregates.Internal
             }
         }
     }
-    internal class EventUowRegistration : RegisterStep
+    internal class ApplicationUowRegistration : RegisterStep
     {
-        public EventUowRegistration() : base(
-            stepId: "EventUnitOfWork",
-            behavior: typeof(EventUnitOfWork),
-            description: "Begins and Ends event unit of work"
+        public ApplicationUowRegistration() : base(
+            stepId: "ApplicationUnitOfWork",
+            behavior: typeof(ApplicationUnitOfWork),
+            description: "Begins and Ends unit of work for your application"
         )
         {
         }

@@ -27,7 +27,6 @@ namespace Aggregates
 
             context.Container.ConfigureComponent<EventSubscriber>(DependencyLifecycle.SingleInstance);
 
-            context.Pipeline.Register<EventUowRegistration>();
             context.Pipeline.Register<MutateIncomingRegistration>();
         }
     }

@@ -1,14 +1,17 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using NServiceBus.Extensibility;
 using NServiceBus.ObjectBuilder;
 
 namespace Aggregates
 {
-    public interface ICommandUnitOfWork
+    public interface IApplicationUnitOfWork
     {
         IBuilder Builder { get; set; }
-        // The number of times the command has been re-run due to error
+        // The number of times the event has been re-run due to error
         int Retries { get; set; }
         // Will be persisted across retries
         ContextBag Bag { get; set; }

@@ -62,14 +62,11 @@
     <Compile Include="Exceptions\DiscriminatorException.cs" />
     <Compile Include="Exceptions\EndpointVersionException.cs" />
     <Compile Include="Exceptions\SubscriptionCanceled.cs" />
-    <Compile Include="Extensions\StackExtensions.cs" />
     <Compile Include="Internal\EventSubscriber.cs" />
-    <Compile Include="Internal\EventUnitOfWork.cs" />
     <Compile Include="Consumer.cs" />
     <Compile Include="ConsumerConfiguration.cs" />
     <Compile Include="IEventSubscriber.cs" />
     <Compile Include="Internal\MutateIncomingEvents.cs" />
-    <Compile Include="IEventUnitOfWork.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Aggregates.NET.Consumer.nuspec">
@@ -83,7 +80,9 @@
       <Name>Aggregates.NET</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="Extensions\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

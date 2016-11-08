@@ -93,11 +93,13 @@
     <Compile Include="Extensions\DictionaryExtensions.cs" />
     <Compile Include="Extensions\GuidExtensions.cs" />
     <Compile Include="Extensions\LoggerExtensions.cs" />
+    <Compile Include="Extensions\StackExtensions.cs" />
     <Compile Include="Extensions\StoreExtensions.cs" />
     <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="Extensions\TaskExtensions.cs" />
     <Compile Include="Feature.cs" />
     <Compile Include="Internal\BulkInvokeHandlerTerminator.cs" />
+    <Compile Include="Internal\ApplicationUnitOfWork.cs" />
     <Compile Include="Internal\ExceptionRejector.cs" />
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />
@@ -108,6 +110,7 @@
     <Compile Include="Internal\StreamPosition.cs" />
     <Compile Include="Internal\TimeExecutionBehavior.cs" />
     <Compile Include="Internal\WritableEvent.cs" />
+    <Compile Include="IApplicationUnitOfWork.cs" />
     <Compile Include="Messages\Accept.cs" />
     <Compile Include="Messages\Claim.cs" />
     <Compile Include="Messages\EndpointAlive.cs" />

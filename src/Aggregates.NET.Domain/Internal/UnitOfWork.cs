@@ -6,6 +6,7 @@ using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Metrics;
+using NServiceBus;
 using NServiceBus.Extensibility;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
@@ -14,7 +15,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    public class UnitOfWork : IUnitOfWork, ICommandUnitOfWork, IEventUnitOfWork, IMutateOutgoingMessages, IMutateIncomingMessages
+    public class UnitOfWork : IUnitOfWork, IApplicationUnitOfWork, IMutateOutgoingMessages, IMutateIncomingMessages
     {
         public static string PrefixHeader = "Originating";
         public static string NotFound = "<NOT FOUND>";
@@ -153,38 +154,33 @@ namespace Aggregates.Internal
             var result = _mapper.CreateInstance(computed);
             return Compute<TComputed, TResponse>(result);
         }
+        
 
-        Task ICommandUnitOfWork.Begin()
+        Task IApplicationUnitOfWork.Begin()
         {
-            _commandsMeter.Mark();
-            _commandsConcurrent.Increment();
+            if (CurrentMessage is IEvent)
+            {
+                _eventsMeter.Mark();
+                _eventsConcurrent.Increment();
+            }
+            if (CurrentMessage is ICommand)
+            {
+                _commandsMeter.Mark();
+                _commandsConcurrent.Increment();
+            }
             return Task.FromResult(true);
         }
-
-        async Task ICommandUnitOfWork.End(Exception ex)
+        async Task IApplicationUnitOfWork.End(Exception ex)
         {
             if (ex == null)
                 await Commit().ConfigureAwait(false);
             else
                 _errorsMeter.Mark();
 
-            _commandsConcurrent.Decrement();
-        }
-
-        Task IEventUnitOfWork.Begin()
-        {
-            _eventsMeter.Mark();
-            _eventsConcurrent.Increment();
-            return Task.FromResult(true);
-        }
-        async Task IEventUnitOfWork.End(Exception ex)
-        {
-            if (ex == null)
-                await Commit().ConfigureAwait(false);
-            else
-                _errorsMeter.Mark();
-
-            _eventsConcurrent.Decrement();
+            if(CurrentMessage is IEvent)
+                _eventsConcurrent.Decrement();
+            if(CurrentMessage is ICommand)
+                _commandsConcurrent.Decrement();
         }
 
         private async Task Commit()

@@ -136,7 +136,7 @@ namespace Aggregates.Internal
                     .StartFromBeginning()
                     .WithReadBatchOf(_readsize)
                     .WithMessageTimeoutOf(TimeSpan.FromSeconds(60))
-                    .CheckPointAfter(TimeSpan.FromSeconds(5))
+                    .CheckPointAfter(TimeSpan.FromSeconds(10))
                     .ResolveLinkTos()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                 if (_extraStats)

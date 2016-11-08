@@ -8,23 +8,31 @@ using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Metrics.Utils;
 using Newtonsoft.Json;
+using NServiceBus.Extensibility;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
+using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    class EventStoreDelayed : IDelayedChannel
+    class EventStoreDelayed : IDelayedChannel, IApplicationUnitOfWork
     {
+        public IBuilder Builder { get; set; }
+        public int Retries { get; set; }
+        public ContextBag Bag { get; set; }
+
         public class Snapshot
         {
             public DateTime Created { get; set; }
             public int Position { get; set; }
         }
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventStoreDelayed));
-        private static readonly Dictionary<string, Tuple<int?, Snapshot>> InFlight = new Dictionary<string, Tuple<int?, Snapshot>>();
 
         private readonly IStoreEvents _store;
         private readonly IMessageMapper _mapper;
+
+        private Dictionary<string, Tuple<int?, Snapshot>> _inFlight;
+        private List<Tuple<string, WritableEvent>> _uncommitted;
 
         public EventStoreDelayed(IStoreEvents store, IMessageMapper mapper)
         {
@@ -88,9 +96,14 @@ namespace Aggregates.Internal
                 start = snapshot.Position + 1;
             }
 
-            var nextVersion = await _store.WriteEvents(streamName, new[] {@event}, null).ConfigureAwait(false);
+            read = await _store.GetEventsBackwards(streamName, StreamPosition.End, 1).ConfigureAwait(false);
 
-            return nextVersion - start;
+            _uncommitted.Add(new Tuple<string, WritableEvent>(streamName, @event));
+
+            if (read == null || !read.Any())
+                return 0;
+            
+            return read.Single().Descriptor.Version - start;
         }
 
         public async Task<IEnumerable<object>> Pull(string channel)
@@ -99,7 +112,7 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Pulling delayed objects from channel [{channel}]");
 
             // Check if someone else is already processing
-            if (InFlight.ContainsKey(channel))
+            if (_inFlight.ContainsKey(channel))
                 return new object[] { }.AsEnumerable();
 
             try
@@ -129,19 +142,19 @@ namespace Aggregates.Internal
 
             // Record events as InFlight
             var snap = new Snapshot { Created = DateTime.UtcNow, Position = delayed.Last().Descriptor.Version };
-            InFlight.Add(channel, new Tuple<int?, Snapshot>((read?.Any() ?? false) ? read?.Single().Descriptor.Version : (int?)null, snap));
+            _inFlight.Add(channel, new Tuple<int?, Snapshot>((read?.Any() ?? false) ? read?.Single().Descriptor.Version : (int?)null, snap));
             
             return delayed.Select(x => x.Event);
         }
 
-        public async Task Ack(string channel)
+        private async Task Ack(string channel)
         {
-            if (!InFlight.ContainsKey(channel))
+            if (!_inFlight.ContainsKey(channel))
                 return;
 
             var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
-            var snap = InFlight[channel];
-            InFlight.Remove(channel);
+            var snap = _inFlight[channel];
+            _inFlight.Remove(channel);
 
             var @event = new WritableEvent
             {
@@ -163,13 +176,31 @@ namespace Aggregates.Internal
             await _store.WriteMetadata(streamName, truncateBefore: snap.Item2.Position, frozen: false).ConfigureAwait(false);
         }
 
-        public async Task NAck(string channel)
+        private async Task NAck(string channel)
         {
+            if (!_inFlight.ContainsKey(channel))
+                return;
+
             // Remove the freeze so someone else can run the delayed
             var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
-            InFlight.Remove(channel);
+            _inFlight.Remove(channel);
             // We've read all delayed events, tell eventstore it can scavage all of them
             await _store.WriteMetadata(streamName, frozen: false).ConfigureAwait(false);
+        }
+
+
+        public Task Begin()
+        {
+            _uncommitted = new List<Tuple<string, WritableEvent>>();
+            _inFlight = new Dictionary<string, Tuple<int?, Snapshot>>();
+            return Task.CompletedTask;
+        }
+
+        public Task End(Exception ex = null)
+        {
+            var streams = _uncommitted.GroupBy(x => x.Item1).Select(x => _store.WriteEvents(x.Key, x.Select(y => y.Item2), null));
+
+            return Task.WhenAll(streams.Concat(_inFlight.Select(x => ex == null ? Ack(x.Key) : NAck(x.Key))));
         }
     }
 }

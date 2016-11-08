@@ -59,6 +59,7 @@ namespace Aggregates
                     description: "times the execution of messages and reports anytime they are slow"
                     );
 
+            context.Pipeline.Register<ApplicationUowRegistration>();
             // We are sending IEvents, which NSB doesn't like out of the box - so turn that check off
             context.Pipeline.Remove("EnforceSendBestPractices");
 

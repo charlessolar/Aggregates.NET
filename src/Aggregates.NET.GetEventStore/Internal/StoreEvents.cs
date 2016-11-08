@@ -120,6 +120,7 @@ namespace Aggregates.Internal
             StreamEventsSlice current;
             var sliceStart = StreamPosition.End;
 
+            Logger.Write(LogLevel.Debug, () => $"Reading events from stream [{stream}] starting at {sliceStart}");
             if (start.HasValue)
             {
                 // Interesting, ReadStreamEventsBackwardAsync's [start] parameter marks start from begining of stream, not an offset from the end.
@@ -265,7 +266,7 @@ namespace Aggregates.Internal
             TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null)
         {
 
-            Logger.Write(LogLevel.Debug, () => $"Writing metadata [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl} ] to stream [{stream}]");
+            Logger.Write(LogLevel.Debug, () => $"Writing metadata [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl}, {nameof(frozen)}: {frozen} ] to stream [{stream}]");
 
             var existing = await _client.GetStreamMetadataAsync(stream).ConfigureAwait(false);
 

@@ -72,8 +72,7 @@ namespace Aggregates
                     });
                 };
             }, DependencyLifecycle.SingleInstance);
-
-            context.Pipeline.Register<CommandUowRegistration>();
+            
             context.Pipeline.Register<MutateIncomingRegistration>();
             context.Pipeline.Register<CommandAcceptorRegistration>();
             

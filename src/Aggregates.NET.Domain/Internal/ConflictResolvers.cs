@@ -206,13 +206,6 @@ namespace Aggregates.Internal
                 }
 
                 startingEventId = await stream.Commit(commitId, startingEventId, commitHeaders).ConfigureAwait(false);
-                await _delay.Ack(entity.StreamId).ConfigureAwait(false);
-            }
-            catch (VersionException)
-            {
-                // Failed to merge - throw all conflicted events BACK on the queue
-                await _delay.NAck(entity.StreamId).ConfigureAwait(false);
-                throw;
             }
             finally
             {

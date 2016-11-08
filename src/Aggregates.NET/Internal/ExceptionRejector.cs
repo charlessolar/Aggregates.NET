@@ -44,26 +44,10 @@ namespace Aggregates.Internal
                 context.Extensions.Set(Defaults.Attempts, attempts);
 
                 await next().ConfigureAwait(false);
-
-                // Ack any delayed channels we processed
-                List<string> channels;
-                if (BulkInvokeHandlerTerminator.DelayedChannelsUsed.TryRemove(context.MessageId, out channels))
-                {
-                    foreach (var channel in channels)
-                        await _channel.Ack(channel).ConfigureAwait(false);
-                }
-
-
+                
             }
             catch (Exception e)
             {
-                // Exception - we'll need to but delayed objects back (NAck)
-                List<string> channels;
-                if (BulkInvokeHandlerTerminator.DelayedChannelsUsed.TryRemove(context.MessageId, out channels))
-                {
-                    foreach (var channel in channels)
-                        await _channel.NAck(channel).ConfigureAwait(false);
-                }
 
                 if (attempts <= _immediate)
                 {

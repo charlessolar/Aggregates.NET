@@ -22,8 +22,6 @@ namespace Aggregates.Internal
     }
     internal class BulkInvokeHandlerTerminator : PipelineTerminator<IInvokeHandlerContext>
     {
-        public static readonly ConcurrentDictionary<string, List<string>> DelayedChannelsUsed = new ConcurrentDictionary<string, List<string>>();
-
         private static readonly ILog Logger = LogManager.GetLogger(typeof(BulkInvokeHandlerTerminator));
 
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
@@ -88,8 +86,6 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Debug, () => $"Invoking handle {msgs.Count()} times for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
                 foreach (var msg in msgs.Cast<DelayedMessage>())
                     await messageHandler.Invoke(msg.Message, context).ConfigureAwait(false);
-
-                DelayedChannelsUsed.AddOrUpdate(context.MessageId, new List<string> {key}, (_, e) => { e.Add(key); return e; });
                 
                 return;
             }
