@@ -48,9 +48,8 @@ namespace Aggregates.Internal
 
         public Task End(Exception ex = null)
         {
-            var streams = _uncommitted.GroupBy(x => x.Item1).Select(x => _store.WriteEvents(x.Key, x.Select(y => y.Item2), null));
-
-            return Task.WhenAll(streams.Concat(_inFlight.Select(x => ex == null ? Ack(x.Key) : NAck(x.Key))));
+            var tasks = _uncommitted.GroupBy(x => x.Item1).Select(x => _store.WriteEvents(x.Key, x.Select(y => y.Item2), null)).Concat(_inFlight.Select(x => ex == null ? Ack(x.Key) : NAck(x.Key)));
+            return Task.WhenAll(tasks);
         }
 
         public async Task<TimeSpan?> Age(string channel)
