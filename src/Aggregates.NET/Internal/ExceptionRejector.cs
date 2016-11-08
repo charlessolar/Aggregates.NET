@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
@@ -45,21 +46,22 @@ namespace Aggregates.Internal
                 await next().ConfigureAwait(false);
 
                 // Ack any delayed channels we processed
-                BulkInvokeHandlerTerminator.State state;
-                if (context.Extensions.TryGet(out state))
+                List<string> channels;
+                if (BulkInvokeHandlerTerminator.DelayedChannelsUsed.TryRemove(context.MessageId, out channels))
                 {
-                    foreach (var channel in state.DelaysUsed)
+                    foreach (var channel in channels)
                         await _channel.Ack(channel).ConfigureAwait(false);
                 }
+
 
             }
             catch (Exception e)
             {
                 // Exception - we'll need to but delayed objects back (NAck)
-                BulkInvokeHandlerTerminator.State state;
-                if (context.Extensions.TryGet(out state))
+                List<string> channels;
+                if (BulkInvokeHandlerTerminator.DelayedChannelsUsed.TryRemove(context.MessageId, out channels))
                 {
-                    foreach (var channel in state.DelaysUsed)
+                    foreach (var channel in channels)
                         await _channel.NAck(channel).ConfigureAwait(false);
                 }
 

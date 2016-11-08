@@ -22,6 +22,8 @@ namespace Aggregates.Internal
     }
     internal class BulkInvokeHandlerTerminator : PipelineTerminator<IInvokeHandlerContext>
     {
+        public static readonly ConcurrentDictionary<string, List<string>> DelayedChannelsUsed = new ConcurrentDictionary<string, List<string>>();
+
         private static readonly ILog Logger = LogManager.GetLogger(typeof(BulkInvokeHandlerTerminator));
 
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
@@ -42,16 +44,10 @@ namespace Aggregates.Internal
             if (!msgType.IsInterface)
                 msgType = _mapper.GetMappedTypeFor(msgType) ?? msgType;
 
-            State state;
-            if (!context.Extensions.TryGet(out state))
+            context.Extensions.Set(new State
             {
-                state = new State
-                {
-                    ScopeWasPresent = Transaction.Current != null,
-                    DelaysUsed = new List<string>()
-                };
-                context.Extensions.Set(state);
-            }
+                ScopeWasPresent = Transaction.Current != null
+            });
 
             var messageHandler = context.MessageHandler;
 
@@ -93,8 +89,8 @@ namespace Aggregates.Internal
                 foreach (var msg in msgs.Cast<DelayedMessage>())
                     await messageHandler.Invoke(msg.Message, context).ConfigureAwait(false);
 
-                state.DelaysUsed.Add(key);
-                context.Extensions.Set(state);
+                DelayedChannelsUsed.AddOrUpdate(context.MessageId, new List<string> {key}, (_, e) => { e.Add(key); return e; });
+                
                 return;
             }
 
@@ -119,7 +115,6 @@ namespace Aggregates.Internal
         public class State
         {
             public bool ScopeWasPresent { get; set; }
-            public List<string> DelaysUsed { get; set; }
         }
     }
 }
