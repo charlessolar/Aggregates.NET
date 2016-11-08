@@ -52,8 +52,9 @@ namespace Aggregates.Internal
                         uows.Push(uow);
                         uow.Builder = context.Builder;
 
-                        var retries = 0;
-                        context.Extensions.TryGet(Defaults.Attempts, out retries);
+                        int retries;
+                        if (!context.Extensions.TryGet(Defaults.Attempts, out retries))
+                            retries = 0;
                         uow.Retries = retries;
 
                         var savedBag =
@@ -111,6 +112,16 @@ namespace Aggregates.Internal
                 }
                 throw e;
             }
+        }
+    }
+    internal class CommandUowRegistration : RegisterStep
+    {
+        public CommandUowRegistration() : base(
+            stepId: "CommandUnitOfWork",
+            behavior: typeof(CommandUnitOfWork),
+            description: "Begins and Ends command unit of work"
+        )
+        {
         }
     }
 }

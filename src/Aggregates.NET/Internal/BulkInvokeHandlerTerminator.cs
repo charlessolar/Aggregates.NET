@@ -55,11 +55,11 @@ namespace Aggregates.Internal
 
             var messageHandler = context.MessageHandler;
 
-            Logger.Write(LogLevel.Debug, () => $"Invoking handle for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
 
             var key = $"{messageHandler.HandlerType.FullName}.{msgType.FullName}";
             if (IsNotDelayed.Contains(key))
             {
+                Logger.Write(LogLevel.Debug, () => $"Invoking handle for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
                 await messageHandler.Invoke(context.MessageBeingHandled, context).ConfigureAwait(false);
                 return;
             }
@@ -89,6 +89,7 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Debug, () => $"Threshold hit - bulk processing {msgType.FullName}");
                 var msgs = await _channel.Pull(key).ConfigureAwait(false);
 
+                Logger.Write(LogLevel.Debug, () => $"Invoking handle {msgs.Count()} times for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
                 foreach (var msg in msgs.Cast<DelayedMessage>())
                     await messageHandler.Invoke(msg.Message, context).ConfigureAwait(false);
 

@@ -7,6 +7,7 @@ using NServiceBus;
 using NServiceBus.Features;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
+using NServiceBus.Pipeline;
 using NServiceBus.Settings;
 
 namespace Aggregates
@@ -25,15 +26,9 @@ namespace Aggregates
             context.RegisterStartupTask(builder => new EventStoreRunner(builder.Build<IEventSubscriber>(), context.Settings));
 
             context.Container.ConfigureComponent<EventSubscriber>(DependencyLifecycle.SingleInstance);
-            
-            context.Pipeline.Register(
-                behavior: typeof(MutateIncomingEvents),
-                description: "Running event mutators for incoming messages"
-                );
-            context.Pipeline.Register(
-                behavior: typeof(EventUnitOfWork),
-                description: "Begins and Ends event unit of work"
-                );
+
+            context.Pipeline.Register<EventUowRegistration>();
+            context.Pipeline.Register<MutateIncomingRegistration>();
         }
     }
     internal class EventStoreRunner : FeatureStartupTask, IDisposable
@@ -83,7 +78,6 @@ namespace Aggregates
                     Logger.Write(LogLevel.Info, () => $"Event consumer stopped - cancelation requested");
                     return;
                 }
-
                 Logger.Warn($"Event consumer stopped due to exception: {ex.Message}.  Will restart", ex);
                 Thread.Sleep(CalculateSleep());
                 _subscriber.Subscribe(_cancellationTokenSource.Token).Wait();

@@ -50,4 +50,15 @@ namespace Aggregates.Internal
             await next().ConfigureAwait(false);
         }
     }
+    internal class CommandAcceptorRegistration : RegisterStep
+    {
+        public CommandAcceptorRegistration() : base(
+            stepId: "CommandAcceptor",
+            behavior: typeof(CommandAcceptor),
+            description: "Filters [BusinessException] from processing failures"
+        )
+        {
+            InsertAfter("MutateIncomingCommands");
+        }
+    }
 }

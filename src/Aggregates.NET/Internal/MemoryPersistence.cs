@@ -4,16 +4,20 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
+using Aggregates.Extensions;
 using NServiceBus.Extensibility;
+using NServiceBus.Logging;
 
 namespace Aggregates.Internal
 {
     internal class MemoryPersistence : IPersistence
     {
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(MemoryPersistence));
         private static readonly Dictionary<string, ContextBag> Storage = new Dictionary<string, ContextBag>();
 
         public Task Save(string id, ContextBag bag)
         {
+            Logger.Write(LogLevel.Debug, () => $"Persisting context bag [{id}]");
             Storage[id] = bag;
             return Task.CompletedTask;
         }
@@ -24,6 +28,7 @@ namespace Aggregates.Internal
             if (!Storage.TryGetValue(id, out existing))
                 return Task.FromResult<ContextBag>(null);
 
+            Logger.Write(LogLevel.Debug, () => $"Removing context bag [{id}]");
             Storage.Remove(id);
             return Task.FromResult(existing);
         }

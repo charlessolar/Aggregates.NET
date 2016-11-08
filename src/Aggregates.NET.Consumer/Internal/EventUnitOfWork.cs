@@ -20,8 +20,8 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventUnitOfWork));
 
-        private static readonly Meter EventsMeter = Metric.Meter("Events", Unit.Commands);
-        private static readonly Timer EventsTimer = Metric.Timer("Event Duration", Unit.Commands);
+        private static readonly Meter EventsMeter = Metric.Meter("Events", Unit.Events);
+        private static readonly Timer EventsTimer = Metric.Timer("Event Duration", Unit.Events);
 
         private static readonly Meter ErrorsMeter = Metric.Meter("Event Errors", Unit.Errors);
 
@@ -52,8 +52,9 @@ namespace Aggregates.Internal
                         uows.Push(uow);
                         uow.Builder = context.Builder;
 
-                        var retries = 0;
-                        context.Extensions.TryGet(Defaults.Attempts, out retries);
+                        int retries;
+                        if (!context.Extensions.TryGet(Defaults.Attempts, out retries))
+                            retries = 0;
                         uow.Retries = retries;
 
                         var savedBag =
@@ -110,6 +111,16 @@ namespace Aggregates.Internal
                 }
                 throw;
             }
+        }
+    }
+    internal class EventUowRegistration : RegisterStep
+    {
+        public EventUowRegistration() : base(
+            stepId: "EventUnitOfWork",
+            behavior: typeof(EventUnitOfWork),
+            description: "Begins and Ends event unit of work"
+        )
+        {
         }
     }
 }

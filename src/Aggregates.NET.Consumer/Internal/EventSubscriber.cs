@@ -30,7 +30,7 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventSubscriber));
         private static readonly TransportTransaction transportTranaction = new TransportTransaction();
         private static readonly ContextBag contextBag = new ContextBag();
-        
+
         private string _endpoint;
         private int _readsize;
         private bool _extraStats;
@@ -69,7 +69,7 @@ namespace Aggregates.Internal
             _endpoint = endpoint;
             _readsize = readsize;
             _extraStats = extraStats;
-            
+
             if (!_connection.Settings.GossipSeeds.Any())
                 throw new ArgumentException(
                     "Eventstore connection settings does not contain gossip seeds (even if single host call SetGossipSeedEndPoints and SetClusterGossipPort)");
@@ -94,7 +94,7 @@ namespace Aggregates.Internal
                     .Select(eventType => $"'$et-{eventType.AssemblyQualifiedName}'")
                     .Aggregate((cur, next) => $"{cur},{next}");
 
-            var definition = $"fromStreams([{eventTypes}]).when({{\n{functions}\n}})";
+            var definition = $"fromStreams([{eventTypes}]).when(\n{{{functions}}}\n);";
 
             try
             {
@@ -126,37 +126,40 @@ namespace Aggregates.Internal
         public async Task Subscribe(CancellationToken cancelToken)
         {
             var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
+            var group = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.sub";
 
             Logger.Write(LogLevel.Info, () => $"Endpoint [{_endpoint}] connecting to subscription group [{stream}]");
 
             try
             {
                 var settings = PersistentSubscriptionSettings.Create()
+                    .StartFromBeginning()
                     .WithReadBatchOf(_readsize)
+                    .WithMessageTimeoutOf(TimeSpan.FromSeconds(60))
                     .CheckPointAfter(TimeSpan.FromSeconds(5))
                     .ResolveLinkTos()
-                    .StartFromBeginning()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                 if (_extraStats)
                     settings.WithExtraStatistics();
 
                 await
-                    _connection.CreatePersistentSubscriptionAsync(stream, stream, settings,
+                    _connection.CreatePersistentSubscriptionAsync(stream, group, settings,
                         _connection.Settings.DefaultUserCredentials).ConfigureAwait(false);
             }
             catch (InvalidOperationException)
             {
             }
 
-            _subscription = await _connection.ConnectToPersistentSubscriptionAsync(stream, stream, (subscription, e) =>
+            _subscription = await _connection.ConnectToPersistentSubscriptionAsync(stream, group, (subscription, e) =>
             {
 
                 while (Bus.OnMessage == null || Bus.OnError == null)
                 {
                     Logger.Warn($"Could not find NSBs onMessage handler yet - if this persists there is a problem.");
-                    Thread.Sleep(500);
+                    Thread.Sleep(1000);
                 }
 
+                // PushSettings will only exist AFTER finding OnMessage 
                 if (_concurrencyLimit == null)
                     _concurrencyLimit = new SemaphoreSlim(Bus.PushSettings.MaxConcurrency);
 
@@ -166,7 +169,7 @@ namespace Aggregates.Internal
                     subscription.Acknowledge(e);
                     return;
                 }
-                Logger.Write(LogLevel.Debug, () => $"Event appeared stream [{@event.EventStreamId}] number {@event.EventNumber}");
+                Logger.Write(LogLevel.Debug, () => $"Event {@event.EventId} type {@event.EventType} appeared stream [{@event.EventStreamId}] number {@event.EventNumber}");
 
 
                 var descriptor = @event.Metadata.Deserialize(_settings);
@@ -177,24 +180,23 @@ namespace Aggregates.Internal
                     return;
                 }
 
-                _concurrencyLimit.Wait(cancelToken);
-
                 Task.Run(async () =>
                 {
+                    await _concurrencyLimit.WaitAsync(cancelToken).ConfigureAwait(false);
+
                     var headers = new Dictionary<string, string>(descriptor.Headers)
                     {
                         [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(Type.GetType(@event.EventType)),
                         [Headers.MessageId] = @event.EventId.ToString()
                     };
 
-                    Logger.Write(LogLevel.Debug, () => $"Processing event number {@event.EventNumber} from stream [{@event.EventStreamId}]");
+                    Logger.Write(LogLevel.Debug, () => $"Processing event {@event.EventId}");
                     using (var tokenSource = new CancellationTokenSource())
                     {
                         var processed = false;
-                        var errorHandled = false;
                         var numberOfDeliveryAttempts = 0;
 
-                        while (!processed && !errorHandled)
+                        while (!processed)
                         {
                             try
                             {
@@ -208,13 +210,23 @@ namespace Aggregates.Internal
                                 ++numberOfDeliveryAttempts;
                                 var errorContext = new ErrorContext(ex, headers, @event.EventId.ToString(),
                                     @event.Data ?? new byte[0], transportTranaction, numberOfDeliveryAttempts);
-                                errorHandled = await Bus.OnError(errorContext).ConfigureAwait(false) ==
-                                               ErrorHandleResult.Handled;
+                                if (await Bus.OnError(errorContext).ConfigureAwait(false) == ErrorHandleResult.Handled)
+                                    break;
+
+                                // Release semaphore and wait a bit
+                                _concurrencyLimit.Release();
+                                await Task.Delay(50, cancelToken).ConfigureAwait(false);
+                                await _concurrencyLimit.WaitAsync(cancelToken).ConfigureAwait(false);
+
                             }
                         }
 
-                        Logger.Write(LogLevel.Debug, () => $"Acknowledging event number {@event.EventNumber} from stream [{@event.EventStreamId}]");
+                        if (tokenSource.IsCancellationRequested)
+                            return;
+
+                        Logger.Write(LogLevel.Debug, () => $"Acknowledging event {@event.EventId}");
                         subscription.Acknowledge(e);
+
                         _concurrencyLimit.Release();
                     }
                 }, cancelToken);

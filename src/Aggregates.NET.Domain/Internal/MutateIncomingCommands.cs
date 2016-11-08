@@ -30,4 +30,15 @@ namespace Aggregates.Internal
             return next();
         }
     }
+    internal class MutateIncomingRegistration : RegisterStep
+    {
+        public MutateIncomingRegistration() : base(
+            stepId: "MutateIncomingCommands",
+            behavior: typeof(MutateIncomingCommands),
+            description: "Running command mutators for incoming messages"
+        )
+        {
+            InsertAfter("CommandUnitOfWork");
+        }
+    }
 }

@@ -15,6 +15,9 @@ namespace Aggregates.Attributes
 
             if (Count > 200000)
                 throw new ArgumentException($"{nameof(Count)} too large - maximum is 200000");
+
+            if (!this.Count.HasValue && !this.Delay.HasValue)
+                throw new ArgumentException($"{nameof(Count)} or {nameof(DelayMs)} is required to use Delayed attribute");
         }
 
         public Type Type { get; private set; }

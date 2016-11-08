@@ -54,13 +54,13 @@ namespace Aggregates.Internal
                 if (elapsed > _slowAlert)
                 {
                     Logger.Write(LogLevel.Warn,
-                        () => $" - SLOW ALERT - Processing message {messageTypeIdentifier} took {elapsed} ms\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}");
+                        () => $" - SLOW ALERT - Processing message {context.MessageId} {messageTypeIdentifier} took {elapsed} ms\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}");
                     if (!verbose)
                         lock (SlowLock) SlowCommandTypes.Add(messageTypeIdentifier);
                 }
                 else
                     Logger.Write(LogLevel.Debug,
-                        () => $"Processing message {messageTypeIdentifier} took {elapsed} ms");
+                        () => $"Processing message {context.MessageId} {messageTypeIdentifier} took {elapsed} ms");
 
             }
             finally

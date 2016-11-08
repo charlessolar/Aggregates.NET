@@ -73,19 +73,9 @@ namespace Aggregates
                 };
             }, DependencyLifecycle.SingleInstance);
 
-            
-            context.Pipeline.Register(
-                behavior: typeof(CommandAcceptor),
-                description: "Filters [BusinessException] from processing failures"
-                );
-            context.Pipeline.Register(
-                behavior: typeof(CommandUnitOfWork),
-                description: "Begins and Ends command unit of work"
-                );
-            context.Pipeline.Register(
-                behavior: typeof(MutateIncomingCommands),
-                description: "Running command mutators for incoming messages"
-                );
+            context.Pipeline.Register<CommandUowRegistration>();
+            context.Pipeline.Register<MutateIncomingRegistration>();
+            context.Pipeline.Register<CommandAcceptorRegistration>();
             
 
             //context.Pipeline.Register<SafetyNetRegistration>();
