@@ -77,13 +77,18 @@ namespace Aggregates.Internal
                 DelayedAttribute delayed;
                 IsDelayed.TryGetValue(key, out delayed);
 
-                if (delayed.Count.HasValue && size <= delayed.Count.Value) return;
+                TimeSpan? age = null;
+
                 if (delayed.Delay.HasValue)
+                    age = await channel.Age(key).ConfigureAwait(false);
+
+                if ((delayed.Count.HasValue && size <= delayed.Count.Value) || (delayed.Delay.HasValue && age < TimeSpan.FromMilliseconds(delayed.Delay.Value)))
                 {
-                    var oldest = await channel.Age(key).ConfigureAwait(false);
-                    if (oldest < TimeSpan.FromMilliseconds(delayed.Delay.Value)) return;
+                    Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] not hit Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing {msgType.FullName}");
+                    return;
                 }
-                Logger.Write(LogLevel.Debug, () => $"Threshold hit - bulk processing {msgType.FullName}");
+                
+                Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] hit Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing {msgType.FullName}");
                 var msgs = await channel.Pull(key).ConfigureAwait(false);
 
                 Logger.Write(LogLevel.Debug, () => $"Invoking handle {msgs.Count()} times for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");

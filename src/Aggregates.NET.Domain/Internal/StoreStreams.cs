@@ -128,7 +128,7 @@ namespace Aggregates.Internal
             }
             catch (VersionException)
             {
-                Logger.Write(LogLevel.Warn, () => $"Freeze: stream [{streamName}] someone froze before us");
+                Logger.Write(LogLevel.Error, () => $"Freeze: stream [{streamName}] someone froze before us");
                 throw new FrozenException();
             }
         }
@@ -149,7 +149,7 @@ namespace Aggregates.Internal
             }
             catch (VersionException)
             {
-                Logger.Write(LogLevel.Warn, () => $"Unfreeze: stream [{streamName}] metadata is inconsistent");
+                Logger.Write(LogLevel.Error, () => $"Unfreeze: stream [{streamName}] metadata is inconsistent");
                 throw new FrozenException();
             }
             

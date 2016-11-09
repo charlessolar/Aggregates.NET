@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Aggregates.Messages;
 using Metrics;
@@ -42,20 +43,22 @@ namespace Aggregates.Internal
                 context.Extensions.Set(Defaults.Attempts, attempts);
 
                 await next().ConfigureAwait(false);
-                
+
             }
             catch (Exception e)
             {
 
-                if (attempts <= _immediate)
+                if (attempts < _immediate)
                 {
-                    Logger.WriteFormat(LogLevel.Warn, $"Message {context.MessageId} has faulted! {attempts}/{_immediate} times\nException: {e.GetType().FullName}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");
+                    Logger.WriteFormat(LogLevel.Warn,
+                        $"Message {context.MessageId} has faulted! {attempts}/{_immediate} times\nException: {e.GetType().FullName}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");
                     RetryRegistry.TryAdd(messageId, attempts + 1);
                     throw;
                 }
                 var delayedTriesStr = "";
                 int delayedRetries;
-                if(!context.MessageHeaders.TryGetValue(Headers.DelayedRetries, out delayedTriesStr) || !Int32.TryParse(delayedTriesStr, out delayedRetries))
+                if (!context.MessageHeaders.TryGetValue(Headers.DelayedRetries, out delayedTriesStr) ||
+                    !Int32.TryParse(delayedTriesStr, out delayedRetries))
                     delayedRetries = 0;
                 if (delayedRetries <= _delayed)
                     throw;
@@ -71,16 +74,21 @@ namespace Aggregates.Internal
                 if (context.Message.GetMesssageIntent() != MessageIntentEnum.Send) return;
 
 
-                Logger.WriteFormat(LogLevel.Warn, $"Message {context.MessageId} has failed after {attempts} retries!\nException: {e.GetType().FullName}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");
-                
+                Logger.WriteFormat(LogLevel.Warn,
+                    $"Message {context.MessageId} has failed after {attempts} attempts!\nException: {e.GetType().FullName}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");
+
                 // Only need to reply if the client expects it
-                if (!context.Message.Headers.ContainsKey(Defaults.RequestResponse) || context.Message.Headers[Defaults.RequestResponse] != "1")
+                if (!context.Message.Headers.ContainsKey(Defaults.RequestResponse) ||
+                    context.Message.Headers[Defaults.RequestResponse] != "1")
                     throw;
 
                 // Tell the sender the command was not handled due to a service exception
                 var rejection = context.Builder.Build<Func<Exception, string, Error>>();
                 // Wrap exception in our object which is serializable
-                await context.Reply(rejection(e, $"Rejected message after {attempts} retries!\n Payload: {Encoding.UTF8.GetString(context.Message.Body)}")).ConfigureAwait(false);
+                await
+                    context.Reply(rejection(e,
+                            $"Rejected message after {attempts} attempts!\n Payload: {Encoding.UTF8.GetString(context.Message.Body)}"))
+                        .ConfigureAwait(false);
 
                 // Should be the last throw for this message - if RecoveryPolicy is properly set the message will be sent over to error queue
                 throw;

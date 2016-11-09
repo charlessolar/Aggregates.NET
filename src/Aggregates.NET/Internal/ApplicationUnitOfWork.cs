@@ -61,7 +61,8 @@ namespace Aggregates.Internal
 
                     await next().ConfigureAwait(false);
                     
-                    foreach (var uow in uows.Generate())
+                    // Order commits by ones that can fail
+                    foreach (var uow in uows.Generate().OrderByDescending(x => x.CanFail))
                     {
                         try
                         {

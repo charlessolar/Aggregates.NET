@@ -20,7 +20,6 @@ namespace Aggregates.Internal
         public static string PrefixHeader = "Originating";
         public static string NotFound = "<NOT FOUND>";
 
-
         private static readonly ILog Logger = LogManager.GetLogger(typeof(UnitOfWork));
         private readonly IRepositoryFactory _repoFactory;
         private readonly IMessageMapper _mapper;
@@ -42,6 +41,7 @@ namespace Aggregates.Internal
         public IBuilder Builder { get; set; }
         public int Retries { get; set; }
         public ContextBag Bag { get; set; }
+        public bool CanFail => true;
 
         public Guid CommitId { get; private set; }
         public object CurrentMessage { get; private set; }

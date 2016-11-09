@@ -266,7 +266,7 @@ namespace Aggregates.Internal
             TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null)
         {
 
-            Logger.Write(LogLevel.Debug, () => $"Writing metadata [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl}, {nameof(frozen)}: {frozen} ] to stream [{stream}]");
+            Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream [{stream}] [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl}, {nameof(frozen)}: {frozen} ]");
 
             var existing = await _client.GetStreamMetadataAsync(stream).ConfigureAwait(false);
 
@@ -279,7 +279,12 @@ namespace Aggregates.Internal
                 existing.StreamMetadata?.GetValue<string>("owner") != Defaults.Instance.ToString()))
                 throw new FrozenException();
 
-            var metadata = StreamMetadata.Build();
+            // If we are trying to freeze the stream that we've already frozen (to prevent multiple threads from attempting to process the same frozen data)
+            if (frozen.HasValue && frozen == true && (existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) &&
+                existing.StreamMetadata?.GetValue<string>("owner") == Defaults.Instance.ToString())
+                throw new FrozenException();
+
+                var metadata = StreamMetadata.Build();
 
             if ((maxCount ?? existing.StreamMetadata?.MaxCount).HasValue)
                 metadata.SetMaxCount((maxCount ?? existing.StreamMetadata?.MaxCount).Value);

@@ -20,6 +20,7 @@ namespace Aggregates.Internal
         public IBuilder Builder { get; set; }
         public int Retries { get; set; }
         public ContextBag Bag { get; set; }
+        public bool CanFail => false;
 
         public class Snapshot
         {
@@ -37,8 +38,7 @@ namespace Aggregates.Internal
         {
             _store = store;
         }
-
-
+        
         public Task Begin()
         {
             _uncommitted = new List<Tuple<string, WritableEvent>>();
@@ -46,10 +46,16 @@ namespace Aggregates.Internal
             return Task.CompletedTask;
         }
 
-        public Task End(Exception ex = null)
+        public async Task End(Exception ex = null)
         {
-            var tasks = _uncommitted.GroupBy(x => x.Item1).Select(x => _store.WriteEvents(x.Key, x.Select(y => y.Item2), null)).Concat(_inFlight.Select(x => ex == null ? Ack(x.Key) : NAck(x.Key)));
-            return Task.WhenAll(tasks);
+            if (ex != null) return;
+
+            Logger.Write(LogLevel.Debug, () => $"Saving {_uncommitted.Count()} delayed streams and {_inFlight.Count()} {(ex == null ? "ACKs" : "NACKs")}");
+            var streams = _uncommitted.GroupBy(x => x.Item1).Select(x => _store.WriteEvents(x.Key, x.Select(y => y.Item2), null));
+            var inflight = _inFlight.ToList().Select(x => ex == null ? Ack(x.Key) : NAck(x.Key));
+
+            await Task.WhenAll(streams).ConfigureAwait(false);
+            await Task.WhenAll(inflight).ConfigureAwait(false);
         }
 
         public async Task<TimeSpan?> Age(string channel)
@@ -70,7 +76,7 @@ namespace Aggregates.Internal
         {
             var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
             Logger.Write(LogLevel.Debug, () => $"Getting size of delayed channel [{channel}]");
-            
+
             var start = StreamPosition.Start;
             var read = await _store.GetEventsBackwards($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
             if (read != null && read.Any())
@@ -81,7 +87,7 @@ namespace Aggregates.Internal
             read = await _store.GetEventsBackwards(streamName, StreamPosition.End, 1).ConfigureAwait(false);
             if (read != null)
                 return read.Single().Descriptor.Version - start;
-            
+
             return 0;
         }
 
@@ -89,7 +95,7 @@ namespace Aggregates.Internal
         {
             var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
             Logger.Write(LogLevel.Debug, () => $"Appending delayed object to channel [{channel}]");
-            
+
             var @event = new WritableEvent
             {
                 Descriptor = new EventDescriptor
@@ -114,7 +120,7 @@ namespace Aggregates.Internal
 
             if (read == null || !read.Any())
                 return 0;
-            
+
             return read.Single().Descriptor.Version - start;
         }
 
@@ -127,36 +133,58 @@ namespace Aggregates.Internal
             if (_inFlight.ContainsKey(channel))
                 return new object[] { }.AsEnumerable();
 
+            IEnumerable<IWritableEvent> delayed = null;
             try
             {
-                await _store.WriteMetadata(streamName, frozen: true, owner: Defaults.Instance).ConfigureAwait(false);
+                try
+                {
+                    await _store.WriteMetadata(streamName, frozen: true, owner: Defaults.Instance).ConfigureAwait(false);
+
+                    var start = StreamPosition.Start;
+                    var read =
+                        await
+                            _store.GetEventsBackwards($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
+                    if (read != null && read.Any())
+                    {
+                        var snapshot = read.Single().Event as Snapshot;
+                        start = snapshot.Position + 1;
+                    }
+                    delayed = await _store.GetEvents(streamName, start).ConfigureAwait(false);
+
+                    Logger.Write(LogLevel.Debug, () => $"Got {delayed?.Count() ?? 0} delayed from channel [{channel}]");
+
+                    // Record events as InFlight
+                    var snap = new Snapshot { Created = DateTime.UtcNow, Position = delayed.Last().Descriptor.Version };
+
+                    _inFlight.Add(channel,
+                        new Tuple<int?, Snapshot>(
+                            (read?.Any() ?? false) ? read?.Single().Descriptor.Version : (int?)null,
+                            snap));
+
+                }
+                catch (ArgumentException)
+                {
+                    Logger.Write(LogLevel.Debug, () => $"Delayed channel [{channel}] already being processed");
+                    throw;
+                }
+                catch (VersionException)
+                {
+                    Logger.Write(LogLevel.Debug, () => $"Delayed channel [{channel}] is currently frozen");
+                    throw;
+                }
             }
-            catch(VersionException)
+            catch (Exception)
             {
-                Logger.Write(LogLevel.Debug, () => $"Delayed channel [{channel}] is currently frozen");
-                return new object[] { }.AsEnumerable();
+                try
+                {
+                    if (delayed == null || !delayed.Any())
+                        await _store.WriteMetadata(streamName, frozen: false).ConfigureAwait(false);
+                }
+                catch (VersionException)
+                {
+                }
             }
-
-            var start = StreamPosition.Start;
-            var read = await _store.GetEventsBackwards($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
-            if (read != null && read.Any())
-            {
-                var snapshot = read.Single().Event as Snapshot;
-                start = snapshot.Position + 1;
-            }
-            var delayed = await _store.GetEvents(streamName, start).ConfigureAwait(false);
-
-            Logger.Write(LogLevel.Debug, () => $"Got {delayed?.Count() ?? 0} delayed from channel [{channel}]");
-
-            if (delayed == null || !delayed.Any())
-                return new object[] { }.AsEnumerable();
-
-
-            // Record events as InFlight
-            var snap = new Snapshot { Created = DateTime.UtcNow, Position = delayed.Last().Descriptor.Version };
-            _inFlight.Add(channel, new Tuple<int?, Snapshot>((read?.Any() ?? false) ? read?.Single().Descriptor.Version : (int?)null, snap));
-            
-            return delayed.Select(x => x.Event);
+            return delayed?.Select(x => x.Event) ?? new object[] { }.AsEnumerable();
         }
 
         private async Task Ack(string channel)
