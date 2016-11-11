@@ -22,7 +22,7 @@ namespace Aggregates.Internal
         public ContextBag Bag { get; set; }
         public bool CanFail => false;
 
-        public class Snapshot
+        private class Snapshot
         {
             public DateTime Created { get; set; }
             public int Position { get; set; }
@@ -48,14 +48,16 @@ namespace Aggregates.Internal
 
         public async Task End(Exception ex = null)
         {
-            if (ex != null) return;
 
-            Logger.Write(LogLevel.Debug, () => $"Saving {_uncommitted.Count()} delayed streams and {_inFlight.Count()} {(ex == null ? "ACKs" : "NACKs")}");
-            var streams = _uncommitted.GroupBy(x => x.Item1).Select(x => _store.WriteEvents(x.Key, x.Select(y => y.Item2), null));
-            var inflight = _inFlight.ToList().Select(x => ex == null ? Ack(x.Key) : NAck(x.Key));
-
-            await Task.WhenAll(streams).ConfigureAwait(false);
-            await Task.WhenAll(inflight).ConfigureAwait(false);
+            Logger.Write(LogLevel.Debug, () => $"Saving {_inFlight.Count()} {(ex == null ? "ACKs" : "NACKs")}");
+            await Task.WhenAll(_inFlight.ToList().Select(x => ex == null ? Ack(x.Key) : NAck(x.Key)));
+            if (ex != null)
+            {
+                Logger.Write(LogLevel.Debug, () => $"Saving {_uncommitted.Count()} delayed streams");
+                await Task.WhenAll(
+                    _uncommitted.GroupBy(x => x.Item1)
+                        .Select(x => _store.WriteEvents(x.Key, x.Select(y => y.Item2), null)));
+            }
         }
 
         public async Task<TimeSpan?> Age(string channel)

@@ -139,8 +139,6 @@ namespace Aggregates.Internal
                     .CheckPointAfter(TimeSpan.FromSeconds(10))
                     .ResolveLinkTos()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
-                if (_extraStats)
-                    settings.WithExtraStatistics();
 
                 await
                     _connection.CreatePersistentSubscriptionAsync(stream, group, settings,
@@ -212,20 +210,15 @@ namespace Aggregates.Internal
                                     @event.Data ?? new byte[0], transportTranaction, numberOfDeliveryAttempts);
                                 if (await Bus.OnError(errorContext).ConfigureAwait(false) == ErrorHandleResult.Handled)
                                     break;
-
-                                // Release semaphore and wait a bit
-                                _concurrencyLimit.Release();
-                                await Task.Delay(50, cancelToken).ConfigureAwait(false);
-                                await _concurrencyLimit.WaitAsync(cancelToken).ConfigureAwait(false);
-
+                                
                             }
                         }
 
                         if (tokenSource.IsCancellationRequested)
                             return;
 
-                        Logger.Write(LogLevel.Debug, () => $"Acknowledging event {@event.EventId}");
-                        subscription.Acknowledge(e);
+                        //Logger.Write(LogLevel.Debug, () => $"Acknowledging event {@event.EventId}");
+                        //subscription.Acknowledge(e);
 
                         _concurrencyLimit.Release();
                     }
@@ -236,7 +229,7 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Warn, () => $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
                 ProcessingLive = false;
                 Dropped?.Invoke(reason.ToString(), e);
-            }, bufferSize: _readsize, autoAck: false).ConfigureAwait(false);
+            }, bufferSize: _readsize, autoAck: true).ConfigureAwait(false);
         }
 
         public void Dispose()

@@ -34,11 +34,12 @@ namespace Aggregates.Internal
                 }
                 catch (BusinessException e)
                 {
+                    ErrorsMeter.Mark();
+
                     Logger.Write(LogLevel.Info, () => $"Caught business exception: {e.Message}");
                     if (!context.MessageHeaders.ContainsKey(Defaults.RequestResponse) || context.MessageHeaders[Defaults.RequestResponse] != "1")
                         return; // Dont throw, business exceptions are not message failures
 
-                    ErrorsMeter.Mark();
                     Logger.Write(LogLevel.Debug, () => $"Command {context.Message.MessageType.FullName} was rejected\nException: {e.Message}");
                     // Tell the sender the command was rejected due to a business exception
                     var rejection = context.Builder.Build<Func<BusinessException, Reject>>();

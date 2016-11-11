@@ -19,79 +19,65 @@ namespace Aggregates.Internal
     internal class ExceptionRejector : Behavior<IIncomingPhysicalMessageContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(ExceptionRejector));
-
-        private static readonly ConcurrentDictionary<string, int> RetryRegistry = new ConcurrentDictionary<string, int>();
+        
         private static readonly Meter ErrorsMeter = Metric.Meter("Message Faults", Unit.Errors);
-        private readonly int _immediate;
-        private readonly int _delayed;
-        private readonly bool _forever;
+        private readonly int _retries;
 
-        public ExceptionRejector(int immediateRetries, int delayedRetries, bool forever)
+        public ExceptionRejector(int retries)
         {
-            _immediate = immediateRetries;
-            _delayed = delayedRetries;
-            _forever = forever;
+            _retries = retries;
         }
 
         public override async Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)
         {
-            var messageId = context.MessageId;
-            var attempts = 1;
-            try
+            var retries = 0;
+            while (retries <= _retries || _retries == -1)
             {
-                RetryRegistry.TryRemove(messageId, out attempts);
-                context.Extensions.Set(Defaults.Attempts, attempts);
-
-                await next().ConfigureAwait(false);
-
-            }
-            catch (Exception e)
-            {
-
-                if (attempts < _immediate)
+                try
                 {
+                    context.Extensions.Set(Defaults.Retries, retries);
+
+                    await next().ConfigureAwait(false);
+                    break;
+                }
+                catch (Exception e)
+                {
+                    if (retries < _retries || _retries == -1)
+                    {
+                        Logger.WriteFormat(LogLevel.Warn,
+                            $"Message {context.MessageId} has faulted! {retries}/{_retries} times\nException: {e.GetType().FullName}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");
+
+                        // do an immediate retry first time
+                        await Task.Delay(100 * (retries / 2)).ConfigureAwait(false);
+                        retries++;
+                        continue;
+                    }
+
+                    // At this point message is dead - should be moved to error queue, send message to client that their request was rejected due to error 
+                    ErrorsMeter.Mark();
+                    
+                    // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth
+                    if (context.Message.GetMesssageIntent() != MessageIntentEnum.Send || context.Message.GetMesssageIntent() == MessageIntentEnum.Reply) return;
+
                     Logger.WriteFormat(LogLevel.Warn,
-                        $"Message {context.MessageId} has faulted! {attempts}/{_immediate} times\nException: {e.GetType().FullName}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");
-                    RetryRegistry.TryAdd(messageId, attempts + 1);
+                        $"Message {context.MessageId} has failed after {retries} attempts!\nException: {e.GetType().FullName}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");
+
+                    // Only need to reply if the client expects it
+                    if (!context.Message.Headers.ContainsKey(Defaults.RequestResponse) ||
+                        context.Message.Headers[Defaults.RequestResponse] != "1")
+                        throw;
+
+                    // Tell the sender the command was not handled due to a service exception
+                    var rejection = context.Builder.Build<Func<Exception, string, Error>>();
+                    // Wrap exception in our object which is serializable
+                    await
+                        context.Reply(rejection(e,
+                                $"Rejected message after {retries} attempts!\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}"))
+                            .ConfigureAwait(false);
+
+                    // Should be the last throw for this message - if RecoveryPolicy is properly set the message will be sent over to error queue
                     throw;
                 }
-                var delayedTriesStr = "";
-                int delayedRetries;
-                if (!context.MessageHeaders.TryGetValue(Headers.DelayedRetries, out delayedTriesStr) ||
-                    !Int32.TryParse(delayedTriesStr, out delayedRetries))
-                    delayedRetries = 0;
-                if (delayedRetries <= _delayed)
-                    throw;
-
-                // At this point message is dead - should be moved to error queue, send message to client that their request was rejected due to error 
-                ErrorsMeter.Mark();
-
-                // They've chosen to never move to error queue so don't reply with error
-                if (_forever)
-                    throw;
-
-                // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth
-                if (context.Message.GetMesssageIntent() != MessageIntentEnum.Send) return;
-
-
-                Logger.WriteFormat(LogLevel.Warn,
-                    $"Message {context.MessageId} has failed after {attempts} attempts!\nException: {e.GetType().FullName}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");
-
-                // Only need to reply if the client expects it
-                if (!context.Message.Headers.ContainsKey(Defaults.RequestResponse) ||
-                    context.Message.Headers[Defaults.RequestResponse] != "1")
-                    throw;
-
-                // Tell the sender the command was not handled due to a service exception
-                var rejection = context.Builder.Build<Func<Exception, string, Error>>();
-                // Wrap exception in our object which is serializable
-                await
-                    context.Reply(rejection(e,
-                            $"Rejected message after {attempts} attempts!\n Payload: {Encoding.UTF8.GetString(context.Message.Body)}"))
-                        .ConfigureAwait(false);
-
-                // Should be the last throw for this message - if RecoveryPolicy is properly set the message will be sent over to error queue
-                throw;
             }
         }
     }

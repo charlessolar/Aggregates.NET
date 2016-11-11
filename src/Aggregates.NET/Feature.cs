@@ -17,9 +17,7 @@ namespace Aggregates
         {
             Defaults(s =>
             {
-                s.SetDefault("ImmediateRetries", 3);
-                s.SetDefault("RetryForever", false);
-                s.SetDefault("DelayedRetries", 3);
+                s.SetDefault("Retries", 10);
                 s.SetDefault("ReadSize", 200);
                 s.SetDefault("Compress", false);
                 s.SetDefault("SlowAlertThreshold", 1000);
@@ -40,7 +38,7 @@ namespace Aggregates
             
             var settings = context.Settings;
             context.Pipeline.Register(
-                b => new ExceptionRejector(settings.Get<int>("ImmediateRetries"), settings.Get<int>("DelayedRetries"), settings.Get<bool>("RetryForever")),
+                b => new ExceptionRejector(settings.Get<int>("Retries")),
                 "Watches message faults, sends error replies to client when message moves to error queue"
                 );
             context.Pipeline.Register(

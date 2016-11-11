@@ -8,7 +8,7 @@ namespace Aggregates
     public static class Defaults
     {
         public static readonly string SetupCorrectly = "Aggregates.NET.Safe";
-        public static readonly string Attempts = "Aggregates.NET.Attempts";
+        public static readonly string Retries = "Aggregates.NET.Retries";
         public static readonly string RequestResponse = "Aggregates.NET.Request";
 
         public static Guid Instance = Guid.NewGuid();

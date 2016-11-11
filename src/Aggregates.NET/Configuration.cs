@@ -21,6 +21,7 @@ namespace Aggregates
             settings.GetSettings().Set("SlowAlerts", expose);
         }
 
+
         /// <summary>
         /// Compress events and messages using GZip
         /// </summary>
@@ -30,23 +31,21 @@ namespace Aggregates
         {
             settings.GetSettings().Set("Compress", compress);
         }
-        public static void ConfigureForAggregates(this RecoverabilitySettings recoverability, int immediateRetries = 12, int delayedRetries = 3, bool forever = false)
+        public static void ConfigureForAggregates(this RecoverabilitySettings recoverability, int immediateRetries = 10, int delayedRetries = 3, bool forever = false)
         {
             var settings = recoverability.GetSettings();
 
             settings.Set(Defaults.SetupCorrectly, true);
-            settings.Set("ImmediateRetries", immediateRetries);
-            settings.Set("DelayedRetries", delayedRetries);
-            settings.Set("RetryForever", forever);
+            settings.Set("Retries", immediateRetries);
 
             // Set immediate retries to our "MaxRetries" setting
             recoverability.Immediate(x =>
             {
-                x.NumberOfRetries(immediateRetries);
+                x.NumberOfRetries(0);
             });
             recoverability.Delayed(x =>
             {
-                x.TimeIncrease(TimeSpan.FromSeconds(2));
+                x.TimeIncrease(TimeSpan.FromSeconds(1));
                 x.NumberOfRetries(forever ? int.MaxValue : delayedRetries);
             });
         }
