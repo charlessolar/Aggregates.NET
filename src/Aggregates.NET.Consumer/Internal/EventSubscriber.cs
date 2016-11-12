@@ -70,7 +70,7 @@ namespace Aggregates.Internal
             _readsize = readsize;
             _extraStats = extraStats;
 
-            if (!_connection.Settings.GossipSeeds.Any())
+            if (_connection.Settings.GossipSeeds == null || !_connection.Settings.GossipSeeds.Any())
                 throw new ArgumentException(
                     "Eventstore connection settings does not contain gossip seeds (even if single host call SetGossipSeedEndPoints and SetClusterGossipPort)");
 

@@ -51,7 +51,10 @@ namespace Hello
 
             NServiceBus.Logging.LogManager.Use<NLogFactory>();
             //EventStore.Common.Log.LogManager.SetLogFactory((name) => new EmbeddedLogger(name));
-            
+
+            // Give event store time to start
+            Thread.Sleep(TimeSpan.FromSeconds(30));
+
             var rabbit = ConfigureRabbit();
 
             _container = new Container(x =>
@@ -61,7 +64,7 @@ namespace Hello
                 x.Scan(y =>
                 {
                     y.TheCallingAssembly();
-                    y.AssembliesFromApplicationBaseDirectory((assembly) => assembly.FullName.StartsWith("Domain"));
+                    y.AssembliesFromApplicationBaseDirectory((assembly) => assembly.FullName.StartsWith("Hello"));
 
                     y.WithDefaultConventions();
                     y.AddAllTypesOf<ICommandMutator>();
@@ -135,7 +138,7 @@ namespace Hello
             config.DisableFeature<Sagas>();
 
 
-            return await Endpoint.Start(config).ConfigureAwait(false);
+            return await Aggregates.Bus.Start(config).ConfigureAwait(false);
         }
 
         public static IConnection ConfigureRabbit()

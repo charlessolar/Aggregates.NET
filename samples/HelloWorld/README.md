@@ -1,4 +1,6 @@
 
+`These examples use embedded eventstore which requires visual studio to be run as Administrator!`
+
 Purpose
 =======
 The purpose of this extremely simple sample is to get you up and running with Aggregates.NET, NServiceBus, RabbitMq, and Eventstore quickly.  Included here are 3 projects which run simultaniously they are described below.

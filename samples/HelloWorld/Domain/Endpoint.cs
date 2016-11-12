@@ -65,7 +65,6 @@ namespace Domain
             _container = new Container(x =>
             {
                 x.For<IEventStoreConnection>().Use(client).Singleton();
-                x.For<IOobHandler>().Use<Aggregates.Internal.DefaultOobHandler>();
                 x.For<IConnection>().Use(rabbit).Singleton();
 
                 x.Scan(y =>
@@ -126,9 +125,9 @@ namespace Domain
                     description: "Logs incoming messages"
                     );
             }
-
-            config.UseEventStoreDelayedChannel(true);
+            
             config.MaxConflictResolves(2);
+            config.EnableFeature<Aggregates.Feature>();
             config.EnableFeature<Aggregates.Domain>();
             config.EnableFeature<Aggregates.GetEventStore>();
             config.Recoverability().ConfigureForAggregates(5, 3);
@@ -136,7 +135,7 @@ namespace Domain
             config.DisableFeature<Sagas>();
 
 
-            return await Endpoint.Start(config).ConfigureAwait(false);
+            return await Aggregates.Bus.Start(config).ConfigureAwait(false);
         }
 
         public static IConnection ConfigureRabbit()
@@ -197,17 +196,18 @@ namespace Domain
                 Logger.Info("Starting event store on {0} port {1}", ip, tcpExtPort);
 
                 var builder = EmbeddedVNodeBuilder
-                                    .AsSingleNode()
-                                .WithExternalHeartbeatInterval(TimeSpan.FromSeconds(30))
-                                .WithInternalHeartbeatInterval(TimeSpan.FromSeconds(30))
-                                .WithExternalHeartbeatTimeout(TimeSpan.FromMinutes(5))
-                                .WithInternalHeartbeatTimeout(TimeSpan.FromMinutes(5))
-                                .WithInternalTcpOn(new IPEndPoint(ip, tcpExtPort + 1))
-                                .WithExternalTcpOn(new IPEndPoint(ip, tcpExtPort))
-                                .WithInternalHttpOn(new IPEndPoint(ip, tcpExtPort - 2))
-                                .WithExternalHttpOn(new IPEndPoint(ip, tcpExtPort - 1))
-                                .AddExternalHttpPrefix($"http://*:{tcpExtPort - 1 }/")
-                                .AddInternalHttpPrefix($"http://*:{tcpExtPort - 2 }/");
+                    .AsSingleNode()
+                    .RunProjections(EventStore.Common.Options.ProjectionType.All)
+                    .WithExternalHeartbeatInterval(TimeSpan.FromSeconds(30))
+                    .WithInternalHeartbeatInterval(TimeSpan.FromSeconds(30))
+                    .WithExternalHeartbeatTimeout(TimeSpan.FromMinutes(5))
+                    .WithInternalHeartbeatTimeout(TimeSpan.FromMinutes(5))
+                    .WithInternalTcpOn(new IPEndPoint(ip, tcpExtPort + 1))
+                    .WithExternalTcpOn(new IPEndPoint(ip, tcpExtPort))
+                    .WithInternalHttpOn(new IPEndPoint(ip, tcpExtPort - 2))
+                    .WithExternalHttpOn(new IPEndPoint(ip, tcpExtPort - 1))
+                    .AddInternalHttpPrefix($"http://*:{tcpExtPort - 2}/")
+                    .AddExternalHttpPrefix($"http://*:{tcpExtPort - 1}/");
 
 
                 if (disk == "true")
@@ -244,6 +244,7 @@ namespace Domain
             var settings = EventStore.ClientAPI.ConnectionSettings.Create()
                 .KeepReconnecting()
                 .KeepRetrying()
+                .SetGossipSeedEndPoints(endpoints)
                 .SetClusterGossipPort(endpoints.First().Port - 1)
                 .SetHeartbeatInterval(TimeSpan.FromSeconds(30))
                 .SetGossipTimeout(TimeSpan.FromMinutes(5))
@@ -254,10 +255,6 @@ namespace Domain
             IEventStoreConnection client;
             if (hosts.Count() != 1)
             {
-
-                settings = settings
-                    .SetGossipSeedEndPoints(endpoints);
-
                 var clusterSettings = EventStore.ClientAPI.ClusterSettings.Create()
                     .DiscoverClusterViaGossipSeeds()
                     .SetGossipSeedEndPoints(endpoints.Select(x => new IPEndPoint(x.Address, x.Port - 1)).ToArray())

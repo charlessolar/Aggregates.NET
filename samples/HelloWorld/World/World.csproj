@@ -33,12 +33,12 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Aggregates.NET, Version=0.3.0.516, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Aggregates.NET.0.3.0.516-beta\lib\net461\Aggregates.NET.dll</HintPath>
+    <Reference Include="Aggregates.NET, Version=0.4.1.542, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Aggregates.NET.0.4.1.542-beta\lib\net461\Aggregates.NET.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Aggregates.NET.Consumer, Version=0.3.0.516, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Aggregates.NET.Consumer.0.3.0.516-beta\lib\net461\Aggregates.NET.Consumer.dll</HintPath>
+    <Reference Include="Aggregates.NET.Consumer, Version=0.4.1.542, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Aggregates.NET.Consumer.0.4.1.542-beta\lib\net461\Aggregates.NET.Consumer.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="EventStore.ClientAPI, Version=3.9.2.0, Culture=neutral, processorArchitecture=MSIL">
@@ -54,7 +54,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
-      <HintPath>..\packages\NLog.4.3.10\lib\net45\NLog.dll</HintPath>
+      <HintPath>..\packages\NLog.4.3.11\lib\net45\NLog.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="NServiceBus.Callbacks, Version=1.0.0.0, Culture=neutral, PublicKeyToken=9fc386479f8a226c, processorArchitecture=MSIL">

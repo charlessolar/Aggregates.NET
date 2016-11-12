@@ -26,9 +26,7 @@ namespace World
         static readonly ManualResetEvent QuitEvent = new ManualResetEvent(false);
         private static IContainer _container;
         private static readonly NLog.ILogger Logger = LogManager.GetLogger("World");
-
-        private static bool _embedded;
-
+        
         private static void UnhandledExceptionTrapper(object sender, UnhandledExceptionEventArgs e)
         {
             Logger.Fatal(e.ExceptionObject);
@@ -51,7 +49,10 @@ namespace World
 
             NServiceBus.Logging.LogManager.Use<NLogFactory>();
             //EventStore.Common.Log.LogManager.SetLogFactory((name) => new EmbeddedLogger(name));
-            
+
+            // Give event store time to start
+            Thread.Sleep(TimeSpan.FromSeconds(30));
+
             var client = ConfigureStore();
             var rabbit = ConfigureRabbit();
 
@@ -63,7 +64,7 @@ namespace World
                 x.Scan(y =>
                 {
                     y.TheCallingAssembly();
-                    y.AssembliesFromApplicationBaseDirectory((assembly) => assembly.FullName.StartsWith("Domain"));
+                    y.AssembliesFromApplicationBaseDirectory((assembly) => assembly.FullName.StartsWith("World"));
 
                     y.WithDefaultConventions();
                     y.AddAllTypesOf<ICommandMutator>();
@@ -119,13 +120,15 @@ namespace World
                     );
             }
 
+
+            config.EnableFeature<Aggregates.Feature>();
             config.EnableFeature<Aggregates.ConsumerFeature>();
             config.Recoverability().ConfigureForAggregates();
             //config.EnableFeature<RoutedFeature>();
             config.DisableFeature<Sagas>();
 
 
-            return await Endpoint.Start(config).ConfigureAwait(false);
+            return await Aggregates.Bus.Start(config).ConfigureAwait(false);
         }
 
         public static IConnection ConfigureRabbit()
@@ -175,6 +178,7 @@ namespace World
             var settings = EventStore.ClientAPI.ConnectionSettings.Create()
                 .KeepReconnecting()
                 .KeepRetrying()
+                .SetGossipSeedEndPoints(endpoints)
                 .SetClusterGossipPort(endpoints.First().Port - 1)
                 .SetHeartbeatInterval(TimeSpan.FromSeconds(30))
                 .SetGossipTimeout(TimeSpan.FromMinutes(5))
@@ -185,9 +189,6 @@ namespace World
             IEventStoreConnection client;
             if (hosts.Count() != 1)
             {
-
-                settings = settings
-                    .SetGossipSeedEndPoints(endpoints);
 
                 var clusterSettings = EventStore.ClientAPI.ClusterSettings.Create()
                     .DiscoverClusterViaGossipSeeds()
