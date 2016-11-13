@@ -9,7 +9,7 @@ using NServiceBus.Logging;
 
 namespace Aggregates.Internal
 {
-    public class MemoryStreamCache : IStreamCache, IDisposable
+    class MemoryStreamCache : IStreamCache, IDisposable
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(MemoryStreamCache));
 

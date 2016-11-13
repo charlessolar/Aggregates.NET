@@ -114,6 +114,7 @@ namespace Aggregates.Internal
             description: "Begins and Ends unit of work for your application"
         )
         {
+            InsertAfterIfExists("ExecuteUnitOfWork");
         }
     }
 }

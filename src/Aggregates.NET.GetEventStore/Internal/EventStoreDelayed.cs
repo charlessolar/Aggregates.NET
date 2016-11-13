@@ -15,7 +15,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    class EventStoreDelayed : IDelayedChannel, IApplicationUnitOfWork
+    class EventStoreDelayed : IApplicationUnitOfWork, IDelayedChannel
     {
         public IBuilder Builder { get; set; }
         public int Retries { get; set; }
@@ -51,7 +51,7 @@ namespace Aggregates.Internal
 
             Logger.Write(LogLevel.Debug, () => $"Saving {_inFlight.Count()} {(ex == null ? "ACKs" : "NACKs")}");
             await Task.WhenAll(_inFlight.ToList().Select(x => ex == null ? Ack(x.Key) : NAck(x.Key)));
-            if (ex != null)
+            if (ex == null)
             {
                 Logger.Write(LogLevel.Debug, () => $"Saving {_uncommitted.Count()} delayed streams");
                 await Task.WhenAll(
@@ -88,7 +88,7 @@ namespace Aggregates.Internal
             }
             read = await _store.GetEventsBackwards(streamName, StreamPosition.End, 1).ConfigureAwait(false);
             if (read != null)
-                return read.Single().Descriptor.Version - start;
+                return (read.Single().Descriptor.Version - start) + 1;
 
             return 0;
         }
@@ -119,11 +119,13 @@ namespace Aggregates.Internal
             read = await _store.GetEventsBackwards(streamName, StreamPosition.End, 1).ConfigureAwait(false);
 
             _uncommitted.Add(new Tuple<string, WritableEvent>(streamName, @event));
+            var existing = _uncommitted.Count(c => c.Item1 == streamName);
 
             if (read == null || !read.Any())
-                return 0;
+                return existing;
 
-            return read.Single().Descriptor.Version - start;
+
+            return existing + (read.Single().Descriptor.Version - start) + 1;
         }
 
         public async Task<IEnumerable<object>> Pull(string channel)
@@ -186,7 +188,12 @@ namespace Aggregates.Internal
                 {
                 }
             }
-            return delayed?.Select(x => x.Event) ?? new object[] { }.AsEnumerable();
+            var discovered = delayed?.Select(x => x.Event) ?? new object[] {}.AsEnumerable();
+            var existing = _uncommitted.Where(c => c.Item1 == streamName).ToList();
+            foreach(var e in existing)
+                _uncommitted.Remove(e);
+            
+            return discovered.Concat(existing.Select(x => x.Item2.Event));
         }
 
         private async Task Ack(string channel)

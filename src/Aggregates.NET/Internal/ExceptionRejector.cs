@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
@@ -42,10 +43,12 @@ namespace Aggregates.Internal
                 }
                 catch (Exception e)
                 {
+                    var stackTrace = string.Join("\n", (e.StackTrace?.Split('\n').Take(10) ?? new string[] {}).AsEnumerable());
+
                     if (retries < _retries || _retries == -1)
                     {
                         Logger.WriteFormat(LogLevel.Warn,
-                            $"Message {context.MessageId} has faulted! {retries}/{_retries} times\nException: {e.GetType().FullName}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");
+                            $"Message {context.MessageId} has faulted! {retries}/{_retries} times\nException: {e.GetType().FullName} {e.Message}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}\nStack: {stackTrace}");
 
                         // do an immediate retry first time
                         await Task.Delay(100 * (retries / 2)).ConfigureAwait(false);
@@ -60,7 +63,7 @@ namespace Aggregates.Internal
                     if (context.Message.GetMesssageIntent() != MessageIntentEnum.Send || context.Message.GetMesssageIntent() == MessageIntentEnum.Reply) return;
 
                     Logger.WriteFormat(LogLevel.Warn,
-                        $"Message {context.MessageId} has failed after {retries} attempts!\nException: {e.GetType().FullName}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}");
+                        $"Message {context.MessageId} has failed after {retries} attempts!\nException: {e.GetType().FullName} {e.Message}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}\nStack: {stackTrace}");
 
                     // Only need to reply if the client expects it
                     if (!context.Message.Headers.ContainsKey(Defaults.RequestResponse) ||

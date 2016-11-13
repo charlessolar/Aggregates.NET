@@ -132,6 +132,7 @@ namespace Hello
                 );
             }
 
+            config.Pipeline.Remove("LogErrorOnInvalidLicense");
             config.EnableFeature<Aggregates.Feature>();
             config.Recoverability().ConfigureForAggregates();
             //config.EnableFeature<RoutedFeature>();

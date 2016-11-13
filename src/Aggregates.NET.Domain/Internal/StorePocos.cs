@@ -91,7 +91,7 @@ namespace Aggregates.Internal
             };
             
             if(await _store.WriteEvents(streamName, new[] {@event}, commitHeaders).ConfigureAwait(false) == 1)
-                await _store.WriteMetadata(streamName, maxCount: 10).ConfigureAwait(false);
+                await _store.WriteMetadata(streamName, maxCount: 5).ConfigureAwait(false);
 
             if (_shouldCache)
                 _cache.Cache(streamName, poco);

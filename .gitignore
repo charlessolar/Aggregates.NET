@@ -157,3 +157,4 @@ $RECYCLE.BIN/
 src/packages/
 src/Aggregates.NET.sln.ide/
 samples/HelloWorld/packages/
+samples/Delayed/packages/

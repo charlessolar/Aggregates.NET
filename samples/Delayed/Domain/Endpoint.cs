@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Aggregates;
 using Aggregates.Contracts;
 using EventStore.ClientAPI;
+using EventStore.ClientAPI.Embedded;
 using EventStore.ClientAPI.SystemData;
 using NLog;
 using NServiceBus;
@@ -18,15 +19,16 @@ using NServiceBus.Features;
 using NServiceBus.Pipeline;
 using RabbitMQ.Client;
 
-
-namespace World
+namespace Domain
 {
     internal class Program
     {
         static readonly ManualResetEvent QuitEvent = new ManualResetEvent(false);
         private static IContainer _container;
-        private static readonly NLog.ILogger Logger = LogManager.GetLogger("World");
-        
+        private static readonly NLog.ILogger Logger = LogManager.GetLogger("Domain");
+
+        private static bool _embedded;
+
         private static void UnhandledExceptionTrapper(object sender, UnhandledExceptionEventArgs e)
         {
             Logger.Fatal(e.ExceptionObject);
@@ -50,8 +52,12 @@ namespace World
             NServiceBus.Logging.LogManager.Use<NLogFactory>();
             //EventStore.Common.Log.LogManager.SetLogFactory((name) => new EmbeddedLogger(name));
 
-            // Give event store time to start
-            Thread.Sleep(TimeSpan.FromSeconds(30));
+            var embedded = args.FirstOrDefault(x => x.StartsWith("--embedded"));
+            try
+            {
+                _embedded = bool.Parse(embedded.Substring(embedded.IndexOf('=') + 1));
+            }
+            catch { }
 
             var client = ConfigureStore();
             var rabbit = ConfigureRabbit();
@@ -64,7 +70,7 @@ namespace World
                 x.Scan(y =>
                 {
                     y.TheCallingAssembly();
-                    y.AssembliesFromApplicationBaseDirectory((assembly) => assembly.FullName.StartsWith("World"));
+                    y.AssembliesFromApplicationBaseDirectory((assembly) => assembly.FullName.StartsWith("Domain"));
 
                     y.WithDefaultConventions();
                     y.AddAllTypesOf<ICommandMutator>();
@@ -89,7 +95,7 @@ namespace World
         {
             NServiceBus.Logging.LogManager.Use<NLogFactory>();
 
-            var endpoint = "world";
+            var endpoint = "domain";
 
             var config = new EndpointConfiguration(endpoint);
             config.MakeInstanceUniquelyAddressable(Guid.NewGuid().ToString("N"));
@@ -97,19 +103,19 @@ namespace World
             Logger.Info("Initializing Service Bus");
 
             config.EnableInstallers();
-            config.LimitMessageProcessingConcurrencyTo(10);
+            config.LimitMessageProcessingConcurrencyTo(1);
             config.UseTransport<RabbitMQTransport>()
                 //.CallbackReceiverMaxConcurrency(4)
                 //.UseDirectRoutingTopology()
                 .ConnectionStringName("RabbitMq")
                 .PrefetchMultiplier(5)
                 .TimeToWaitBeforeTriggeringCircuitBreaker(TimeSpan.FromSeconds(30));
-
+            
             config.UseSerialization<NewtonsoftSerializer>();
 
             config.UsePersistence<InMemoryPersistence>();
             config.UseContainer<StructureMapBuilder>(c => c.ExistingContainer(_container));
-
+            
             if (Logger.IsDebugEnabled)
             {
                 config.EnableSlowAlerts(true);
@@ -120,11 +126,12 @@ namespace World
                     );
             }
 
-
             config.Pipeline.Remove("LogErrorOnInvalidLicense");
+            config.MaxConflictResolves(2);
             config.EnableFeature<Aggregates.Feature>();
-            config.EnableFeature<Aggregates.ConsumerFeature>();
-            config.Recoverability().ConfigureForAggregates();
+            config.EnableFeature<Aggregates.Domain>();
+            config.EnableFeature<Aggregates.GetEventStore>();
+            config.Recoverability().ConfigureForAggregates(5, 3);
             //config.EnableFeature<RoutedFeature>();
             config.DisableFeature<Sagas>();
 
@@ -163,7 +170,6 @@ namespace World
             var data = connectionString.ConnectionString.Split(';');
 
             var hosts = data.Where(x => x.StartsWith("Host", StringComparison.CurrentCultureIgnoreCase));
-
             if (!hosts.Any())
                 throw new ArgumentException("No Host parameter in eventstore connection string");
 
@@ -174,7 +180,7 @@ namespace World
                     return new IPEndPoint(IPAddress.Loopback, int.Parse(addr[1]));
                 return new IPEndPoint(IPAddress.Parse(addr[0]), int.Parse(addr[1]));
             }).ToArray();
-
+            
             var cred = new UserCredentials("admin", "changeit");
             var settings = EventStore.ClientAPI.ConnectionSettings.Create()
                 .KeepReconnecting()
@@ -190,17 +196,16 @@ namespace World
             IEventStoreConnection client;
             if (hosts.Count() != 1)
             {
-
                 var clusterSettings = EventStore.ClientAPI.ClusterSettings.Create()
                     .DiscoverClusterViaGossipSeeds()
                     .SetGossipSeedEndPoints(endpoints.Select(x => new IPEndPoint(x.Address, x.Port - 1)).ToArray())
                     .SetGossipTimeout(TimeSpan.FromMinutes(5))
                     .Build();
 
-                client = EventStoreConnection.Create(settings, clusterSettings, "World");
+                client = EventStoreConnection.Create(settings, clusterSettings, "Domain");
             }
             else
-                client = EventStoreConnection.Create(settings, endpoints.First(), "World");
+                client = EventStoreConnection.Create(settings, endpoints.First(), "Domain");
 
 
             client.ConnectAsync().Wait();
@@ -215,13 +220,13 @@ namespace World
         public override Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
 
-            Log.Debug("Received message '{0}'.\n" +
-                            "ToString() of the message yields: {1}\n" +
-                            "Message headers:\n{2}",
-                            context.Message.MessageType != null ? context.Message.MessageType.AssemblyQualifiedName : "unknown",
-                context.Message.Instance,
-                string.Join(", ", context.MessageHeaders.Select(h => h.Key + ":" + h.Value).ToArray()));
-
+                Log.Debug("Received message '{0}'.\n" +
+                                "ToString() of the message yields: {1}\n" +
+                                "Message headers:\n{2}",
+                                context.Message.MessageType != null ? context.Message.MessageType.AssemblyQualifiedName : "unknown",
+                    context.Message.Instance,
+                    string.Join(", ", context.MessageHeaders.Select(h => h.Key + ":" + h.Value).ToArray()));
+            
 
             return next();
 

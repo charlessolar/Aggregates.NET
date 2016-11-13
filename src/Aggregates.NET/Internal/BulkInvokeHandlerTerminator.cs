@@ -82,7 +82,7 @@ namespace Aggregates.Internal
                 if (delayed.Delay.HasValue)
                     age = await channel.Age(key).ConfigureAwait(false);
 
-                if ((delayed.Count.HasValue && size <= delayed.Count.Value) || (delayed.Delay.HasValue && age < TimeSpan.FromMilliseconds(delayed.Delay.Value)))
+                if ((delayed.Count.HasValue && size < delayed.Count.Value) || (delayed.Delay.HasValue && age < TimeSpan.FromMilliseconds(delayed.Delay.Value)))
                 {
                     Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] not hit Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing {msgType.FullName}");
                     return;

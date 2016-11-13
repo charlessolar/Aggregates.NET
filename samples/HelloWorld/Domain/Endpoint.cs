@@ -125,7 +125,8 @@ namespace Domain
                     description: "Logs incoming messages"
                     );
             }
-            
+
+            config.Pipeline.Remove("LogErrorOnInvalidLicense");
             config.MaxConflictResolves(2);
             config.EnableFeature<Aggregates.Feature>();
             config.EnableFeature<Aggregates.Domain>();
@@ -171,13 +172,7 @@ namespace Domain
             var hosts = data.Where(x => x.StartsWith("Host", StringComparison.CurrentCultureIgnoreCase));
             if (!hosts.Any())
                 throw new ArgumentException("No Host parameter in eventstore connection string");
-            var disk = data.FirstOrDefault(x => x.StartsWith("Disk=", StringComparison.CurrentCultureIgnoreCase));
-            var embedded = data.FirstOrDefault(x => x.StartsWith("Embedded=", StringComparison.CurrentCultureIgnoreCase));
-            var path = data.FirstOrDefault(x => x.StartsWith("Path=", StringComparison.CurrentCultureIgnoreCase));
             
-            disk = disk?.Substring(5) ?? "false";
-            embedded = embedded?.Substring(9) ?? "false";
-            path = path?.Substring(5);
 
             var endpoints = hosts.Select(x =>
             {
@@ -186,60 +181,7 @@ namespace Domain
                     return new IPEndPoint(IPAddress.Loopback, int.Parse(addr[1]));
                 return new IPEndPoint(IPAddress.Parse(addr[0]), int.Parse(addr[1]));
             }).ToArray();
-
-            Int32 tcpExtPort = endpoints[0].Port;
-
-            var ip = IPAddress.Loopback;
-            if (embedded == "true" || _embedded)
-            {
-
-                Logger.Info("Starting event store on {0} port {1}", ip, tcpExtPort);
-
-                var builder = EmbeddedVNodeBuilder
-                    .AsSingleNode()
-                    .RunProjections(EventStore.Common.Options.ProjectionType.All)
-                    .WithExternalHeartbeatInterval(TimeSpan.FromSeconds(30))
-                    .WithInternalHeartbeatInterval(TimeSpan.FromSeconds(30))
-                    .WithExternalHeartbeatTimeout(TimeSpan.FromMinutes(5))
-                    .WithInternalHeartbeatTimeout(TimeSpan.FromMinutes(5))
-                    .WithInternalTcpOn(new IPEndPoint(ip, tcpExtPort + 1))
-                    .WithExternalTcpOn(new IPEndPoint(ip, tcpExtPort))
-                    .WithInternalHttpOn(new IPEndPoint(ip, tcpExtPort - 2))
-                    .WithExternalHttpOn(new IPEndPoint(ip, tcpExtPort - 1))
-                    .AddInternalHttpPrefix($"http://*:{tcpExtPort - 2}/")
-                    .AddExternalHttpPrefix($"http://*:{tcpExtPort - 1}/");
-
-
-                if (disk == "true")
-                {
-                    System.IO.Directory.CreateDirectory(path);
-                    builder = builder.RunOnDisk(path);
-                }
-                else
-                {
-                    builder = builder.RunInMemory();
-                }
-                var embeddedBuilder = builder.Build();
-
-                var tcs = new TaskCompletionSource<Boolean>();
-
-                embeddedBuilder.NodeStatusChanged += (_, e) =>
-                {
-                    Logger.Info("EventStore status changed: {0}", e.NewVNodeState);
-                    if (!tcs.Task.IsCompleted && (e.NewVNodeState == EventStore.Core.Data.VNodeState.Master ||
-                                                    e.NewVNodeState == EventStore.Core.Data.VNodeState.Slave ||
-                                                    e.NewVNodeState == EventStore.Core.Data.VNodeState.Manager))
-                    {
-                        tcs.SetResult(true);
-                    }
-                };
-                embeddedBuilder.Start();
-
-                tcs.Task.Wait();
-
-            }
-
-
+            
             var cred = new UserCredentials("admin", "changeit");
             var settings = EventStore.ClientAPI.ConnectionSettings.Create()
                 .KeepReconnecting()

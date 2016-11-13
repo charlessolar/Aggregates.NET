@@ -10,29 +10,30 @@ using System.Threading;
 using System.Threading.Tasks;
 using Aggregates;
 using Aggregates.Contracts;
-using EventStore.ClientAPI;
-using EventStore.ClientAPI.SystemData;
 using NLog;
 using NServiceBus;
 using NServiceBus.Features;
 using NServiceBus.Pipeline;
 using RabbitMQ.Client;
+using Shared;
 
 
-namespace World
+namespace Hello
 {
     internal class Program
     {
         static readonly ManualResetEvent QuitEvent = new ManualResetEvent(false);
         private static IContainer _container;
-        private static readonly NLog.ILogger Logger = LogManager.GetLogger("World");
-        
+        private static readonly NLog.ILogger Logger = LogManager.GetLogger("Hello");
+
+
         private static void UnhandledExceptionTrapper(object sender, UnhandledExceptionEventArgs e)
         {
             Logger.Fatal(e.ExceptionObject);
             Console.WriteLine(e.ExceptionObject.ToString());
             Environment.Exit(1);
         }
+
         private static void ExceptionTrapper(object sender, FirstChanceExceptionEventArgs e)
         {
             //Logger.Debug(e.Exception, "Thrown exception: {0}");
@@ -42,29 +43,25 @@ namespace World
         {
             ServicePointManager.UseNagleAlgorithm = false;
             var conf = NLog.Config.ConfigurationItemFactory.Default;
-            NLog.LogManager.Configuration = new NLog.Config.XmlLoggingConfiguration($"{AppDomain.CurrentDomain.BaseDirectory}/logging.config");
+            NLog.LogManager.Configuration =
+                new NLog.Config.XmlLoggingConfiguration($"{AppDomain.CurrentDomain.BaseDirectory}/logging.config");
 
             AppDomain.CurrentDomain.UnhandledException += UnhandledExceptionTrapper;
             AppDomain.CurrentDomain.FirstChanceException += ExceptionTrapper;
 
             NServiceBus.Logging.LogManager.Use<NLogFactory>();
             //EventStore.Common.Log.LogManager.SetLogFactory((name) => new EmbeddedLogger(name));
-
-            // Give event store time to start
-            Thread.Sleep(TimeSpan.FromSeconds(30));
-
-            var client = ConfigureStore();
+            
             var rabbit = ConfigureRabbit();
 
             _container = new Container(x =>
             {
-                x.For<IEventStoreConnection>().Use(client).Singleton();
                 x.For<IConnection>().Use(rabbit).Singleton();
 
                 x.Scan(y =>
                 {
                     y.TheCallingAssembly();
-                    y.AssembliesFromApplicationBaseDirectory((assembly) => assembly.FullName.StartsWith("World"));
+                    y.AssembliesFromApplicationBaseDirectory((assembly) => assembly.FullName.StartsWith("Hello"));
 
                     y.WithDefaultConventions();
                     y.AddAllTypesOf<ICommandMutator>();
@@ -75,21 +72,45 @@ namespace World
             var bus = InitBus().Result;
             _container.Configure(x => x.For<IMessageSession>().Use(bus).Singleton());
 
-            Console.WriteLine("Press CTRL+C to exit...");
-            Console.CancelKeyPress += (sender, eArgs) =>
+            var running = true;
+
+            var user = "test";
+            Console.WriteLine("Please enter a username:");
+            user = Console.ReadLine();
+            Console.WriteLine($"Hello user {user}!  Use 'exit' to stop");
+            do
             {
-                QuitEvent.Set();
-                eArgs.Cancel = true;
-            };
-            QuitEvent.WaitOne();
+                Console.WriteLine("Please enter a message to send:");
+                var message = Console.ReadLine();
+                if (message.ToUpper() == "EXIT")
+                    running = false;
+                else
+                {
+                    Console.WriteLine("-- Sending it 1000 times");
+                    bus.Send(new Start());
+                    for (var i = 0; i < 1000; i++)
+                        bus.Send(new SayHello { User = user, Message = message });
+                    bus.Send(new End());
+
+                    Thread.Sleep(10000);
+
+                    Console.WriteLine("-- Bulk sending it 1000 times");
+                    bus.Send(new Start());
+                    for (var i = 0; i < 1000; i++)
+                        bus.Send(new SayHelloALot { User = user, Message = message });
+                    bus.Send(new End());
+                }
+
+            } while (running);
 
             bus.Stop().Wait();
         }
+
         private static async Task<IEndpointInstance> InitBus()
         {
             NServiceBus.Logging.LogManager.Use<NLogFactory>();
 
-            var endpoint = "world";
+            var endpoint = "hello";
 
             var config = new EndpointConfiguration(endpoint);
             config.MakeInstanceUniquelyAddressable(Guid.NewGuid().ToString("N"));
@@ -104,7 +125,7 @@ namespace World
                 .ConnectionStringName("RabbitMq")
                 .PrefetchMultiplier(5)
                 .TimeToWaitBeforeTriggeringCircuitBreaker(TimeSpan.FromSeconds(30));
-
+            
             config.UseSerialization<NewtonsoftSerializer>();
 
             config.UsePersistence<InMemoryPersistence>();
@@ -117,13 +138,11 @@ namespace World
                 config.Pipeline.Register(
                     behavior: typeof(LogIncomingMessageBehavior),
                     description: "Logs incoming messages"
-                    );
+                );
             }
-
 
             config.Pipeline.Remove("LogErrorOnInvalidLicense");
             config.EnableFeature<Aggregates.Feature>();
-            config.EnableFeature<Aggregates.ConsumerFeature>();
             config.Recoverability().ConfigureForAggregates();
             //config.EnableFeature<RoutedFeature>();
             config.DisableFeature<Sagas>();
@@ -142,7 +161,8 @@ namespace World
             var host = data.FirstOrDefault(x => x.StartsWith("host", StringComparison.CurrentCultureIgnoreCase));
             if (host == null)
                 throw new ArgumentException("No HOST parameter in rabbit connection string");
-            var virtualhost = data.FirstOrDefault(x => x.StartsWith("virtualhost=", StringComparison.CurrentCultureIgnoreCase));
+            var virtualhost =
+                data.FirstOrDefault(x => x.StartsWith("virtualhost=", StringComparison.CurrentCultureIgnoreCase));
 
             var username = data.FirstOrDefault(x => x.StartsWith("username=", StringComparison.CurrentCultureIgnoreCase));
             var password = data.FirstOrDefault(x => x.StartsWith("password=", StringComparison.CurrentCultureIgnoreCase));
@@ -156,58 +176,6 @@ namespace World
 
             return factory.CreateConnection();
         }
-
-        public static IEventStoreConnection ConfigureStore()
-        {
-            var connectionString = ConfigurationManager.ConnectionStrings["EventStore"];
-            var data = connectionString.ConnectionString.Split(';');
-
-            var hosts = data.Where(x => x.StartsWith("Host", StringComparison.CurrentCultureIgnoreCase));
-
-            if (!hosts.Any())
-                throw new ArgumentException("No Host parameter in eventstore connection string");
-
-            var endpoints = hosts.Select(x =>
-            {
-                var addr = x.Substring(5).Split(':');
-                if (addr[0] == "localhost")
-                    return new IPEndPoint(IPAddress.Loopback, int.Parse(addr[1]));
-                return new IPEndPoint(IPAddress.Parse(addr[0]), int.Parse(addr[1]));
-            }).ToArray();
-
-            var cred = new UserCredentials("admin", "changeit");
-            var settings = EventStore.ClientAPI.ConnectionSettings.Create()
-                .KeepReconnecting()
-                .KeepRetrying()
-                .SetGossipSeedEndPoints(endpoints)
-                .SetClusterGossipPort(endpoints.First().Port - 1)
-                .SetHeartbeatInterval(TimeSpan.FromSeconds(30))
-                .SetGossipTimeout(TimeSpan.FromMinutes(5))
-                .SetHeartbeatTimeout(TimeSpan.FromMinutes(5))
-                .SetTimeoutCheckPeriodTo(TimeSpan.FromMinutes(1))
-                .SetDefaultUserCredentials(cred);
-
-            IEventStoreConnection client;
-            if (hosts.Count() != 1)
-            {
-
-                var clusterSettings = EventStore.ClientAPI.ClusterSettings.Create()
-                    .DiscoverClusterViaGossipSeeds()
-                    .SetGossipSeedEndPoints(endpoints.Select(x => new IPEndPoint(x.Address, x.Port - 1)).ToArray())
-                    .SetGossipTimeout(TimeSpan.FromMinutes(5))
-                    .Build();
-
-                client = EventStoreConnection.Create(settings, clusterSettings, "World");
-            }
-            else
-                client = EventStoreConnection.Create(settings, endpoints.First(), "World");
-
-
-            client.ConnectAsync().Wait();
-
-            return client;
-        }
-
     }
 
     public class LogIncomingMessageBehavior : Behavior<IIncomingLogicalMessageContext>

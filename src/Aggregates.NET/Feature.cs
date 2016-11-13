@@ -15,6 +15,7 @@ namespace Aggregates
     {
         public Feature()
         {
+            DependsOn("NServiceBus.Features.ReceiveFeature");
             Defaults(s =>
             {
                 s.SetDefault("Retries", 10);

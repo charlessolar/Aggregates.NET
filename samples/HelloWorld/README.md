@@ -1,5 +1,5 @@
 
-`These examples use embedded eventstore which requires visual studio to be run as Administrator!`
+`These examples require an event store instance running with the config found in the samples directory`
 
 Purpose
 =======

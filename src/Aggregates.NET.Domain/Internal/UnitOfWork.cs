@@ -121,7 +121,7 @@ namespace Aggregates.Internal
             IRepository repository;
             if (_pocoRepositories.TryGetValue(key, out repository)) return (IPocoRepository<T>) repository;
             
-            return (IPocoRepository<T>)(_pocoRepositories[key] = _repoFactory.ForPoco<T>());
+            return (IPocoRepository<T>)(_pocoRepositories[key] = _repoFactory.ForPoco<T>(Builder));
         }
         public IPocoRepository<TParent, TParentId, T> Poco<TParent, TParentId, T>(TParent parent) where T : class, new() where TParent : class, IBase<TParentId>
         {
@@ -132,7 +132,7 @@ namespace Aggregates.Internal
             if (_pocoRepositories.TryGetValue(key, out repository))
                 return (IPocoRepository<TParent, TParentId, T>)repository;
 
-            return (IPocoRepository<TParent, TParentId, T>)(_pocoRepositories[key] = _repoFactory.ForPoco<TParent, TParentId, T>(parent));
+            return (IPocoRepository<TParent, TParentId, T>)(_pocoRepositories[key] = _repoFactory.ForPoco<TParent, TParentId, T>(parent, Builder));
         }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {

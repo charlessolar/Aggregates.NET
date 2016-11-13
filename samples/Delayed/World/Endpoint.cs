@@ -49,10 +49,7 @@ namespace World
 
             NServiceBus.Logging.LogManager.Use<NLogFactory>();
             //EventStore.Common.Log.LogManager.SetLogFactory((name) => new EmbeddedLogger(name));
-
-            // Give event store time to start
-            Thread.Sleep(TimeSpan.FromSeconds(30));
-
+            
             var client = ConfigureStore();
             var rabbit = ConfigureRabbit();
 
@@ -97,14 +94,14 @@ namespace World
             Logger.Info("Initializing Service Bus");
 
             config.EnableInstallers();
-            config.LimitMessageProcessingConcurrencyTo(10);
+            config.LimitMessageProcessingConcurrencyTo(1);
             config.UseTransport<RabbitMQTransport>()
                 //.CallbackReceiverMaxConcurrency(4)
                 //.UseDirectRoutingTopology()
                 .ConnectionStringName("RabbitMq")
                 .PrefetchMultiplier(5)
                 .TimeToWaitBeforeTriggeringCircuitBreaker(TimeSpan.FromSeconds(30));
-
+            
             config.UseSerialization<NewtonsoftSerializer>();
 
             config.UsePersistence<InMemoryPersistence>();
@@ -119,7 +116,6 @@ namespace World
                     description: "Logs incoming messages"
                     );
             }
-
 
             config.Pipeline.Remove("LogErrorOnInvalidLicense");
             config.EnableFeature<Aggregates.Feature>();

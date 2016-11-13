@@ -8,7 +8,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    public class EntityRepository<TParent, TParentId, T> : Repository<T>, IEntityRepository<TParent, TParentId, T> where T : class, IEntity where TParent : class, IBase<TParentId>
+    class EntityRepository<TParent, TParentId, T> : Repository<T>, IEntityRepository<TParent, TParentId, T> where T : class, IEntity where TParent : class, IBase<TParentId>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EntityRepository<,,>));
         private readonly TParent _parent;

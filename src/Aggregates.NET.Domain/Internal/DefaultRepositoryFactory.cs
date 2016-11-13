@@ -27,21 +27,21 @@ namespace Aggregates.Internal
             return (IEntityRepository<TParent, TParentId, T>)Activator.CreateInstance(repoType, parent, builder);
             
         }
-        public IPocoRepository<T> ForPoco<T>() where T : class, new()
+        public IPocoRepository<T> ForPoco<T>(IBuilder builder) where T : class, new()
         {
             Type repoType;
             if (!RepoCache.TryGetValue(typeof(T), out repoType))
                 repoType = RepoCache[typeof(T)] = typeof(PocoRepository<>).MakeGenericType(typeof(T));
 
-            return (IPocoRepository<T>)Activator.CreateInstance(repoType);
+            return (IPocoRepository<T>)Activator.CreateInstance(repoType, builder);
         }
-        public IPocoRepository<TParent, TParentId, T> ForPoco<TParent, TParentId, T>(TParent parent) where T : class, new() where TParent : class, IBase<TParentId>
+        public IPocoRepository<TParent, TParentId, T> ForPoco<TParent, TParentId, T>(TParent parent, IBuilder builder) where T : class, new() where TParent : class, IBase<TParentId>
         {
             Type repoType;
             if (!RepoCache.TryGetValue(typeof(T), out repoType))
                 repoType = RepoCache[typeof(T)] = typeof(PocoRepository<,,>).MakeGenericType(typeof(TParent), typeof(TParentId), typeof(T));
 
-            return (IPocoRepository<TParent, TParentId, T>)Activator.CreateInstance(repoType);
+            return (IPocoRepository<TParent, TParentId, T>)Activator.CreateInstance(repoType, parent, builder);
         }
     }
 }

@@ -22,7 +22,7 @@ namespace Aggregates.Internal
 
     // Todo: The hoops we jump through to support <TId> can be simplified by just using an Id class with implicit converters from string, int, guid, etc.
 
-    public class Repository<T> : IRepository<T> where T : class, IEventSource
+    class Repository<T> : IRepository<T> where T : class, IEventSource
     {
         private static OptimisticConcurrencyAttribute _conflictResolution;
 

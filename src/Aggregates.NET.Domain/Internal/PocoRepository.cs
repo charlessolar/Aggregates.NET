@@ -7,18 +7,18 @@ using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Metrics;
 using NServiceBus.Logging;
+using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    public class PocoRepository<TParent, TParentId, T> : PocoRepository<T>, IPocoRepository<TParent, TParentId, T> where TParent : class, IBase<TParentId> where T : class, new()
+    class PocoRepository<TParent, TParentId, T> : PocoRepository<T>, IPocoRepository<TParent, TParentId, T> where TParent : class, IBase<TParentId> where T : class, new()
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(PocoRepository<,,>));
 
         private readonly TParent _parent;
 
-        public PocoRepository(TParent parent, IStorePocos store)
-            : base(store)
-        {
+        public PocoRepository(TParent parent, IBuilder builder) : base(builder)
+        { 
             _parent = parent;
         }
         public override Task<T> TryGet<TId>(TId id)
@@ -39,9 +39,6 @@ namespace Aggregates.Internal
             var streamId = $"{_parent.StreamId}.{id}";
 
             var entity = await Get(_parent.Bucket, streamId).ConfigureAwait(false);
-            (entity as IEventSource<TId>).Id = id;
-            (entity as IEntity<TId, TParent, TParentId>).Parent = _parent;
-
             return entity;
         }
 
@@ -50,24 +47,11 @@ namespace Aggregates.Internal
             var streamId = $"{_parent.StreamId}.{id}";
 
             var entity = await New(_parent.Bucket, streamId).ConfigureAwait(false);
-
-            try
-            {
-                (entity as IEventSource<TId>).Id = id;
-                (entity as IEntity<TId, TParent, TParentId>).Parent = _parent;
-            }
-            catch (NullReferenceException)
-            {
-                var message =
-                    $"Failed to new up entity {typeof(T).FullName}, could not set parent id! Information we have indicated entity has id type <{typeof(TId).FullName}> with parent id type <{typeof(TParentId).FullName}> - please review that this is true";
-                Logger.Error(message);
-                throw new ArgumentException(message);
-            }
             return entity;
         }
     }
 
-    public class PocoRepository<T> : IPocoRepository<T> where T : class, new()
+    class PocoRepository<T> : IPocoRepository<T> where T : class, new()
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(PocoRepository<>));
         private readonly IStorePocos _store;
@@ -79,9 +63,9 @@ namespace Aggregates.Internal
 
         private bool _disposed;
 
-        public PocoRepository(IStorePocos store)
+        public PocoRepository(IBuilder builder)
         {
-            _store = store;
+            _store = builder.Build<IStorePocos>();
         }
 
         async Task<Guid> IRepository.Commit(Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders)
@@ -171,7 +155,7 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving aggregate id [{id}] from bucket [{bucket}] in store");
             var root = await Get(bucket, id.ToString()).ConfigureAwait(false);
-            (root as IEventSource<TId>).Id = id;
+
             return root;
         }
         public async Task<T> Get(string bucket, string id)
@@ -192,8 +176,7 @@ namespace Aggregates.Internal
         public async Task<T> New<TId>(string bucket, TId id)
         {
             var root = await New(bucket, id.ToString()).ConfigureAwait(false);
-            (root as IEventSource<TId>).Id = id;
-
+            
             return root;
         }
         public Task<T> New(string bucket, string streamId)
