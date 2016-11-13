@@ -33,8 +33,8 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Aggregates.NET, Version=0.4.1.542, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Aggregates.NET.0.4.1.542-beta\lib\net461\Aggregates.NET.dll</HintPath>
+    <Reference Include="Aggregates.NET, Version=0.4.1.544, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Aggregates.NET.0.4.1.544-beta\lib\net461\Aggregates.NET.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="EventStore.ClientAPI, Version=3.9.2.0, Culture=neutral, processorArchitecture=MSIL">
