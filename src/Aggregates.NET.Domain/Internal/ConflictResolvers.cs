@@ -162,8 +162,15 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Starting weak conflict resolve for stream [{stream.StreamId}] bucket [{stream.Bucket}]");
             try
             {
-                await _store.Freeze<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
-
+                try
+                {
+                    await _store.Freeze<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
+                }
+                catch (VersionException)
+                {
+                    Logger.Write(LogLevel.Debug, () => $"Stopping weak conflict resolve - someone else is processing");
+                    return startingEventId;
+                }
                 uncommitted = (await _delay.Pull(entity.StreamId).ConfigureAwait(false)).Cast<IWritableEvent>();
                 Logger.Write(LogLevel.Info,
                     () =>

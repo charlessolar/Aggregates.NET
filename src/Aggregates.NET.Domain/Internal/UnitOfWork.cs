@@ -17,6 +17,7 @@ namespace Aggregates.Internal
 {
     public class UnitOfWork : IUnitOfWork, IApplicationUnitOfWork, IMutateOutgoingMessages, IMutateIncomingMessages
     {
+        private static readonly Metrics.Timer CommitTime = Metric.Timer("UOW Commit Time", Unit.Items);
         public static string PrefixHeader = "Originating";
         public static string NotFound = "<NOT FOUND>";
 
@@ -28,15 +29,7 @@ namespace Aggregates.Internal
         private IDictionary<Type, IRepository> _repositories;
         private IDictionary<string, IEntityRepository> _entityRepositories;
         private IDictionary<string, IRepository> _pocoRepositories;
-
-        private Meter _commandsMeter = Metric.Meter("Commands", Unit.Commands);
-        private Counter _commandsConcurrent = Metric.Counter("Concurrent Commands", Unit.Commands);
-        private Meter _eventsMeter = Metric.Meter("Events", Unit.Commands);
-        private Counter _eventsConcurrent = Metric.Counter("Concurrent Events", Unit.Commands);
-        private static readonly Metrics.Timer CommitTime = Metric.Timer("UOW Commit Time", Unit.Items);
-
-        private Meter _errorsMeter = Metric.Meter("Command Errors", Unit.Errors);
-        private Meter _eventErrorsMeter = Metric.Meter("Event Errors", Unit.Errors);
+        
 
         public IBuilder Builder { get; set; }
         public int Retries { get; set; }
@@ -158,29 +151,14 @@ namespace Aggregates.Internal
 
         Task IApplicationUnitOfWork.Begin()
         {
-            if (CurrentMessage is IEvent)
-            {
-                _eventsMeter.Mark();
-                _eventsConcurrent.Increment();
-            }
-            if (CurrentMessage is ICommand)
-            {
-                _commandsMeter.Mark();
-                _commandsConcurrent.Increment();
-            }
             return Task.FromResult(true);
         }
-        async Task IApplicationUnitOfWork.End(Exception ex)
+        Task IApplicationUnitOfWork.End(Exception ex)
         {
-            if (ex == null)
-                await Commit().ConfigureAwait(false);
-            else
-                _errorsMeter.Mark();
+            if (ex != null)
+                return Task.CompletedTask;
 
-            if(CurrentMessage is IEvent)
-                _eventsConcurrent.Decrement();
-            if(CurrentMessage is ICommand)
-                _commandsConcurrent.Decrement();
+            return Commit();
         }
 
         private async Task Commit()
@@ -188,7 +166,7 @@ namespace Aggregates.Internal
             // Insert all command headers into the commit
             var headers = new Dictionary<string, string>(CurrentHeaders);
 
-            Logger.Write(LogLevel.Debug, () => $"Starting commit id {CommitId}");
+            Logger.Write(LogLevel.Debug, () => $"Starting commit id {CommitId} for {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories");
             using (CommitTime.NewContext())
             {
                 var startingEventId = CommitId;

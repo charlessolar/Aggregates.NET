@@ -14,6 +14,7 @@ namespace Aggregates.Internal
 {
     class StorePocos : IStorePocos
     {
+        private static readonly Meter Saved = Metric.Meter("Saved Pocos", Unit.Items);
         private static readonly Meter HitMeter = Metric.Meter("Poco Cache Hits", Unit.Events);
         private static readonly Meter MissMeter = Metric.Meter("Poco Cache Misses", Unit.Events);
 
@@ -89,7 +90,8 @@ namespace Aggregates.Internal
                 Event = poco,
                 EventId = Guid.NewGuid()
             };
-            
+
+            Saved.Mark();
             if(await _store.WriteEvents(streamName, new[] {@event}, commitHeaders).ConfigureAwait(false) == 1)
                 await _store.WriteMetadata(streamName, maxCount: 5).ConfigureAwait(false);
 

@@ -7,6 +7,7 @@ using System.Transactions;
 using Aggregates.Attributes;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Metrics;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
@@ -23,10 +24,14 @@ namespace Aggregates.Internal
     }
     internal class BulkInvokeHandlerTerminator : PipelineTerminator<IInvokeHandlerContext>
     {
+        private static readonly Meter InvokesDelayed = Metric.Meter("Delayed Invokes", Unit.Items);
+        private static readonly Meter Invokes = Metric.Meter("Bulk Invokes", Unit.Items);
         private static readonly ILog Logger = LogManager.GetLogger(typeof(BulkInvokeHandlerTerminator));
 
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
         private static readonly HashSet<string> IsNotDelayed = new HashSet<string>();
+
+        private static String BulkedMessageId;
 
         private readonly IBuilder _builder;
         private readonly IMessageMapper _mapper;
@@ -70,7 +75,7 @@ namespace Aggregates.Internal
                     Received = DateTime.UtcNow,
                 };
 
-
+                InvokesDelayed.Mark();
                 Logger.Write(LogLevel.Debug, () => $"Delaying message {msgType.FullName} delivery");
                 var size = await channel.AddToQueue(key, msgPkg).ConfigureAwait(false);
 
@@ -87,10 +92,17 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] not hit Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing {msgType.FullName}");
                     return;
                 }
-                
+                if (BulkedMessageId == context.MessageId)
+                {
+                    Logger.Write(LogLevel.Debug, () => $"Limiting bulk processing for a single message to a single invoke");
+                    return;
+                }
+
+                BulkedMessageId = context.MessageId;
                 Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] hit Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing {msgType.FullName}");
                 var msgs = await channel.Pull(key).ConfigureAwait(false);
 
+                Invokes.Mark();
                 Logger.Write(LogLevel.Debug, () => $"Invoking handle {msgs.Count()} times for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
                 foreach (var msg in msgs.Cast<DelayedMessage>())
                     await messageHandler.Invoke(msg.Message, context).ConfigureAwait(false);

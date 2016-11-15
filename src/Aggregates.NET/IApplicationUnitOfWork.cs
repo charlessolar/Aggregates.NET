@@ -10,8 +10,6 @@ namespace Aggregates
 {
     public interface IApplicationUnitOfWork
     {
-        bool CanFail { get; }
-
         IBuilder Builder { get; set; }
         // The number of times the event has been re-run due to error
         int Retries { get; set; }

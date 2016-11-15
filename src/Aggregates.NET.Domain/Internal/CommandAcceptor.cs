@@ -13,7 +13,7 @@ namespace Aggregates.Internal
     internal class CommandAcceptor : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CommandAcceptor));
-
+        
         private static readonly Meter ErrorsMeter = Metric.Meter("Business Exceptions", Unit.Errors);        
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
@@ -23,7 +23,7 @@ namespace Aggregates.Internal
                 try
                 {
                     await next().ConfigureAwait(false);
-
+                    
                     // Only need to reply if the client expects it
                     if (context.MessageHeaders.ContainsKey(Defaults.RequestResponse) && context.MessageHeaders[Defaults.RequestResponse] == "1")
                     {

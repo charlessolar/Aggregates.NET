@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,23 +14,21 @@ namespace Aggregates.Internal
     internal class MemoryPersistence : IPersistence
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(MemoryPersistence));
-        private static readonly Dictionary<string, ContextBag> Storage = new Dictionary<string, ContextBag>();
+        private static readonly ConcurrentDictionary<string, ContextBag> Storage = new ConcurrentDictionary<string, ContextBag>();
 
         public Task Save(string id, ContextBag bag)
         {
             Logger.Write(LogLevel.Debug, () => $"Persisting context bag [{id}]");
-            Storage[id] = bag;
+            Storage.TryAdd(id, bag);
             return Task.CompletedTask;
         }
 
         public Task<ContextBag> Remove(string id)
         {
-            ContextBag existing;
-            if (!Storage.TryGetValue(id, out existing))
-                return Task.FromResult<ContextBag>(null);
-
             Logger.Write(LogLevel.Debug, () => $"Removing context bag [{id}]");
-            Storage.Remove(id);
+            ContextBag existing;
+            if (!Storage.TryRemove(id, out existing))
+                return Task.FromResult<ContextBag>(null);
             return Task.FromResult(existing);
         }
     }

@@ -20,8 +20,11 @@ namespace Aggregates.Internal
 {
     class StoreEvents : IStoreEvents
     {
-        private static readonly Metrics.Timer ReadTime = Metric.Timer("EventStore Read Time", Unit.Events);
-        private static readonly Metrics.Timer WriteTime = Metric.Timer("EventStore Write Time", Unit.Events);
+        private static readonly Meter FrozenExceptions = Metric.Meter("Frozen Exceptions", Unit.Items);
+        private static readonly Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Events);
+        private static readonly Histogram ReadEvents = Metric.Histogram("Read Events", Unit.Events);
+        private static readonly Timer ReadTime = Metric.Timer("EventStore Read Time", Unit.Items);
+        private static readonly Timer WriteTime = Metric.Timer("EventStore Write Time", Unit.Items);
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreEvents));
         private readonly IEventStoreConnection _client;
@@ -76,6 +79,7 @@ namespace Aggregates.Internal
                 return null;
             }
 
+            ReadEvents.Update(events.Count);
             var translatedEvents = events.Select(e =>
             {
                 var metadata = e.Event.Metadata;
@@ -160,6 +164,7 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Debug, () => $"Finished reading all events backward from stream [{stream}]");
             }
 
+            ReadEvents.Update(events.Count);
             var translatedEvents = events.Select(e =>
             {
                 var metadata = e.Event.Metadata;
@@ -234,6 +239,7 @@ namespace Aggregates.Internal
                     );
             }).ToList();
 
+            WrittenEvents.Update(events.Count());
             using (WriteTime.NewContext())
             {
                 try
@@ -270,21 +276,30 @@ namespace Aggregates.Internal
 
             var existing = await _client.GetStreamMetadataAsync(stream).ConfigureAwait(false);
 
-            if ((existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) && existing.StreamMetadata?.GetValue<string>("owner") != Defaults.Instance.ToString())
+            if ((existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) &&
+                existing.StreamMetadata?.GetValue<string>("owner") != Defaults.Instance.ToString())
+            {
+                FrozenExceptions.Mark();
                 throw new VersionException("Stream is frozen - we are not the owner");
-
+            }
             if (frozen.HasValue && frozen == false && (
-                existing.StreamMetadata == null ||
-                (existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) == false ||
-                existing.StreamMetadata?.GetValue<string>("owner") != Defaults.Instance.ToString()))
+                    existing.StreamMetadata == null ||
+                    (existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) == false ||
+                    existing.StreamMetadata?.GetValue<string>("owner") != Defaults.Instance.ToString()))
+            {
+                FrozenExceptions.Mark();
                 throw new FrozenException();
+            }
 
             // If we are trying to freeze the stream that we've already frozen (to prevent multiple threads from attempting to process the same frozen data)
             if (frozen.HasValue && frozen == true && (existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) &&
                 existing.StreamMetadata?.GetValue<string>("owner") == Defaults.Instance.ToString())
+            {
+                FrozenExceptions.Mark();
                 throw new FrozenException();
+            }
 
-                var metadata = StreamMetadata.Build();
+            var metadata = StreamMetadata.Build();
 
             if ((maxCount ?? existing.StreamMetadata?.MaxCount).HasValue)
                 metadata.SetMaxCount((maxCount ?? existing.StreamMetadata?.MaxCount).Value);

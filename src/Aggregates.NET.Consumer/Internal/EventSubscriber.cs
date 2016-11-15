@@ -177,10 +177,10 @@ namespace Aggregates.Internal
                     subscription.Stop(TimeSpan.FromSeconds(30));
                     return;
                 }
+                _concurrencyLimit.WaitAsync(cancelToken).ConfigureAwait(false).GetAwaiter().GetResult();
 
                 Task.Run(async () =>
                 {
-                    await _concurrencyLimit.WaitAsync(cancelToken).ConfigureAwait(false);
 
                     var headers = new Dictionary<string, string>(descriptor.Headers)
                     {
@@ -210,17 +210,20 @@ namespace Aggregates.Internal
                                     @event.Data ?? new byte[0], transportTranaction, numberOfDeliveryAttempts);
                                 if (await Bus.OnError(errorContext).ConfigureAwait(false) == ErrorHandleResult.Handled)
                                     break;
-                                
+
+                                _concurrencyLimit.Release();
+                                await Task.Delay(100 * (numberOfDeliveryAttempts / 2)).ConfigureAwait(false);
+                                await _concurrencyLimit.WaitAsync(cancelToken).ConfigureAwait(false);
                             }
                         }
+
+                        _concurrencyLimit.Release();
 
                         if (tokenSource.IsCancellationRequested)
                             return;
 
                         //Logger.Write(LogLevel.Debug, () => $"Acknowledging event {@event.EventId}");
                         //subscription.Acknowledge(e);
-
-                        _concurrencyLimit.Release();
                     }
                 }, cancelToken);
 
@@ -229,7 +232,7 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Warn, () => $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
                 ProcessingLive = false;
                 Dropped?.Invoke(reason.ToString(), e);
-            }, bufferSize: _readsize, autoAck: true).ConfigureAwait(false);
+            }, bufferSize: 10, autoAck: true).ConfigureAwait(false);
         }
 
         public void Dispose()

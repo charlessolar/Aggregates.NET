@@ -13,6 +13,7 @@ namespace Aggregates.Internal
 {
     class StoreSnapshots : IStoreSnapshots
     {
+        private static readonly Meter Saved = Metric.Meter("Saved Snapshots", Unit.Items);
         private static readonly Meter HitMeter = Metric.Meter("Snapshot Cache Hits", Unit.Events);
         private static readonly Meter MissMeter = Metric.Meter("Snapshot Cache Misses", Unit.Events);
 
@@ -104,7 +105,7 @@ namespace Aggregates.Internal
                 };
             }).ToList();
 
-
+            Saved.Mark();
             if (await _store.WriteEvents(streamName, translatedEvents, commitHeaders).ConfigureAwait(false) == 1)
                 await _store.WriteMetadata(streamName, maxCount: 10).ConfigureAwait(false);
             

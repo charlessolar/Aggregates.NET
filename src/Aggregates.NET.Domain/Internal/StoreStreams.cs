@@ -19,6 +19,7 @@ namespace Aggregates.Internal
 {
     class StoreStreams : IStoreStreams
     {
+        private static readonly Meter Saved = Metric.Meter("Saved Streams", Unit.Items);
         private static readonly Meter HitMeter = Metric.Meter("Stream Cache Hits", Unit.Events);
         private static readonly Meter MissMeter = Metric.Meter("Stream Cache Misses", Unit.Events);
 
@@ -114,6 +115,7 @@ namespace Aggregates.Internal
             if (await CheckFrozen<T>(bucket, streamId).ConfigureAwait(false))
                 throw new FrozenException();
 
+            Saved.Mark();
             await _store.WriteEvents(streamName, events, commitHeaders, expectedVersion: expectedVersion).ConfigureAwait(false);
         }
         

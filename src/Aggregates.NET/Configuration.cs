@@ -41,12 +41,15 @@ namespace Aggregates
             // Set immediate retries to our "MaxRetries" setting
             recoverability.Immediate(x =>
             {
-                x.NumberOfRetries(0);
+                x.NumberOfRetries(immediateRetries);
             });
             recoverability.Delayed(x =>
             {
-                x.TimeIncrease(TimeSpan.FromSeconds(1));
-                x.NumberOfRetries(forever ? int.MaxValue : delayedRetries);
+                // Delayed retries don't work well with the InMemory context bag storage.  Creating
+                // a problem of possible duplicate commits
+                x.NumberOfRetries(0);
+                //x.TimeIncrease(TimeSpan.FromSeconds(1));
+                //x.NumberOfRetries(forever ? int.MaxValue : delayedRetries);
             });
         }
     }

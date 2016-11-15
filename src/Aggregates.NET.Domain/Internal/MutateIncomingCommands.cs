@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Metrics;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.Pipeline;
@@ -10,12 +11,14 @@ namespace Aggregates.Internal
 {
     internal class MutateIncomingCommands : Behavior<IIncomingLogicalMessageContext>
     {
+        private static readonly Meter Commands = Metric.Meter("Incoming Commands", Unit.Items);
         private static readonly ILog Logger = LogManager.GetLogger(typeof(MutateIncomingCommands));
 
         public override Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
             if (!(context.Message.Instance is ICommand)) return next();
 
+            Commands.Mark();
             var mutators = context.Builder.BuildAll<ICommandMutator>();
             var mutated = (ICommand)context.Message.Instance;
             if (mutators == null) return next();
