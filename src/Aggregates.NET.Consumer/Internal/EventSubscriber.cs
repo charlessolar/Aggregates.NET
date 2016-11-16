@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -12,6 +13,7 @@ using EventStore.ClientAPI;
 using EventStore.ClientAPI.Common;
 using EventStore.ClientAPI.Exceptions;
 using EventStore.ClientAPI.Projections;
+using Metrics;
 using Newtonsoft.Json;
 using NServiceBus;
 using NServiceBus.Extensibility;
@@ -22,14 +24,20 @@ using NServiceBus.Transport;
 using NServiceBus.Unicast;
 using NServiceBus.Unicast.Messages;
 using MessageContext = NServiceBus.Transport.MessageContext;
+using Timer = System.Threading.Timer;
 
 namespace Aggregates.Internal
 {
     internal class EventSubscriber : IEventSubscriber
     {
+        private static readonly Histogram Acknowledging = Metric.Histogram("Acknowledged Events", Unit.Events);
+
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventSubscriber));
         private static readonly TransportTransaction transportTranaction = new TransportTransaction();
         private static readonly ContextBag contextBag = new ContextBag();
+
+        private ConcurrentBag<ResolvedEvent> _toBeAcknowledged;
+        private Timer _acknowledger;
 
         private string _endpoint;
         private int _readsize;
@@ -61,6 +69,30 @@ namespace Aggregates.Internal
                 Binder = new EventSerializationBinder(mapper),
                 ContractResolver = new EventContractResolver(mapper)
             };
+
+            _toBeAcknowledged = new ConcurrentBag<ResolvedEvent>();
+            _acknowledger = new Timer(_ =>
+            {
+                if (_toBeAcknowledged.IsEmpty) return;
+
+                var willAcknowledge = _toBeAcknowledged.ToList();
+                var newBag = new ConcurrentBag<ResolvedEvent>();
+                Interlocked.Exchange<ConcurrentBag<ResolvedEvent>>(ref _toBeAcknowledged, newBag);
+
+                if (!ProcessingLive) return;
+
+                Acknowledging.Update(willAcknowledge.Count);
+                Logger.Write(LogLevel.Info, () => $"Acknowledging {willAcknowledge.Count} events");
+
+                var page = 0;
+                while (page < willAcknowledge.Count)
+                {
+                    var working = willAcknowledge.Skip(page).Take(1000);
+                    _subscription.Acknowledge(working);
+                    page += 1000;
+                }
+
+            }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
 
         }
 
@@ -138,7 +170,7 @@ namespace Aggregates.Internal
                     .WithMessageTimeoutOf(TimeSpan.FromSeconds(60))
                     .CheckPointAfter(TimeSpan.FromSeconds(10))
                     .ResolveLinkTos()
-                    .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
+                    .WithNamedConsumerStrategy(SystemConsumerStrategies.RoundRobin);
 
                 await
                     _connection.CreatePersistentSubscriptionAsync(stream, group, settings,
@@ -148,7 +180,7 @@ namespace Aggregates.Internal
             {
             }
 
-            _subscription = await _connection.ConnectToPersistentSubscriptionAsync(stream, group, (subscription, e) =>
+            ThreadPool.QueueUserWorkItem(_ =>
             {
 
                 while (Bus.OnMessage == null || Bus.OnError == null)
@@ -161,23 +193,40 @@ namespace Aggregates.Internal
                 if (_concurrencyLimit == null)
                     _concurrencyLimit = new SemaphoreSlim(Bus.PushSettings.MaxConcurrency);
 
+                _subscription = _connection.ConnectToPersistentSubscriptionAsync(stream, group, EventProcessor(cancelToken), subscriptionDropped: (sub, reason, e) =>
+                {
+                    Logger.Write(LogLevel.Warn, () => $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
+                    ProcessingLive = false;
+                    Dropped?.Invoke(reason.ToString(), e);
+                }, bufferSize: _readsize, autoAck: false).Result;
+                ProcessingLive = true;
+            });
+
+            
+        }
+
+        private Action<EventStorePersistentSubscriptionBase, ResolvedEvent> EventProcessor(CancellationToken token)
+        {
+            return (subscription, e) =>
+            {
                 var @event = e.Event;
                 if (!@event.IsJson)
                 {
-                    subscription.Acknowledge(e);
+                    _toBeAcknowledged.Add(e);
                     return;
                 }
-                Logger.Write(LogLevel.Debug, () => $"Event {@event.EventId} type {@event.EventType} appeared stream [{@event.EventStreamId}] number {@event.EventNumber}");
+                Logger.Write(LogLevel.Debug,
+                    () => $"Event {@event.EventId} type {@event.EventType} appeared stream [{@event.EventStreamId}] number {@event.EventNumber}");
 
 
                 var descriptor = @event.Metadata.Deserialize(_settings);
 
-                if (cancelToken.IsCancellationRequested)
+                if (token.IsCancellationRequested)
                 {
                     subscription.Stop(TimeSpan.FromSeconds(30));
                     return;
                 }
-                _concurrencyLimit.WaitAsync(cancelToken).ConfigureAwait(false).GetAwaiter().GetResult();
+                _concurrencyLimit.WaitAsync(token).ConfigureAwait(false).GetAwaiter().GetResult();
 
                 Task.Run(async () =>
                 {
@@ -203,6 +252,12 @@ namespace Aggregates.Internal
                                 await Bus.OnMessage(messageContext).ConfigureAwait(false);
                                 processed = true;
                             }
+                            catch (ObjectDisposedException)
+                            {
+                                // Rabbit has been disconnected
+                                subscription.Stop(TimeSpan.FromSeconds(30));
+                                return;
+                            }
                             catch (Exception ex)
                             {
                                 ++numberOfDeliveryAttempts;
@@ -212,8 +267,10 @@ namespace Aggregates.Internal
                                     break;
 
                                 _concurrencyLimit.Release();
-                                await Task.Delay(100 * (numberOfDeliveryAttempts / 2)).ConfigureAwait(false);
-                                await _concurrencyLimit.WaitAsync(cancelToken).ConfigureAwait(false);
+                                await
+                                    Task.Delay(100*(numberOfDeliveryAttempts/2), cancellationToken: token)
+                                        .ConfigureAwait(false);
+                                await _concurrencyLimit.WaitAsync(token).ConfigureAwait(false);
                             }
                         }
 
@@ -222,17 +279,12 @@ namespace Aggregates.Internal
                         if (tokenSource.IsCancellationRequested)
                             return;
 
-                        //Logger.Write(LogLevel.Debug, () => $"Acknowledging event {@event.EventId}");
+                        Logger.Write(LogLevel.Debug, () => $"Queueing acknowledge for event {@event.EventId}");
+                        _toBeAcknowledged.Add(e);
                         //subscription.Acknowledge(e);
                     }
-                }, cancelToken);
-
-            }, subscriptionDropped: (_, reason, e) =>
-            {
-                Logger.Write(LogLevel.Warn, () => $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
-                ProcessingLive = false;
-                Dropped?.Invoke(reason.ToString(), e);
-            }, bufferSize: 10, autoAck: true).ConfigureAwait(false);
+                }, token);
+            };
         }
 
         public void Dispose()
@@ -242,7 +294,7 @@ namespace Aggregates.Internal
 
             _disposed = true;
             _concurrencyLimit.Dispose();
-            _subscription.Stop(TimeSpan.FromSeconds(5));
+            _subscription.Stop(TimeSpan.FromSeconds(30));
         }
 
         string SerializeEnclosedMessageTypes(Type messageType)

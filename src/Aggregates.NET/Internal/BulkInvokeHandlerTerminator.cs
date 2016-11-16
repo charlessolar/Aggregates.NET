@@ -31,7 +31,7 @@ namespace Aggregates.Internal
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
         private static readonly HashSet<string> IsNotDelayed = new HashSet<string>();
 
-        private static String BulkedMessageId;
+        private static string _bulkedMessageId;
 
         private readonly IBuilder _builder;
         private readonly IMessageMapper _mapper;
@@ -58,7 +58,7 @@ namespace Aggregates.Internal
             var messageHandler = context.MessageHandler;
 
 
-            var key = $"{messageHandler.HandlerType.FullName}.{msgType.FullName}";
+            var key = $"{messageHandler.HandlerType.FullName}:{msgType.FullName}";
             if (IsNotDelayed.Contains(key))
             {
                 Logger.Write(LogLevel.Debug, () => $"Invoking handle for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
@@ -67,6 +67,9 @@ namespace Aggregates.Internal
             }
             if (IsDelayed.ContainsKey(key))
             {
+                DelayedAttribute delayed;
+                IsDelayed.TryGetValue(key, out delayed);
+
                 var msgPkg = new DelayedMessage
                 {
                     MessageId = context.MessageId,
@@ -76,11 +79,28 @@ namespace Aggregates.Internal
                 };
 
                 InvokesDelayed.Mark();
+
+                if (delayed.KeyPropertyFunc != null)
+                {
+                    try
+                    {
+                        key = $"{key}:{delayed.KeyPropertyFunc(context.MessageBeingHandled)}";
+                    }
+                    catch
+                    {
+                        Logger.Warn($"Failed to get property key {delayed.KeyProperty} on message {msgType.FullName}");
+                    }
+                }
                 Logger.Write(LogLevel.Debug, () => $"Delaying message {msgType.FullName} delivery");
                 var size = await channel.AddToQueue(key, msgPkg).ConfigureAwait(false);
 
-                DelayedAttribute delayed;
-                IsDelayed.TryGetValue(key, out delayed);
+                if (_bulkedMessageId == context.MessageId)
+                {
+                    // Prevents a single message from triggering a dozen different bulk invokes
+                    Logger.Write(LogLevel.Debug, () => $"Limiting bulk processing for a single message to a single invoke");
+                    return;
+                }
+
 
                 TimeSpan? age = null;
 
@@ -92,13 +112,8 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] not hit Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing {msgType.FullName}");
                     return;
                 }
-                if (BulkedMessageId == context.MessageId)
-                {
-                    Logger.Write(LogLevel.Debug, () => $"Limiting bulk processing for a single message to a single invoke");
-                    return;
-                }
 
-                BulkedMessageId = context.MessageId;
+                _bulkedMessageId = context.MessageId;
                 Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] hit Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing {msgType.FullName}");
                 var msgs = await channel.Pull(key).ConfigureAwait(false);
 
