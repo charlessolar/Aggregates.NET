@@ -22,11 +22,11 @@ namespace Aggregates.Attributes
 
             if (!string.IsNullOrEmpty(KeyProperty))
             {
-                var prop = type.GetProperty(KeyProperty, BindingFlags.Instance);
+                var prop = type.GetProperty(KeyProperty, BindingFlags.Instance | BindingFlags.Public);
                 if (prop == null) return;
 
                 this.KeyProperty = KeyProperty;
-                KeyPropertyFunc = (o) => prop.GetValue(o).ToString();
+                this.KeyPropertyFunc = (o) => prop.GetValue(o).ToString();
             }
 
         }

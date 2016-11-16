@@ -198,7 +198,7 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Warn, () => $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
                     ProcessingLive = false;
                     Dropped?.Invoke(reason.ToString(), e);
-                }, bufferSize: _readsize, autoAck: false).Result;
+                }, bufferSize: _readsize * 10, autoAck: false).Result;
                 ProcessingLive = true;
             });
 
