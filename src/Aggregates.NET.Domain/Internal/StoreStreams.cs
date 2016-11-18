@@ -144,15 +144,10 @@ namespace Aggregates.Internal
             {
                 await _store.WriteMetadata(streamName, frozen: false).ConfigureAwait(false);
             }
-            catch (FrozenException)
+            catch (VersionException)
             {
                 Logger.Write(LogLevel.Debug, () => $"Unfreeze: stream [{streamName}] is not frozen");
                 return;
-            }
-            catch (VersionException)
-            {
-                Logger.Write(LogLevel.Error, () => $"Unfreeze: stream [{streamName}] metadata is inconsistent");
-                throw new FrozenException();
             }
             
         }

@@ -126,7 +126,7 @@ namespace Aggregates.Internal
                     .Select(eventType => $"'$et-{eventType.AssemblyQualifiedName}'")
                     .Aggregate((cur, next) => $"{cur},{next}");
 
-            var definition = $"fromStreams([{eventTypes}]).when(\n{{{functions}}}\n);";
+            var definition = $"fromStreams([{eventTypes}]).when({{\n{functions}\n}});";
 
             try
             {
@@ -170,7 +170,7 @@ namespace Aggregates.Internal
                     .WithMessageTimeoutOf(TimeSpan.FromSeconds(60))
                     .CheckPointAfter(TimeSpan.FromSeconds(10))
                     .ResolveLinkTos()
-                    .WithNamedConsumerStrategy(SystemConsumerStrategies.RoundRobin);
+                    .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
 
                 await
                     _connection.CreatePersistentSubscriptionAsync(stream, group, settings,

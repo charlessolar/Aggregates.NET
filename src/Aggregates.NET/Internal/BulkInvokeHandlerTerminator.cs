@@ -88,7 +88,7 @@ namespace Aggregates.Internal
                     }
                     catch
                     {
-                        Logger.Warn($"Failed to get property key {delayed.KeyProperty} on message {msgType.FullName}");
+                        Logger.Warn($"Failed to get key properties from message {msgType.FullName}");
                     }
                 }
                 Logger.Write(LogLevel.Debug, () => $"Delaying message {msgType.FullName} delivery");

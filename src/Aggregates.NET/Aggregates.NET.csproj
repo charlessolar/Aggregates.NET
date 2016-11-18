@@ -68,6 +68,7 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="Attributes\KeyProperty.cs" />
     <Compile Include="Bus.cs" />
     <Compile Include="Attributes\DelayedAttribute.cs" />
     <Compile Include="Configuration.cs" />
