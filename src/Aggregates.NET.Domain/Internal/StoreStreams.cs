@@ -130,7 +130,7 @@ namespace Aggregates.Internal
             }
             catch (VersionException)
             {
-                Logger.Write(LogLevel.Error, () => $"Freeze: stream [{streamName}] someone froze before us");
+                Logger.Write(LogLevel.Debug, () => $"Freeze: stream [{streamName}] someone froze before us");
                 throw new FrozenException();
             }
         }

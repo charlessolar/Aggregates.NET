@@ -31,6 +31,7 @@ namespace Aggregates.Internal
 
         private readonly IStoreEvents _store;
 
+        private object _lock = new object();
         private Dictionary<string, Tuple<int?, Snapshot>> _inFlight;
         private List<Tuple<string, WritableEvent>> _uncommitted;
 
@@ -50,13 +51,13 @@ namespace Aggregates.Internal
         {
 
             Logger.Write(LogLevel.Debug, () => $"Saving {_inFlight.Count()} {(ex == null ? "ACKs" : "NACKs")}");
-            await Task.WhenAll(_inFlight.ToList().Select(x => ex == null ? Ack(x.Key) : NAck(x.Key)));
+            await Task.WhenAll(_inFlight.ToList().Select(x => ex == null ? Ack(x.Key) : NAck(x.Key))).ConfigureAwait(false);
             if (ex == null)
             {
                 Logger.Write(LogLevel.Debug, () => $"Saving {_uncommitted.Count()} delayed streams");
                 await Task.WhenAll(
                     _uncommitted.GroupBy(x => x.Item1)
-                        .Select(x => _store.WriteEvents(x.Key, x.Select(y => y.Item2), null)));
+                        .Select(x => _store.WriteEvents(x.Key, x.Select(y => y.Item2), null))).ConfigureAwait(false);
             }
         }
 
@@ -118,9 +119,12 @@ namespace Aggregates.Internal
 
             read = await _store.GetEventsBackwards(streamName, StreamPosition.End, 1).ConfigureAwait(false);
 
-            _uncommitted.Add(new Tuple<string, WritableEvent>(streamName, @event));
-            var existing = _uncommitted.Count(c => c.Item1 == streamName);
-
+            int existing;
+            lock (_lock)
+            {
+                _uncommitted.Add(new Tuple<string, WritableEvent>(streamName, @event));
+                existing = _uncommitted.Count(c => c.Item1 == streamName);
+            }
             if (read == null || !read.Any())
                 return existing;
 
@@ -138,11 +142,13 @@ namespace Aggregates.Internal
                 return new object[] { }.AsEnumerable();
 
             IEnumerable<IWritableEvent> delayed = null;
+            var didFreeze = false;
             try
             {
                 try
                 {
                     await _store.WriteMetadata(streamName, frozen: true, owner: Defaults.Instance).ConfigureAwait(false);
+                    didFreeze = true;
 
                     var start = StreamPosition.Start;
                     var read =
@@ -181,7 +187,7 @@ namespace Aggregates.Internal
             {
                 try
                 {
-                    if (delayed == null || !delayed.Any())
+                    if (didFreeze)
                         await _store.WriteMetadata(streamName, frozen: false).ConfigureAwait(false);
                 }
                 catch (VersionException)
@@ -189,10 +195,13 @@ namespace Aggregates.Internal
                 }
             }
             var discovered = delayed?.Select(x => x.Event) ?? new object[] {}.AsEnumerable();
-            var existing = _uncommitted.Where(c => c.Item1 == streamName).ToList();
-            foreach(var e in existing)
-                _uncommitted.Remove(e);
-            
+            List<Tuple<string, WritableEvent>> existing;
+            lock (_lock)
+            {
+                existing = _uncommitted.Where(c => c.Item1 == streamName).ToList();
+                foreach (var e in existing)
+                    _uncommitted.Remove(e);
+            }
             return discovered.Concat(existing.Select(x => x.Item2.Event));
         }
 
@@ -202,9 +211,12 @@ namespace Aggregates.Internal
                 return;
 
             var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
-            var snap = _inFlight[channel];
-            _inFlight.Remove(channel);
-
+            Tuple<int?, Snapshot> snap;
+            lock (_lock)
+            {
+                snap = _inFlight[channel];
+                _inFlight.Remove(channel);
+            }
             var @event = new WritableEvent
             {
                 Descriptor = new EventDescriptor { EntityType = "DELAY", Timestamp = DateTime.UtcNow },
@@ -232,7 +244,7 @@ namespace Aggregates.Internal
 
             // Remove the freeze so someone else can run the delayed
             var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
-            _inFlight.Remove(channel);
+            lock(_lock) _inFlight.Remove(channel);
             // We've read all delayed events, tell eventstore it can scavage all of them
             await _store.WriteMetadata(streamName, frozen: false).ConfigureAwait(false);
         }
