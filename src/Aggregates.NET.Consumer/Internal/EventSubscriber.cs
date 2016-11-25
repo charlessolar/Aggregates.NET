@@ -74,10 +74,9 @@ namespace Aggregates.Internal
             _acknowledger = new Timer(_ =>
             {
                 if (_toBeAcknowledged.IsEmpty) return;
-
-                var willAcknowledge = _toBeAcknowledged.ToList();
+                
                 var newBag = new ConcurrentBag<ResolvedEvent>();
-                Interlocked.Exchange<ConcurrentBag<ResolvedEvent>>(ref _toBeAcknowledged, newBag);
+                var willAcknowledge = Interlocked.Exchange<ConcurrentBag<ResolvedEvent>>(ref _toBeAcknowledged, newBag);
 
                 if (!ProcessingLive) return;
 
