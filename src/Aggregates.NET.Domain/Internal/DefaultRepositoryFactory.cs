@@ -5,7 +5,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    public class DefaultRepositoryFactory : IRepositoryFactory
+    class DefaultRepositoryFactory : IRepositoryFactory
     {
         private static readonly IDictionary<Type, Type> RepoCache = new Dictionary<Type, Type>();
 

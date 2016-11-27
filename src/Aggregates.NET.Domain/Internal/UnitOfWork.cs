@@ -15,7 +15,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    public class UnitOfWork : IUnitOfWork, IApplicationUnitOfWork, IMutateOutgoingMessages, IMutateIncomingMessages
+    class UnitOfWork : IUnitOfWork, IApplicationUnitOfWork, IMutateOutgoingMessages, IMutateIncomingMessages
     {
         private static readonly Metrics.Timer CommitTime = Metric.Timer("UOW Commit Time", Unit.Items);
         public static string PrefixHeader = "Originating";

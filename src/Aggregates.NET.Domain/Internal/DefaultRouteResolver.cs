@@ -10,7 +10,7 @@ using NServiceBus.MessageInterfaces;
 
 namespace Aggregates.Internal
 {
-    public class DefaultRouteResolver : IRouteResolver
+    class DefaultRouteResolver : IRouteResolver
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(DefaultRouteResolver));
 

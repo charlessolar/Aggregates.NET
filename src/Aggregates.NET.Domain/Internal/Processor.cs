@@ -6,7 +6,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    public class Processor : IProcessor
+    class Processor : IProcessor
     {
         [DebuggerStepThrough]
         public Task<IEnumerable<TResponse>> Process<TQuery, TResponse>(IBuilder builder, TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>

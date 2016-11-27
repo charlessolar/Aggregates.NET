@@ -5,7 +5,7 @@ using Aggregates.Contracts;
 
 namespace Aggregates.Internal
 {
-    public class DefaultOobHandler : IOobHandler
+    class DefaultOobHandler : IOobHandler
     {
         private readonly IStoreEvents _store;
         private readonly StreamIdGenerator _streamGen;

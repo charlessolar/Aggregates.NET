@@ -8,7 +8,7 @@ using NServiceBus;
 
 namespace Aggregates.Internal
 {
-    public class NsbOobHandler : IOobHandler
+    class NsbOobHandler : IOobHandler
     {
         private readonly IMessageSession _endpoint;
 

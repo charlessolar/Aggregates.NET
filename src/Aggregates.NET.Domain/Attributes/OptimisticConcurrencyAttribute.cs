@@ -1,4 +1,5 @@
 ﻿using System;
+using Aggregates.Internal;
 
 namespace Aggregates.Attributes
 {
@@ -22,7 +23,7 @@ namespace Aggregates.Attributes
                 throw new ArgumentException("Conflict resolver must inherit from IResolveConflicts");
         }
 
-        public ConcurrencyStrategy Conflict { get; private set; }
+        internal ConcurrencyStrategy Conflict { get; private set; }
         public int? ResolveRetries { get; private set; }
         public Type Resolver { get; private set; }
     }
