@@ -21,6 +21,7 @@ namespace Aggregates.Internal
         private static readonly HashSet<string> Uncachable = new HashSet<string>();
         private static readonly HashSet<string> LevelOne = new HashSet<string>();
         private static readonly HashSet<string> LevelZero = new HashSet<string>();
+        private static readonly object Lock = new object();
         private static int _stage;
         private static readonly Timer UncachableEviction = new Timer(_ =>
         {
@@ -33,7 +34,7 @@ namespace Aggregates.Internal
             }
             // Clear levelOne every 10 seconds
             if (_stage % 2 == 0)
-                LevelOne.Clear();
+                lock(Lock) LevelOne.Clear();
 
             // Clear levelZero every 5 seconds
             LevelZero.Clear();
@@ -69,13 +70,13 @@ namespace Aggregates.Internal
                     if (LevelOne.Contains(stream))
                     {
                         Logger.Write(LogLevel.Info, () => $"Stream [{stream}] has been evicted frequenty, marking uncachable for a few minutes");
-                        Uncachable.Add(stream);
+                        lock (Lock) Uncachable.Add(stream);
                     }
                     else
-                        LevelOne.Add(stream);
+                        lock (Lock) LevelOne.Add(stream);
                 }
                 else
-                    LevelZero.Add(stream);
+                    lock (Lock) LevelZero.Add(stream);
 
             }
             object e;

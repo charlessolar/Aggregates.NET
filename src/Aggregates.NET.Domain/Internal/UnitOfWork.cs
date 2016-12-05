@@ -29,7 +29,7 @@ namespace Aggregates.Internal
         private IDictionary<Type, IRepository> _repositories;
         private IDictionary<string, IEntityRepository> _entityRepositories;
         private IDictionary<string, IRepository> _pocoRepositories;
-        
+
 
         public IBuilder Builder { get; set; }
         public int Retries { get; set; }
@@ -60,28 +60,28 @@ namespace Aggregates.Internal
         {
             if (_disposed || !disposing)
                 return;
-            
-                foreach (var repo in _repositories.Values)
-                {
-                    repo.Dispose();
-                }
 
-                _repositories.Clear();
+            foreach (var repo in _repositories.Values)
+            {
+                repo.Dispose();
+            }
 
-                foreach (var repo in _entityRepositories.Values)
-                {
-                    repo.Dispose();
-                }
+            _repositories.Clear();
 
-                _entityRepositories.Clear();
+            foreach (var repo in _entityRepositories.Values)
+            {
+                repo.Dispose();
+            }
 
-                foreach (var repo in _pocoRepositories.Values)
-                {
-                    repo.Dispose();
-                }
+            _entityRepositories.Clear();
 
-                _pocoRepositories.Clear();
-            
+            foreach (var repo in _pocoRepositories.Values)
+            {
+                repo.Dispose();
+            }
+
+            _pocoRepositories.Clear();
+
             _disposed = true;
         }
 
@@ -91,19 +91,19 @@ namespace Aggregates.Internal
             var type = typeof(T);
 
             IRepository repository;
-            if (_repositories.TryGetValue(type, out repository)) return (IRepository<T>) repository;
-            
+            if (_repositories.TryGetValue(type, out repository)) return (IRepository<T>)repository;
+
             return (IRepository<T>)(_repositories[type] = _repoFactory.ForAggregate<T>(Builder));
         }
         public IEntityRepository<TParent, TParentId, TEntity> For<TParent, TParentId, TEntity>(TParent parent) where TEntity : class, IEntity where TParent : class, IBase<TParentId>
         {
-            Logger.Write(LogLevel.Debug, () => $"Retreiving entity repository for type {typeof(TEntity)}" );
+            Logger.Write(LogLevel.Debug, () => $"Retreiving entity repository for type {typeof(TEntity)}");
             var key = $"{parent.StreamId}:{typeof(TEntity).FullName}";
 
             IEntityRepository repository;
             if (_entityRepositories.TryGetValue(key, out repository))
                 return (IEntityRepository<TParent, TParentId, TEntity>)repository;
-            
+
             return (IEntityRepository<TParent, TParentId, TEntity>)(_entityRepositories[key] = _repoFactory.ForEntity<TParent, TParentId, TEntity>(parent, Builder));
         }
         public IPocoRepository<T> Poco<T>() where T : class, new()
@@ -112,13 +112,13 @@ namespace Aggregates.Internal
             var key = $"{typeof(T).FullName}";
 
             IRepository repository;
-            if (_pocoRepositories.TryGetValue(key, out repository)) return (IPocoRepository<T>) repository;
-            
+            if (_pocoRepositories.TryGetValue(key, out repository)) return (IPocoRepository<T>)repository;
+
             return (IPocoRepository<T>)(_pocoRepositories[key] = _repoFactory.ForPoco<T>(Builder));
         }
         public IPocoRepository<TParent, TParentId, T> Poco<TParent, TParentId, T>(TParent parent) where T : class, new() where TParent : class, IBase<TParentId>
         {
-            Logger.Write(LogLevel.Debug, () => $"Retreiving poco repository for type {typeof(T)}");
+            Logger.Write(LogLevel.Debug, () => $"Retreiving child poco repository for type {typeof(T)}");
             var key = $"{parent.StreamId}:{typeof(T).FullName}";
 
             IRepository repository;
@@ -147,7 +147,7 @@ namespace Aggregates.Internal
             var result = _mapper.CreateInstance(computed);
             return Compute<TComputed, TResponse>(result);
         }
-        
+
 
         Task IApplicationUnitOfWork.Begin()
         {
@@ -155,7 +155,8 @@ namespace Aggregates.Internal
         }
         Task IApplicationUnitOfWork.End(Exception ex)
         {
-            if (ex != null)
+            // Todo: If current message is an event, detect if they've modified any entities and warn them.
+            if (ex != null || CurrentMessage is IEvent)
                 return Task.CompletedTask;
 
             return Commit();
@@ -167,43 +168,27 @@ namespace Aggregates.Internal
             var headers = new Dictionary<string, string>(CurrentHeaders);
 
             Logger.Write(LogLevel.Debug, () => $"Starting commit id {CommitId} for {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories");
+
             using (CommitTime.NewContext())
             {
-                var startingEventId = CommitId;
-                foreach(var repo in _repositories.Values)
+                try
                 {
-                    try
-                    {
+                    var startingEventId = CommitId;
+                    foreach (var repo in _repositories.Values)
                         startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
-                    }
-                    catch (StorageException e)
-                    {
-                        throw new PersistenceException(e.Message, e);
-                    }
+
+                    foreach (var repo in _entityRepositories.Values)
+                        startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
+
+                    foreach (var repo in _pocoRepositories.Values)
+                        startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
+
                 }
-                foreach (var repo in _entityRepositories.Values)
+                catch (PersistenceException e)
                 {
-                    try
-                    {
-                        startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
-                    }
-                    catch (StorageException e)
-                    {
-                        throw new PersistenceException(e.Message, e);
-                    }
+
+                    throw;
                 }
-                foreach (var repo in _pocoRepositories.Values)
-                {
-                    try
-                    {
-                        startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
-                    }
-                    catch (StorageException e)
-                    {
-                        throw new PersistenceException(e.Message, e);
-                    }
-                }
-                
             }
             Logger.Write(LogLevel.Debug, () => $"Commit id {CommitId} complete");
         }
@@ -272,6 +257,6 @@ namespace Aggregates.Internal
 
             return Task.CompletedTask;
         }
-        
+
     }
 }

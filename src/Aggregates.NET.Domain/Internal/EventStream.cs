@@ -180,7 +180,6 @@ namespace Aggregates.Internal
                 {
                     Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] publishing {_outofband.Count} out of band events to {_oobHandler.GetType().Name}");
                     await _oobHandler.Publish<T>(Bucket, StreamId, _outofband, commitHeaders).ConfigureAwait(false);
-
                 }
                 _outofband.Clear();
             }

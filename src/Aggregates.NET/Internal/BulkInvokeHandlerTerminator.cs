@@ -29,6 +29,7 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger(typeof(BulkInvokeHandlerTerminator));
 
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
+        private static readonly object Lock = new Object();
         private static readonly HashSet<string> IsNotDelayed = new HashSet<string>();
 
         private static string _bulkedMessageId;
@@ -131,7 +132,7 @@ namespace Aggregates.Internal
             var single = attrs.SingleOrDefault(x => x.Type == msgType);
             if (single == null)
             {
-                IsNotDelayed.Add(key);
+                lock(Lock) IsNotDelayed.Add(key);
             }
             else
             {

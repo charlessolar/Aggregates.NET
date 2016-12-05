@@ -58,29 +58,6 @@ namespace Aggregates.Internal
             var uow = Builder.Build<IUnitOfWork>();
             return uow.Poco<TThis, TId, T>(this as TThis);
         }
-        public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
-        {
-            var processor = Builder.Build<IProcessor>();
-            return processor.Process<TQuery, TResponse>(Builder, query);
-        }
-        public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
-        {
-            var result = (TQuery)FormatterServices.GetUninitializedObject(typeof(TQuery));
-            query.Invoke(result);
-            return Query<TQuery, TResponse>(result);
-        }
-
-        public Task<TResponse> Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>
-        {
-            var processor = Builder.Build<IProcessor>();
-            return processor.Compute<TComputed, TResponse>(Builder, computed);
-        }
-        public Task<TResponse> Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>
-        {
-            var result = (TComputed)FormatterServices.GetUninitializedObject(typeof(TComputed));
-            computed.Invoke(result);
-            return Compute<TComputed, TResponse>(result);
-        }
 
 
         public override int GetHashCode()
