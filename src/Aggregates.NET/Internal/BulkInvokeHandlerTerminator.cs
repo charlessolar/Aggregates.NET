@@ -60,7 +60,11 @@ namespace Aggregates.Internal
 
 
             var key = $"{messageHandler.HandlerType.FullName}:{msgType.FullName}";
-            if (IsNotDelayed.Contains(key))
+
+            bool contains = false;
+            lock (Lock) contains = IsNotDelayed.Contains(key);
+
+            if (contains)
             {
                 Logger.Write(LogLevel.Debug, () => $"Invoking handle for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
                 await messageHandler.Invoke(context.MessageBeingHandled, context).ConfigureAwait(false);
