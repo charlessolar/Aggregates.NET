@@ -166,6 +166,8 @@ namespace Aggregates.Internal
                 var settings = PersistentSubscriptionSettings.Create()
                     .StartFromBeginning()
                     .WithReadBatchOf(_readsize)
+                    .WithMaxRetriesOf(0)
+                    .WithLiveBufferSizeOf(_readsize)
                     .WithMessageTimeoutOf(TimeSpan.FromSeconds(60))
                     .CheckPointAfter(TimeSpan.FromSeconds(10))
                     .ResolveLinkTos()
@@ -215,7 +217,7 @@ namespace Aggregates.Internal
                     return;
                 }
                 Logger.Write(LogLevel.Debug,
-                    () => $"Event {@event.EventId} type {@event.EventType} appeared stream [{@event.EventStreamId}] number {@event.EventNumber}");
+                    () => $"Event {@event.EventId} type {@event.EventType} appeared stream [{@event.EventStreamId}] number {@event.EventNumber} Position C:{e.OriginalPosition?.CommitPosition}/P:{e.OriginalPosition?.PreparePosition}");
 
 
                 var descriptor = @event.Metadata.Deserialize(_settings);
