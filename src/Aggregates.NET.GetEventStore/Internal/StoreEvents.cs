@@ -125,12 +125,12 @@ namespace Aggregates.Internal
             var sliceStart = StreamPosition.End;
 
             Logger.Write(LogLevel.Debug, () => $"Reading events from stream [{stream}] starting at {sliceStart}");
-            if (start.HasValue)
+            if (start.HasValue || count == 1)
             {
                 // Interesting, ReadStreamEventsBackwardAsync's [start] parameter marks start from begining of stream, not an offset from the end.
                 // Read 1 event from the end, to figure out where start should be
                 var result = await _client.ReadStreamEventsBackwardAsync(stream, StreamPosition.End, 1, false).ConfigureAwait(false);
-                sliceStart = result.NextEventNumber - start.Value;
+                sliceStart = result.NextEventNumber - start ?? 0;
 
                 // Special case if only 1 event is requested no reason to read any more
                 if (count == 1)

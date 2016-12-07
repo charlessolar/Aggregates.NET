@@ -16,6 +16,7 @@ namespace Aggregates.Contracts
         Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(string bucket, string streamId, int? start = null, int? count = null) where T : class, IEventSource;
 
         Task WriteEvents<T>(string bucket, string streamId, int expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource;
+        Task VerifyVersion<T>(string bucket, string streamId, int expectedVersion) where T : class, IEventSource;
 
         Task Freeze<T>(string bucket, string streamId) where T : class, IEventSource;
         Task Unfreeze<T>(string bucket, string streamId) where T : class, IEventSource;

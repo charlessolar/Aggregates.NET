@@ -66,7 +66,8 @@ namespace Aggregates.Internal
             {
                 foreach (var tracked in Tracked.Values)
                 {
-                    if (tracked.Stream.TotalUncommitted == 0) return startingEventId;
+                    // Instead of skipping streams with no new events, "commit" them to verify they are the same version as we read
+                    //if (tracked.Stream.TotalUncommitted == 0) return startingEventId;
 
                     var headers = new Dictionary<string, string>(commitHeaders);
 

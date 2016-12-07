@@ -193,11 +193,20 @@ namespace Aggregates.Internal
                     uncommitted.EventId = startingEventId;
                     startingEventId = startingEventId.Increment();
                 }
-                
-                Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {wip.Count} events");
+
+                Logger.Write(LogLevel.Debug,
+                    () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {wip.Count} events");
                 await _store.WriteEvents<T>(Bucket, StreamId, CommitVersion, wip, commitHeaders).ConfigureAwait(false);
                 _uncommitted = wip;
             }
+            else
+            {
+                Logger.Write(LogLevel.Debug,
+                    () => $"Event stream [{StreamId}] in bucket [{Bucket}] has no new events - verifying version at the store is same");
+                await _store.VerifyVersion<T>(Bucket, StreamId, CommitVersion).ConfigureAwait(false);
+            }
+
+
             if (_pendingShots.Any())
             {
                 Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {_pendingShots.Count} snapshots");

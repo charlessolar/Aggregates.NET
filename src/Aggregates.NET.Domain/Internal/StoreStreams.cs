@@ -118,7 +118,19 @@ namespace Aggregates.Internal
             Saved.Mark();
             await _store.WriteEvents(streamName, events, commitHeaders, expectedVersion: expectedVersion).ConfigureAwait(false);
         }
-        
+
+        public async Task VerifyVersion<T>(string bucket, string streamId, int expectedVersion)
+            where T : class, IEventSource
+        {
+            var streamName = _streamGen(typeof(T), bucket, streamId);
+
+            var last = await _store.GetEventsBackwards(streamName, count: 1).ConfigureAwait(false);
+            if (!last.Any())
+                throw new VersionException($"Expected version {expectedVersion} on stream [{streamName}] - but no stream found");
+            if (last.First().Descriptor.Version != expectedVersion)
+                throw new VersionException(
+                    $"Expected version {expectedVersion} on stream [{streamName}] - but read {last.First().Descriptor.Version}");
+        }
 
         public async Task Freeze<T>(string bucket, string streamId) where T : class, IEventSource
         {
