@@ -47,13 +47,17 @@ namespace Aggregates.Internal
 
         public MemoryStreamCache(/*Boolean Intelligent = false*/)
         {
-            _intelligent = false;
+            _intelligent = true;
         }
 
         public void Cache(string stream, object cached)
         {
-            if (_intelligent && (Uncachable.Contains(stream) || LevelOne.Contains(stream)))
-                return;
+            if (_intelligent)
+                lock (Lock)
+                {
+                    if(Uncachable.Contains(stream) || LevelOne.Contains(stream))
+                        return;
+                }
 
             Logger.Write(LogLevel.Debug, () => $"Caching stream [{stream}]");
             MemCache.AddOrUpdate(stream, (_) => cached, (_, e) => cached);
@@ -63,21 +67,26 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Evicting stream [{stream}] from cache");
             if (_intelligent)
             {
-                if (Uncachable.Contains(stream)) return;
-
-                if (LevelZero.Contains(stream))
+                lock (Lock)
                 {
-                    if (LevelOne.Contains(stream))
+                    if (Uncachable.Contains(stream)) return;
+
+                    if (LevelZero.Contains(stream))
                     {
-                        Logger.Write(LogLevel.Info, () => $"Stream [{stream}] has been evicted frequenty, marking uncachable for a few minutes");
-                        lock (Lock) Uncachable.Add(stream);
+                        if (LevelOne.Contains(stream))
+                        {
+                            Logger.Write(LogLevel.Info,
+                                () =>
+                                        $"Stream [{stream}] has been evicted frequenty, marking uncachable for a few minutes");
+                            Uncachable.Add(stream);
+                        }
+                        else
+                            LevelOne.Add(stream);
                     }
                     else
-                        lock (Lock) LevelOne.Add(stream);
-                }
-                else
-                    lock (Lock) LevelZero.Add(stream);
+                        LevelZero.Add(stream);
 
+                }
             }
             object e;
             MemCache.TryRemove(stream, out e);

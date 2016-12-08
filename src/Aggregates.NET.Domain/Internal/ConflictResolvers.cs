@@ -182,7 +182,8 @@ namespace Aggregates.Internal
                 await _delay.AddToQueue(entity.StreamId, @event).ConfigureAwait(false);
 
             // Todo: make 30 seconds configurable
-            if (await _delay.Age(entity.StreamId).ConfigureAwait(false) < TimeSpan.FromSeconds(30))
+            var age = await _delay.Age(entity.StreamId).ConfigureAwait(false);
+            if (!age.HasValue || age < TimeSpan.FromSeconds(30))
                 return startingEventId;
 
             var stream = entity.Stream;

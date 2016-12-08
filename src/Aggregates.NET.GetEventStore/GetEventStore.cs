@@ -24,8 +24,8 @@ namespace Aggregates
             var settings = context.Settings;
             
             context.Container.ConfigureComponent<EventStoreDelayed>(DependencyLifecycle.InstancePerUnitOfWork);
-            context.Container.ConfigureComponent(b => (IApplicationUnitOfWork) b.Build<EventStoreDelayed>(),
-                DependencyLifecycle.InstancePerUnitOfWork);
+            //context.Container.ConfigureComponent(b => (IApplicationUnitOfWork) b.Build<EventStoreDelayed>(),
+            //    DependencyLifecycle.InstancePerCall);
 
             context.Container.ConfigureComponent(b => 
                 new StoreEvents(b.Build<IEventStoreConnection>(), b.Build<IMessageMapper>(), settings.Get<int>("ReadSize"), settings.Get<bool>("Compress")), 

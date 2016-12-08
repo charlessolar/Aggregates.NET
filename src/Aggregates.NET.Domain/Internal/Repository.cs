@@ -84,22 +84,25 @@ namespace Aggregates.Internal
                         var memento = (tracked as ISnapshotting).TakeSnapshot();
                         stream.AddSnapshot(memento, headers);
                     }
-
-                    var evict = true;
+                    
                     try
                     {
                         startingEventId = await stream.Commit(commitId, startingEventId, headers).ConfigureAwait(false);
-                        await _store.Cache<T>(stream).ConfigureAwait(false);
-                        evict = false;
                     }
                     catch (VersionException e)
                     {
+                        Conflicts.Mark();
                         // If we expected no stream, no reason to try to resolve the conflict
                         if (stream.CommitVersion == -1)
+                        {
+                            Logger.Warn(
+                                $"New stream [{tracked.StreamId}] entity {tracked.GetType().FullName} already exists in store");
                             throw new ConflictResolutionFailedException(
                                 $"New stream [{tracked.StreamId}] entity {tracked.GetType().FullName} already exists in store");
-                        
-                        Conflicts.Mark();
+                        }
+
+                        await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
+                        await _snapstore.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
                         try
                         {
                             Logger.Write(LogLevel.Debug,
@@ -130,8 +133,6 @@ namespace Aggregates.Internal
                                 {
                                     throw new ConflictResolutionFailedException("Failed to resolve stream conflict");
                                 }
-                                await _store.Cache<T>(clean.Stream).ConfigureAwait(false);
-                                evict = false;
                             }
 
                             Logger.WriteFormat(LogLevel.Debug,
@@ -166,6 +167,7 @@ namespace Aggregates.Internal
                         Logger.WriteFormat(LogLevel.Warn,
                             "Failed to commit events to store for stream: [{0}] bucket [{1}] Exception: {3}: {2}",
                             stream.StreamId, stream.Bucket, e.Message, e.GetType().Name);
+                        WriteErrors.Mark();
                         throw;
                     }
                     catch (DuplicateCommitException)
@@ -173,19 +175,10 @@ namespace Aggregates.Internal
                         Logger.WriteFormat(LogLevel.Warn,
                             "Detected a double commit for stream: [{0}] bucket [{1}] - discarding changes for this stream",
                             stream.StreamId, stream.Bucket);
+                        WriteErrors.Mark();
                         // I was throwing this, but if this happens it means the events for this message have already been committed.  Possibly as a partial message failure earlier. 
                         // Im changing to just discard the changes, perhaps can take a deeper look later if this ever bites me on the ass
                         //throw;
-                    }
-                    finally
-                    {
-                        if (evict)
-                        {
-                            await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
-                            await _snapstore.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
-                            WriteErrors.Mark();
-                        }
-
                     }
 
 

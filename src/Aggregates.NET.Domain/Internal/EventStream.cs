@@ -172,6 +172,7 @@ namespace Aggregates.Internal
 
             commitHeaders[CommitHeader] = commitId.ToString();
 
+            bool readOnly = true;
             if (_outofband.Any())
             {
                 if (_oobHandler == null)
@@ -181,29 +182,16 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] publishing {_outofband.Count} out of band events to {_oobHandler.GetType().Name}");
                     await _oobHandler.Publish<T>(Bucket, StreamId, _outofband, commitHeaders).ConfigureAwait(false);
                 }
+                readOnly = false;
                 _outofband.Clear();
             }
-
-            var wip = _uncommitted.ToList();
-            if (wip.Any())
-            {
-                // If we increment commit id instead of depending on a commit header, ES will do the concurrency check for us
-                foreach (var uncommitted in wip.Where(x => !x.EventId.HasValue))
-                {
-                    uncommitted.EventId = startingEventId;
-                    startingEventId = startingEventId.Increment();
-                }
-
+            
+            if(Uncommitted.Any())
+            { 
                 Logger.Write(LogLevel.Debug,
-                    () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {wip.Count} events");
-                await _store.WriteEvents<T>(Bucket, StreamId, CommitVersion, wip, commitHeaders).ConfigureAwait(false);
-                _uncommitted = wip;
-            }
-            else
-            {
-                Logger.Write(LogLevel.Debug,
-                    () => $"Event stream [{StreamId}] in bucket [{Bucket}] has no new events - verifying version at the store is same");
-                await _store.VerifyVersion<T>(Bucket, StreamId, CommitVersion).ConfigureAwait(false);
+                    () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {Uncommitted.Count()} events");
+                startingEventId = await _store.WriteStream<T>(this, startingEventId, commitHeaders).ConfigureAwait(false);
+                readOnly = false;
             }
 
 
@@ -211,6 +199,14 @@ namespace Aggregates.Internal
             {
                 Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {_pendingShots.Count} snapshots");
                 await _snapshots.WriteSnapshots<T>(Bucket, StreamId, _pendingShots, commitHeaders).ConfigureAwait(false);
+                readOnly = false;
+            }
+
+            if(readOnly)
+            {
+                Logger.Write(LogLevel.Debug,
+                    () => $"Event stream [{StreamId}] in bucket [{Bucket}] has no new events - verifying version at the store is same");
+                await _store.VerifyVersion<T>(this).ConfigureAwait(false);
             }
             Flush(true);
             return startingEventId;

@@ -171,24 +171,17 @@ namespace Aggregates.Internal
 
             using (CommitTime.NewContext())
             {
-                try
-                {
-                    var startingEventId = CommitId;
-                    foreach (var repo in _repositories.Values)
-                        startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
 
-                    foreach (var repo in _entityRepositories.Values)
-                        startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
+                var startingEventId = CommitId;
+                foreach (var repo in _repositories.Values)
+                    startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
 
-                    foreach (var repo in _pocoRepositories.Values)
-                        startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
+                foreach (var repo in _entityRepositories.Values)
+                    startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
 
-                }
-                catch (PersistenceException e)
-                {
+                foreach (var repo in _pocoRepositories.Values)
+                    startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
 
-                    throw;
-                }
             }
             Logger.Write(LogLevel.Debug, () => $"Commit id {CommitId} complete");
         }

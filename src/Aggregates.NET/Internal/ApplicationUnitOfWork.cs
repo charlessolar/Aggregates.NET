@@ -38,6 +38,7 @@ namespace Aggregates.Internal
         {
             MessagesConcurrent.Increment();
             var uows = context.Builder.BuildAll<IApplicationUnitOfWork>();
+
             try
             {
                 MessagesMeter.Mark();
@@ -104,7 +105,6 @@ namespace Aggregates.Internal
                             _persistence.Save($"{context.MessageId}-{uow.GetType().FullName}", uow.Bag)
                                 .ConfigureAwait(false);
                     }
-
                 }
 
                 if (trailingExceptions.Any())

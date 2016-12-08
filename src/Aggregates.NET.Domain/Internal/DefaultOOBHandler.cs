@@ -21,7 +21,8 @@ namespace Aggregates.Internal
         {
             var streamName = _streamGen(typeof(T), bucket + ".OOB", streamId);
             var writableEvents = events as IWritableEvent[] ?? events.ToArray();
-            if(await _store.WriteEvents(streamName, writableEvents, commitHeaders).ConfigureAwait(false) == 1)
+            if(await _store.WriteEvents(streamName, writableEvents, commitHeaders).ConfigureAwait(false) == (writableEvents.Count() - 1))
+                // New stream - write metadata
                 await _store.WriteMetadata(streamName, maxCount: 200000).ConfigureAwait(false);
             
         }

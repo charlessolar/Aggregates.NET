@@ -269,7 +269,7 @@ namespace Aggregates.Internal
         }
 
         public async Task WriteMetadata(string stream, int? maxCount = null, int? truncateBefore = null, TimeSpan? maxAge = null,
-            TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null)
+            TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null, bool force=false)
         {
 
             Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream [{stream}] [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl}, {nameof(frozen)}: {frozen} ]");
@@ -282,7 +282,7 @@ namespace Aggregates.Internal
                 FrozenExceptions.Mark();
                 throw new VersionException("Stream is frozen - we are not the owner");
             }
-            if (frozen.HasValue && frozen == false && (
+            if (frozen.HasValue && !force && frozen == false && (
                     existing.StreamMetadata == null ||
                     (existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) == false ||
                     existing.StreamMetadata?.GetValue<string>("owner") != Defaults.Instance.ToString()))
@@ -355,7 +355,7 @@ namespace Aggregates.Internal
             if ((DateTime.UtcNow.ToUnixTime() - time) > 60)
             {
                 Logger.Warn($"Stream [{stream}] has been frozen for over 60 seconds!  Unfreezing");
-                await WriteMetadata(stream).ConfigureAwait(false);
+                await WriteMetadata(stream, force: true).ConfigureAwait(false);
                 return false;
             }
             return true;

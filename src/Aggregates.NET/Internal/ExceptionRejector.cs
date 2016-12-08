@@ -52,6 +52,9 @@ namespace Aggregates.Internal
                     Logger.WriteFormat(LogLevel.Warn,
                         $"Message {context.MessageId} has faulted! {retries}/{_retries} times\nException: {e.GetType().FullName} {e.Message}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}\nStack: {stackTrace}");
                     RetryRegistry.TryAdd(messageId, retries + 1);
+                    // _maxRetries can happen in the blink of an eye with immediate retries and I don't want to expend the time to send messages back to the queue for delayed retries. 
+                    // so introduce an artificial delay between immediate retries
+                    await Task.Delay((retries/2)*50).ConfigureAwait(false);
                     throw;
                 }
 

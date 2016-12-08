@@ -33,19 +33,17 @@ namespace Aggregates.Internal
         private static readonly HashSet<string> IsNotDelayed = new HashSet<string>();
 
         private static string _bulkedMessageId;
-
-        private readonly IBuilder _builder;
+        
         private readonly IMessageMapper _mapper;
 
-        public BulkInvokeHandlerTerminator(IBuilder builder, IMessageMapper mapper)
+        public BulkInvokeHandlerTerminator(IMessageMapper mapper)
         {
-            _builder = builder;
             _mapper = mapper;
         }
         
         protected override async Task Terminate(IInvokeHandlerContext context)
         {
-            var channel = _builder.Build<IDelayedChannel>();
+            var channel = context.Builder.Build<IDelayedChannel>();
 
             var msgType = context.MessageBeingHandled.GetType();
             if (!msgType.IsInterface)
@@ -97,7 +95,7 @@ namespace Aggregates.Internal
                     }
                 }
                 Logger.Write(LogLevel.Debug, () => $"Delaying message {msgType.FullName} delivery");
-                var size = await channel.AddToQueue(key, msgPkg).ConfigureAwait(false);
+                await channel.AddToQueue(key, msgPkg).ConfigureAwait(false);
 
                 if (_bulkedMessageId == context.MessageId)
                 {
@@ -107,19 +105,22 @@ namespace Aggregates.Internal
                 }
 
 
+                int? size = null;
                 TimeSpan? age = null;
 
                 if (delayed.Delay.HasValue)
                     age = await channel.Age(key).ConfigureAwait(false);
+                if (delayed.Count.HasValue)
+                    size = await channel.Size(key).ConfigureAwait(false);
 
-                if ((delayed.Count.HasValue && size < delayed.Count.Value) || !age.HasValue || (age < TimeSpan.FromMilliseconds(delayed.Delay.Value)))
+                if ((delayed.Count.HasValue && !size.HasValue) || (delayed.Count.HasValue && size < delayed.Count.Value) || (delayed.Delay.HasValue && !age.HasValue) || (delayed.Delay.HasValue && age < TimeSpan.FromMilliseconds(delayed.Delay.Value)))
                 {
-                    Logger.Write(LogLevel.Debug, () => $"Skipping processing. Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing {msgType.FullName}");
+                    Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing");
                     return;
                 }
 
                 _bulkedMessageId = context.MessageId;
-                Logger.Write(LogLevel.Debug, () => $"Processing. Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing {msgType.FullName}");
+                Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing");
                 var msgs = await channel.Pull(key).ConfigureAwait(false);
 
                 Invokes.Mark();

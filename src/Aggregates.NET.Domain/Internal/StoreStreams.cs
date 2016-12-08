@@ -79,6 +79,7 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Debug, () => $"Stream [{streamName}] is frozen - waiting");
                 Thread.Sleep(100);
             }
+            Logger.Write(LogLevel.Debug, () => $"Stream [{streamName}] not in cache - reading from store");
 
             var events = await _store.GetEvents(streamName, start: snapshot?.Version + 1).ConfigureAwait(false);
 
@@ -108,28 +109,40 @@ namespace Aggregates.Internal
         }
         
 
-        public async Task WriteEvents<T>(string bucket, string streamId, int expectedVersion, IEnumerable<IWritableEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource
+        public async Task<Guid> WriteStream<T>(IEventStream stream, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), bucket, streamId);
+            var streamName = _streamGen(typeof(T), stream.Bucket, stream.StreamId);
 
-            if (await CheckFrozen<T>(bucket, streamId).ConfigureAwait(false))
+            if (await CheckFrozen<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false))
                 throw new FrozenException();
 
+            // If we increment commit id instead of depending on a commit header, ES will do the concurrency check for us
+            foreach (var uncommitted in stream.Uncommitted.Where(x => !x.EventId.HasValue))
+            {
+                uncommitted.EventId = startingEventId;
+                startingEventId = startingEventId.Increment();
+            }
+
             Saved.Mark();
-            await _store.WriteEvents(streamName, events, commitHeaders, expectedVersion: expectedVersion).ConfigureAwait(false);
+            await _store.WriteEvents(streamName, stream.Uncommitted, commitHeaders, expectedVersion: stream.CommitVersion).ConfigureAwait(false);
+
+            if (_shouldCache)
+                await Cache<T>(stream).ConfigureAwait(false);
+
+            return startingEventId;
         }
 
-        public async Task VerifyVersion<T>(string bucket, string streamId, int expectedVersion)
+        public async Task VerifyVersion<T>(IEventStream stream)
             where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), bucket, streamId);
+            var streamName = _streamGen(typeof(T), stream.Bucket, stream.StreamId);
 
             var last = await _store.GetEventsBackwards(streamName, count: 1).ConfigureAwait(false);
             if (!last.Any())
-                throw new VersionException($"Expected version {expectedVersion} on stream [{streamName}] - but no stream found");
-            if (last.First().Descriptor.Version != expectedVersion)
+                throw new VersionException($"Expected version {stream.CommitVersion} on stream [{streamName}] - but no stream found");
+            if (last.First().Descriptor.Version != stream.CommitVersion)
                 throw new VersionException(
-                    $"Expected version {expectedVersion} on stream [{streamName}] - but read {last.First().Descriptor.Version}");
+                    $"Expected version {stream.CommitVersion} on stream [{streamName}] - but read {last.First().Descriptor.Version}");
         }
 
         public async Task Freeze<T>(string bucket, string streamId) where T : class, IEventSource

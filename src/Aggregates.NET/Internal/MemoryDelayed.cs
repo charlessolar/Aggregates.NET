@@ -12,6 +12,16 @@ namespace Aggregates.Internal
         private static readonly ConcurrentDictionary<string, Tuple<DateTime, LinkedList<object>>> Store = new ConcurrentDictionary<string, Tuple<DateTime, LinkedList<object>>>();
         private static readonly Dictionary<string, Tuple<DateTime, LinkedList<object>>> InFlight = new Dictionary<string, Tuple<DateTime, LinkedList<object>>>();
 
+        public Task Begin()
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task End(Exception ex = null)
+        {
+            // Todo: remove just added from storage if ex != null
+            return Task.CompletedTask;
+        }
         public Task<TimeSpan?> Age(string channel)
         {
             Tuple<DateTime, LinkedList<object>> existing;
@@ -24,9 +34,8 @@ namespace Aggregates.Internal
             return Task.FromResult(!Store.TryGetValue(channel, out existing) ? 0 : existing.Item2.Count);
         }
 
-        public Task<int> AddToQueue(string channel, object queued)
+        public Task AddToQueue(string channel, object queued)
         {
-            var count = 1;
             Store.AddOrUpdate(channel, (_) =>
             {
                 var existing = new LinkedList<object>();
@@ -35,10 +44,9 @@ namespace Aggregates.Internal
             }, (_, existing) =>
             {
                 existing.Item2.AddLast(queued);
-                count = existing.Item2.Count;
                 return existing;
             });
-            return Task.FromResult(count);
+            return Task.CompletedTask;
         }
 
         public Task<IEnumerable<object>> Pull(string channel)

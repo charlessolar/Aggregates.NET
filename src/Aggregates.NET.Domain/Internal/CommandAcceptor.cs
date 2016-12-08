@@ -59,7 +59,7 @@ namespace Aggregates.Internal
             description: "Filters [BusinessException] from processing failures"
         )
         {
-            InsertAfter("MutateIncomingCommands");
+            InsertBefore("ApplicationUnitOfWork");
         }
     }
 }
