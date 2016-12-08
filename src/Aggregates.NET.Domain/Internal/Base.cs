@@ -132,6 +132,7 @@ namespace Aggregates.Internal
             var headers = new Dictionary<string, string>
             {
                 ["Bucket"] = Bucket,
+                ["EntityType"] = typeof(TThis).FullName,
                 ["StreamId"] = StreamId
             };
 
