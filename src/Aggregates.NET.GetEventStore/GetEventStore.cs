@@ -22,10 +22,14 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             var settings = context.Settings;
-            
-            context.Container.ConfigureComponent<EventStoreDelayed>(DependencyLifecycle.InstancePerUnitOfWork);
-            //context.Container.ConfigureComponent(b => (IApplicationUnitOfWork) b.Build<EventStoreDelayed>(),
-            //    DependencyLifecycle.InstancePerCall);
+
+            int? flushInterval;
+            if (!settings.TryGet<int?>("FlushInterval", out flushInterval))
+                flushInterval = null;
+
+            context.Container.ConfigureComponent(b =>
+                new EventStoreDelayed(b.Build<IStoreEvents>(), flushInterval),
+                DependencyLifecycle.InstancePerUnitOfWork);
 
             context.Container.ConfigureComponent(b => 
                 new StoreEvents(b.Build<IEventStoreConnection>(), b.Build<IMessageMapper>(), settings.Get<int>("ReadSize"), settings.Get<bool>("Compress")), 
