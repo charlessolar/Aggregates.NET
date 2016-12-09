@@ -42,7 +42,7 @@ namespace Aggregates.Internal
         private readonly IBuilder _builder;
         private readonly ISnapshot _snapshot;
         private IEnumerable<IWritableEvent> _committed;
-        private IList<IWritableEvent> _uncommitted;
+        private readonly IList<IWritableEvent> _uncommitted;
         private readonly IList<IWritableEvent> _outofband;
         private readonly IList<ISnapshot> _pendingShots;
 
@@ -155,7 +155,7 @@ namespace Aggregates.Internal
                 Bucket = Bucket,
                 Stream = StreamId,
                 Payload = memento,
-                Version = StreamVersion,
+                Version = StreamVersion + 1,
                 EntityType = memento.GetType().AssemblyQualifiedName,
                 Timestamp = DateTime.UtcNow
             };

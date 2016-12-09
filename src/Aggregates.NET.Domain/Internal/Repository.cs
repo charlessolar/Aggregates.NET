@@ -17,9 +17,6 @@ using AggregateException = Aggregates.Exceptions.AggregateException;
 
 namespace Aggregates.Internal
 {
-    // inspired / taken from NEventStore.CommonDomain
-    // https://github.com/NEventStore/NEventStore/blob/master/src/NEventStore/CommonDomain/Persistence/EventStore/EventStoreRepository.cs
-
     // Todo: The hoops we jump through to support <TId> can be simplified by just using an Id class with implicit converters from string, int, guid, etc.
 
     class Repository<T> : IRepository<T> where T : class, IEventSource

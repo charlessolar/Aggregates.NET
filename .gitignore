@@ -159,3 +159,4 @@ src/Aggregates.NET.sln.ide/
 samples/HelloWorld/packages/
 samples/Delayed/packages/
 samples/OutOfBand/packages/
+samples/PerformanceCounters/packages/

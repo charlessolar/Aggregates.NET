@@ -139,9 +139,9 @@ namespace Aggregates.Internal
 
             var last = await _store.GetEventsBackwards(streamName, count: 1).ConfigureAwait(false);
             if (!last.Any())
-                throw new VersionException($"Expected version {stream.CommitVersion} on stream [{streamName}] - but no stream found");
+                throw new StorageException($"Expected version {stream.CommitVersion} on stream [{streamName}] - but no stream found");
             if (last.First().Descriptor.Version != stream.CommitVersion)
-                throw new VersionException(
+                throw new StorageException(
                     $"Expected version {stream.CommitVersion} on stream [{streamName}] - but read {last.First().Descriptor.Version}");
         }
 

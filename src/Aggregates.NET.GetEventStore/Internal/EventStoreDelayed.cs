@@ -84,7 +84,10 @@ namespace Aggregates.Internal
 
             object cached;
             if (Cache.TryGetValue($"{streamName}.age", out cached))
-                return DateTime.UtcNow - (DateTime)cached;
+            {
+                Logger.Write(LogLevel.Debug, () => $"Got age from cache for channel [{channel}]");
+                return DateTime.UtcNow - (DateTime) cached;
+            }
 
             var read = await _store.GetEventsBackwards($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
             if (read != null && read.Any())
@@ -105,7 +108,7 @@ namespace Aggregates.Internal
             lock(_lock) existing = _uncommitted.FirstOrDefault(c => c.Item1 == streamName);
             if (existing != null)
             {
-                Cache.TryAdd($"{streamName}.age", existing.Item2.Descriptor.Timestamp);
+                // Dont add to cache because this is a non-committed event, save caching for what we read from ES
                 return DateTime.UtcNow - existing.Item2.Descriptor.Timestamp;
             }
 
@@ -122,7 +125,10 @@ namespace Aggregates.Internal
 
             object cached;
             if (Cache.TryGetValue($"{streamName}.size", out cached))
-                return existing + (int)cached + 1;
+            {
+                Logger.Write(LogLevel.Debug, () => $"Got size from cache for channel [{channel}]");
+                return existing + (int) cached + 1;
+            }
 
             var start = StreamPosition.Start;
             var read = await _store.GetEventsBackwards($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
@@ -165,26 +171,31 @@ namespace Aggregates.Internal
         public async Task<IEnumerable<object>> Pull(string channel)
         {
             var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
-
-            // If a stream has been attempted to pull recently (<5 seconds) don't try again
-            lock (RecentLock)
-            {
-                if (RecentlyPulled.ContainsKey(streamName))
-                    return new object[] {}.AsEnumerable();
-                RecentlyPulled.Add(streamName, DateTime.UtcNow.AddSeconds(5));
-            }
-            
             Logger.Write(LogLevel.Debug, () => $"Pulling delayed objects from channel [{channel}]");
 
             object temp;
             Cache.TryRemove($"{streamName}.size", out temp);
             Cache.TryRemove($"{streamName}.age", out temp);
 
+            // If a stream has been attempted to pull recently (<30 seconds) don't try again
+            lock (RecentLock)
+            {
+                if (RecentlyPulled.ContainsKey(streamName))
+                {
+                    Logger.Write(LogLevel.Debug, () => $"Channel [{channel}] was pulled by this instance recently - leaving it alone");
+                    return new object[] {}.AsEnumerable();
+                }
+                RecentlyPulled.Add(streamName, DateTime.UtcNow.AddSeconds(30));
+            }
+            
             // Check if someone else is already processing
             lock (_lock)
             {
                 if (_inFlight.ContainsKey(channel))
+                {
+                    Logger.Write(LogLevel.Debug, () => $"Channel [{channel}] is already being processed by this pipeline");
                     return new object[] {}.AsEnumerable();
+                }
             }
 
             IEnumerable<IWritableEvent> delayed = null;
