@@ -75,7 +75,7 @@ namespace Aggregates.Internal
             }
         }
 
-        public EventStoreDelayed(IStoreEvents store, int? flushInterval)
+        public EventStoreDelayed(IStoreEvents store, TimeSpan? flushInterval)
         {
             _store = store;
 
@@ -84,7 +84,7 @@ namespace Aggregates.Internal
                 // Add a process exit event handler to flush cached delayed events before exiting the app
                 // Not perfect in the case of a fatal app error - but something
                 AppDomain.CurrentDomain.ProcessExit += (sender, e) => Flush(store);
-                _flusher = new Timer(Flush, store, TimeSpan.FromSeconds(flushInterval.Value), TimeSpan.FromSeconds(flushInterval.Value));
+                _flusher = new Timer(Flush, store, flushInterval.Value, flushInterval.Value);
             }
         }
 

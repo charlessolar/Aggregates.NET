@@ -13,7 +13,7 @@ namespace Aggregates
         /// </summary>
         /// <param name="settings"></param>
         /// <param name="interval"></param>
-        public static void DelayedFlushInterval(this ExposeSettings settings, int? interval)
+        public static void DelayedFlushInterval(this ExposeSettings settings, TimeSpan? interval)
         {
             settings.GetSettings().Set("FlushInterval", interval);
         }

@@ -23,8 +23,8 @@ namespace Aggregates
         {
             var settings = context.Settings;
 
-            int? flushInterval;
-            if (!settings.TryGet<int?>("FlushInterval", out flushInterval))
+            TimeSpan? flushInterval;
+            if (!settings.TryGet<TimeSpan?>("FlushInterval", out flushInterval))
                 flushInterval = null;
 
             context.Container.ConfigureComponent(b =>

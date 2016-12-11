@@ -30,11 +30,54 @@ namespace Aggregates.Internal
 {
     internal class EventSubscriber : IEventSubscriber
     {
+        private class ThreadParam
+        {
+            public EventStorePersistentSubscriptionBase Subscription { get; set; }
+            public CancellationToken Token { get; set; }
+            public int Bucket { get; set; }
+        }
+
         private static readonly Histogram Acknowledging = Metric.Histogram("Acknowledged Events", Unit.Events);
 
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventSubscriber));
         private static readonly TransportTransaction transportTranaction = new TransportTransaction();
         private static readonly ContextBag contextBag = new ContextBag();
+
+        // Create a blocking collection based on ConcurrentQueue for ordering
+        private static readonly Dictionary<int, ConcurrentQueue<ResolvedEvent>> ReadyEvents = new Dictionary<int, ConcurrentQueue<ResolvedEvent>>();
+        // Todo: lets come up with a more efficient collection
+        private static readonly Dictionary<string, Tuple<DateTime, IList<ResolvedEvent>>> WaitingEvents = new Dictionary<string, Tuple<DateTime, IList<ResolvedEvent>>>();
+        private static readonly object WaitingLock = new object();
+
+        // Moves now in-order events to ReadyEvents
+        private static readonly Timer MoveToReady = new Timer(_ =>
+        {
+            List<KeyValuePair<string, Tuple<DateTime, IList<ResolvedEvent>>>> ready;
+            lock (WaitingLock)
+            {
+                ready = WaitingEvents.Where(x => x.Value.Item1 < DateTime.UtcNow).ToList();
+                foreach (var stream in ready)
+                    WaitingEvents.Remove(stream.Key);
+            }
+
+            var seenEvents = new HashSet<Guid>();
+            foreach (var stream in ready)
+            {
+                var bucket = stream.Key.GetHashCode() % Convert.ToInt32(Math.Floor(Bus.PushSettings.MaxConcurrency / 3M));
+                var events = stream.Value.Item2.OrderBy(x => x.Event.EventNumber);
+                foreach (var @event in events)
+                {
+                    if (seenEvents.Contains(@event.Event.EventId))
+                        continue;
+                    seenEvents.Add(@event.Event.EventId);
+                    ReadyEvents[bucket].Enqueue(@event);
+                }
+            }
+
+
+        }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+
+        private readonly List<Thread> _eventThreads;
 
         private ConcurrentBag<ResolvedEvent> _toBeAcknowledged;
         private Timer _acknowledger;
@@ -42,8 +85,6 @@ namespace Aggregates.Internal
         private string _endpoint;
         private int _readsize;
         private bool _extraStats;
-
-        private SemaphoreSlim _concurrencyLimit;
 
         private readonly MessageHandlerRegistry _registry;
         private readonly IEventStoreConnection _connection;
@@ -63,6 +104,7 @@ namespace Aggregates.Internal
             _registry = registry;
             _connection = connection;
             _messageMeta = messageMeta;
+            _eventThreads = new List<Thread>();
             _settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
@@ -74,7 +116,7 @@ namespace Aggregates.Internal
             _acknowledger = new Timer(_ =>
             {
                 if (_toBeAcknowledged.IsEmpty) return;
-                
+
                 var newBag = new ConcurrentBag<ResolvedEvent>();
                 var willAcknowledge = Interlocked.Exchange<ConcurrentBag<ResolvedEvent>>(ref _toBeAcknowledged, newBag);
 
@@ -165,8 +207,8 @@ namespace Aggregates.Internal
             {
                 var settings = PersistentSubscriptionSettings.Create()
                     .StartFromBeginning()
-                    .WithReadBatchOf(_readsize)
                     .WithMaxRetriesOf(0)
+                    .WithReadBatchOf(_readsize)
                     .WithLiveBufferSizeOf(_readsize)
                     .WithMessageTimeoutOf(TimeSpan.FromSeconds(60))
                     .CheckPointAfter(TimeSpan.FromSeconds(10))
@@ -190,24 +232,111 @@ namespace Aggregates.Internal
                     Thread.Sleep(1000);
                 }
 
-                // PushSettings will only exist AFTER finding OnMessage 
-                if (_concurrencyLimit == null)
-                    _concurrencyLimit = new SemaphoreSlim(Bus.PushSettings.MaxConcurrency);
+                var cancelSource = new CancellationTokenSource();
 
                 _subscription = _connection.ConnectToPersistentSubscriptionAsync(stream, group, EventProcessor(cancelToken), subscriptionDropped: (sub, reason, e) =>
                 {
                     Logger.Write(LogLevel.Warn, () => $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
+                    cancelSource.Cancel();
+                    _eventThreads.ForEach(x => x.Join());
+                    _eventThreads.Clear();
                     ProcessingLive = false;
                     Dropped?.Invoke(reason.ToString(), e);
                 }, bufferSize: _readsize * 10, autoAck: false).Result;
+
+                // Create a new thread for pushing events
+                // Another option is to use the thread pool with Task.Run however event-ordering is lost or at least severely degraded in the pool
+                for (var i = 0; i < Math.Floor(Bus.PushSettings.MaxConcurrency / 3M); i++)
+                {
+                    ReadyEvents[i] = new ConcurrentQueue<ResolvedEvent>();
+                    var thread = new Thread((state) =>
+                        {
+
+                            var param = state as ThreadParam;
+                            while (!param.Token.IsCancellationRequested)
+                            {
+                                ResolvedEvent e;
+                                while (!ReadyEvents[param.Bucket].TryDequeue(out e))
+                                    Thread.Sleep(50);
+
+                                var @event = e.Event;
+
+                                var descriptor = @event.Metadata.Deserialize(_settings);
+
+                                var headers = new Dictionary<string, string>(descriptor.Headers)
+                                {
+                                    [Headers.EnclosedMessageTypes] =
+                                    SerializeEnclosedMessageTypes(Type.GetType(@event.EventType)),
+                                    [Headers.MessageId] = @event.EventId.ToString()
+                                };
+
+                                Logger.Write(LogLevel.Debug,
+                                    () =>
+                                            $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
+                                using (var tokenSource = new CancellationTokenSource())
+                                {
+                                    var processed = false;
+                                    var numberOfDeliveryAttempts = 0;
+
+                                    while (!processed)
+                                    {
+                                        try
+                                        {
+                                            var messageContext = new MessageContext(@event.EventId.ToString(),
+                                                headers,
+                                                @event.Data ?? new byte[0], transportTranaction, tokenSource,
+                                                contextBag);
+                                            Bus.OnMessage(messageContext).ConfigureAwait(false).GetAwaiter().GetResult();
+                                            processed = true;
+                                        }
+                                        catch (ObjectDisposedException)
+                                        {
+                                            // Rabbit has been disconnected
+                                            param.Subscription.Stop(TimeSpan.FromMinutes(1));
+                                            return;
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            ++numberOfDeliveryAttempts;
+                                            var errorContext = new ErrorContext(ex, headers,
+                                                @event.EventId.ToString(),
+                                                @event.Data ?? new byte[0], transportTranaction,
+                                                numberOfDeliveryAttempts);
+                                            if (Bus.OnError(errorContext).ConfigureAwait(false).GetAwaiter().GetResult() ==
+                                                ErrorHandleResult.Handled)
+                                                break;
+
+                                        }
+                                    }
+
+
+                                    // If user decided to cancel receive - don't schedule an ACK
+                                    if (tokenSource.IsCancellationRequested)
+                                        return;
+
+                                    Logger.Write(LogLevel.Debug,
+                                        () => $"Queueing acknowledge for event {@event.EventId}");
+                                    _toBeAcknowledged.Add(e);
+                                    //subscription.Acknowledge(e);
+                                }
+                            }
+
+                        })
+                    { IsBackground = true, Name = $"Event Thread {i}" };
+                    thread.Start(new ThreadParam { Bucket=i, Subscription = _subscription, Token = cancelSource.Token });
+                    _eventThreads.Add(thread);
+                }
                 ProcessingLive = true;
             });
 
-            
+
         }
+
+
 
         private Action<EventStorePersistentSubscriptionBase, ResolvedEvent> EventProcessor(CancellationToken token)
         {
+            // Entrypoint from eventstore client API
             return (subscription, e) =>
             {
                 var @event = e.Event;
@@ -217,74 +346,31 @@ namespace Aggregates.Internal
                     return;
                 }
                 Logger.Write(LogLevel.Debug,
-                    () => $"Event {@event.EventId} type {@event.EventType} appeared stream [{@event.EventStreamId}] number {@event.EventNumber} Position C:{e.OriginalPosition?.CommitPosition}/P:{e.OriginalPosition?.PreparePosition}");
-
-
-                var descriptor = @event.Metadata.Deserialize(_settings);
+                    () => $"Event {@event.EventId} type {@event.EventType} appeared stream [{@event.EventStreamId}] number {@event.EventNumber}");
 
                 if (token.IsCancellationRequested)
                 {
-                    subscription.Stop(TimeSpan.FromSeconds(30));
+                    subscription.Stop(TimeSpan.FromMinutes(1));
                     return;
                 }
-                _concurrencyLimit.WaitAsync(token).ConfigureAwait(false).GetAwaiter().GetResult();
 
-                Task.Run(async () =>
+                // Instead of processing event right this moment, put it into a delayed "queue"
+                // The event will be delayed from running for ~5 seconds - should be enough time to get more of the same stream
+                // Issue from ES is events are not in order.  Meaning for a single stream "XYZ" I'll get events in this order: 1, 5, 0, 3, 2, 4
+                // If we process those as they come in, the user will be confused since they'll want 0, 1, 2, 3, 4, 5
+                // We can't GUARENTEE ordering - but we can come pretty close by just adding a 5 second delay 
+                // When we receive event 1 we'll start the countdown, we'll then receive 5, 0, 3, 2, and 4
+                // Once 5 seconds are up we'll have all 6 events and we'll be able to process them in order!
+
+                lock (WaitingLock)
                 {
+                    if (!WaitingEvents.ContainsKey(@event.EventStreamId))
+                        WaitingEvents[@event.EventStreamId] =
+                            new Tuple<DateTime, IList<ResolvedEvent>>(DateTime.UtcNow + TimeSpan.FromSeconds(5),
+                                new List<ResolvedEvent>());
 
-                    var headers = new Dictionary<string, string>(descriptor.Headers)
-                    {
-                        [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(Type.GetType(@event.EventType)),
-                        [Headers.MessageId] = @event.EventId.ToString()
-                    };
-
-                    Logger.Write(LogLevel.Debug, () => $"Processing event {@event.EventId}");
-                    using (var tokenSource = new CancellationTokenSource())
-                    {
-                        var processed = false;
-                        var numberOfDeliveryAttempts = 0;
-
-                        while (!processed)
-                        {
-                            try
-                            {
-                                var messageContext = new MessageContext(@event.EventId.ToString(), headers,
-                                    @event.Data ?? new byte[0], transportTranaction, tokenSource, contextBag);
-                                await Bus.OnMessage(messageContext).ConfigureAwait(false);
-                                processed = true;
-                            }
-                            catch (ObjectDisposedException)
-                            {
-                                // Rabbit has been disconnected
-                                subscription.Stop(TimeSpan.FromSeconds(30));
-                                return;
-                            }
-                            catch (Exception ex)
-                            {
-                                ++numberOfDeliveryAttempts;
-                                var errorContext = new ErrorContext(ex, headers, @event.EventId.ToString(),
-                                    @event.Data ?? new byte[0], transportTranaction, numberOfDeliveryAttempts);
-                                if (await Bus.OnError(errorContext).ConfigureAwait(false) == ErrorHandleResult.Handled)
-                                    break;
-
-                                _concurrencyLimit.Release();
-                                await
-                                    Task.Delay(100*(numberOfDeliveryAttempts/2), cancellationToken: token)
-                                        .ConfigureAwait(false);
-                                await _concurrencyLimit.WaitAsync(token).ConfigureAwait(false);
-                            }
-                        }
-
-                        _concurrencyLimit.Release();
-
-                        if (tokenSource.IsCancellationRequested)
-                            return;
-
-                        Logger.Write(LogLevel.Debug, () => $"Queueing acknowledge for event {@event.EventId}");
-                        _toBeAcknowledged.Add(e);
-                        //subscription.Acknowledge(e);
-                    }
-                }, token);
+                    WaitingEvents[@event.EventStreamId].Item2.Add(e);
+                }
             };
         }
 
@@ -294,8 +380,7 @@ namespace Aggregates.Internal
                 return;
 
             _disposed = true;
-            _concurrencyLimit.Dispose();
-            _subscription.Stop(TimeSpan.FromSeconds(30));
+            _subscription.Stop(TimeSpan.FromMinutes(1));
         }
 
         string SerializeEnclosedMessageTypes(Type messageType)
