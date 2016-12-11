@@ -20,7 +20,7 @@ namespace Aggregates.Internal
     internal class ExceptionRejector : Behavior<IIncomingPhysicalMessageContext>
     {
         private static readonly ConcurrentDictionary<string, int> RetryRegistry = new ConcurrentDictionary<string, int>();
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(ExceptionRejector));
+        private static readonly ILog Logger = LogManager.GetLogger("ExceptionRejector");
 
         private static readonly Meter ErrorsMeter = Metric.Meter("Message Faults", Unit.Errors);
         private readonly int _retries;
@@ -54,7 +54,7 @@ namespace Aggregates.Internal
                     RetryRegistry.TryAdd(messageId, retries + 1);
                     // _maxRetries can happen in the blink of an eye with immediate retries and I don't want to expend the time to send messages back to the queue for delayed retries. 
                     // so introduce an artificial delay between immediate retries
-                    await Task.Delay((retries/2)*50).ConfigureAwait(false);
+                    await Task.Delay(retries*100).ConfigureAwait(false);
                     throw;
                 }
 

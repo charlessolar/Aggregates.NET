@@ -26,7 +26,7 @@ namespace Aggregates.Internal
     {
         private static readonly Meter InvokesDelayed = Metric.Meter("Delayed Invokes", Unit.Items);
         private static readonly Meter Invokes = Metric.Meter("Bulk Invokes", Unit.Items);
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(BulkInvokeHandlerTerminator));
+        private static readonly ILog Logger = LogManager.GetLogger("BulkInvokeHandlerTerminator");
 
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
         private static readonly object Lock = new Object();

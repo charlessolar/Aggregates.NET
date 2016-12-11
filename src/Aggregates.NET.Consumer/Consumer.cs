@@ -32,7 +32,7 @@ namespace Aggregates
     }
     internal class EventStoreRunner : FeatureStartupTask, IDisposable
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(EventStoreRunner));
+        private static readonly ILog Logger = LogManager.GetLogger("EventStoreRunner");
         private readonly ReadOnlySettings _settings;
         private readonly IEventSubscriber _subscriber;
         private int _retryCount;

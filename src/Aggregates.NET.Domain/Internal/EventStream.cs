@@ -15,7 +15,7 @@ namespace Aggregates.Internal
     class EventStream<T> : IEventStream where T : class, IEventSource
     {
         private const string CommitHeader = "CommitId";
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(EventStream<>));
+        private static readonly ILog Logger = LogManager.GetLogger("EventStream");
 
         public string Bucket { get; }
 
@@ -173,6 +173,15 @@ namespace Aggregates.Internal
             commitHeaders[CommitHeader] = commitId.ToString();
 
             bool readOnly = true;
+
+            if (Uncommitted.Any())
+            {
+                Logger.Write(LogLevel.Debug,
+                    () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {Uncommitted.Count()} events");
+                startingEventId = await _store.WriteStream<T>(this, startingEventId, commitHeaders).ConfigureAwait(false);
+                readOnly = false;
+            }
+
             if (_outofband.Any())
             {
                 if (_oobHandler == null)
@@ -185,15 +194,6 @@ namespace Aggregates.Internal
                 readOnly = false;
                 _outofband.Clear();
             }
-            
-            if(Uncommitted.Any())
-            { 
-                Logger.Write(LogLevel.Debug,
-                    () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {Uncommitted.Count()} events");
-                startingEventId = await _store.WriteStream<T>(this, startingEventId, commitHeaders).ConfigureAwait(false);
-                readOnly = false;
-            }
-
 
             if (_pendingShots.Any())
             {

@@ -13,7 +13,7 @@ namespace Aggregates.Internal
 {
     class PocoRepository<TParent, TParentId, T> : PocoRepository<T>, IPocoRepository<TParent, TParentId, T> where TParent : class, IBase<TParentId> where T : class, new()
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(PocoRepository<,,>));
+        private static readonly ILog Logger = LogManager.GetLogger("PocoRepository");
 
         private readonly TParent _parent;
 
@@ -53,7 +53,7 @@ namespace Aggregates.Internal
 
     class PocoRepository<T> : IPocoRepository<T> where T : class, new()
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(PocoRepository<>));
+        private static readonly ILog Logger = LogManager.GetLogger("PocoRepository");
         private readonly IStorePocos _store;
 
         private static readonly Histogram WrittenEvents = Metric.Histogram("Written Pocos", Unit.Events);

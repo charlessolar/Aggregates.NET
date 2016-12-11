@@ -42,7 +42,7 @@ namespace Aggregates.Internal
     /// </summary>
     internal class IgnoreConflictResolver : IResolveConflicts
     {
-        internal static readonly ILog Logger = LogManager.GetLogger(typeof(IgnoreConflictResolver));
+        internal static readonly ILog Logger = LogManager.GetLogger("IgnoreConflictResolver");
 
         private readonly IStoreEvents _store;
         private readonly StreamIdGenerator _streamGen;
@@ -80,7 +80,7 @@ namespace Aggregates.Internal
     /// </summary>
     internal class DiscardConflictResolver : IResolveConflicts
     {
-        internal static readonly ILog Logger = LogManager.GetLogger(typeof(DiscardConflictResolver));
+        internal static readonly ILog Logger = LogManager.GetLogger("DiscardConflictResolver");
 
         public Task<Guid> Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
@@ -95,7 +95,7 @@ namespace Aggregates.Internal
     /// </summary>
     internal class ResolveStronglyConflictResolver : IResolveConflicts
     {
-        internal static readonly ILog Logger = LogManager.GetLogger(typeof(ResolveStronglyConflictResolver));
+        internal static readonly ILog Logger = LogManager.GetLogger("ResolveStronglyConflictResolver");
 
         private readonly IStoreStreams _store;
 
@@ -162,7 +162,7 @@ namespace Aggregates.Internal
     /// </summary>
     internal class ResolveWeaklyConflictResolver : IResolveConflicts
     {
-        internal static readonly ILog Logger = LogManager.GetLogger(typeof(ResolveWeaklyConflictResolver));
+        internal static readonly ILog Logger = LogManager.GetLogger("ResolveWeaklyConflictResolver");
 
         private readonly IStoreStreams _store;
         private readonly IDelayedChannel _delay;

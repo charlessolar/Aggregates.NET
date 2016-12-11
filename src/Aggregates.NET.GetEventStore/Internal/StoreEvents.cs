@@ -26,7 +26,7 @@ namespace Aggregates.Internal
         private static readonly Timer ReadTime = Metric.Timer("EventStore Read Time", Unit.Items);
         private static readonly Timer WriteTime = Metric.Timer("EventStore Write Time", Unit.Items);
 
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreEvents));
+        private static readonly ILog Logger = LogManager.GetLogger("StoreEvents");
         private readonly IEventStoreConnection _client;
         private readonly IMessageMapper _mapper;
         private readonly int _readsize;

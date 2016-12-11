@@ -10,7 +10,7 @@ namespace Aggregates.Internal
 {
     class EntityRepository<TParent, TParentId, T> : Repository<T>, IEntityRepository<TParent, TParentId, T> where T : class, IEntity where TParent : class, IBase<TParentId>
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(EntityRepository<,,>));
+        private static readonly ILog Logger = LogManager.GetLogger("EntityRepository");
         private readonly TParent _parent;
 
         public EntityRepository(TParent parent, IBuilder builder)

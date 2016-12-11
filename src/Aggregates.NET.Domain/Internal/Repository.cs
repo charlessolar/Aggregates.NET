@@ -23,7 +23,7 @@ namespace Aggregates.Internal
     {
         private static OptimisticConcurrencyAttribute _conflictResolution;
 
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(Repository<>));
+        private static readonly ILog Logger = LogManager.GetLogger("Repository");
         private readonly IStoreStreams _store;
         private readonly IStoreSnapshots _snapstore;
         private readonly IBuilder _builder;

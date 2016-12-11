@@ -83,7 +83,7 @@ namespace Aggregates
 
         public class DomainStart : FeatureStartupTask
         {
-            private static readonly ILog Logger = LogManager.GetLogger(typeof(DomainStart));
+            private static readonly ILog Logger = LogManager.GetLogger("DomainStart");
 
             private readonly ReadOnlySettings _settings;
 

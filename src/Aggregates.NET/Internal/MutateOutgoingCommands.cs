@@ -10,7 +10,7 @@ namespace Aggregates.Internal
 {
     internal class MutateOutgoingCommands : Behavior<IOutgoingLogicalMessageContext>
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(MutateOutgoingCommands));
+        private static readonly ILog Logger = LogManager.GetLogger("MutateOutgoingCommands");
 
         public override Task Invoke(IOutgoingLogicalMessageContext context, Func<Task> next)
         {

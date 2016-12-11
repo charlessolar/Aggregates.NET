@@ -32,7 +32,7 @@ namespace Aggregates.Internal
             public DateTime Created { get; set; }
             public int Position { get; set; }
         }
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(EventStoreDelayed));
+        private static readonly ILog Logger = LogManager.GetLogger("EventStoreDelayed");
         private static readonly object WaitingLock = new object();
         private static readonly Dictionary<string, List<IWritableEvent>> WaitingToBeWritten = new Dictionary<string, List<IWritableEvent>>();
         private static Timer _flusher;

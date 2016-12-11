@@ -7,8 +7,6 @@ namespace Aggregates.Internal
 {
     public class EventContractResolver : DefaultContractResolver
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(EventContractResolver));
-
         private readonly IMessageMapper _mapper;
 
         public EventContractResolver(IMessageMapper mapper) : base(true)

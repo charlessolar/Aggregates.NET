@@ -17,7 +17,7 @@ namespace Aggregates.Internal
         private static readonly Meter HitMeter = Metric.Meter("Snapshot Cache Hits", Unit.Events);
         private static readonly Meter MissMeter = Metric.Meter("Snapshot Cache Misses", Unit.Events);
 
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreSnapshots));
+        private static readonly ILog Logger = LogManager.GetLogger("StoreSnapshots");
         private readonly IStoreEvents _store;
         private readonly IStreamCache _cache;
         private readonly bool _shouldCache;

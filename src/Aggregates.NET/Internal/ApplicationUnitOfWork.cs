@@ -16,7 +16,7 @@ namespace Aggregates.Internal
 {
     internal class ApplicationUnitOfWork : Behavior<IIncomingLogicalMessageContext>
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(ApplicationUnitOfWork));
+        private static readonly ILog Logger = LogManager.GetLogger("ApplicationUnitOfWork");
 
         private static readonly Meter MessagesMeter = Metric.Meter("Messages", Unit.Items);
         private static readonly Timer MessagesTimer = Metric.Timer("Message Duration", Unit.Items);

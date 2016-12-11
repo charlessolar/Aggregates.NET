@@ -39,10 +39,11 @@ namespace Aggregates.Internal
 
         private static readonly Histogram Acknowledging = Metric.Histogram("Acknowledged Events", Unit.Events);
 
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(EventSubscriber));
+        private static readonly ILog Logger = LogManager.GetLogger("EventSubscriber");
         private static readonly TransportTransaction transportTranaction = new TransportTransaction();
         private static readonly ContextBag contextBag = new ContextBag();
 
+        public static bool Live { get; set; }
         // Create a blocking collection based on ConcurrentQueue for ordering
         private static readonly Dictionary<int, ConcurrentQueue<ResolvedEvent>> ReadyEvents = new Dictionary<int, ConcurrentQueue<ResolvedEvent>>();
         // Todo: lets come up with a more efficient collection
@@ -52,6 +53,8 @@ namespace Aggregates.Internal
         // Moves now in-order events to ReadyEvents
         private static readonly Timer MoveToReady = new Timer(_ =>
         {
+            if (!Live) return;
+
             List<KeyValuePair<string, Tuple<DateTime, IList<ResolvedEvent>>>> ready;
             lock (WaitingLock)
             {
@@ -63,13 +66,17 @@ namespace Aggregates.Internal
             var seenEvents = new HashSet<Guid>();
             foreach (var stream in ready)
             {
-                var bucket = stream.Key.GetHashCode() % Convert.ToInt32(Math.Floor(Bus.PushSettings.MaxConcurrency / 3M));
+                var bucket = Math.Abs(stream.Key.GetHashCode() % Bus.PushSettings.MaxConcurrency);
                 var events = stream.Value.Item2.OrderBy(x => x.Event.EventNumber);
                 foreach (var @event in events)
                 {
                     if (seenEvents.Contains(@event.Event.EventId))
                         continue;
                     seenEvents.Add(@event.Event.EventId);
+
+                    Logger.Write(LogLevel.Debug,
+                        () =>
+                                $"Readying event {@event.Event.EventId} type {@event.Event.EventType} stream [{@event.Event.EventStreamId}] number {@event.Event.EventNumber} to bucket {bucket}");
                     ReadyEvents[bucket].Enqueue(@event);
                 }
             }
@@ -95,7 +102,7 @@ namespace Aggregates.Internal
 
         private bool _disposed;
 
-        public bool ProcessingLive { get; set; }
+        public bool ProcessingLive => Live;
         public Action<string, Exception> Dropped { get; set; }
 
         public EventSubscriber(MessageHandlerRegistry registry,
@@ -240,13 +247,13 @@ namespace Aggregates.Internal
                     cancelSource.Cancel();
                     _eventThreads.ForEach(x => x.Join());
                     _eventThreads.Clear();
-                    ProcessingLive = false;
+                    Live = false;
                     Dropped?.Invoke(reason.ToString(), e);
                 }, bufferSize: _readsize * 10, autoAck: false).Result;
 
                 // Create a new thread for pushing events
                 // Another option is to use the thread pool with Task.Run however event-ordering is lost or at least severely degraded in the pool
-                for (var i = 0; i < Math.Floor(Bus.PushSettings.MaxConcurrency / 3M); i++)
+                for (var i = 0; i < Bus.PushSettings.MaxConcurrency; i++)
                 {
                     ReadyEvents[i] = new ConcurrentQueue<ResolvedEvent>();
                     var thread = new Thread((state) =>
@@ -326,7 +333,7 @@ namespace Aggregates.Internal
                     thread.Start(new ThreadParam { Bucket=i, Subscription = _subscription, Token = cancelSource.Token });
                     _eventThreads.Add(thread);
                 }
-                ProcessingLive = true;
+                Live = true;
             });
 
 
@@ -346,7 +353,7 @@ namespace Aggregates.Internal
                     return;
                 }
                 Logger.Write(LogLevel.Debug,
-                    () => $"Event {@event.EventId} type {@event.EventType} appeared stream [{@event.EventStreamId}] number {@event.EventNumber}");
+                    () => $"Received event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
 
                 if (token.IsCancellationRequested)
                 {

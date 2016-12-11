@@ -12,7 +12,7 @@ namespace Aggregates.Internal
 {
     class DefaultRouteResolver : IRouteResolver
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(DefaultRouteResolver));
+        private static readonly ILog Logger = LogManager.GetLogger("DefaultRouteResolver");
 
         // Yuck!
         private static readonly ConcurrentDictionary<Type, IDictionary<string, Action<IEventSource, object>>> Cache = new ConcurrentDictionary<Type, IDictionary<string, Action<IEventSource, object>>>();

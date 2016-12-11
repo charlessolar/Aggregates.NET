@@ -12,7 +12,7 @@ namespace Aggregates.Internal
     internal class MutateIncomingCommands : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly Meter Commands = Metric.Meter("Incoming Commands", Unit.Items);
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(MutateIncomingCommands));
+        private static readonly ILog Logger = LogManager.GetLogger("MutateIncomingCommands");
 
         public override Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {

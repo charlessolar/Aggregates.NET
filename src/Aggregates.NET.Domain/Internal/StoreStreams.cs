@@ -23,7 +23,7 @@ namespace Aggregates.Internal
         private static readonly Meter HitMeter = Metric.Meter("Stream Cache Hits", Unit.Events);
         private static readonly Meter MissMeter = Metric.Meter("Stream Cache Misses", Unit.Events);
 
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(StoreStreams));
+        private static readonly ILog Logger = LogManager.GetLogger("StoreStreams");
         private readonly IStoreEvents _store;
         private readonly IStreamCache _cache;
         private readonly bool _shouldCache;

@@ -13,7 +13,7 @@ namespace Aggregates.Internal
 {
     internal class MemoryPersistence : IPersistence
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(MemoryPersistence));
+        private static readonly ILog Logger = LogManager.GetLogger("MemoryPersistence");
         private static readonly ConcurrentDictionary<string, ContextBag> Storage = new ConcurrentDictionary<string, ContextBag>();
 
         public Task Save(string id, ContextBag bag)

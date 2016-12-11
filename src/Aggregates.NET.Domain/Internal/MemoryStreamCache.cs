@@ -11,7 +11,7 @@ namespace Aggregates.Internal
 {
     class MemoryStreamCache : IStreamCache, IDisposable
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(MemoryStreamCache));
+        private static readonly ILog Logger = LogManager.GetLogger("MemoryStreamCache");
 
         private static readonly ConcurrentDictionary<string, object> MemCache =
             new ConcurrentDictionary<string, object>();

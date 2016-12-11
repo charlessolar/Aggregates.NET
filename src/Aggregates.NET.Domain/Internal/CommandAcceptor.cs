@@ -12,7 +12,7 @@ namespace Aggregates.Internal
 {
     internal class CommandAcceptor : Behavior<IIncomingLogicalMessageContext>
     {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(CommandAcceptor));
+        private static readonly ILog Logger = LogManager.GetLogger("CommandAcceptor");
         
         private static readonly Meter ErrorsMeter = Metric.Meter("Business Exceptions", Unit.Errors);        
 
