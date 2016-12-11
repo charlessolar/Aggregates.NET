@@ -1,4 +1,4 @@
-version: 0.4.10.{build}-beta
+version: 0.4.11.{build}-beta
 
 cache:
   - src\packages
