@@ -71,7 +71,20 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Flushing {waiting.Count} channels with {waiting.Values.Sum(x => x.Count())} events");
             foreach (var channel in waiting)
             {
-                eventstore.WriteEvents(channel.Key, channel.Value, null).Wait();
+                try
+                {
+                    eventstore.WriteEvents(channel.Key, channel.Value, null).Wait();
+                }
+                catch
+                {
+                    // Failed to write to ES - requeue events
+                    lock (WaitingLock)
+                    {
+                        if (!WaitingToBeWritten.ContainsKey(channel.Key))
+                            WaitingToBeWritten[channel.Key] = new List<IWritableEvent>();
+                        WaitingToBeWritten[channel.Key].AddRange(channel.Value);
+                    }
+                }
             }
         }
 
