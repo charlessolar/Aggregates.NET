@@ -14,7 +14,7 @@ namespace Aggregates.Internal
 {
     public abstract class Base<TThis, TId> : IBase<TId>, IHaveEntities<TThis, TId>, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver where TThis : Base<TThis, TId>
     {
-        internal static readonly ILog Logger = LogManager.GetLogger("Base");
+        internal static readonly ILog Logger = LogManager.GetLogger(typeof(TThis).Name);
 
         private IBuilder Builder => (this as INeedBuilder).Builder;
         

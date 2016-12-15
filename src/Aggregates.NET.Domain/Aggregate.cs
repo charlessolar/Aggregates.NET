@@ -6,7 +6,6 @@ namespace Aggregates
 {
     public abstract class Aggregate<TThis, TId> : Base<TThis, TId>, IAggregate<TId> where TThis : Aggregate<TThis, TId>
     {
-        internal new static readonly ILog Logger = LogManager.GetLogger("Aggregate");
     }
 
     public abstract class AggregateWithMemento<TThis, TId, TMemento> : Aggregate<TThis, TId>, ISnapshotting where TMemento : class, IMemento<TId> where TThis : AggregateWithMemento<TThis, TId, TMemento>

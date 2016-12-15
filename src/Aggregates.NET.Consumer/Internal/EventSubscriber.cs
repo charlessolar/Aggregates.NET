@@ -197,7 +197,7 @@ namespace Aggregates.Internal
                         manager.CreateContinuousAsync(stream, definition, _connection.Settings.DefaultUserCredentials)
                             .ConfigureAwait(false);
                 }
-                catch (ProjectionCommandConflictException)
+                catch (ProjectionCommandFailedException)
                 {
                 }
             }

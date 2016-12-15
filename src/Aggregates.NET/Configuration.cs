@@ -31,7 +31,7 @@ namespace Aggregates
         {
             settings.GetSettings().Set("Compress", compress);
         }
-        public static void ConfigureForAggregates(this RecoverabilitySettings recoverability, int immediateRetries = 10, int delayedRetries = 3, bool forever = false)
+        public static void ConfigureForAggregates(this RecoverabilitySettings recoverability, int immediateRetries = 10)
         {
             var settings = recoverability.GetSettings();
 
