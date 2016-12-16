@@ -24,7 +24,6 @@ namespace Aggregates
                 s.SetDefault("SlowAlertThreshold", 1000);
                 s.SetDefault("SlowAlerts", false);
             });
-            
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
@@ -35,7 +34,7 @@ namespace Aggregates
 
             // Check that aggregates has been properly setup
             if (!context.Settings.Get<bool>(Aggregates.Defaults.SetupCorrectly))
-                throw new InvalidOperationException("Endpoint not setup correctly!  Please call [endpointConfiguration.Recoverability.ConfigureForAggregates] before enabling this feature.  (Sorry I can't set recoverability myself)");
+                throw new InvalidOperationException("Endpoint not setup correctly! Please call [endpointConfiguration.Recoverability.ConfigureForAggregates] before enabling this feature.  (Sorry I can't set recoverability myself)");
             
             var settings = context.Settings;
             context.Pipeline.Register(

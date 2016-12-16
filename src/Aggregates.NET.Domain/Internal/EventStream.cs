@@ -60,7 +60,7 @@ namespace Aggregates.Internal
             _uncommitted = new List<IWritableEvent>();
             _outofband = new List<IWritableEvent>();
             _pendingShots = new List<ISnapshot>();
-
+            
         }
 
         // Special constructor for building from a cached instance
@@ -128,13 +128,19 @@ namespace Aggregates.Internal
             };
 
             var mutators = _builder.BuildAll<IEventMutator>();
-            if (mutators == null) return writable;
+            if (!mutators.Any()) return writable;
 
+            IMutating mutated = new Mutating(writable.Event, writable.Descriptor.Headers);
             foreach (var mutate in mutators)
             {
                 Logger.Write(LogLevel.Debug, () => $"Mutating outgoing event {@event.GetType().FullName} with mutator {mutate.GetType().FullName}");
-                writable.Event = mutate.MutateOutgoing((IEvent)writable.Event);
+                mutated = mutate.MutateOutgoing(mutated);
             }
+
+            foreach (var header in mutated.Headers)
+                writable.Descriptor.Headers[header.Key] = header.Value;
+            writable.Event = mutated.Message;
+
             return writable;
         }
 

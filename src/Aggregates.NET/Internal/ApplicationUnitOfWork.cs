@@ -37,8 +37,8 @@ namespace Aggregates.Internal
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
             MessagesConcurrent.Increment();
-            var uows = context.Builder.BuildAll<IApplicationUnitOfWork>();
 
+            var uows= context.Builder.BuildAll<IApplicationUnitOfWork>();
             try
             {
                 MessagesMeter.Mark();

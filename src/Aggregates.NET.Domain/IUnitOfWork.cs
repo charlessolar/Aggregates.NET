@@ -6,7 +6,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates
 {
-    public interface IUnitOfWork : IDisposable
+    public interface IUnitOfWork : IEventMutator, ICommandMutator, IDisposable
     {
         IRepository<T> For<T>() where T : class, IAggregate;
         IEntityRepository<TParent, TParentId, TEntity> For<TParent, TParentId, TEntity>(TParent parent) where TEntity : class, IEntity where TParent : class, IBase<TParentId>;

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
@@ -16,19 +18,24 @@ namespace Aggregates.Internal
 
         public override Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
-            if (!(context.Message.Instance is ICommand)) return next();
+            var command = context.Message.Instance as ICommand;
+            if (command == null) return next();
 
             Commands.Mark();
+            
             var mutators = context.Builder.BuildAll<ICommandMutator>();
-            var mutated = (ICommand)context.Message.Instance;
-            if (mutators == null) return next();
+            if (!mutators.Any()) return next();
 
+            IMutating mutated = new Mutating(command, context.Headers);
             foreach (var mutator in mutators)
             {
                 Logger.Write(LogLevel.Debug, () => $"Mutating incoming command {context.Message.MessageType.FullName} with mutator {mutator.GetType().FullName}");
-                mutated = mutator.MutateIncoming(mutated, context.MessageHeaders);
+                mutated = mutator.MutateIncoming(mutated);
             }
-            context.UpdateMessageInstance(mutated);
+
+            foreach (var header in mutated.Headers)
+                context.Headers[header.Key] = header.Value;
+            context.UpdateMessageInstance(mutated.Message);
 
             return next();
         }

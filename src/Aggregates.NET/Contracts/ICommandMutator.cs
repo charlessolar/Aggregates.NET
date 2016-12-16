@@ -5,7 +5,7 @@ namespace Aggregates.Contracts
 {
     public interface ICommandMutator
     {
-        ICommand MutateIncoming(ICommand command, IReadOnlyDictionary<string, string> headers);
-        ICommand MutateOutgoing(ICommand command);
+        IMutating MutateIncoming(IMutating mutating);
+        IMutating MutateOutgoing(IMutating mutating);
     }
 }

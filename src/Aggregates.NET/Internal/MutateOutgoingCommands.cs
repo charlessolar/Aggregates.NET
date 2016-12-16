@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Metrics;
 using NServiceBus;
 using NServiceBus.Logging;
 using NServiceBus.Pipeline;
@@ -10,6 +13,7 @@ namespace Aggregates.Internal
 {
     internal class MutateOutgoingCommands : Behavior<IOutgoingLogicalMessageContext>
     {
+        private static readonly Meter Commands = Metric.Meter("Outgoing Commands", Unit.Items);
         private static readonly ILog Logger = LogManager.GetLogger("MutateOutgoingCommands");
 
         public override Task Invoke(IOutgoingLogicalMessageContext context, Func<Task> next)
@@ -17,17 +21,21 @@ namespace Aggregates.Internal
             var command = context.Message.Instance as ICommand;
             if (command == null) return next();
 
-            var mutators = context.Builder.BuildAll<ICommandMutator>();
-            if (mutators == null) return next();
+            Commands.Mark();
 
-            var mutated = command;
+            var mutators= context.Builder.BuildAll<ICommandMutator>();
+            if (!mutators.Any()) return next();
+
+            IMutating mutated = new Mutating(command, context.Headers);
             foreach (var mutator in mutators)
             {
                 Logger.Write(LogLevel.Debug, () => $"Mutating outgoing command {context.Message.MessageType.FullName} with mutator {mutator.GetType().FullName}");
                 mutated = mutator.MutateOutgoing(mutated);
             }
 
-            context.UpdateMessage(mutated);
+            foreach (var header in mutated.Headers)
+                context.Headers[header.Key] = header.Value;
+            context.UpdateMessage(mutated.Message);
 
             return next();
         }

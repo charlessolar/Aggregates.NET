@@ -15,7 +15,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    class UnitOfWork : IUnitOfWork, IApplicationUnitOfWork, IMutateOutgoingMessages, IMutateIncomingMessages
+    class UnitOfWork : IUnitOfWork, IApplicationUnitOfWork
     {
         private static readonly Metrics.Timer CommitTime = Metric.Timer("UOW Commit Time", Unit.Items);
         public static string PrefixHeader = "Originating";
@@ -34,7 +34,6 @@ namespace Aggregates.Internal
         public IBuilder Builder { get; set; }
         public int Retries { get; set; }
         public ContextBag Bag { get; set; }
-        public bool CanFail => true;
 
         public Guid CommitId { get; private set; }
         public object CurrentMessage { get; private set; }
@@ -186,21 +185,9 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Commit id {CommitId} complete");
         }
 
-        public Task MutateOutgoing(MutateOutgoingMessageContext context)
+        public IMutating MutateIncoming(IMutating command)
         {
-            var headers = context.OutgoingHeaders;
-            foreach (var header in CurrentHeaders)
-                headers[header.Key] = header.Value;
-
-
-            return Task.CompletedTask;
-        }
-
-        public Task MutateIncoming(MutateIncomingMessageContext context)
-        {
-            CurrentMessage = context.Message;
-
-            var headers = context.Headers;
+            CurrentMessage = command.Message;
 
             // There are certain headers that we can make note of
             // These will be committed to the event stream and included in all .Reply or .Publish done via this Unit Of Work
@@ -208,7 +195,7 @@ namespace Aggregates.Internal
             foreach (var header in Defaults.CarryOverHeaders)
             {
                 var defaultHeader = "";
-                headers.TryGetValue(header, out defaultHeader);
+                command.Headers.TryGetValue(header, out defaultHeader);
 
                 if (string.IsNullOrEmpty(defaultHeader))
                     defaultHeader = NotFound;
@@ -218,7 +205,7 @@ namespace Aggregates.Internal
             }
 
             // Copy any application headers the user might have included
-            var userHeaders = headers.Keys.Where(h =>
+            var userHeaders = command.Headers.Keys.Where(h =>
                             !h.Equals("CorrId", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals("WinIdName", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.StartsWith("NServiceBus", StringComparison.InvariantCultureIgnoreCase) &&
@@ -228,7 +215,7 @@ namespace Aggregates.Internal
                             !h.Equals(Defaults.Retries, StringComparison.InvariantCultureIgnoreCase));
 
             foreach (var header in userHeaders)
-                CurrentHeaders[header] = headers[header];
+                CurrentHeaders[header] = command.Headers[header];
             CurrentHeaders[Defaults.InstanceHeader] = Defaults.Instance.ToString();
 
 
@@ -248,8 +235,16 @@ namespace Aggregates.Internal
             }
             catch (FormatException) { }
 
-            return Task.CompletedTask;
+            return command;
         }
+        public IMutating MutateOutgoing(IMutating command)
+        {
+            foreach (var header in CurrentHeaders)
+                command.Headers[header.Key] = header.Value;
+
+            return command;
+        }
+        
 
     }
 }
