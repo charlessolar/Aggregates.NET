@@ -63,16 +63,12 @@ namespace Aggregates.Internal
                     WaitingEvents.Remove(stream.Key);
             }
 
-            var seenEvents = new HashSet<Guid>();
             foreach (var stream in ready)
             {
                 var bucket = Math.Abs(stream.Key.GetHashCode() % Bus.PushSettings.MaxConcurrency);
                 var events = stream.Value.Item2.OrderBy(x => x.Event.EventNumber);
                 foreach (var @event in events)
                 {
-                    if (seenEvents.Contains(@event.Event.EventId))
-                        continue;
-                    seenEvents.Add(@event.Event.EventId);
 
                     Logger.Write(LogLevel.Debug,
                         () =>
@@ -217,8 +213,8 @@ namespace Aggregates.Internal
                     .WithMaxRetriesOf(0)
                     .WithReadBatchOf(_readsize)
                     .WithLiveBufferSizeOf(_readsize)
-                    .WithMessageTimeoutOf(TimeSpan.FromSeconds(60))
-                    .CheckPointAfter(TimeSpan.FromSeconds(10))
+                    .WithMessageTimeoutOf(TimeSpan.FromSeconds(30))
+                    .CheckPointAfter(TimeSpan.FromSeconds(2))
                     .ResolveLinkTos()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
 
@@ -244,10 +240,10 @@ namespace Aggregates.Internal
                 _subscription = _connection.ConnectToPersistentSubscriptionAsync(stream, group, EventProcessor(cancelToken), subscriptionDropped: (sub, reason, e) =>
                 {
                     Logger.Write(LogLevel.Warn, () => $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
+                    Live = false;
                     cancelSource.Cancel();
                     _eventThreads.ForEach(x => x.Join());
                     _eventThreads.Clear();
-                    Live = false;
                     Dropped?.Invoke(reason.ToString(), e);
                 }, bufferSize: _readsize * 10, autoAck: false).Result;
 
@@ -264,7 +260,11 @@ namespace Aggregates.Internal
                             {
                                 ResolvedEvent e;
                                 while (!ReadyEvents[param.Bucket].TryDequeue(out e))
+                                {
+                                    if (param.Token.IsCancellationRequested)
+                                        return;
                                     Thread.Sleep(50);
+                                }
 
                                 var @event = e.Event;
 
@@ -287,9 +287,13 @@ namespace Aggregates.Internal
 
                                     while (!processed)
                                     {
+                                        if (param.Token.IsCancellationRequested)
+                                            return;
+
                                         try
                                         {
-                                            var messageContext = new MessageContext(@event.EventId.ToString(),
+                                            // Don't re-use the event id for the message id
+                                            var messageContext = new MessageContext(Guid.NewGuid().ToString(),
                                                 headers,
                                                 @event.Data ?? new byte[0], transportTranaction, tokenSource,
                                                 contextBag);
@@ -298,7 +302,7 @@ namespace Aggregates.Internal
                                         }
                                         catch (ObjectDisposedException)
                                         {
-                                            // Rabbit has been disconnected
+                                            // NSB transport has been disconnected
                                             param.Subscription.Stop(TimeSpan.FromMinutes(1));
                                             return;
                                         }
@@ -319,7 +323,7 @@ namespace Aggregates.Internal
 
                                     // If user decided to cancel receive - don't schedule an ACK
                                     if (tokenSource.IsCancellationRequested)
-                                        return;
+                                        continue;
 
                                     Logger.Write(LogLevel.Debug,
                                         () => $"Queueing acknowledge for event {@event.EventId}");
@@ -330,7 +334,7 @@ namespace Aggregates.Internal
 
                         })
                     { IsBackground = true, Name = $"Event Thread {i}" };
-                    thread.Start(new ThreadParam { Bucket=i, Subscription = _subscription, Token = cancelSource.Token });
+                    thread.Start(new ThreadParam { Bucket = i, Subscription = _subscription, Token = cancelSource.Token });
                     _eventThreads.Add(thread);
                 }
                 Live = true;

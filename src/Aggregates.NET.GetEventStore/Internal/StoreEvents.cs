@@ -221,7 +221,6 @@ namespace Aggregates.Internal
                 if (!mappedType.IsInterface)
                     mappedType = _mapper.GetMappedTypeFor(mappedType) ?? mappedType;
 
-
                 var @event = e.Event.Serialize(settings).AsByteArray();
                 var metadata = descriptor.Serialize(settings).AsByteArray();
                 if (_compress)
