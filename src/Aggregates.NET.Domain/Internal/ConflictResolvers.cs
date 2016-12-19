@@ -56,7 +56,7 @@ namespace Aggregates.Internal
         public async Task<Guid> Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var stream = entity.Stream;
-            Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] bucket [{stream.Bucket}]");
+            Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
 
             foreach (var u in uncommitted)
             {
@@ -85,7 +85,7 @@ namespace Aggregates.Internal
         public Task<Guid> Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var stream = entity.Stream;
-            Logger.Write(LogLevel.Info, () => $"Discarding {uncommitted.Count()} conflicting uncommitted events to stream [{stream.StreamId}] bucket [{stream.Bucket}]");
+            Logger.Write(LogLevel.Info, () => $"Discarding {uncommitted.Count()} conflicting uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
 
             return Task.FromResult(startingEventId);
         }
@@ -107,7 +107,7 @@ namespace Aggregates.Internal
         public async Task<Guid> Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var stream = entity.Stream;
-            Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] bucket [{stream.Bucket}]");
+            Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
 
             try
             {
@@ -187,7 +187,7 @@ namespace Aggregates.Internal
                 return startingEventId;
 
             var stream = entity.Stream;
-            Logger.Write(LogLevel.Debug, () => $"Starting weak conflict resolve for stream [{stream.StreamId}] bucket [{stream.Bucket}]");
+            Logger.Write(LogLevel.Debug, () => $"Starting weak conflict resolve for stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
             try
             {
                 try
@@ -200,9 +200,12 @@ namespace Aggregates.Internal
                     return startingEventId;
                 }
                 uncommitted = (await _delay.Pull(entity.StreamId).ConfigureAwait(false)).Cast<IWritableEvent>();
+                // If someone else pulled while we were waiting
+                if (!uncommitted.Any())
+                    return startingEventId;
                 Logger.Write(LogLevel.Info,
                     () =>
-                            $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] bucket [{stream.Bucket}]");
+                            $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
 
                 var latestEvents =
                     await
