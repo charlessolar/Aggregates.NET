@@ -46,40 +46,7 @@ namespace Aggregates.Internal
         public static bool Live { get; set; }
         // Create a blocking collection based on ConcurrentQueue for ordering
         private static readonly Dictionary<int, ConcurrentQueue<ResolvedEvent>> ReadyEvents = new Dictionary<int, ConcurrentQueue<ResolvedEvent>>();
-        // Todo: lets come up with a more efficient collection
-        private static readonly Dictionary<string, Tuple<DateTime, IList<ResolvedEvent>>> WaitingEvents = new Dictionary<string, Tuple<DateTime, IList<ResolvedEvent>>>();
-        private static readonly object WaitingLock = new object();
-
-        // Moves now in-order events to ReadyEvents
-        private static readonly Timer MoveToReady = new Timer(_ =>
-        {
-            if (!Live) return;
-
-            List<KeyValuePair<string, Tuple<DateTime, IList<ResolvedEvent>>>> ready;
-            lock (WaitingLock)
-            {
-                ready = WaitingEvents.Where(x => x.Value.Item1 < DateTime.UtcNow).ToList();
-                foreach (var stream in ready)
-                    WaitingEvents.Remove(stream.Key);
-            }
-
-            foreach (var stream in ready)
-            {
-                var bucket = Math.Abs(stream.Key.GetHashCode() % Bus.PushSettings.MaxConcurrency);
-                var events = stream.Value.Item2.OrderBy(x => x.Event.EventNumber);
-                foreach (var @event in events)
-                {
-
-                    Logger.Write(LogLevel.Debug,
-                        () =>
-                                $"Readying event {@event.Event.EventId} type {@event.Event.EventType} stream [{@event.Event.EventStreamId}] number {@event.Event.EventNumber} to bucket {bucket}");
-                    ReadyEvents[bucket].Enqueue(@event);
-                }
-            }
-
-
-        }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
-
+        
         private readonly List<Thread> _eventThreads;
 
         private ConcurrentBag<ResolvedEvent> _toBeAcknowledged;
@@ -152,10 +119,7 @@ namespace Aggregates.Internal
 
             var manager = new ProjectionsManager(_connection.Settings.Log,
                 new IPEndPoint(_connection.Settings.GossipSeeds[0].EndPoint.Address, _connection.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
-
-            // We use this system projection - so enable it
-            await manager.EnableAsync("$by_event_type", _connection.Settings.DefaultUserCredentials).ConfigureAwait(false);
-
+            
             var discoveredEvents = _registry.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).ToList();
 
             var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
@@ -163,14 +127,10 @@ namespace Aggregates.Internal
             // Link all events we are subscribing to to a stream
             var functions =
                 discoveredEvents
-                    .Select(eventType => $"'{eventType.AssemblyQualifiedName}': function(s,e) {{ linkTo('{stream}', e); }}")
+                    .Select(eventType => $"'{eventType.AssemblyQualifiedName}': function(s,e) {{ linkTo('{stream}', e); return null; }}")
                     .Aggregate((cur, next) => $"{cur},\n{next}");
-            var eventTypes =
-                discoveredEvents
-                    .Select(eventType => $"'$et-{eventType.AssemblyQualifiedName}'")
-                    .Aggregate((cur, next) => $"{cur},{next}");
 
-            var definition = $"fromStreams([{eventTypes}]).when({{\n{functions}\n}});";
+            var definition = $"fromAll().when({{\n{functions}\n}});";
 
             try
             {
@@ -249,7 +209,7 @@ namespace Aggregates.Internal
 
                 // Create a new thread for pushing events
                 // Another option is to use the thread pool with Task.Run however event-ordering is lost or at least severely degraded in the pool
-                for (var i = 0; i < Bus.PushSettings.MaxConcurrency; i++)
+                for (var i = 0; i < (Bus.PushSettings.MaxConcurrency / 2); i++)
                 {
                     ReadyEvents[i] = new ConcurrentQueue<ResolvedEvent>();
                     var thread = new Thread((state) =>
@@ -365,23 +325,8 @@ namespace Aggregates.Internal
                     return;
                 }
 
-                // Instead of processing event right this moment, put it into a delayed "queue"
-                // The event will be delayed from running for ~5 seconds - should be enough time to get more of the same stream
-                // Issue from ES is events are not in order.  Meaning for a single stream "XYZ" I'll get events in this order: 1, 5, 0, 3, 2, 4
-                // If we process those as they come in, the user will be confused since they'll want 0, 1, 2, 3, 4, 5
-                // We can't GUARENTEE ordering - but we can come pretty close by just adding a 5 second delay 
-                // When we receive event 1 we'll start the countdown, we'll then receive 5, 0, 3, 2, and 4
-                // Once 5 seconds are up we'll have all 6 events and we'll be able to process them in order!
-
-                lock (WaitingLock)
-                {
-                    if (!WaitingEvents.ContainsKey(@event.EventStreamId))
-                        WaitingEvents[@event.EventStreamId] =
-                            new Tuple<DateTime, IList<ResolvedEvent>>(DateTime.UtcNow + TimeSpan.FromSeconds(5),
-                                new List<ResolvedEvent>());
-
-                    WaitingEvents[@event.EventStreamId].Item2.Add(e);
-                }
+                var bucket = Math.Abs(@event.EventStreamId.GetHashCode() % (Bus.PushSettings.MaxConcurrency / 2));
+                ReadyEvents[bucket].Enqueue(e);
             };
         }
 
