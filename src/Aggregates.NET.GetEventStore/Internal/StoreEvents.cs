@@ -244,30 +244,54 @@ namespace Aggregates.Internal
 
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
 
-            WrittenEvents.Update(events.Count());
             using (WriteTime.NewContext())
             {
+                EventStoreTransaction transaction = null;
                 try
                 {
-                    var result = await
-                        _clients[bucket].AppendToStreamAsync(stream, expectedVersion ?? ExpectedVersion.Any, translatedEvents)
-                            .ConfigureAwait(false);
-                    return result.NextExpectedVersion;
+                    if (translatedEvents.Count > _readsize)
+                        transaction = await _clients[bucket].StartTransactionAsync(stream, expectedVersion ?? ExpectedVersion.Any).ConfigureAwait(false);
+                    
+                    if (transaction != null)
+                    {
+                        var page = 0;
+                        while (page < translatedEvents.Count)
+                        {
+                            await transaction.WriteAsync(translatedEvents.Skip(page).Take(Math.Min(translatedEvents.Count - page, _readsize))).ConfigureAwait(false);
+                            page += _readsize;
+                        }
+                        var result = await transaction.CommitAsync().ConfigureAwait(false);
+                        WrittenEvents.Update(translatedEvents.Count);
+                        return result.NextExpectedVersion;
+                    }
+                    else
+                    {
+                        var result = await
+                            _clients[bucket].AppendToStreamAsync(stream, expectedVersion ?? ExpectedVersion.Any,
+                                    translatedEvents)
+                                .ConfigureAwait(false);
+                        WrittenEvents.Update(translatedEvents.Count);
+                        return result.NextExpectedVersion;
+                    }
                 }
                 catch (WrongExpectedVersionException e)
                 {
+                    transaction?.Rollback();
                     throw new VersionException(e.Message, e);
                 }
                 catch (CannotEstablishConnectionException e)
                 {
+                    transaction?.Rollback();
                     throw new PersistenceException(e.Message, e);
                 }
                 catch (OperationTimedOutException e)
                 {
+                    transaction?.Rollback();
                     throw new PersistenceException(e.Message, e);
                 }
                 catch (EventStoreConnectionException e)
                 {
+                    transaction?.Rollback();
                     throw new PersistenceException(e.Message, e);
                 }
             }
