@@ -79,7 +79,7 @@ namespace Aggregates.Internal
                 Binder = new EventSerializationBinder(mapper),
                 ContractResolver = new EventContractResolver(mapper)
             };
-            
+
             _acknowledger = new Timer(_ =>
             {
                 if (!ProcessingLive) return;
@@ -180,6 +180,12 @@ namespace Aggregates.Internal
 
             var cancelSource = new CancellationTokenSource();
 
+            lock (_acknowledgedLock)
+            {
+                for (var i = 0; i < _clients.Count(); i++)
+                    _toBeAcknowledged[i] = new List<ResolvedEvent>();
+            }
+
             Task.Run(async () =>
             {
                 var subscriptions = new List<Task<EventStorePersistentSubscriptionBase>>();
@@ -193,7 +199,6 @@ namespace Aggregates.Internal
                 var count = 0;
                 foreach (var client in _clients)
                 {
-                    lock (_acknowledgedLock) _toBeAcknowledged[count] = new List<ResolvedEvent>();
 
                     try
                     {
@@ -236,14 +241,13 @@ namespace Aggregates.Internal
                 await Task.WhenAll(subscriptions).ConfigureAwait(false);
                 _subscriptions = subscriptions.Select(x => x.Result).ToArray();
 
-                Live = true;
-            });
-            // Create a new thread for pushing events
-            // Another option is to use the thread pool with Task.Run however event-ordering is lost or at least severely degraded in the pool
-            for (var i = 0; i < (Bus.PushSettings.MaxConcurrency / 2); i++)
-            {
-                ReadyEvents[i] = new ConcurrentQueue<Tuple<int, ResolvedEvent>>();
-                var thread = new Thread((state) =>
+
+                // Create a new thread for pushing events
+                // Another option is to use the thread pool with Task.Run however event-ordering is lost or at least severely degraded in the pool
+                for (var i = 0; i < (Bus.PushSettings.MaxConcurrency / 2); i++)
+                {
+                    ReadyEvents[i] = new ConcurrentQueue<Tuple<int, ResolvedEvent>>();
+                    var thread = new Thread((state) =>
                     {
 
                         var param = state as ThreadParam;
@@ -321,10 +325,12 @@ namespace Aggregates.Internal
                         }
 
                     })
-                { IsBackground = true, Name = $"Event Thread {i}" };
-                thread.Start(new ThreadParam { Bucket = i, Token = cancelSource.Token });
-                _eventThreads.Add(thread);
-            }
+                    { IsBackground = true, Name = $"Event Thread {i}" };
+                    thread.Start(new ThreadParam { Bucket = i, Token = cancelSource.Token });
+                    _eventThreads.Add(thread);
+                }
+                Live = true;
+            });
 
             return Task.CompletedTask;
         }
