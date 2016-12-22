@@ -44,11 +44,11 @@ namespace Aggregates.Internal
 
         private static readonly Dictionary<int, ConcurrentQueue<Tuple<int, ResolvedEvent>>> ReadyEvents = new Dictionary<int, ConcurrentQueue<Tuple<int, ResolvedEvent>>>();
         public static bool Live { get; set; }
-        
+
         private readonly List<Thread> _eventThreads;
 
-        private object _acknowledgedLock;
-        private Dictionary<int, List<ResolvedEvent>> _toBeAcknowledged;
+        private readonly object _acknowledgedLock = new object();
+        private readonly Dictionary<int, List<ResolvedEvent>> _toBeAcknowledged = new Dictionary<int, List<ResolvedEvent>>();
         private Timer _acknowledger;
 
         private string _endpoint;
@@ -177,7 +177,6 @@ namespace Aggregates.Internal
             var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
             var group = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.sub";
 
-            Logger.Write(LogLevel.Info, () => $"Endpoint [{_endpoint}] connecting to subscription group [{stream}]");
 
             var cancelSource = new CancellationTokenSource();
 
@@ -194,7 +193,7 @@ namespace Aggregates.Internal
                 var count = 0;
                 foreach (var client in _clients)
                 {
-                    lock(_acknowledgedLock) _toBeAcknowledged[count] = new List<ResolvedEvent>();
+                    lock (_acknowledgedLock) _toBeAcknowledged[count] = new List<ResolvedEvent>();
 
                     try
                     {
@@ -208,13 +207,17 @@ namespace Aggregates.Internal
                             .ResolveLinkTos()
                             .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
 
-                        await client.CreatePersistentSubscriptionAsync(stream, group, settings, client.Settings.DefaultUserCredentials).ConfigureAwait(false);
+                        await
+                            client.CreatePersistentSubscriptionAsync(stream, group, settings,
+                                client.Settings.DefaultUserCredentials).ConfigureAwait(false);
+                        Logger.Info($"Created persistent subscription to stream [{stream}]");
                     }
                     catch (InvalidOperationException)
                     {
                     }
 
 
+                    Logger.Write(LogLevel.Info, () => $"Endpoint [{_endpoint}] connecting to subscription group [{group}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
                     subscriptions.Add(
                         client.ConnectToPersistentSubscriptionAsync(stream, group, EventProcessor(count, cancelToken),
                             subscriptionDropped: (sub, reason, e) =>
@@ -227,101 +230,102 @@ namespace Aggregates.Internal
                                 _eventThreads.ForEach(x => x.Join());
                                 _eventThreads.Clear();
                                 Dropped?.Invoke(reason.ToString(), e);
-                            }, bufferSize: _readsize*10, autoAck: false));
+                            }, bufferSize: _readsize * 10, autoAck: false));
                     count++;
                 }
                 await Task.WhenAll(subscriptions).ConfigureAwait(false);
                 _subscriptions = subscriptions.Select(x => x.Result).ToArray();
 
-                // Create a new thread for pushing events
-                // Another option is to use the thread pool with Task.Run however event-ordering is lost or at least severely degraded in the pool
-                for (var i = 0; i < (Bus.PushSettings.MaxConcurrency / 2); i++)
-                {
-                    ReadyEvents[i] = new ConcurrentQueue<Tuple<int, ResolvedEvent>>();
-                    var thread = new Thread((state) =>
-                        {
+                Live = true;
+            });
+            // Create a new thread for pushing events
+            // Another option is to use the thread pool with Task.Run however event-ordering is lost or at least severely degraded in the pool
+            for (var i = 0; i < (Bus.PushSettings.MaxConcurrency / 2); i++)
+            {
+                ReadyEvents[i] = new ConcurrentQueue<Tuple<int, ResolvedEvent>>();
+                var thread = new Thread((state) =>
+                    {
 
-                            var param = state as ThreadParam;
-                            while (!param.Token.IsCancellationRequested)
+                        var param = state as ThreadParam;
+                        while (!param.Token.IsCancellationRequested)
+                        {
+                            Tuple<int, ResolvedEvent> e;
+                            while (!ReadyEvents[param.Bucket].TryDequeue(out e))
                             {
-                                Tuple<int, ResolvedEvent> e;
-                                while (!ReadyEvents[param.Bucket].TryDequeue(out e))
+                                if (param.Token.IsCancellationRequested)
+                                    return;
+                                Thread.Sleep(50);
+                            }
+
+                            var @event = e.Item2.Event;
+
+                            var descriptor = @event.Metadata.Deserialize(_settings);
+
+                            var headers = new Dictionary<string, string>(descriptor.Headers)
+                            {
+                                [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(Type.GetType(@event.EventType)),
+                                [Headers.MessageId] = @event.EventId.ToString()
+                            };
+
+                            Logger.Write(LogLevel.Debug,
+                                () => $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
+                            using (var tokenSource = new CancellationTokenSource())
+                            {
+                                var processed = false;
+                                var numberOfDeliveryAttempts = 0;
+
+                                while (!processed)
                                 {
                                     if (param.Token.IsCancellationRequested)
                                         return;
-                                    Thread.Sleep(50);
+
+                                    try
+                                    {
+                                        // Don't re-use the event id for the message id
+                                        var messageContext = new MessageContext(Guid.NewGuid().ToString(),
+                                        headers,
+                                        @event.Data ?? new byte[0], transportTransaction, tokenSource,
+                                        contextBag);
+                                        Bus.OnMessage(messageContext).ConfigureAwait(false).GetAwaiter().GetResult();
+                                        processed = true;
+                                    }
+                                    catch (ObjectDisposedException)
+                                    {
+                                        // NSB transport has been disconnected
+                                        return;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        ++numberOfDeliveryAttempts;
+                                        var errorContext = new ErrorContext(ex, headers,
+                                            @event.EventId.ToString(),
+                                            @event.Data ?? new byte[0], transportTransaction,
+                                            numberOfDeliveryAttempts);
+                                        if (Bus.OnError(errorContext).ConfigureAwait(false).GetAwaiter().GetResult() ==
+                                            ErrorHandleResult.Handled)
+                                            break;
+
+                                    }
                                 }
 
-                                var @event = e.Item2.Event;
 
-                                var descriptor = @event.Metadata.Deserialize(_settings);
-
-                                var headers = new Dictionary<string, string>(descriptor.Headers)
-                                {
-                                    [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(Type.GetType(@event.EventType)),
-                                    [Headers.MessageId] = @event.EventId.ToString()
-                                };
+                                // If user decided to cancel receive - don't schedule an ACK
+                                if (tokenSource.IsCancellationRequested)
+                                    continue;
 
                                 Logger.Write(LogLevel.Debug,
-                                    () => $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
-                                using (var tokenSource = new CancellationTokenSource())
-                                {
-                                    var processed = false;
-                                    var numberOfDeliveryAttempts = 0;
-
-                                    while (!processed)
-                                    {
-                                        if (param.Token.IsCancellationRequested)
-                                            return;
-
-                                        try
-                                        {
-                                            // Don't re-use the event id for the message id
-                                            var messageContext = new MessageContext(Guid.NewGuid().ToString(),
-                                                headers,
-                                                @event.Data ?? new byte[0], transportTransaction, tokenSource,
-                                                contextBag);
-                                            Bus.OnMessage(messageContext).ConfigureAwait(false).GetAwaiter().GetResult();
-                                            processed = true;
-                                        }
-                                        catch (ObjectDisposedException)
-                                        {
-                                            // NSB transport has been disconnected
-                                            return;
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            ++numberOfDeliveryAttempts;
-                                            var errorContext = new ErrorContext(ex, headers,
-                                                @event.EventId.ToString(),
-                                                @event.Data ?? new byte[0], transportTransaction,
-                                                numberOfDeliveryAttempts);
-                                            if (Bus.OnError(errorContext).ConfigureAwait(false).GetAwaiter().GetResult() ==
-                                                ErrorHandleResult.Handled)
-                                                break;
-
-                                        }
-                                    }
-
-
-                                    // If user decided to cancel receive - don't schedule an ACK
-                                    if (tokenSource.IsCancellationRequested)
-                                        continue;
-
-                                    Logger.Write(LogLevel.Debug,
-                                        () => $"Queueing acknowledge for event {@event.EventId}");
-                                    lock (_acknowledgedLock) _toBeAcknowledged[e.Item1].Add(e.Item2);
-                                    //subscription.Acknowledge(e);
-                                }
+                                    () => $"Queueing acknowledge for event {@event.EventId}");
+                                lock (_acknowledgedLock) _toBeAcknowledged[e.Item1].Add(e.Item2);
+                                //subscription.Acknowledge(e);
                             }
+                        }
 
-                        })
-                    { IsBackground = true, Name = $"Event Thread {i}" };
-                    thread.Start(new ThreadParam { Bucket = i, Token = cancelSource.Token });
-                    _eventThreads.Add(thread);
-                }
-                Live = true;
-            });
+                    })
+                { IsBackground = true, Name = $"Event Thread {i}" };
+                thread.Start(new ThreadParam { Bucket = i, Token = cancelSource.Token });
+                _eventThreads.Add(thread);
+            }
+
             return Task.CompletedTask;
         }
 
@@ -334,7 +338,7 @@ namespace Aggregates.Internal
                 var @event = e.Event;
                 if (!@event.IsJson)
                 {
-                    lock(_acknowledgedLock) _toBeAcknowledged[index].Add(e);
+                    lock (_acknowledgedLock) _toBeAcknowledged[index].Add(e);
                     return;
                 }
                 Logger.Write(LogLevel.Debug,
@@ -355,7 +359,7 @@ namespace Aggregates.Internal
         {
             if (_disposed)
                 return;
-            
+
             _disposed = true;
             foreach (var sub in _subscriptions)
                 sub.Stop(TimeSpan.FromMinutes(1));
