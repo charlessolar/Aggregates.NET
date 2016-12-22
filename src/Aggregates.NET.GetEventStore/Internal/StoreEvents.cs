@@ -27,14 +27,14 @@ namespace Aggregates.Internal
         private static readonly Timer WriteTime = Metric.Timer("EventStore Write Time", Unit.Items);
 
         private static readonly ILog Logger = LogManager.GetLogger("StoreEvents");
-        private readonly IEventStoreConnection _client;
+        private readonly IEventStoreConnection[] _clients;
         private readonly IMessageMapper _mapper;
         private readonly int _readsize;
         private readonly bool _compress;
 
-        public StoreEvents(IEventStoreConnection client, IMessageMapper mapper, int readsize, bool compress)
+        public StoreEvents(IMessageMapper mapper, int readsize, bool compress, IEventStoreConnection[] connections)
         {
-            _client = client;
+            _clients = connections;
             _mapper = mapper;
             _readsize = readsize;
             _compress = compress;
@@ -50,6 +50,8 @@ namespace Aggregates.Internal
                 ContractResolver = new EventContractResolver(_mapper)
             };
 
+            var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
+
             var sliceStart = start ?? StreamPosition.Start;
             StreamEventsSlice current;
             Logger.Write(LogLevel.Debug, () => $"Reading events from stream [{stream}] starting at {sliceStart}");
@@ -60,7 +62,7 @@ namespace Aggregates.Internal
                 do
                 {
                     current =
-                        await _client.ReadStreamEventsForwardAsync(stream, sliceStart, _readsize, false)
+                        await _clients[bucket].ReadStreamEventsForwardAsync(stream, sliceStart, _readsize, false)
                             .ConfigureAwait(false);
 
                     Logger.Write(LogLevel.Debug,
@@ -120,6 +122,8 @@ namespace Aggregates.Internal
                 ContractResolver = new EventContractResolver(_mapper)
             };
 
+            var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
+
             var events = new List<ResolvedEvent>();
             StreamEventsSlice current;
             var sliceStart = StreamPosition.End;
@@ -129,7 +133,7 @@ namespace Aggregates.Internal
             {
                 // Interesting, ReadStreamEventsBackwardAsync's [start] parameter marks start from begining of stream, not an offset from the end.
                 // Read 1 event from the end, to figure out where start should be
-                var result = await _client.ReadStreamEventsBackwardAsync(stream, StreamPosition.End, 1, false).ConfigureAwait(false);
+                var result = await _clients[bucket].ReadStreamEventsBackwardAsync(stream, StreamPosition.End, 1, false).ConfigureAwait(false);
                 sliceStart = result.NextEventNumber - start ?? 0;
 
                 // Special case if only 1 event is requested no reason to read any more
@@ -149,7 +153,7 @@ namespace Aggregates.Internal
                         var take = Math.Min((count ?? int.MaxValue) - events.Count, _readsize);
 
                         current =
-                            await _client.ReadStreamEventsBackwardAsync(stream, sliceStart, take, false)
+                            await _clients[bucket].ReadStreamEventsBackwardAsync(stream, sliceStart, take, false)
                                 .ConfigureAwait(false);
 
                         Logger.Write(LogLevel.Debug,
@@ -238,13 +242,15 @@ namespace Aggregates.Internal
                     );
             }).ToList();
 
+            var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
+
             WrittenEvents.Update(events.Count());
             using (WriteTime.NewContext())
             {
                 try
                 {
                     var result = await
-                        _client.AppendToStreamAsync(stream, expectedVersion ?? ExpectedVersion.Any, translatedEvents)
+                        _clients[bucket].AppendToStreamAsync(stream, expectedVersion ?? ExpectedVersion.Any, translatedEvents)
                             .ConfigureAwait(false);
                     return result.NextExpectedVersion;
                 }
@@ -270,10 +276,10 @@ namespace Aggregates.Internal
         public async Task WriteMetadata(string stream, int? maxCount = null, int? truncateBefore = null, TimeSpan? maxAge = null,
             TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null, bool force=false)
         {
-
+            var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
             Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream [{stream}] [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl}, {nameof(frozen)}: {frozen} ]");
 
-            var existing = await _client.GetStreamMetadataAsync(stream).ConfigureAwait(false);
+            var existing = await _clients[bucket].GetStreamMetadataAsync(stream).ConfigureAwait(false);
 
             if ((existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) &&
                 existing.StreamMetadata?.GetValue<string>("owner") != Defaults.Instance.ToString())
@@ -316,7 +322,7 @@ namespace Aggregates.Internal
 
             try
             {
-                await _client.SetStreamMetadataAsync(stream, existing.MetastreamVersion, metadata).ConfigureAwait(false);
+                await _clients[bucket].SetStreamMetadataAsync(stream, existing.MetastreamVersion, metadata).ConfigureAwait(false);
 
             }
             catch (WrongExpectedVersionException e)
@@ -339,8 +345,9 @@ namespace Aggregates.Internal
 
         public async Task<bool> IsFrozen(string stream)
         {
+            var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
 
-            var streamMeta = await _client.GetStreamMetadataAsync(stream).ConfigureAwait(false);
+            var streamMeta = await _clients[bucket].GetStreamMetadataAsync(stream).ConfigureAwait(false);
             if (!(streamMeta.StreamMetadata?.CustomKeys.Contains("frozen") ?? false))
                 return false;
 

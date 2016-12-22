@@ -3,12 +3,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Extensions;
 using Aggregates.Internal;
+using EventStore.ClientAPI;
 using NServiceBus;
 using NServiceBus.Features;
 using NServiceBus.Logging;
+using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
 using NServiceBus.Settings;
+using NServiceBus.Unicast;
+using NServiceBus.Unicast.Messages;
 
 namespace Aggregates
 {
@@ -25,7 +29,14 @@ namespace Aggregates
         {
             context.RegisterStartupTask(builder => new EventStoreRunner(builder.Build<IEventSubscriber>(), context.Settings));
 
-            context.Container.ConfigureComponent<EventSubscriber>(DependencyLifecycle.SingleInstance);
+            var settings = context.Settings;
+            context.Container.ConfigureComponent(b =>
+            {
+                IEventStoreConnection[] connections;
+                if (!settings.TryGet<IEventStoreConnection[]>("Shards", out connections))
+                    connections = new[] { b.Build<IEventStoreConnection>() };
+                return new EventSubscriber(b.Build<MessageHandlerRegistry>(), b.Build<IMessageMapper>(), b.Build<MessageMetadataRegistry>(), connections);
+            }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register<MutateIncomingRegistration>();
         }

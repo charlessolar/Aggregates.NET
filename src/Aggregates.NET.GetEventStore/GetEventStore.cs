@@ -31,8 +31,13 @@ namespace Aggregates
                 new EventStoreDelayed(b.Build<IStoreEvents>(), flushInterval),
                 DependencyLifecycle.InstancePerUnitOfWork);
 
-            context.Container.ConfigureComponent(b => 
-                new StoreEvents(b.Build<IEventStoreConnection>(), b.Build<IMessageMapper>(), settings.Get<int>("ReadSize"), settings.Get<bool>("Compress")), 
+            context.Container.ConfigureComponent(b =>
+            {
+                IEventStoreConnection[] connections;
+                if (!settings.TryGet<IEventStoreConnection[]>("Shards", out connections))
+                    connections = new[] { b.Build<IEventStoreConnection>() };
+                return new StoreEvents(b.Build<IMessageMapper>(), settings.Get<int>("ReadSize"), settings.Get<bool>("Compress"), connections);
+            },
                 DependencyLifecycle.InstancePerCall);
         }
 

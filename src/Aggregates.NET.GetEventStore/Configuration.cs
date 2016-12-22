@@ -1,4 +1,5 @@
 ﻿using System;
+using EventStore.ClientAPI;
 using NServiceBus;
 using NServiceBus.Configuration.AdvanceExtensibility;
 
@@ -16,6 +17,11 @@ namespace Aggregates
         public static void DelayedFlushInterval(this ExposeSettings settings, TimeSpan? interval)
         {
             settings.GetSettings().Set("FlushInterval", interval);
+        }
+
+        public static void ShardedStore(this ExposeSettings settings, IEventStoreConnection[] connections)
+        {
+            settings.GetSettings().Set("Shards", connections);
         }
     }
 }

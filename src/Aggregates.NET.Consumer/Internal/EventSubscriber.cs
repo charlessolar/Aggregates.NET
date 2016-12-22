@@ -57,7 +57,7 @@ namespace Aggregates.Internal
         private bool _extraStats;
 
         private readonly MessageHandlerRegistry _registry;
-        private readonly IEventStoreConnection _connection;
+        private readonly IEventStoreConnection[] _clients;
         private readonly JsonSerializerSettings _settings;
         private readonly MessageMetadataRegistry _messageMeta;
 
@@ -68,11 +68,10 @@ namespace Aggregates.Internal
         public bool ProcessingLive => Live;
         public Action<string, Exception> Dropped { get; set; }
 
-        public EventSubscriber(MessageHandlerRegistry registry,
-            IEventStoreConnection connection, IMessageMapper mapper, MessageMetadataRegistry messageMeta)
+        public EventSubscriber(MessageHandlerRegistry registry, IMessageMapper mapper, MessageMetadataRegistry messageMeta, IEventStoreConnection[] connections)
         {
             _registry = registry;
-            _connection = connection;
+            _clients = connections;
             _messageMeta = messageMeta;
             _eventThreads = new List<Thread>();
             _settings = new JsonSerializerSettings
@@ -113,81 +112,72 @@ namespace Aggregates.Internal
             _readsize = readsize;
             _extraStats = extraStats;
 
-            if (_connection.Settings.GossipSeeds == null || !_connection.Settings.GossipSeeds.Any())
-                throw new ArgumentException(
-                    "Eventstore connection settings does not contain gossip seeds (even if single host call SetGossipSeedEndPoints and SetClusterGossipPort)");
-
-            var manager = new ProjectionsManager(_connection.Settings.Log,
-                new IPEndPoint(_connection.Settings.GossipSeeds[0].EndPoint.Address, _connection.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
-            
-            var discoveredEvents = _registry.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).ToList();
-
-            var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
-
-            // Link all events we are subscribing to to a stream
-            var functions =
-                discoveredEvents
-                    .Select(eventType => $"'{eventType.AssemblyQualifiedName}': function(s,e) {{ linkTo('{stream}', e); return null; }}")
-                    .Aggregate((cur, next) => $"{cur},\n{next}");
-
-            var definition = $"fromAll().when({{\n{functions}\n}});";
-
-            try
+            foreach (var client in _clients)
             {
-                var existing = await manager.GetQueryAsync(stream).ConfigureAwait(false);
+                if (client.Settings.GossipSeeds == null || !client.Settings.GossipSeeds.Any())
+                    throw new ArgumentException(
+                        "Eventstore connection settings does not contain gossip seeds (even if single host call SetGossipSeedEndPoints and SetClusterGossipPort)");
 
-                if (existing != definition)
-                {
-                    Logger.Fatal(
-                        $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
-                    throw new EndpointVersionException(
-                        $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
-                }
-            }
-            catch (ProjectionCommandFailedException)
-            {
+                var manager = new ProjectionsManager(client.Settings.Log,
+                    new IPEndPoint(client.Settings.GossipSeeds[0].EndPoint.Address,
+                        client.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
+
+                var discoveredEvents =
+                    _registry.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).ToList();
+
+                var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
+
+                // Link all events we are subscribing to to a stream
+                var functions =
+                    discoveredEvents
+                        .Select(
+                            eventType =>
+                                    $"'{eventType.AssemblyQualifiedName}': function(s,e) {{ linkTo('{stream}', e); return null; }}")
+                        .Aggregate((cur, next) => $"{cur},\n{next}");
+
+                var definition = $"fromAll().when({{\n{functions}\n}});";
+
                 try
                 {
-                    // Projection doesn't exist 
-                    await
-                        manager.CreateContinuousAsync(stream, definition, _connection.Settings.DefaultUserCredentials)
-                            .ConfigureAwait(false);
+                    var existing = await manager.GetQueryAsync(stream).ConfigureAwait(false);
+
+                    if (existing != definition)
+                    {
+                        Logger.Fatal(
+                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
+                        throw new EndpointVersionException(
+                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
+                    }
                 }
                 catch (ProjectionCommandFailedException)
                 {
+                    try
+                    {
+                        // Projection doesn't exist 
+                        await
+                            manager.CreateContinuousAsync(stream, definition,
+                                    client.Settings.DefaultUserCredentials)
+                                .ConfigureAwait(false);
+                    }
+                    catch (ProjectionCommandFailedException)
+                    {
+                    }
                 }
             }
         }
 
-        public async Task Subscribe(CancellationToken cancelToken)
+        public Task Subscribe(CancellationToken cancelToken)
         {
             var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
             var group = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.sub";
 
             Logger.Write(LogLevel.Info, () => $"Endpoint [{_endpoint}] connecting to subscription group [{stream}]");
 
-            try
-            {
-                var settings = PersistentSubscriptionSettings.Create()
-                    .StartFromBeginning()
-                    .WithMaxRetriesOf(0)
-                    .WithReadBatchOf(_readsize)
-                    .WithLiveBufferSizeOf(_readsize)
-                    .WithMessageTimeoutOf(TimeSpan.FromSeconds(30))
-                    .CheckPointAfter(TimeSpan.FromSeconds(2))
-                    .ResolveLinkTos()
-                    .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
+            var cancelSource = new CancellationTokenSource();
 
-                await
-                    _connection.CreatePersistentSubscriptionAsync(stream, group, settings,
-                        _connection.Settings.DefaultUserCredentials).ConfigureAwait(false);
-            }
-            catch (InvalidOperationException)
+            Task.Run(async () =>
             {
-            }
-
-            ThreadPool.QueueUserWorkItem(_ =>
-            {
+                
 
                 while (Bus.OnMessage == null || Bus.OnError == null)
                 {
@@ -195,18 +185,41 @@ namespace Aggregates.Internal
                     Thread.Sleep(1000);
                 }
 
-                var cancelSource = new CancellationTokenSource();
-
-                _subscription = _connection.ConnectToPersistentSubscriptionAsync(stream, group, EventProcessor(cancelToken), subscriptionDropped: (sub, reason, e) =>
+                foreach (var client in _clients)
                 {
-                    Logger.Write(LogLevel.Warn, () => $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
-                    Live = false;
-                    cancelSource.Cancel();
-                    _eventThreads.ForEach(x => x.Join());
-                    _eventThreads.Clear();
-                    Dropped?.Invoke(reason.ToString(), e);
-                }, bufferSize: _readsize * 10, autoAck: false).Result;
+                    try
+                    {
+                        var settings = PersistentSubscriptionSettings.Create()
+                            .StartFromBeginning()
+                            .WithMaxRetriesOf(0)
+                            .WithReadBatchOf(_readsize)
+                            .WithLiveBufferSizeOf(_readsize)
+                            .WithMessageTimeoutOf(TimeSpan.FromSeconds(30))
+                            .CheckPointAfter(TimeSpan.FromSeconds(2))
+                            .ResolveLinkTos()
+                            .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
 
+                        await client.CreatePersistentSubscriptionAsync(stream, group, settings, client.Settings.DefaultUserCredentials).ConfigureAwait(false);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                    }
+
+
+                    _subscription =
+                        await client.ConnectToPersistentSubscriptionAsync(stream, group, EventProcessor(cancelToken),
+                            subscriptionDropped: (sub, reason, e) =>
+                            {
+                                Logger.Write(LogLevel.Warn,
+                                    () =>
+                                            $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
+                                Live = false;
+                                cancelSource.Cancel();
+                                _eventThreads.ForEach(x => x.Join());
+                                _eventThreads.Clear();
+                                Dropped?.Invoke(reason.ToString(), e);
+                            }, bufferSize: _readsize * 10, autoAck: false).ConfigureAwait(false);
+                }
                 // Create a new thread for pushing events
                 // Another option is to use the thread pool with Task.Run however event-ordering is lost or at least severely degraded in the pool
                 for (var i = 0; i < (Bus.PushSettings.MaxConcurrency / 2); i++)
@@ -299,10 +312,8 @@ namespace Aggregates.Internal
                 }
                 Live = true;
             });
-
-
+            return Task.CompletedTask;
         }
-
 
 
         private Action<EventStorePersistentSubscriptionBase, ResolvedEvent> EventProcessor(CancellationToken token)
