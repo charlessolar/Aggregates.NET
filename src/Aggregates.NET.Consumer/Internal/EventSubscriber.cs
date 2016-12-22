@@ -32,7 +32,6 @@ namespace Aggregates.Internal
     {
         private class ThreadParam
         {
-            public EventStorePersistentSubscriptionBase Subscription { get; set; }
             public CancellationToken Token { get; set; }
             public int Bucket { get; set; }
         }
@@ -40,16 +39,16 @@ namespace Aggregates.Internal
         private static readonly Histogram Acknowledging = Metric.Histogram("Acknowledged Events", Unit.Events);
 
         private static readonly ILog Logger = LogManager.GetLogger("EventSubscriber");
-        private static readonly TransportTransaction transportTranaction = new TransportTransaction();
+        private static readonly TransportTransaction transportTransaction = new TransportTransaction();
         private static readonly ContextBag contextBag = new ContextBag();
 
+        private static readonly Dictionary<int, ConcurrentQueue<Tuple<int, ResolvedEvent>>> ReadyEvents = new Dictionary<int, ConcurrentQueue<Tuple<int, ResolvedEvent>>>();
         public static bool Live { get; set; }
-        // Create a blocking collection based on ConcurrentQueue for ordering
-        private static readonly Dictionary<int, ConcurrentQueue<ResolvedEvent>> ReadyEvents = new Dictionary<int, ConcurrentQueue<ResolvedEvent>>();
         
         private readonly List<Thread> _eventThreads;
 
-        private ConcurrentBag<ResolvedEvent> _toBeAcknowledged;
+        private object _acknowledgedLock;
+        private Dictionary<int, List<ResolvedEvent>> _toBeAcknowledged;
         private Timer _acknowledger;
 
         private string _endpoint;
@@ -57,11 +56,11 @@ namespace Aggregates.Internal
         private bool _extraStats;
 
         private readonly MessageHandlerRegistry _registry;
-        private readonly IEventStoreConnection[] _clients;
         private readonly JsonSerializerSettings _settings;
         private readonly MessageMetadataRegistry _messageMeta;
 
-        private EventStorePersistentSubscriptionBase _subscription;
+        private readonly IEventStoreConnection[] _clients;
+        private EventStorePersistentSubscriptionBase[] _subscriptions;
 
         private bool _disposed;
 
@@ -80,28 +79,35 @@ namespace Aggregates.Internal
                 Binder = new EventSerializationBinder(mapper),
                 ContractResolver = new EventContractResolver(mapper)
             };
-
-            _toBeAcknowledged = new ConcurrentBag<ResolvedEvent>();
+            
             _acknowledger = new Timer(_ =>
             {
-                if (_toBeAcknowledged.IsEmpty) return;
-
-                var newBag = new ConcurrentBag<ResolvedEvent>();
-                var willAcknowledge = Interlocked.Exchange<ConcurrentBag<ResolvedEvent>>(ref _toBeAcknowledged, newBag);
-
                 if (!ProcessingLive) return;
 
-                Acknowledging.Update(willAcknowledge.Count);
-                Logger.Write(LogLevel.Info, () => $"Acknowledging {willAcknowledge.Count} events");
-
-                var page = 0;
-                while (page < willAcknowledge.Count)
+                for (var i = 0; i < _subscriptions.Count(); i++)
                 {
-                    var working = willAcknowledge.Skip(page).Take(1000);
-                    _subscription.Acknowledge(working);
-                    page += 1000;
-                }
 
+                    List<ResolvedEvent> willAcknowledge;
+                    lock (_acknowledgedLock)
+                    {
+                        if (_toBeAcknowledged[i].Count == 0) return;
+
+                        willAcknowledge = _toBeAcknowledged[i];
+                        _toBeAcknowledged[i] = new List<ResolvedEvent>();
+                    }
+
+
+                    Acknowledging.Update(willAcknowledge.Count);
+                    Logger.Write(LogLevel.Info, () => $"Acknowledging {willAcknowledge.Count} events");
+
+                    var page = 0;
+                    while (page < willAcknowledge.Count)
+                    {
+                        var working = willAcknowledge.Skip(page).Take(1000);
+                        _subscriptions[i].Acknowledge(working);
+                        page += 1000;
+                    }
+                }
             }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
 
         }
@@ -177,7 +183,7 @@ namespace Aggregates.Internal
 
             Task.Run(async () =>
             {
-                
+                var subscriptions = new List<Task<EventStorePersistentSubscriptionBase>>();
 
                 while (Bus.OnMessage == null || Bus.OnError == null)
                 {
@@ -185,8 +191,11 @@ namespace Aggregates.Internal
                     Thread.Sleep(1000);
                 }
 
+                var count = 0;
                 foreach (var client in _clients)
                 {
+                    lock(_acknowledgedLock) _toBeAcknowledged[count] = new List<ResolvedEvent>();
+
                     try
                     {
                         var settings = PersistentSubscriptionSettings.Create()
@@ -206,8 +215,8 @@ namespace Aggregates.Internal
                     }
 
 
-                    _subscription =
-                        await client.ConnectToPersistentSubscriptionAsync(stream, group, EventProcessor(cancelToken),
+                    subscriptions.Add(
+                        client.ConnectToPersistentSubscriptionAsync(stream, group, EventProcessor(count, cancelToken),
                             subscriptionDropped: (sub, reason, e) =>
                             {
                                 Logger.Write(LogLevel.Warn,
@@ -218,20 +227,24 @@ namespace Aggregates.Internal
                                 _eventThreads.ForEach(x => x.Join());
                                 _eventThreads.Clear();
                                 Dropped?.Invoke(reason.ToString(), e);
-                            }, bufferSize: _readsize * 10, autoAck: false).ConfigureAwait(false);
+                            }, bufferSize: _readsize*10, autoAck: false));
+                    count++;
                 }
+                await Task.WhenAll(subscriptions).ConfigureAwait(false);
+                _subscriptions = subscriptions.Select(x => x.Result).ToArray();
+
                 // Create a new thread for pushing events
                 // Another option is to use the thread pool with Task.Run however event-ordering is lost or at least severely degraded in the pool
                 for (var i = 0; i < (Bus.PushSettings.MaxConcurrency / 2); i++)
                 {
-                    ReadyEvents[i] = new ConcurrentQueue<ResolvedEvent>();
+                    ReadyEvents[i] = new ConcurrentQueue<Tuple<int, ResolvedEvent>>();
                     var thread = new Thread((state) =>
                         {
 
                             var param = state as ThreadParam;
                             while (!param.Token.IsCancellationRequested)
                             {
-                                ResolvedEvent e;
+                                Tuple<int, ResolvedEvent> e;
                                 while (!ReadyEvents[param.Bucket].TryDequeue(out e))
                                 {
                                     if (param.Token.IsCancellationRequested)
@@ -239,20 +252,18 @@ namespace Aggregates.Internal
                                     Thread.Sleep(50);
                                 }
 
-                                var @event = e.Event;
+                                var @event = e.Item2.Event;
 
                                 var descriptor = @event.Metadata.Deserialize(_settings);
 
                                 var headers = new Dictionary<string, string>(descriptor.Headers)
                                 {
-                                    [Headers.EnclosedMessageTypes] =
-                                    SerializeEnclosedMessageTypes(Type.GetType(@event.EventType)),
+                                    [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(Type.GetType(@event.EventType)),
                                     [Headers.MessageId] = @event.EventId.ToString()
                                 };
 
                                 Logger.Write(LogLevel.Debug,
-                                    () =>
-                                            $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
+                                    () => $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
                                 using (var tokenSource = new CancellationTokenSource())
                                 {
                                     var processed = false;
@@ -268,7 +279,7 @@ namespace Aggregates.Internal
                                             // Don't re-use the event id for the message id
                                             var messageContext = new MessageContext(Guid.NewGuid().ToString(),
                                                 headers,
-                                                @event.Data ?? new byte[0], transportTranaction, tokenSource,
+                                                @event.Data ?? new byte[0], transportTransaction, tokenSource,
                                                 contextBag);
                                             Bus.OnMessage(messageContext).ConfigureAwait(false).GetAwaiter().GetResult();
                                             processed = true;
@@ -276,7 +287,6 @@ namespace Aggregates.Internal
                                         catch (ObjectDisposedException)
                                         {
                                             // NSB transport has been disconnected
-                                            param.Subscription.Stop(TimeSpan.FromMinutes(1));
                                             return;
                                         }
                                         catch (Exception ex)
@@ -284,7 +294,7 @@ namespace Aggregates.Internal
                                             ++numberOfDeliveryAttempts;
                                             var errorContext = new ErrorContext(ex, headers,
                                                 @event.EventId.ToString(),
-                                                @event.Data ?? new byte[0], transportTranaction,
+                                                @event.Data ?? new byte[0], transportTransaction,
                                                 numberOfDeliveryAttempts);
                                             if (Bus.OnError(errorContext).ConfigureAwait(false).GetAwaiter().GetResult() ==
                                                 ErrorHandleResult.Handled)
@@ -300,14 +310,14 @@ namespace Aggregates.Internal
 
                                     Logger.Write(LogLevel.Debug,
                                         () => $"Queueing acknowledge for event {@event.EventId}");
-                                    _toBeAcknowledged.Add(e);
+                                    lock (_acknowledgedLock) _toBeAcknowledged[e.Item1].Add(e.Item2);
                                     //subscription.Acknowledge(e);
                                 }
                             }
 
                         })
                     { IsBackground = true, Name = $"Event Thread {i}" };
-                    thread.Start(new ThreadParam { Bucket = i, Subscription = _subscription, Token = cancelSource.Token });
+                    thread.Start(new ThreadParam { Bucket = i, Token = cancelSource.Token });
                     _eventThreads.Add(thread);
                 }
                 Live = true;
@@ -316,7 +326,7 @@ namespace Aggregates.Internal
         }
 
 
-        private Action<EventStorePersistentSubscriptionBase, ResolvedEvent> EventProcessor(CancellationToken token)
+        private Action<EventStorePersistentSubscriptionBase, ResolvedEvent> EventProcessor(int index, CancellationToken token)
         {
             // Entrypoint from eventstore client API
             return (subscription, e) =>
@@ -324,7 +334,7 @@ namespace Aggregates.Internal
                 var @event = e.Event;
                 if (!@event.IsJson)
                 {
-                    _toBeAcknowledged.Add(e);
+                    lock(_acknowledgedLock) _toBeAcknowledged[index].Add(e);
                     return;
                 }
                 Logger.Write(LogLevel.Debug,
@@ -337,7 +347,7 @@ namespace Aggregates.Internal
                 }
 
                 var bucket = Math.Abs(@event.EventStreamId.GetHashCode() % (Bus.PushSettings.MaxConcurrency / 2));
-                ReadyEvents[bucket].Enqueue(e);
+                ReadyEvents[bucket].Enqueue(new Tuple<int, ResolvedEvent>(index, e));
             };
         }
 
@@ -345,9 +355,10 @@ namespace Aggregates.Internal
         {
             if (_disposed)
                 return;
-
+            
             _disposed = true;
-            _subscription.Stop(TimeSpan.FromMinutes(1));
+            foreach (var sub in _subscriptions)
+                sub.Stop(TimeSpan.FromMinutes(1));
         }
 
         string SerializeEnclosedMessageTypes(Type messageType)
