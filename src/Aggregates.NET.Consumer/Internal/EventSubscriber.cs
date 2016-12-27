@@ -46,11 +46,7 @@ namespace Aggregates.Internal
         public static bool Live { get; set; }
 
         private readonly List<Thread> _eventThreads;
-
-        private readonly object _acknowledgedLock = new object();
-        private readonly Dictionary<int, List<ResolvedEvent>> _toBeAcknowledged = new Dictionary<int, List<ResolvedEvent>>();
-        private Timer _acknowledger;
-
+        
         private string _endpoint;
         private int _readsize;
         private bool _extraStats;
@@ -79,37 +75,7 @@ namespace Aggregates.Internal
                 Binder = new EventSerializationBinder(mapper),
                 ContractResolver = new EventContractResolver(mapper)
             };
-
-            _acknowledger = new Timer(_ =>
-            {
-                if (!ProcessingLive) return;
-
-                for (var i = 0; i < _subscriptions.Count(); i++)
-                {
-
-                    List<ResolvedEvent> willAcknowledge;
-                    lock (_acknowledgedLock)
-                    {
-                        if (_toBeAcknowledged[i].Count == 0) return;
-
-                        willAcknowledge = _toBeAcknowledged[i];
-                        _toBeAcknowledged[i] = new List<ResolvedEvent>();
-                    }
-
-
-                    Acknowledging.Update(willAcknowledge.Count);
-                    Logger.Write(LogLevel.Info, () => $"Acknowledging {willAcknowledge.Count} events");
-
-                    var page = 0;
-                    while (page < willAcknowledge.Count)
-                    {
-                        var working = willAcknowledge.Skip(page).Take(1000);
-                        _subscriptions[i].Acknowledge(working);
-                        page += 1000;
-                    }
-                }
-            }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
-
+            
         }
 
         public async Task Setup(string endpoint, int readsize, bool extraStats)
@@ -179,12 +145,7 @@ namespace Aggregates.Internal
 
 
             var cancelSource = new CancellationTokenSource();
-
-            lock (_acknowledgedLock)
-            {
-                for (var i = 0; i < _clients.Count(); i++)
-                    _toBeAcknowledged[i] = new List<ResolvedEvent>();
-            }
+            
 
             Task.Run(async () =>
             {
@@ -207,7 +168,6 @@ namespace Aggregates.Internal
                             .WithMaxRetriesOf(0)
                             .WithReadBatchOf(_readsize)
                             .WithLiveBufferSizeOf(_readsize)
-                            .WithMessageTimeoutOf(TimeSpan.FromSeconds(30))
                             .CheckPointAfter(TimeSpan.FromSeconds(2))
                             .ResolveLinkTos()
                             .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
@@ -221,7 +181,12 @@ namespace Aggregates.Internal
                     {
                     }
 
-
+                    // Todo: with autoAck on ES will assume once the event is delivered it will be processed
+                    // This is OK for us because if the event fails it will be moved onto the error queue and doesn't need to be handled by ES
+                    // But in reality if this instance crashes with 100 events waiting in memory those events will be lost.  
+                    // So something better is needed.  
+                    // The problem comes with manually acking if ES doesn't receive an ACK within a timeframe it retries the message.  When the problem
+                    // is just that the consumers are too backed up.  Causing a double event
                     Logger.Write(LogLevel.Info, () => $"Endpoint [{_endpoint}] connecting to subscription group [{group}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
                     subscriptions.Add(
                         client.ConnectToPersistentSubscriptionAsync(stream, group, EventProcessor(count, cancelToken),
@@ -235,7 +200,7 @@ namespace Aggregates.Internal
                                 _eventThreads.ForEach(x => x.Join());
                                 _eventThreads.Clear();
                                 Dropped?.Invoke(reason.ToString(), e);
-                            }, bufferSize: _readsize * 10, autoAck: false));
+                            }, bufferSize: _readsize * 10, autoAck: true));
                     count++;
                 }
                 await Task.WhenAll(subscriptions).ConfigureAwait(false);
@@ -311,16 +276,7 @@ namespace Aggregates.Internal
 
                                     }
                                 }
-
-
-                                // If user decided to cancel receive - don't schedule an ACK
-                                if (tokenSource.IsCancellationRequested)
-                                    continue;
-
-                                Logger.Write(LogLevel.Debug,
-                                    () => $"Queueing acknowledge for event {@event.EventId}");
-                                lock (_acknowledgedLock) _toBeAcknowledged[e.Item1].Add(e.Item2);
-                                //subscription.Acknowledge(e);
+                                
                             }
                         }
 
@@ -343,10 +299,8 @@ namespace Aggregates.Internal
             {
                 var @event = e.Event;
                 if (!@event.IsJson)
-                {
-                    lock (_acknowledgedLock) _toBeAcknowledged[index].Add(e);
                     return;
-                }
+                
                 Logger.Write(LogLevel.Debug,
                     () => $"Received event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
 
