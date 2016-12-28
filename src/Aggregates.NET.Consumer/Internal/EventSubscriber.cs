@@ -50,6 +50,7 @@ namespace Aggregates.Internal
         private string _endpoint;
         private int _readsize;
         private bool _extraStats;
+        private SemaphoreSlim _inflight;
 
         private readonly MessageHandlerRegistry _registry;
         private readonly JsonSerializerSettings _settings;
@@ -63,12 +64,14 @@ namespace Aggregates.Internal
         public bool ProcessingLive => Live;
         public Action<string, Exception> Dropped { get; set; }
 
-        public EventSubscriber(MessageHandlerRegistry registry, IMessageMapper mapper, MessageMetadataRegistry messageMeta, IEventStoreConnection[] connections)
+        public EventSubscriber(MessageHandlerRegistry registry, IMessageMapper mapper,
+            MessageMetadataRegistry messageMeta, IEventStoreConnection[] connections, int inflight)
         {
             _registry = registry;
             _clients = connections;
             _messageMeta = messageMeta;
             _eventThreads = new List<Thread>();
+            _inflight = new SemaphoreSlim(inflight);
             _settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
@@ -247,11 +250,11 @@ namespace Aggregates.Internal
                                 {
                                     if (param.Token.IsCancellationRequested)
                                         return;
-
+                                    var messageId = Guid.NewGuid().ToString();
                                     try
                                     {
                                         // Don't re-use the event id for the message id
-                                        var messageContext = new MessageContext(Guid.NewGuid().ToString(),
+                                        var messageContext = new MessageContext(messageId,
                                         headers,
                                         @event.Data ?? new byte[0], transportTransaction, tokenSource,
                                         contextBag);
@@ -267,7 +270,7 @@ namespace Aggregates.Internal
                                     {
                                         ++numberOfDeliveryAttempts;
                                         var errorContext = new ErrorContext(ex, headers,
-                                            @event.EventId.ToString(),
+                                            messageId,
                                             @event.Data ?? new byte[0], transportTransaction,
                                             numberOfDeliveryAttempts);
                                         if (Bus.OnError(errorContext).ConfigureAwait(false).GetAwaiter().GetResult() ==
@@ -276,8 +279,9 @@ namespace Aggregates.Internal
 
                                     }
                                 }
-                                
+
                             }
+                            _inflight.Release();
                         }
 
                     })
@@ -310,8 +314,11 @@ namespace Aggregates.Internal
                     return;
                 }
 
+                _inflight.Wait(token);
+
                 var bucket = Math.Abs(@event.EventStreamId.GetHashCode() % (Bus.PushSettings.MaxConcurrency / 2));
                 ReadyEvents[bucket].Enqueue(new Tuple<int, ResolvedEvent>(index, e));
+
             };
         }
 

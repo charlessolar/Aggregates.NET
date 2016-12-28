@@ -45,24 +45,23 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
+                retries++;
                 var stackTrace = string.Join("\n", (e.StackTrace?.Split('\n').Take(10) ?? new string[] { }).AsEnumerable());
 
                 if (retries < _retries || _retries == -1)
                 {
                     Logger.WriteFormat(LogLevel.Warn,
                         $"Message {context.MessageId} has faulted! {retries}/{_retries} times\nException: {e.GetType().FullName} {e.Message}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}\nStack: {stackTrace}");
-                    RetryRegistry.TryAdd(messageId, retries + 1);
-                    // _maxRetries can happen in the blink of an eye with immediate retries and I don't want to expend the time to send messages back to the queue for delayed retries. 
-                    // so introduce an artificial delay between immediate retries
-                    await Task.Delay(retries*100).ConfigureAwait(false);
+                    RetryRegistry.TryAdd(messageId, retries);
                     throw;
                 }
 
-                // At this point message is dead - should be moved to error queue, send message to client that their request was rejected due to error 
-                ErrorsMeter.Mark();
 
                 // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth
                 if (context.Message.GetMesssageIntent() != MessageIntentEnum.Send) return;
+
+                // At this point message is dead - should be moved to error queue, send message to client that their request was rejected due to error 
+                ErrorsMeter.Mark();
 
                 Logger.WriteFormat(LogLevel.Warn,
                     $"Message {context.MessageId} has failed after {retries} attempts!\nException: {e.GetType().FullName} {e.Message}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}\nStack: {stackTrace}");
