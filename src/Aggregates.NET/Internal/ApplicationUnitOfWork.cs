@@ -38,7 +38,7 @@ namespace Aggregates.Internal
         {
             MessagesConcurrent.Increment();
 
-            var uows= context.Builder.BuildAll<IApplicationUnitOfWork>();
+            var uows = new Stack<IApplicationUnitOfWork>();
             try
             {
                 MessagesMeter.Mark();
@@ -46,7 +46,7 @@ namespace Aggregates.Internal
                 {
                     using (BeginTimer.NewContext())
                     {
-                        foreach (var uow in uows)
+                        foreach (var uow in context.Builder.BuildAll<IApplicationUnitOfWork>())
                         {
                             uow.Builder = context.Builder;
 
@@ -62,6 +62,7 @@ namespace Aggregates.Internal
                             uow.Bag = savedBag ?? new ContextBag();
                             Logger.Write(LogLevel.Debug, () => $"Running UOW.Begin on {uow.GetType().FullName}");
                             await uow.Begin().ConfigureAwait(false);
+                            uows.Push(uow);
                         }
                     }
 
@@ -72,7 +73,7 @@ namespace Aggregates.Internal
 
                     using (EndTimer.NewContext())
                     {
-                        foreach (var uow in uows)
+                        foreach (var uow in uows.Generate())
                         {
                             Logger.Write(LogLevel.Debug, () => $"Running UOW.End on {uow.GetType().FullName}");
                             await uow.End().ConfigureAwait(false);
@@ -89,7 +90,7 @@ namespace Aggregates.Internal
                 var trailingExceptions = new List<Exception>();
                 using (EndTimer.NewContext())
                 {
-                    foreach (var uow in uows)
+                    foreach (var uow in uows.Generate())
                     {
                         try
                         {

@@ -9,10 +9,6 @@ namespace Aggregates
         {
             settings.GetSettings().Set("ExtraStats", use);
         }
-
-        public static void MaxInFlight(this ExposeSettings settings, int inflight)
-        {
-            settings.GetSettings().Set("InFlight", inflight);
-        }
+        
     }
 }

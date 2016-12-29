@@ -33,31 +33,27 @@ namespace Aggregates.Internal
         private class ThreadParam
         {
             public CancellationToken Token { get; set; }
+            public SemaphoreSlim InFlight { get; set; }
+            public JsonSerializerSettings Settings { get; set; }
             public int Bucket { get; set; }
         }
 
         private static readonly Histogram Acknowledging = Metric.Histogram("Acknowledged Events", Unit.Events);
 
         private static readonly ILog Logger = LogManager.GetLogger("EventSubscriber");
-        private static readonly TransportTransaction transportTransaction = new TransportTransaction();
-        private static readonly ContextBag contextBag = new ContextBag();
 
-        private static readonly Dictionary<int, ConcurrentQueue<Tuple<int, ResolvedEvent>>> ReadyEvents = new Dictionary<int, ConcurrentQueue<Tuple<int, ResolvedEvent>>>();
         public static bool Live { get; set; }
 
-        private readonly List<Thread> _eventThreads;
-        
         private string _endpoint;
         private int _readsize;
         private bool _extraStats;
-        private SemaphoreSlim _inflight;
 
         private readonly MessageHandlerRegistry _registry;
         private readonly JsonSerializerSettings _settings;
         private readonly MessageMetadataRegistry _messageMeta;
 
         private readonly IEventStoreConnection[] _clients;
-        private EventStorePersistentSubscriptionBase[] _subscriptions;
+        private readonly List<EventStorePersistentSubscriptionBase> _subscriptions;
 
         private bool _disposed;
 
@@ -65,20 +61,18 @@ namespace Aggregates.Internal
         public Action<string, Exception> Dropped { get; set; }
 
         public EventSubscriber(MessageHandlerRegistry registry, IMessageMapper mapper,
-            MessageMetadataRegistry messageMeta, IEventStoreConnection[] connections, int inflight)
+            MessageMetadataRegistry messageMeta, IEventStoreConnection[] connections)
         {
             _registry = registry;
             _clients = connections;
             _messageMeta = messageMeta;
-            _eventThreads = new List<Thread>();
-            _inflight = new SemaphoreSlim(inflight);
             _settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
                 Binder = new EventSerializationBinder(mapper),
                 ContractResolver = new EventContractResolver(mapper)
             };
-            
+            _subscriptions = new List<EventStorePersistentSubscriptionBase>();
         }
 
         public async Task Setup(string endpoint, int readsize, bool extraStats)
@@ -106,11 +100,20 @@ namespace Aggregates.Internal
                 var functions =
                     discoveredEvents
                         .Select(
-                            eventType =>
-                                    $"'{eventType.AssemblyQualifiedName}': function(s,e) {{ linkTo('{stream}', e); return null; }}")
+                            eventType => $"'{eventType.AssemblyQualifiedName}': processEvent")
                         .Aggregate((cur, next) => $"{cur},\n{next}");
 
-                var definition = $"fromAll().when({{\n{functions}\n}});";
+                var definition = $@"
+function processEvent(s,e) {{
+    var stream = e.streamId;
+    if(stream.substr(stream.indexOf('.') + 1, 3) === 'OOB')
+        linkTo('OOB.{stream}', e);
+    else
+        linkTo('{stream}', e);
+}}
+fromAll().when({{
+{functions}
+}});";
 
                 try
                 {
@@ -130,7 +133,7 @@ namespace Aggregates.Internal
                     {
                         // Projection doesn't exist 
                         await
-                            manager.CreateContinuousAsync(stream, definition,
+                            manager.CreateContinuousAsync(stream, definition, false,
                                     client.Settings.DefaultUserCredentials)
                                 .ConfigureAwait(false);
                     }
@@ -144,15 +147,14 @@ namespace Aggregates.Internal
         public Task Subscribe(CancellationToken cancelToken)
         {
             var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
-            var group = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.sub";
+            var pinnedGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.PINNED";
+            var roundRobinGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.ROUND";
 
 
-            var cancelSource = new CancellationTokenSource();
-            
+
 
             Task.Run(async () =>
             {
-                var subscriptions = new List<Task<EventStorePersistentSubscriptionBase>>();
 
                 while (Bus.OnMessage == null || Bus.OnError == null)
                 {
@@ -160,29 +162,39 @@ namespace Aggregates.Internal
                     Thread.Sleep(1000);
                 }
 
-                var count = 0;
                 foreach (var client in _clients)
                 {
 
+                    var settings = PersistentSubscriptionSettings.Create()
+                        .StartFromBeginning()
+                        .WithMaxRetriesOf(0)
+                        .WithReadBatchOf(_readsize)
+                        .WithLiveBufferSizeOf(_readsize)
+                        .WithMessageTimeoutOf(TimeSpan.FromMinutes(5))
+                        .CheckPointAfter(TimeSpan.FromSeconds(2))
+                        .ResolveLinkTos()
+                        .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                     try
                     {
-                        var settings = PersistentSubscriptionSettings.Create()
-                            .StartFromBeginning()
-                            .WithMaxRetriesOf(0)
-                            .WithReadBatchOf(_readsize)
-                            .WithLiveBufferSizeOf(_readsize)
-                            .CheckPointAfter(TimeSpan.FromSeconds(2))
-                            .ResolveLinkTos()
-                            .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
-
                         await
-                            client.CreatePersistentSubscriptionAsync(stream, group, settings,
+                            client.CreatePersistentSubscriptionAsync(stream, pinnedGroup, settings,
                                 client.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                        Logger.Info($"Created persistent subscription to stream [{stream}]");
+                        Logger.Info($"Created PINNED persistent subscription to stream [{stream}]");
+
                     }
-                    catch (InvalidOperationException)
+                    catch (InvalidOperationException) { }
+                    try
                     {
+
+                        settings.WithNamedConsumerStrategy(SystemConsumerStrategies.RoundRobin);
+                        await
+                            client.CreatePersistentSubscriptionAsync($"OOB.{stream}", roundRobinGroup, settings,
+                                client.Settings.DefaultUserCredentials).ConfigureAwait(false);
+                        Logger.Info($"Created ROUND ROBIN persistent subscription to stream [{stream}]");
                     }
+                    catch (InvalidOperationException) { }
+
+
 
                     // Todo: with autoAck on ES will assume once the event is delivered it will be processed
                     // This is OK for us because if the event fails it will be moved onto the error queue and doesn't need to be handled by ES
@@ -190,113 +202,143 @@ namespace Aggregates.Internal
                     // So something better is needed.  
                     // The problem comes with manually acking if ES doesn't receive an ACK within a timeframe it retries the message.  When the problem
                     // is just that the consumers are too backed up.  Causing a double event
-                    Logger.Write(LogLevel.Info, () => $"Endpoint [{_endpoint}] connecting to subscription group [{group}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
-                    subscriptions.Add(
-                        client.ConnectToPersistentSubscriptionAsync(stream, group, EventProcessor(count, cancelToken),
+                    Logger.Write(LogLevel.Info,
+                        () =>
+                                $"Endpoint [{_endpoint}] connecting {Bus.PushSettings.MaxConcurrency} times to PINNED subscription group [{pinnedGroup}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
+
+                    for (var i = 0; i < 2; i++)
+                    {
+                        var pinnedCancelSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
+                        _subscriptions.Add(
+                            await client.ConnectToPersistentSubscriptionAsync(stream, pinnedGroup,
+                                EventProcessor(pinnedCancelSource.Token),
+                                subscriptionDropped: (sub, reason, e) =>
+                                {
+                                    Logger.Write(LogLevel.Warn,
+                                        () =>
+                                                $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
+                                    
+                                    pinnedCancelSource.Cancel();
+                                    _subscriptions.Remove(sub);
+                                }, bufferSize: _readsize, autoAck: true).ConfigureAwait(false));
+                    }
+
+                    Logger.Write(LogLevel.Info,
+                        () =>
+                                $"Endpoint [{_endpoint}] connecting to ROUND ROBIN subscription group [{roundRobinGroup}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
+
+                    // OOB events processed single threaded so they dont overtake main event processing
+                    var rrCancelSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
+                    _subscriptions.Add(
+                        await client.ConnectToPersistentSubscriptionAsync($"OOB.{stream}", roundRobinGroup, PooledEventProcessor(rrCancelSource.Token),
                             subscriptionDropped: (sub, reason, e) =>
                             {
                                 Logger.Write(LogLevel.Warn,
                                     () =>
                                             $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
-                                Live = false;
-                                cancelSource.Cancel();
-                                _eventThreads.ForEach(x => x.Join());
-                                _eventThreads.Clear();
-                                Dropped?.Invoke(reason.ToString(), e);
-                            }, bufferSize: _readsize * 10, autoAck: true));
-                    count++;
+                                
+                                rrCancelSource.Cancel();
+                                _subscriptions.Remove(sub);
+                            }, bufferSize: _readsize, autoAck: true).ConfigureAwait(false));
                 }
-                await Task.WhenAll(subscriptions).ConfigureAwait(false);
-                _subscriptions = subscriptions.Select(x => x.Result).ToArray();
 
-
-                // Create a new thread for pushing events
-                // Another option is to use the thread pool with Task.Run however event-ordering is lost or at least severely degraded in the pool
-                for (var i = 0; i < (Bus.PushSettings.MaxConcurrency / 2); i++)
-                {
-                    ReadyEvents[i] = new ConcurrentQueue<Tuple<int, ResolvedEvent>>();
-                    var thread = new Thread((state) =>
-                    {
-
-                        var param = state as ThreadParam;
-                        while (!param.Token.IsCancellationRequested)
-                        {
-                            Tuple<int, ResolvedEvent> e;
-                            while (!ReadyEvents[param.Bucket].TryDequeue(out e))
-                            {
-                                if (param.Token.IsCancellationRequested)
-                                    return;
-                                Thread.Sleep(50);
-                            }
-
-                            var @event = e.Item2.Event;
-
-                            var descriptor = @event.Metadata.Deserialize(_settings);
-
-                            var headers = new Dictionary<string, string>(descriptor.Headers)
-                            {
-                                [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(Type.GetType(@event.EventType)),
-                                [Headers.MessageId] = @event.EventId.ToString()
-                            };
-
-                            Logger.Write(LogLevel.Debug,
-                                () => $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
-                            using (var tokenSource = new CancellationTokenSource())
-                            {
-                                var processed = false;
-                                var numberOfDeliveryAttempts = 0;
-
-                                while (!processed)
-                                {
-                                    if (param.Token.IsCancellationRequested)
-                                        return;
-                                    var messageId = Guid.NewGuid().ToString();
-                                    try
-                                    {
-                                        // Don't re-use the event id for the message id
-                                        var messageContext = new MessageContext(messageId,
-                                        headers,
-                                        @event.Data ?? new byte[0], transportTransaction, tokenSource,
-                                        contextBag);
-                                        Bus.OnMessage(messageContext).ConfigureAwait(false).GetAwaiter().GetResult();
-                                        processed = true;
-                                    }
-                                    catch (ObjectDisposedException)
-                                    {
-                                        // NSB transport has been disconnected
-                                        return;
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        ++numberOfDeliveryAttempts;
-                                        var errorContext = new ErrorContext(ex, headers,
-                                            messageId,
-                                            @event.Data ?? new byte[0], transportTransaction,
-                                            numberOfDeliveryAttempts);
-                                        if (Bus.OnError(errorContext).ConfigureAwait(false).GetAwaiter().GetResult() ==
-                                            ErrorHandleResult.Handled)
-                                            break;
-
-                                    }
-                                }
-
-                            }
-                            _inflight.Release();
-                        }
-
-                    })
-                    { IsBackground = true, Name = $"Event Thread {i}" };
-                    thread.Start(new ThreadParam { Bucket = i, Token = cancelSource.Token });
-                    _eventThreads.Add(thread);
-                }
-                Live = true;
             });
 
             return Task.CompletedTask;
         }
 
+        private async Task ProcessEvent(CancellationToken token, RecordedEvent @event)
+        {
+            var transportTransaction = new TransportTransaction();
+            var contextBag = new ContextBag();
 
-        private Action<EventStorePersistentSubscriptionBase, ResolvedEvent> EventProcessor(int index, CancellationToken token)
+            var descriptor = @event.Metadata.Deserialize(_settings);
+
+            var messageId = Guid.NewGuid().ToString();
+            var headers = new Dictionary<string, string>(descriptor.Headers)
+            {
+                [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
+                [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(Type.GetType(@event.EventType)),
+                [Headers.MessageId] = messageId,
+                ["EventId"] = @event.EventId.ToString()
+            };
+
+            using (var tokenSource = new CancellationTokenSource())
+            {
+                var processed = false;
+                var numberOfDeliveryAttempts = 0;
+
+                while (!processed && !token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        // Don't re-use the event id for the message id
+                        var messageContext = new MessageContext(messageId,
+                            headers,
+                            @event.Data ?? new byte[0], transportTransaction, tokenSource,
+                            contextBag);
+                        await Bus.OnMessage(messageContext).ConfigureAwait(false);
+                        processed = true;
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // NSB transport has been disconnected
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        ++numberOfDeliveryAttempts;
+                        var errorContext = new ErrorContext(ex, headers,
+                            messageId,
+                            @event.Data ?? new byte[0], transportTransaction,
+                            numberOfDeliveryAttempts);
+                        if (await Bus.OnError(errorContext).ConfigureAwait(false) ==
+                            ErrorHandleResult.Handled)
+                            break;
+                        try
+                        {
+                            await Task.Delay(numberOfDeliveryAttempts*250, token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) { }
+                    }
+                }
+            }
+        }
+
+        private Action<EventStorePersistentSubscriptionBase, ResolvedEvent> PooledEventProcessor(CancellationToken token)
+        {
+            var limited = new SemaphoreSlim(Bus.PushSettings.MaxConcurrency, Bus.PushSettings.MaxConcurrency);
+            // Entrypoint from eventstore client API
+            return (subscription, e) =>
+            {
+                var @event = e.Event;
+                if (!@event.IsJson)
+                    return;
+
+                try
+                {
+                    limited.Wait(token);
+                }
+                catch (OperationCanceledException)
+                {
+                    subscription.Stop(TimeSpan.FromMinutes(1));
+                    return;
+                }
+                Logger.Write(LogLevel.Debug,
+                    () =>
+                            $"Processing OOB event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
+
+
+                Task.Run(async () =>
+                {
+                    await ProcessEvent(token, @event).ConfigureAwait(false);
+                    limited.Release();
+                    
+                }, token);
+                
+            };
+        }
+        private Action<EventStorePersistentSubscriptionBase, ResolvedEvent> EventProcessor(CancellationToken token)
         {
             // Entrypoint from eventstore client API
             return (subscription, e) =>
@@ -306,19 +348,10 @@ namespace Aggregates.Internal
                     return;
                 
                 Logger.Write(LogLevel.Debug,
-                    () => $"Received event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
+                    () =>
+                            $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
 
-                if (token.IsCancellationRequested)
-                {
-                    subscription.Stop(TimeSpan.FromMinutes(1));
-                    return;
-                }
-
-                _inflight.Wait(token);
-
-                var bucket = Math.Abs(@event.EventStreamId.GetHashCode() % (Bus.PushSettings.MaxConcurrency / 2));
-                ReadyEvents[bucket].Enqueue(new Tuple<int, ResolvedEvent>(index, e));
-
+                ProcessEvent(token, @event).ConfigureAwait(false).GetAwaiter().GetResult();
             };
         }
 

@@ -122,9 +122,13 @@ namespace Aggregates.Internal
         private void Apply(IEvent @event)
         {
             RouteFor(@event);
-
-            // Todo: Fill with user headers or something
-            var headers = new Dictionary<string, string>();
+            
+            var headers = new Dictionary<string, string>
+            {
+                ["Bucket"] = Bucket,
+                ["EntityType"] = typeof(TThis).FullName,
+                ["StreamId"] = StreamId
+            };
             Stream.Add(@event, headers);
         }
         private void Raise(IEvent @event)

@@ -23,7 +23,6 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("ExtraStats", false);
-                s.SetDefault("InFlight", 100);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
@@ -36,7 +35,7 @@ namespace Aggregates
                 IEventStoreConnection[] connections;
                 if (!settings.TryGet<IEventStoreConnection[]>("Shards", out connections))
                     connections = new[] { b.Build<IEventStoreConnection>() };
-                return new EventSubscriber(b.Build<MessageHandlerRegistry>(), b.Build<IMessageMapper>(), b.Build<MessageMetadataRegistry>(), connections, settings.Get<int>("InFlight"));
+                return new EventSubscriber(b.Build<MessageHandlerRegistry>(), b.Build<IMessageMapper>(), b.Build<MessageMetadataRegistry>(), connections);
             }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register<MutateIncomingRegistration>();
@@ -98,12 +97,12 @@ namespace Aggregates
         protected override Task OnStop(IMessageSession session)
         {
             Logger.Write(LogLevel.Info, "Stopping event consumer");
+            _cancellationTokenSource.Cancel();
             return Task.CompletedTask;
         }
 
         public void Dispose()
         {
-            _cancellationTokenSource.Cancel();
             _subscriber.Dispose();
         }
     }
