@@ -120,7 +120,7 @@ namespace Aggregates.Internal
 
                 Logger.Write(LogLevel.Debug,
                     () =>
-                            $"Event appeared {e.Event.EventId} type {e.Event.EventType} stream [{e.Event.EventStreamId}] number {e.Event.EventNumber}");
+                            $"Event appeared {e.Event.EventId} type {e.Event.EventType} stream [{e.Event.EventStreamId}] number {e.Event.EventNumber} projection event number {e.OriginalEventNumber}");
                 QueuedEvents.Increment();
                 _waitingEvents.Enqueue(e);
             }
@@ -384,16 +384,23 @@ fromAll().when({{
 
             Task.WhenAll(param.Clients.Select(x => x.Connect())).Wait();
 
+            var tasks = new Task[param.Clients.Count()];
             while (true)
             {
                 param.Token.ThrowIfCancellationRequested();
 
-                var foundOne = false;
-                var tasks = param.Clients.Select(async x =>
+                var noEvents = true;
+                for (var i = 0; i < param.Clients.Count(); i++)
                 {
+                    // Check if current task is complete
+                    if (tasks[i] != null && !tasks[i].IsCompleted)
+                        continue;
+
+                    // Ready for a new event
+                    var client = param.Clients.ElementAt(i);
                     ResolvedEvent e;
-                    if (!x.TryDequeue(out e))
-                        return;
+                    if (!client.TryDequeue(out e))
+                        continue;
 
                     var @event = e.Event;
 
@@ -402,24 +409,20 @@ fromAll().when({{
                                 $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
 
                     if (!@event.IsJson)
-                        return;
+                        continue;
 
-                    foundOne = true;
-                    try
+                    noEvents = false;
+
+                    tasks[i] = Task.Run(async () =>
                     {
-                        await Task.Run(() => ProcessEvent(param.MessageMeta, param.JsonSettings, @event, param.Token), param.Token).ConfigureAwait(false);
-                        x.Acknowledge(e);
-                    }
-                    catch (OperationCanceledException) { }
-                });
-                // Give events a max of 100ms to complete, then move on to the next round
-                // (they'll continue executing this just prevents a long event from slowing everyone down)
-                var timeout = Task.Delay(100);
-                Task.WhenAny(timeout, Task.WhenAll(tasks)).Wait(param.Token);
+                        await ProcessEvent(param.MessageMeta, param.JsonSettings, @event, param.Token).ConfigureAwait(false);
 
+                        client.Acknowledge(e);
+                    }, param.Token);
+                }
                 // Cheap hack to not burn cpu incase there are no events
-                if (!foundOne)
-                    Thread.Sleep(10);
+                if (noEvents) Thread.Sleep(10);
+
             }
 
 
@@ -476,6 +479,8 @@ fromAll().when({{
                         if (await Bus.OnError(errorContext).ConfigureAwait(false) ==
                             ErrorHandleResult.Handled)
                             break;
+
+                        await Task.Delay(100 * numberOfDeliveryAttempts, token).ConfigureAwait(false);
                     }
                 }
             }
