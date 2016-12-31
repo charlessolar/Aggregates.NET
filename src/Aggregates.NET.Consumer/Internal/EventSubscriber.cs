@@ -28,22 +28,170 @@ using Timer = System.Threading.Timer;
 
 namespace Aggregates.Internal
 {
+    // Todo: a lot of canceling goes on here because we're dealing with potentially unstable networks
+    // Need to lay all this out and make sure we are processing events correctly, even in the case of
+    // a single subscription going down amoung many.  No message should be ACKed or discarded without
+    // knowing
     internal class EventSubscriber : IEventSubscriber
     {
-        private class ThreadParam
-        {
-            public CancellationToken Token { get; set; }
-            public SemaphoreSlim InFlight { get; set; }
-            public JsonSerializerSettings Settings { get; set; }
-            public int Bucket { get; set; }
-        }
-
+        private static readonly Counter QueuedEvents = Metric.Counter("Queued Events", Unit.Events);
         private static readonly Histogram Acknowledging = Metric.Histogram("Acknowledged Events", Unit.Events);
 
         private static readonly ILog Logger = LogManager.GetLogger("EventSubscriber");
 
-        public static bool Live { get; set; }
+        private class ThreadParam
+        {
+            public ClientInfo[] Clients { get; set; }
+            public CancellationToken Token { get; set; }
+            public MessageMetadataRegistry MessageMeta { get; set; }
+            public JsonSerializerSettings JsonSettings { get; set; }
+        }
 
+        private class ClientInfo : IDisposable
+        {
+            private readonly IEventStoreConnection _client;
+            private readonly string _stream;
+            private readonly string _group;
+            private readonly CancellationToken _token;
+            // Todo: Change to List<Guid> when/if PR 1143 is published
+            private readonly List<ResolvedEvent> _toAck;
+            private readonly object _ackLock;
+            private readonly Timer _acknowledger;
+            private readonly ConcurrentQueue<ResolvedEvent> _waitingEvents;
+
+            private EventStorePersistentSubscriptionBase _subscription;
+
+            public bool Live { get; private set; }
+
+            private bool _disposed;
+
+            public ClientInfo(IEventStoreConnection client, string stream, string group, CancellationToken token)
+            {
+                _client = client;
+                _stream = stream;
+                _group = group;
+                _token = token;
+                _toAck = new List<ResolvedEvent>();
+                _ackLock = new object();
+                _waitingEvents = new ConcurrentQueue<ResolvedEvent>();
+
+                _acknowledger = new Timer(state =>
+                {
+                    var info = (ClientInfo)state;
+
+                    ResolvedEvent[] toAck;
+                    lock (info._ackLock)
+                    {
+                        toAck = info._toAck.ToArray();
+                        info._toAck.Clear();
+                    }
+                    if (!toAck.Any()) return;
+
+                    if (!info.Live)
+                        throw new InvalidOperationException(
+                            "Subscription was stopped while events were waiting to be ACKed");
+
+
+                    Acknowledging.Update(toAck.Length);
+                    Logger.Write(LogLevel.Info, () => $"Acknowledging {toAck.Length} events");
+
+                    var page = 0;
+                    while (page < toAck.Length)
+                    {
+                        var working = toAck.Skip(page).Take(2000);
+                        info._subscription.Acknowledge(working);
+                        page += 2000;
+                    }
+                }, this, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+
+            }
+
+            public void Dispose()
+            {
+                if (_disposed) return;
+                _disposed = true;
+                _subscription.Stop(TimeSpan.FromSeconds(30));
+                _acknowledger.Dispose();
+            }
+
+            private void EventAppeared(EventStorePersistentSubscriptionBase sub, ResolvedEvent e)
+            {
+                _token.ThrowIfCancellationRequested();
+
+                Logger.Write(LogLevel.Debug,
+                    () =>
+                            $"Event appeared {e.Event.EventId} type {e.Event.EventType} stream [{e.Event.EventStreamId}] number {e.Event.EventNumber}");
+                QueuedEvents.Increment();
+                _waitingEvents.Enqueue(e);
+            }
+
+            private void SubscriptionDropped(EventStorePersistentSubscriptionBase sub, SubscriptionDropReason reason, Exception ex)
+            {
+                Live = false;
+
+                lock (_ackLock)
+                {
+                    // Todo: is it possible to ACK an event from a reconnection?
+                    if (_toAck.Any())
+                        throw new InvalidOperationException(
+                            $"Eventstore subscription dropped and we need to ACK {_toAck.Count} more events");
+                }
+                // Need to clear ReadyEvents of events delivered but not processed before disconnect
+                ResolvedEvent e;
+                while (!_waitingEvents.IsEmpty)
+                {
+                    QueuedEvents.Decrement();
+                    _waitingEvents.TryDequeue(out e);
+                }
+
+                if (reason == SubscriptionDropReason.UserInitiated) return;
+
+                // Restart
+                try
+                {
+                    Connect().Wait(_token);
+                }
+                catch (OperationCanceledException) { }
+            }
+            public async Task Connect()
+            {
+                Logger.Write(LogLevel.Info,
+                    () =>
+                            $"Connecting to subscription group [{_group}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
+                // Todo: play with buffer size?
+                _subscription = await _client.ConnectToPersistentSubscriptionAsync(_stream, _group,
+                    eventAppeared: EventAppeared,
+                    subscriptionDropped: SubscriptionDropped,
+                    bufferSize: 10000,
+                    autoAck: false).ConfigureAwait(false);
+                Live = true;
+            }
+
+            public void Acknowledge(ResolvedEvent @event)
+            {
+                if (!Live)
+                    throw new InvalidOperationException("Cannot ACK an event, subscription is dead");
+
+                lock (_ackLock) _toAck.Add(@event);
+            }
+
+            public bool TryDequeue(out ResolvedEvent e)
+            {
+                e = default(ResolvedEvent);
+                if (Live && _waitingEvents.TryDequeue(out e))
+                {
+                    QueuedEvents.Decrement();
+                    return true;
+                }
+                return false;
+            }
+
+        }
+
+
+        private Thread _pinnedThread;
+        private Thread _oobThread;
+        private CancellationTokenSource _cancelation;
         private string _endpoint;
         private int _readsize;
         private bool _extraStats;
@@ -53,11 +201,9 @@ namespace Aggregates.Internal
         private readonly MessageMetadataRegistry _messageMeta;
 
         private readonly IEventStoreConnection[] _clients;
-        private readonly List<EventStorePersistentSubscriptionBase> _subscriptions;
 
         private bool _disposed;
 
-        public bool ProcessingLive => Live;
         public Action<string, Exception> Dropped { get; set; }
 
         public EventSubscriber(MessageHandlerRegistry registry, IMessageMapper mapper,
@@ -72,7 +218,6 @@ namespace Aggregates.Internal
                 Binder = new EventSerializationBinder(mapper),
                 ContractResolver = new EventContractResolver(mapper)
             };
-            _subscriptions = new List<EventStorePersistentSubscriptionBase>();
         }
 
         public async Task Setup(string endpoint, int readsize, bool extraStats)
@@ -150,7 +295,7 @@ fromAll().when({{
             var pinnedGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.PINNED";
             var roundRobinGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.ROUND";
 
-
+            _cancelation = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
 
 
             Task.Run(async () =>
@@ -162,27 +307,43 @@ fromAll().when({{
                     Thread.Sleep(1000);
                 }
 
-                foreach (var client in _clients)
-                {
 
-                    var settings = PersistentSubscriptionSettings.Create()
-                        .StartFromBeginning()
-                        .WithMaxRetriesOf(0)
-                        .WithReadBatchOf(_readsize)
-                        .WithLiveBufferSizeOf(_readsize)
-                        .WithMessageTimeoutOf(TimeSpan.FromMinutes(5))
-                        .CheckPointAfter(TimeSpan.FromSeconds(2))
-                        .ResolveLinkTos()
-                        .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
+                var settings = PersistentSubscriptionSettings.Create()
+                    .StartFromBeginning()
+                    .WithMaxRetriesOf(0)
+                    .WithReadBatchOf(_readsize)
+                    .WithLiveBufferSizeOf(_readsize * _readsize)
+                    .WithMessageTimeoutOf(TimeSpan.MaxValue)
+                    .CheckPointAfter(TimeSpan.FromSeconds(2))
+                    .MaximumCheckPointCountOf(_readsize * _readsize)
+                    .ResolveLinkTos();
+
+                var pinnedClients = new ClientInfo[_clients.Count()];
+                var oobClients = new ClientInfo[_clients.Count()];
+
+                for (var i = 0; i < _clients.Count(); i++)
+                {
+                    var client = _clients.ElementAt(i);
+
+                    var clientCancelSource = CancellationTokenSource.CreateLinkedTokenSource(_cancelation.Token);
+
+                    client.Disconnected += (object s, ClientConnectionEventArgs args) =>
+                    {
+                        clientCancelSource.Cancel();
+                    };
+
                     try
                     {
+                        settings.WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                         await
                             client.CreatePersistentSubscriptionAsync(stream, pinnedGroup, settings,
                                 client.Settings.DefaultUserCredentials).ConfigureAwait(false);
                         Logger.Info($"Created PINNED persistent subscription to stream [{stream}]");
 
                     }
-                    catch (InvalidOperationException) { }
+                    catch (InvalidOperationException)
+                    {
+                    }
                     try
                     {
 
@@ -192,73 +353,90 @@ fromAll().when({{
                                 client.Settings.DefaultUserCredentials).ConfigureAwait(false);
                         Logger.Info($"Created ROUND ROBIN persistent subscription to stream [{stream}]");
                     }
-                    catch (InvalidOperationException) { }
-
-
-
-                    // Todo: with autoAck on ES will assume once the event is delivered it will be processed
-                    // This is OK for us because if the event fails it will be moved onto the error queue and doesn't need to be handled by ES
-                    // But in reality if this instance crashes with 100 events waiting in memory those events will be lost.  
-                    // So something better is needed.  
-                    // The problem comes with manually acking if ES doesn't receive an ACK within a timeframe it retries the message.  When the problem
-                    // is just that the consumers are too backed up.  Causing a double event
-                    Logger.Write(LogLevel.Info,
-                        () =>
-                                $"Endpoint [{_endpoint}] connecting {Bus.PushSettings.MaxConcurrency} times to PINNED subscription group [{pinnedGroup}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
-
-                    for (var i = 0; i < 2; i++)
+                    catch (InvalidOperationException)
                     {
-                        var pinnedCancelSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
-                        _subscriptions.Add(
-                            await client.ConnectToPersistentSubscriptionAsync(stream, pinnedGroup,
-                                EventProcessor(pinnedCancelSource.Token),
-                                subscriptionDropped: (sub, reason, e) =>
-                                {
-                                    Logger.Write(LogLevel.Warn,
-                                        () =>
-                                                $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
-                                    
-                                    pinnedCancelSource.Cancel();
-                                    _subscriptions.Remove(sub);
-                                }, bufferSize: _readsize, autoAck: true).ConfigureAwait(false));
                     }
 
-                    Logger.Write(LogLevel.Info,
-                        () =>
-                                $"Endpoint [{_endpoint}] connecting to ROUND ROBIN subscription group [{roundRobinGroup}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
 
-                    // OOB events processed single threaded so they dont overtake main event processing
-                    var rrCancelSource = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
-                    _subscriptions.Add(
-                        await client.ConnectToPersistentSubscriptionAsync($"OOB.{stream}", roundRobinGroup, PooledEventProcessor(rrCancelSource.Token),
-                            subscriptionDropped: (sub, reason, e) =>
-                            {
-                                Logger.Write(LogLevel.Warn,
-                                    () =>
-                                            $"Subscription dropped for reason: {reason}.  Exception: {e?.Message ?? "UNKNOWN"}");
-                                
-                                rrCancelSource.Cancel();
-                                _subscriptions.Remove(sub);
-                            }, bufferSize: _readsize, autoAck: true).ConfigureAwait(false));
+
+                    pinnedClients[i] = new ClientInfo(client, stream, pinnedGroup, clientCancelSource.Token);
+                    oobClients[i] = new ClientInfo(client, $"OOB.{stream}", roundRobinGroup, clientCancelSource.Token);
+
+
                 }
+
+                _pinnedThread = new Thread(Threaded)
+                { IsBackground = true, Name = $"Pinned Event Thread" };
+                _pinnedThread.Start(new ThreadParam { Token = cancelToken, Clients = pinnedClients, MessageMeta = _messageMeta, JsonSettings = _settings });
+
+                _oobThread = new Thread(Threaded)
+                { IsBackground = true, Name = $"OOB Event Thread" };
+                _oobThread.Start(new ThreadParam { Token = cancelToken, Clients = oobClients, MessageMeta = _messageMeta, JsonSettings = _settings });
 
             });
 
             return Task.CompletedTask;
         }
 
-        private async Task ProcessEvent(CancellationToken token, RecordedEvent @event)
+        private static void Threaded(object state)
+        {
+            var param = (ThreadParam)state;
+
+            Task.WhenAll(param.Clients.Select(x => x.Connect())).Wait();
+
+            while (true)
+            {
+                param.Token.ThrowIfCancellationRequested();
+
+                var foundOne = false;
+                var tasks = param.Clients.Select(async x =>
+                {
+                    ResolvedEvent e;
+                    if (!x.TryDequeue(out e))
+                        return;
+
+                    var @event = e.Event;
+
+                    Logger.Write(LogLevel.Debug,
+                        () =>
+                                $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
+
+                    if (!@event.IsJson)
+                        return;
+
+                    foundOne = true;
+                    try
+                    {
+                        await Task.Run(() => ProcessEvent(param.MessageMeta, param.JsonSettings, @event, param.Token), param.Token).ConfigureAwait(false);
+                        x.Acknowledge(e);
+                    }
+                    catch (OperationCanceledException) { }
+                });
+                // Give events a max of 100ms to complete, then move on to the next round
+                // (they'll continue executing this just prevents a long event from slowing everyone down)
+                var timeout = Task.Delay(100);
+                Task.WhenAny(timeout, Task.WhenAll(tasks)).Wait(param.Token);
+
+                // Cheap hack to not burn cpu incase there are no events
+                if (!foundOne)
+                    Thread.Sleep(10);
+            }
+
+
+        }
+
+        private static async Task ProcessEvent(MessageMetadataRegistry messageMeta, JsonSerializerSettings settings, RecordedEvent @event, CancellationToken token)
         {
             var transportTransaction = new TransportTransaction();
             var contextBag = new ContextBag();
 
-            var descriptor = @event.Metadata.Deserialize(_settings);
+            var descriptor = @event.Metadata.Deserialize(settings);
 
             var messageId = Guid.NewGuid().ToString();
             var headers = new Dictionary<string, string>(descriptor.Headers)
             {
                 [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
-                [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(Type.GetType(@event.EventType)),
+                [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(messageMeta, Type.GetType(@event.EventType)),
                 [Headers.MessageId] = messageId,
                 ["EventId"] = @event.EventId.ToString()
             };
@@ -268,10 +446,13 @@ fromAll().when({{
                 var processed = false;
                 var numberOfDeliveryAttempts = 0;
 
-                while (!processed && !token.IsCancellationRequested)
+                while (!processed)
                 {
                     try
                     {
+                        // If canceled, this will throw the number of time immediate retry requires to send the message to the error queue
+                        token.ThrowIfCancellationRequested();
+
                         // Don't re-use the event id for the message id
                         var messageContext = new MessageContext(messageId,
                             headers,
@@ -295,64 +476,33 @@ fromAll().when({{
                         if (await Bus.OnError(errorContext).ConfigureAwait(false) ==
                             ErrorHandleResult.Handled)
                             break;
-                        try
-                        {
-                            await Task.Delay(numberOfDeliveryAttempts*250, token).ConfigureAwait(false);
-                        }
-                        catch (OperationCanceledException) { }
                     }
                 }
             }
         }
 
-        private Action<EventStorePersistentSubscriptionBase, ResolvedEvent> PooledEventProcessor(CancellationToken token)
+        // Moved event to error queue
+        private static async Task PoisonEvent(MessageMetadataRegistry messageMeta, JsonSerializerSettings settings, RecordedEvent e)
         {
-            var limited = new SemaphoreSlim(Bus.PushSettings.MaxConcurrency, Bus.PushSettings.MaxConcurrency);
-            // Entrypoint from eventstore client API
-            return (subscription, e) =>
+            var transportTransaction = new TransportTransaction();
+            var contextBag = new ContextBag();
+
+            var descriptor = e.Metadata.Deserialize(settings);
+
+            var messageId = Guid.NewGuid().ToString();
+            var headers = new Dictionary<string, string>(descriptor.Headers)
             {
-                var @event = e.Event;
-                if (!@event.IsJson)
-                    return;
-
-                try
-                {
-                    limited.Wait(token);
-                }
-                catch (OperationCanceledException)
-                {
-                    subscription.Stop(TimeSpan.FromMinutes(1));
-                    return;
-                }
-                Logger.Write(LogLevel.Debug,
-                    () =>
-                            $"Processing OOB event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
-
-
-                Task.Run(async () =>
-                {
-                    await ProcessEvent(token, @event).ConfigureAwait(false);
-                    limited.Release();
-                    
-                }, token);
-                
+                [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
+                [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(messageMeta, Type.GetType(e.EventType)),
+                [Headers.MessageId] = messageId,
+                ["EventId"] = e.EventId.ToString()
             };
-        }
-        private Action<EventStorePersistentSubscriptionBase, ResolvedEvent> EventProcessor(CancellationToken token)
-        {
-            // Entrypoint from eventstore client API
-            return (subscription, e) =>
-            {
-                var @event = e.Event;
-                if (!@event.IsJson)
-                    return;
-                
-                Logger.Write(LogLevel.Debug,
-                    () =>
-                            $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
-
-                ProcessEvent(token, @event).ConfigureAwait(false).GetAwaiter().GetResult();
-            };
+            var ex = new InvalidOperationException("Poisoned Event");
+            var errorContext = new ErrorContext(ex, headers,
+                            messageId,
+                            e.Data ?? new byte[0], transportTransaction,
+                            int.MaxValue);
+            await Bus.OnError(errorContext).ConfigureAwait(false);
         }
 
         public void Dispose()
@@ -361,13 +511,14 @@ fromAll().when({{
                 return;
 
             _disposed = true;
-            foreach (var sub in _subscriptions)
-                sub.Stop(TimeSpan.FromMinutes(1));
+            _cancelation.Cancel();
+            _pinnedThread.Join();
+            _oobThread.Join();
         }
 
-        string SerializeEnclosedMessageTypes(Type messageType)
+        static string SerializeEnclosedMessageTypes(MessageMetadataRegistry messageMeta, Type messageType)
         {
-            var metadata = _messageMeta.GetMessageMetadata(messageType);
+            var metadata = messageMeta.GetMessageMetadata(messageType);
 
             var assemblyQualifiedNames = new HashSet<string>();
             foreach (var type in metadata.MessageHierarchy)

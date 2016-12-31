@@ -10,7 +10,6 @@ namespace Aggregates
         Task Setup(string endpoint, int readsize, bool extraStats);
 
         Task Subscribe(CancellationToken cancelToken);
-        bool ProcessingLive { get; }
         Action<string, Exception> Dropped { get; set; }
     }
 }
