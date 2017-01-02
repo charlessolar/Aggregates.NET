@@ -5,6 +5,7 @@ namespace Aggregates.Contracts
 {
     public interface IEventDescriptor
     {
+        Guid EventId { get; }
         string EntityType { get; }
 
         int Version { get; }

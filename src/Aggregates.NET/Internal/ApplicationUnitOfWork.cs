@@ -56,8 +56,7 @@ namespace Aggregates.Internal
                             uow.Retries = retries;
 
                             var savedBag =
-                                await _persistence.Remove($"{context.MessageId}-{uow.GetType().FullName}")
-                                    .ConfigureAwait(false);
+                                await _persistence.Remove(context.MessageId, uow.GetType()).ConfigureAwait(false);
 
                             uow.Bag = savedBag ?? new ContextBag();
                             Logger.Write(LogLevel.Debug, () => $"Running UOW.Begin on {uow.GetType().FullName}");
@@ -76,9 +75,17 @@ namespace Aggregates.Internal
                         foreach (var uow in uows.Generate())
                         {
                             Logger.Write(LogLevel.Debug, () => $"Running UOW.End on {uow.GetType().FullName}");
-                            await uow.End().ConfigureAwait(false);
+                            try
+                            {
+                                await uow.End().ConfigureAwait(false);
+                            }
+                            finally
+                            {
+                                await _persistence.Save(context.MessageId, uow.GetType(), uow.Bag).ConfigureAwait(false);
+                            }
                         }
                     }
+                    await _persistence.Clear(context.MessageId).ConfigureAwait(false);
                 }
 
             }
@@ -102,9 +109,7 @@ namespace Aggregates.Internal
                         {
                             trailingExceptions.Add(endException);
                         }
-                        await
-                            _persistence.Save($"{context.MessageId}-{uow.GetType().FullName}", uow.Bag)
-                                .ConfigureAwait(false);
+                        await _persistence.Save(context.MessageId, uow.GetType(), uow.Bag).ConfigureAwait(false);
                     }
                 }
 

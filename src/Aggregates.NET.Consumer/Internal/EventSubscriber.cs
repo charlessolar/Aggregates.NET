@@ -278,7 +278,7 @@ fromAll().when({{
                     {
                         // Projection doesn't exist 
                         await
-                            manager.CreateContinuousAsync(stream, definition, false,
+                            manager.CreateContinuousAsync($"{stream}.projection", definition, false,
                                     client.Settings.DefaultUserCredentials)
                                 .ConfigureAwait(false);
                     }
@@ -417,6 +417,9 @@ fromAll().when({{
                     {
                         await ProcessEvent(param.MessageMeta, param.JsonSettings, @event, param.Token).ConfigureAwait(false);
 
+                        Logger.Write(LogLevel.Debug,
+                            () =>
+                                    $"Acknowledging event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
                         client.Acknowledge(e);
                     }, param.Token);
                 }
@@ -441,7 +444,9 @@ fromAll().when({{
                 [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
                 [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(messageMeta, Type.GetType(@event.EventType)),
                 [Headers.MessageId] = messageId,
-                ["EventId"] = @event.EventId.ToString()
+                ["EventId"] = @event.EventId.ToString(),
+                ["EventStreamId"] = @event.EventStreamId,
+                ["EventNumber"] = @event.EventNumber.ToString()
             };
 
             using (var tokenSource = new CancellationTokenSource())
@@ -500,7 +505,9 @@ fromAll().when({{
                 [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
                 [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(messageMeta, Type.GetType(e.EventType)),
                 [Headers.MessageId] = messageId,
-                ["EventId"] = e.EventId.ToString()
+                ["EventId"] = e.EventId.ToString(),
+                ["EventStreamId"] = e.EventStreamId,
+                ["EventNumber"] = e.EventNumber.ToString()
             };
             var ex = new InvalidOperationException("Poisoned Event");
             var errorContext = new ErrorContext(ex, headers,

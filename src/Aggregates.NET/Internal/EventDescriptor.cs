@@ -6,6 +6,7 @@ namespace Aggregates.Internal
 {
     public class EventDescriptor : IEventDescriptor
     {
+        public Guid EventId { get; set; }
         public string EntityType { get; set; }
 
         public int Version { get; set; }

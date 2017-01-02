@@ -215,6 +215,7 @@ namespace Aggregates.Internal
             {
                 var descriptor = new EventDescriptor
                 {
+                    EventId = e.EventId ?? Guid.NewGuid(),
                     EntityType = e.Descriptor.EntityType,
                     Timestamp = e.Descriptor.Timestamp,
                     Version = e.Descriptor.Version,
@@ -232,9 +233,9 @@ namespace Aggregates.Internal
                     @event = @event.Compress();
                     metadata = metadata.Compress();
                 }
-
+                
                 return new EventData(
-                    e.EventId ?? Guid.NewGuid(),
+                    descriptor.EventId,
                     mappedType.AssemblyQualifiedName,
                     !_compress,
                     @event,

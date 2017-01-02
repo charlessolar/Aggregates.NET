@@ -14,22 +14,37 @@ namespace Aggregates.Internal
     internal class MemoryPersistence : IPersistence
     {
         private static readonly ILog Logger = LogManager.GetLogger("MemoryPersistence");
-        private static readonly ConcurrentDictionary<string, ContextBag> Storage = new ConcurrentDictionary<string, ContextBag>();
+        private static readonly ConcurrentDictionary<string, List<Tuple<Type, ContextBag>>> Storage = new ConcurrentDictionary<string, List<Tuple<Type, ContextBag>>>();
 
-        public Task Save(string id, ContextBag bag)
+        public Task Save(string messageId, Type uowType, ContextBag bag)
         {
-            Logger.Write(LogLevel.Debug, () => $"Persisting context bag [{id}]");
-            Storage.TryAdd(id, bag);
+            Logger.Write(LogLevel.Debug, () => $"Persisting context bag for message [{messageId}] uow [{uowType.FullName}]");
+            Storage.AddOrUpdate(messageId,
+                x => new List<Tuple<Type, ContextBag>> {new Tuple<Type, ContextBag>(uowType, bag)},
+                (key, existing) =>
+                {
+                    existing.Add(new Tuple<Type, ContextBag>(uowType, bag));
+                    return existing;
+                });
             return Task.CompletedTask;
         }
 
-        public Task<ContextBag> Remove(string id)
+        public Task<ContextBag> Remove(string messageId, Type uowType)
         {
-            Logger.Write(LogLevel.Debug, () => $"Removing context bag [{id}]");
-            ContextBag existing;
-            if (!Storage.TryRemove(id, out existing))
+            Logger.Write(LogLevel.Debug, () => $"Persisting context bag for message [{messageId}] uow [{uowType.FullName}]");
+            List<Tuple<Type, ContextBag>> existing;
+            if (!Storage.TryRemove(messageId, out existing))
                 return Task.FromResult<ContextBag>(null);
-            return Task.FromResult(existing);
+            
+            return Task.FromResult(existing.SingleOrDefault(x => x.Item1 == uowType)?.Item2);
+        }
+
+        public Task Clear(string messageId)
+        {
+            List<Tuple<Type, ContextBag>> existing;
+            Storage.TryRemove(messageId, out existing);
+
+            return Task.CompletedTask;
         }
     }
 }

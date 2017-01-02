@@ -10,7 +10,8 @@ namespace Aggregates.Contracts
     // Saves context bags between message retries
     public interface IPersistence
     {
-        Task Save(string id, ContextBag bag);
-        Task<ContextBag> Remove(string id);
+        Task Save(string messageId, Type uowType, ContextBag bag);
+        Task<ContextBag> Remove(string messageId, Type uowType);
+        Task Clear(string messageId);
     }
 }
