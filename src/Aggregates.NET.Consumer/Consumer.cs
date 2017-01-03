@@ -23,6 +23,7 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("ExtraStats", false);
+                s.SetDefault("ParallelEvents", 4);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
@@ -35,7 +36,9 @@ namespace Aggregates
                 IEventStoreConnection[] connections;
                 if (!settings.TryGet<IEventStoreConnection[]>("Shards", out connections))
                     connections = new[] { b.Build<IEventStoreConnection>() };
-                return new EventSubscriber(b.Build<MessageHandlerRegistry>(), b.Build<IMessageMapper>(), b.Build<MessageMetadataRegistry>(), connections);
+                var concurrency = settings.Get<int>("ParallelEvents");
+
+                return new EventSubscriber(b.Build<MessageHandlerRegistry>(), b.Build<IMessageMapper>(), b.Build<MessageMetadataRegistry>(), connections, concurrency);
             }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register<MutateIncomingRegistration>();
@@ -46,8 +49,6 @@ namespace Aggregates
         private static readonly ILog Logger = LogManager.GetLogger("EventStoreRunner");
         private readonly ReadOnlySettings _settings;
         private readonly IEventSubscriber _subscriber;
-        private int _retryCount;
-        private DateTime? _lastFailure;
         private readonly CancellationTokenSource _cancellationTokenSource;
 
         public EventStoreRunner(IEventSubscriber subscriber, ReadOnlySettings settings)
@@ -56,21 +57,7 @@ namespace Aggregates
             _settings = settings;
             _cancellationTokenSource = new CancellationTokenSource();
         }
-
-        private TimeSpan CalculateSleep()
-        {
-            if (_lastFailure.HasValue)
-            {
-                var lastSleep = (1 << _retryCount);
-                if ((DateTime.UtcNow - _lastFailure.Value).TotalSeconds > (lastSleep * 5))
-                    _retryCount = 0;
-            }
-            _retryCount++;
-            _lastFailure = DateTime.UtcNow;
-            // 8 seconds minimum sleep
-            return TimeSpan.FromSeconds(1 << ((_retryCount / 2) + 2));
-        }
-
+        
         protected override async Task OnStart(IMessageSession session)
         {
             Logger.Write(LogLevel.Info, "Starting event consumer");
@@ -79,19 +66,7 @@ namespace Aggregates
                 _settings.Get<int>("ReadSize"),
                 _settings.Get<bool>("ExtraStats")).ConfigureAwait(false);
 
-
             await _subscriber.Subscribe(_cancellationTokenSource.Token).ConfigureAwait(false);
-            _subscriber.Dropped = (reason, ex) =>
-            {
-                if (_cancellationTokenSource.IsCancellationRequested)
-                {
-                    Logger.Write(LogLevel.Info, () => $"Event consumer stopped - cancelation requested");
-                    return;
-                }
-                Logger.Warn($"Event consumer stopped due to exception: {ex.Message}.  Will restart", ex);
-                Thread.Sleep(CalculateSleep());
-                _subscriber.Subscribe(_cancellationTokenSource.Token).Wait();
-            };
         }
 
         protected override Task OnStop(IMessageSession session)

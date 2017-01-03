@@ -9,6 +9,10 @@ namespace Aggregates
         {
             settings.GetSettings().Set("ExtraStats", use);
         }
-        
+        public static void WithParallelEvents(this ExposeSettings settings, int concurrency)
+        {
+            settings.GetSettings().Set("ParallelEvents", concurrency);
+        }
+
     }
 }

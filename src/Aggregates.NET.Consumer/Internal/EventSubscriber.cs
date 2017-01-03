@@ -49,32 +49,40 @@ namespace Aggregates.Internal
 
         private class ClientInfo : IDisposable
         {
+            private readonly Metrics.Counter Queued;
+
             private readonly IEventStoreConnection _client;
             private readonly string _stream;
             private readonly string _group;
+            private readonly int _index;
             private readonly CancellationToken _token;
             // Todo: Change to List<Guid> when/if PR 1143 is published
             private readonly List<ResolvedEvent> _toAck;
             private readonly object _ackLock;
             private readonly Timer _acknowledger;
             private readonly ConcurrentQueue<ResolvedEvent> _waitingEvents;
-
+            
             private EventStorePersistentSubscriptionBase _subscription;
 
             public bool Live { get; private set; }
+            public string Id => $"{_client.Settings.GossipSeeds[0].EndPoint.Address}.{_stream.Substring(0,3)}.{_index}";
 
             private bool _disposed;
 
-            public ClientInfo(IEventStoreConnection client, string stream, string group, CancellationToken token)
+            public ClientInfo(IEventStoreConnection client, string stream, string group, int index, CancellationToken token)
             {
                 _client = client;
                 _stream = stream;
+                _index = index;
                 _group = group;
                 _token = token;
                 _toAck = new List<ResolvedEvent>();
                 _ackLock = new object();
                 _waitingEvents = new ConcurrentQueue<ResolvedEvent>();
-
+                
+                Queued = Metric.Context("Subscription Clients").Context(Id).Counter("Queued", Unit.Events);
+                
+                
                 _acknowledger = new Timer(state =>
                 {
                     var info = (ClientInfo)state;
@@ -121,6 +129,7 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Debug,
                     () =>
                             $"Event appeared {e.Event.EventId} type {e.Event.EventType} stream [{e.Event.EventStreamId}] number {e.Event.EventNumber} projection event number {e.OriginalEventNumber}");
+                Queued.Increment();
                 QueuedEvents.Increment();
                 _waitingEvents.Enqueue(e);
             }
@@ -140,6 +149,7 @@ namespace Aggregates.Internal
                 ResolvedEvent e;
                 while (!_waitingEvents.IsEmpty)
                 {
+                    Queued.Decrement();
                     QueuedEvents.Decrement();
                     _waitingEvents.TryDequeue(out e);
                 }
@@ -180,6 +190,7 @@ namespace Aggregates.Internal
                 e = default(ResolvedEvent);
                 if (Live && _waitingEvents.TryDequeue(out e))
                 {
+                    Queued.Decrement();
                     QueuedEvents.Decrement();
                     return true;
                 }
@@ -194,6 +205,7 @@ namespace Aggregates.Internal
         private CancellationTokenSource _cancelation;
         private string _endpoint;
         private int _readsize;
+        private int _concurrency;
         private bool _extraStats;
 
         private readonly MessageHandlerRegistry _registry;
@@ -207,11 +219,12 @@ namespace Aggregates.Internal
         public Action<string, Exception> Dropped { get; set; }
 
         public EventSubscriber(MessageHandlerRegistry registry, IMessageMapper mapper,
-            MessageMetadataRegistry messageMeta, IEventStoreConnection[] connections)
+            MessageMetadataRegistry messageMeta, IEventStoreConnection[] connections, int concurrency)
         {
             _registry = registry;
             _clients = connections;
             _messageMeta = messageMeta;
+            _concurrency = concurrency;
             _settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
@@ -254,7 +267,7 @@ function processEvent(s,e) {{
     if(stream.substr(stream.indexOf('.') + 1, 3) === 'OOB')
         linkTo('OOB.{stream}', e);
     else
-        linkTo('{stream}', e);
+        linkTo('APP.{stream}', e);
 }}
 fromAll().when({{
 {functions}
@@ -318,8 +331,8 @@ fromAll().when({{
                     .MaximumCheckPointCountOf(_readsize * _readsize)
                     .ResolveLinkTos();
 
-                var pinnedClients = new ClientInfo[_clients.Count()];
-                var oobClients = new ClientInfo[_clients.Count()];
+                var pinnedClients = new ClientInfo[_clients.Count() * _concurrency];
+                var oobClients = new ClientInfo[_clients.Count() * _concurrency];
 
                 for (var i = 0; i < _clients.Count(); i++)
                 {
@@ -336,7 +349,7 @@ fromAll().when({{
                     {
                         settings.WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                         await
-                            client.CreatePersistentSubscriptionAsync(stream, pinnedGroup, settings,
+                            client.CreatePersistentSubscriptionAsync($"APP.{stream}", pinnedGroup, settings,
                                 client.Settings.DefaultUserCredentials).ConfigureAwait(false);
                         Logger.Info($"Created PINNED persistent subscription to stream [{stream}]");
 
@@ -357,16 +370,18 @@ fromAll().when({{
                     {
                     }
 
+                    for(var j = 0; j < _concurrency; j++)
+                    {
+                        pinnedClients[(i*_concurrency) + j] = new ClientInfo(client, $"APP.{stream}", pinnedGroup, j, clientCancelSource.Token);
+                        oobClients[(i * _concurrency) + j] = new ClientInfo(client, $"OOB.{stream}", roundRobinGroup, j, clientCancelSource.Token);
+                    }
 
-
-                    pinnedClients[i] = new ClientInfo(client, stream, pinnedGroup, clientCancelSource.Token);
-                    oobClients[i] = new ClientInfo(client, $"OOB.{stream}", roundRobinGroup, clientCancelSource.Token);
 
 
                 }
 
                 _pinnedThread = new Thread(Threaded)
-                { IsBackground = true, Name = $"Pinned Event Thread" };
+                { IsBackground = true, Name = $"Main Event Thread" };
                 _pinnedThread.Start(new ThreadParam { Token = cancelToken, Clients = pinnedClients, MessageMeta = _messageMeta, JsonSettings = _settings });
 
                 _oobThread = new Thread(Threaded)
