@@ -313,7 +313,7 @@ fromAll().when({{
                     .WithMaxRetriesOf(0)
                     .WithReadBatchOf(_readsize)
                     .WithLiveBufferSizeOf(_readsize * _readsize)
-                    .WithMessageTimeoutOf(TimeSpan.MaxValue)
+                    .WithMessageTimeoutOf(TimeSpan.FromMilliseconds(Int32.MaxValue))
                     .CheckPointAfter(TimeSpan.FromSeconds(2))
                     .MaximumCheckPointCountOf(_readsize * _readsize)
                     .ResolveLinkTos();
