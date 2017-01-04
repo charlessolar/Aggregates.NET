@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
@@ -63,21 +64,30 @@ namespace Aggregates.Internal
 
         private bool _disposed;
 
+        public int TotalUncommitted => Tracked.Count;
+        public int ChangedStreams => Tracked.Count;
+
         public PocoRepository(IBuilder builder)
         {
             _store = builder.Build<IStorePocos>();
         }
 
-        async Task<Guid> IRepository.Commit(Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders)
+        Task IRepository.Prepare(Guid commitId)
+        {
+            return Task.CompletedTask;
+        }
+
+        async Task IRepository.Commit(Guid commitId, IDictionary<string, string> commitHeaders)
         {
             var written = 0;
 
-            await Tracked.WhenAllAsync(async tracked =>
+            await Tracked
+                .ToArray()
+                .StartEachAsync(3, async tracked =>
             {
                 var headers = new Dictionary<string, string>(commitHeaders);
 
                 Interlocked.Add(ref written, 1);
-
 
                 var count = 0;
                 var success = false;
@@ -107,7 +117,7 @@ namespace Aggregates.Internal
 
             }).ConfigureAwait(false);
             WrittenEvents.Update(written);
-            return startingEventId;
+
         }
 
 

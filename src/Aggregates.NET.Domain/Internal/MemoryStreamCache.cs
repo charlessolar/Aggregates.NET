@@ -16,7 +16,8 @@ namespace Aggregates.Internal
         private static readonly ConcurrentDictionary<string, object> MemCache =
             new ConcurrentDictionary<string, object>();
 
-
+        private static readonly HashSet<string> Expires0 = new HashSet<string>();
+        private static readonly HashSet<string> Expires1 = new HashSet<string>();
         // For streams that are changing multiple times a second, no sense to cache them if they get immediately evicted
         private static readonly HashSet<string> Uncachable = new HashSet<string>();
         private static readonly HashSet<string> LevelOne = new HashSet<string>();
@@ -30,11 +31,28 @@ namespace Aggregates.Internal
             {
                 _stage = 0;
                 Logger.Write(LogLevel.Debug, () => $"Clearing {Uncachable.Count} uncachable stream names");
-                Uncachable.Clear();
+
+                lock (Lock)
+                {
+                    Uncachable.Clear();
+                    object e;
+                    foreach (var stream in Expires1)
+                        MemCache.TryRemove(stream, out e);
+                    Expires1.Clear();
+                }
             }
             // Clear levelOne every 10 seconds
-            if (_stage % 2 == 0)
-                lock(Lock) LevelOne.Clear();
+            if (_stage%2 == 0)
+            {
+                lock (Lock)
+                {
+                    LevelOne.Clear();
+                    object e;
+                    foreach (var stream in Expires0)
+                        MemCache.TryRemove(stream, out e);
+                    Expires0.Clear();
+                }
+            }
 
             // Clear levelZero every 5 seconds
             LevelZero.Clear();
@@ -50,7 +68,7 @@ namespace Aggregates.Internal
             _intelligent = true;
         }
 
-        public void Cache(string stream, object cached)
+        public void Cache(string stream, object cached, bool expires10S = false, bool expires1M = false)
         {
             if (_intelligent)
                 lock (Lock)
@@ -58,8 +76,19 @@ namespace Aggregates.Internal
                     if(Uncachable.Contains(stream) || LevelOne.Contains(stream))
                         return;
                 }
+            if(!expires10S && !expires1M)
+                Logger.Write(LogLevel.Debug, () => $"Caching stream [{stream}]");
+            else if (expires10S)
+            {
+                Logger.Write(LogLevel.Debug, () => $"Caching stream [{stream}] expires in 10s");
+                lock(Lock) Expires0.Add(stream);
+            }
+            else if (expires1M)
+            {
+                Logger.Write(LogLevel.Debug, () => $"Caching stream [{stream}] expires in 1m");
+                lock (Lock) Expires1.Add(stream);
+            }
 
-            Logger.Write(LogLevel.Debug, () => $"Caching stream [{stream}]");
             MemCache.AddOrUpdate(stream, (_) => cached, (_, e) => cached);
         }
         public void Evict(string stream)

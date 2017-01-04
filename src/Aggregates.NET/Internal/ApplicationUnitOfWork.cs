@@ -59,7 +59,7 @@ namespace Aggregates.Internal
                                 await _persistence.Remove(context.MessageId, uow.GetType()).ConfigureAwait(false);
 
                             uow.Bag = savedBag ?? new ContextBag();
-                            Logger.Write(LogLevel.Debug, () => $"Running UOW.Begin on {uow.GetType().FullName}");
+                            Logger.Write(LogLevel.Debug, () => $"Running UOW.Begin for message {context.MessageId} on {uow.GetType().FullName}");
                             await uow.Begin().ConfigureAwait(false);
                             uows.Push(uow);
                         }
@@ -74,7 +74,7 @@ namespace Aggregates.Internal
                     {
                         foreach (var uow in uows.Generate())
                         {
-                            Logger.Write(LogLevel.Debug, () => $"Running UOW.End on {uow.GetType().FullName}");
+                            Logger.Write(LogLevel.Debug, () => $"Running UOW.End for message {context.MessageId} on {uow.GetType().FullName}");
                             try
                             {
                                 await uow.End().ConfigureAwait(false);
@@ -92,7 +92,7 @@ namespace Aggregates.Internal
             catch (Exception e)
             {
                 Logger.Warn(
-                    $"Caught exception '{e.GetType().FullName}' while executing message {context.Message.MessageType.FullName}");
+                    $"Caught exception '{e.GetType().FullName}' while executing message {context.MessageId} {context.Message.MessageType.FullName}");
                 ErrorsMeter.Mark();
                 var trailingExceptions = new List<Exception>();
                 using (EndTimer.NewContext())
@@ -102,7 +102,7 @@ namespace Aggregates.Internal
                         try
                         {
                             Logger.Write(LogLevel.Debug,
-                                () => $"Running UOW.End with exception [{e.GetType().Name}] on {uow.GetType().FullName}");
+                                () => $"Running UOW.End with exception [{e.GetType().Name}] for message {context.MessageId} on {uow.GetType().FullName}");
                             await uow.End(e).ConfigureAwait(false);
                         }
                         catch (Exception endException)

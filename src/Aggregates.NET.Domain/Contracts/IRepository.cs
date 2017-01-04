@@ -6,7 +6,13 @@ namespace Aggregates.Contracts
 {
     public interface IRepository : IDisposable
     {
-        Task<Guid> Commit(Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders);
+        int TotalUncommitted { get; }
+        int ChangedStreams { get; }
+
+        // Checks stream versions in store if needed
+        Task Prepare(Guid commitId);
+        // Writes the stream
+        Task Commit(Guid commitId, IDictionary<string, string> commitHeaders);
     }
 
     public interface IRepository<T> : IRepository where T : class, IEventSource

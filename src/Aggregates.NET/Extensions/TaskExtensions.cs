@@ -8,12 +8,12 @@ namespace Aggregates.Extensions
 {
     public static class TaskExtensions
     {
-        public static Task ForEachAsync<T>(
-         this IEnumerable<T> source, int dop, Func<T, Task> body)
+        public static Task StartEachAsync<T>(
+         this T[] source, int dop, Func<T, Task> body)
         {
             return Task.WhenAll(
-                from partition in Partitioner.Create(source).GetPartitions(dop)
-                select Task.Run(async delegate
+                from partition in Partitioner.Create(source, loadBalance: true).GetPartitions(dop)
+                select Task.Run(async () =>
                 {
                     using (partition)
                         while (partition.MoveNext())
@@ -33,7 +33,7 @@ namespace Aggregates.Extensions
         {
             return Task.WhenAll(values.Select(asyncSelector));
         }
-        public static Task SelectAsync<TSource, TResult>(this IEnumerable<TSource> values, Func<TSource, Task> asyncSelector)
+        public static Task SelectAsync<TSource>(this IEnumerable<TSource> values, Func<TSource, Task> asyncSelector)
         {
             return Task.WhenAll(values.Select(asyncSelector));
         }

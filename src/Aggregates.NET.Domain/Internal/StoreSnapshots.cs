@@ -75,7 +75,7 @@ namespace Aggregates.Internal
             };
 
             if (_shouldCache)
-                _cache.Cache(streamName, snapshot);
+                _cache.Cache(streamName, snapshot, expires1M: true);
             return snapshot;
             
         }

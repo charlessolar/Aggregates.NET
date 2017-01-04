@@ -21,7 +21,7 @@ namespace Aggregates.Internal
 
         public string StreamId { get; }
 
-        public int StreamVersion => CommitVersion + _uncommitted.Count;
+        public int StreamVersion => CommitVersion + Uncommitted.Count();
         public int CommitVersion => (LastSnapshot ?? 0) + Committed.Count() - 1;
 
         public object CurrentMemento => _snapshot?.Payload;
@@ -34,6 +34,7 @@ namespace Aggregates.Internal
         public IEnumerable<IWritableEvent> OobUncommitted => _outofband;
         public IEnumerable<ISnapshot> SnapshotsUncommitted => _pendingShots;
 
+        public bool Dirty => Uncommitted.Any() || OobUncommitted.Any() || SnapshotsUncommitted.Any();
         public int TotalUncommitted => Uncommitted.Count() + OobUncommitted.Count() + SnapshotsUncommitted.Count();
 
         private readonly IStoreStreams _store;
@@ -114,6 +115,10 @@ namespace Aggregates.Internal
 
         private IWritableEvent MakeWritableEvent(IEvent @event, IDictionary<string, string> headers, bool version = true)
         {
+            // Todo: if we are to set the eventid here its important that an event is processed in the same order every retry
+            // - Conflict resolution?
+            var eventId = UnitOfWork.CurrentEventId.Value.Increment();
+            UnitOfWork.CurrentEventId.Value = eventId;
 
             var writable = new WritableEvent
             {
@@ -124,6 +129,7 @@ namespace Aggregates.Internal
                     Version = version ? StreamVersion + 1 : StreamVersion,
                     Headers = headers
                 },
+                EventId = eventId,
                 Event = @event
             };
 
@@ -168,7 +174,14 @@ namespace Aggregates.Internal
             _pendingShots.Add(snapshot);
         }
 
-        public async Task<Guid> Commit(Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders)
+        public async Task VerifyVersion(Guid commitId)
+        {
+            Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] for type {typeof(T).FullName} verifying stream version {CommitVersion}");
+
+            await _store.VerifyVersion<T>(this).ConfigureAwait(false);
+        }
+
+        public Task Commit(Guid commitId, IDictionary<string, string> commitHeaders)
         {
             Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] for type {typeof(T).FullName} commiting {_uncommitted.Count} events, {_pendingShots.Count} snapshots, {_outofband.Count} out of band");
 
@@ -178,50 +191,50 @@ namespace Aggregates.Internal
 
             commitHeaders[CommitHeader] = commitId.ToString();
 
-            bool readOnly = true;
-
-            if (Uncommitted.Any())
+            var tasks = new Task[]
             {
-                Logger.Write(LogLevel.Debug,
-                    () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {Uncommitted.Count()} events");
-                startingEventId = await _store.WriteStream<T>(this, startingEventId, commitHeaders).ConfigureAwait(false);
-                readOnly = false;
-            }
-
-            if (_outofband.Any())
-            {
-                if (_oobHandler == null)
-                    Logger.Write(LogLevel.Warn, () => $"OOB events were used on stream [{StreamId}] but no publishers have been defined!");
-                else
+                Task.Run(() =>
                 {
-                    Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] publishing {_outofband.Count} out of band events to {_oobHandler.GetType().Name}");
-                    await _oobHandler.Publish<T>(Bucket, StreamId, _outofband, commitHeaders).ConfigureAwait(false);
-                }
-                readOnly = false;
-                _outofband.Clear();
-            }
+                    if (!_uncommitted.Any()) return Task.CompletedTask;
 
-            if (_pendingShots.Any())
-            {
-                Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {_pendingShots.Count} snapshots");
-                await _snapshots.WriteSnapshots<T>(Bucket, StreamId, _pendingShots, commitHeaders).ConfigureAwait(false);
-                readOnly = false;
-            }
+                    Logger.Write(LogLevel.Debug,
+                        () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {Uncommitted.Count()} events");
+                    return _store.WriteStream<T>(this, commitHeaders);
+                }),
+                Task.Run(() =>
+                {
+                    if (!_outofband.Any()) return Task.CompletedTask;
 
-            if(readOnly)
-            {
-                Logger.Write(LogLevel.Debug,
-                    () => $"Event stream [{StreamId}] in bucket [{Bucket}] has no new events - verifying version at the store is same");
-                await _store.VerifyVersion<T>(this).ConfigureAwait(false);
-            }
-            Flush(true);
-            return startingEventId;
+                    if (_oobHandler == null)
+                        Logger.Write(LogLevel.Warn,
+                            () => $"OOB events were used on stream [{StreamId}] but no publishers have been defined!");
+                    else
+                    {
+                        Logger.Write(LogLevel.Debug,
+                            () =>
+                                    $"Event stream [{StreamId}] in bucket [{Bucket}] publishing {_outofband.Count} out of band events to {_oobHandler.GetType().Name}");
+                        return _oobHandler.Publish<T>(Bucket, StreamId, _outofband, commitHeaders);
+                    }
+                    return Task.CompletedTask;
+                }),
+                Task.Run(() =>
+                {
+                    if (!_pendingShots.Any()) return Task.CompletedTask;
+
+                    Logger.Write(LogLevel.Debug,
+                        () =>
+                                $"Event stream [{StreamId}] in bucket [{Bucket}] committing {_pendingShots.Count} snapshots");
+                    return _snapshots.WriteSnapshots<T>(Bucket, StreamId, _pendingShots, commitHeaders);
+                })
+            };
+            return Task.WhenAll(tasks);
+
         }
 
         public void Flush(bool committed)
         {
             if (committed)
-                _committed = _committed.Concat(_uncommitted);
+                _committed = _committed.Concat(_uncommitted).ToList();
 
             _uncommitted.Clear();
             _pendingShots.Clear();

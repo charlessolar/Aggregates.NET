@@ -10,6 +10,6 @@ namespace Aggregates
         /// <summary>
         /// Entity is a clean entity without the Uncommitted events
         /// </summary>
-        Task<Guid> Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders) where T : class, IEventSource;
+        Task Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource;
     }
 }

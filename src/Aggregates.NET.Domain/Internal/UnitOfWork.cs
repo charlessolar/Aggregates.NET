@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
@@ -17,6 +18,8 @@ namespace Aggregates.Internal
 {
     class UnitOfWork : IUnitOfWork, IApplicationUnitOfWork
     {
+        public static AsyncLocal<Guid> CurrentEventId = new AsyncLocal<Guid>();
+
         private static readonly Metrics.Timer CommitTime = Metric.Timer("UOW Commit Time", Unit.Items);
         public static string PrefixHeader = "Originating";
         public static string NotFound = "<NOT FOUND>";
@@ -26,9 +29,9 @@ namespace Aggregates.Internal
         private readonly IMessageMapper _mapper;
 
         private bool _disposed;
-        private IDictionary<Type, IRepository> _repositories;
-        private IDictionary<string, IEntityRepository> _entityRepositories;
-        private IDictionary<string, IRepository> _pocoRepositories;
+        private readonly IDictionary<Type, IRepository> _repositories;
+        private readonly IDictionary<string, IEntityRepository> _entityRepositories;
+        private readonly IDictionary<string, IRepository> _pocoRepositories;
 
 
         public IBuilder Builder { get; set; }
@@ -165,22 +168,33 @@ namespace Aggregates.Internal
         {
             // Insert all command headers into the commit
             var headers = new Dictionary<string, string>(CurrentHeaders);
-
-            Logger.Write(LogLevel.Debug, () => $"Starting commit id {CommitId} for {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories");
-
+            
             using (CommitTime.NewContext())
             {
 
-                var startingEventId = CommitId;
-                foreach (var repo in _repositories.Values)
-                    startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
+                var allRepos = _repositories.Values.Concat(_entityRepositories.Values).Concat(_pocoRepositories.Values).ToArray();
 
-                foreach (var repo in _entityRepositories.Values)
-                    startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
+                Logger.Write(LogLevel.Debug, () =>
+                        $"Starting prepare for commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories");
+                // First check all streams read but not modified - if the store has a different version a VersionException will be thrown
+                await allRepos.StartEachAsync(3, (x) => x.Prepare(CommitId)).ConfigureAwait(false);
 
-                foreach (var repo in _pocoRepositories.Values)
-                    startingEventId = await repo.Commit(CommitId, startingEventId, headers).ConfigureAwait(false);
+                // this log message can be expensive as the list is computed for a check
+                // so only warn users about multiple stream commits when debugging
+                Logger.Write(LogLevel.Debug, () =>
+                {
+                    var orderedRepos = _repositories.Select(x => new Tuple<int, IRepository>(x.Value.ChangedStreams, x.Value))
+                                                    .Concat(_entityRepositories.Select(x => new Tuple<int, IRepository>(x.Value.ChangedStreams, x.Value)));
+                    if (orderedRepos.Count(x => x.Item1 != 0) > 1)
+                        return
+                             $"Starting commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories. You changed {orderedRepos.Sum(x => x.Item1)} streams.  We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams";
 
+                    return
+                            $"Starting commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories";
+                });
+
+                await allRepos.StartEachAsync(3, (x) => x.Commit(CommitId, headers)).ConfigureAwait(false);
+                
             }
             Logger.Write(LogLevel.Debug, () => $"Commit id {CommitId} complete");
         }
@@ -234,6 +248,8 @@ namespace Aggregates.Internal
                     CommitId = Guid.Parse(messageId);
             }
             catch (FormatException) { }
+
+            CurrentEventId.Value = CommitId;
 
             return command;
         }

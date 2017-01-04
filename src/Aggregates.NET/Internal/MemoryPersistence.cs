@@ -31,7 +31,7 @@ namespace Aggregates.Internal
 
         public Task<ContextBag> Remove(string messageId, Type uowType)
         {
-            Logger.Write(LogLevel.Debug, () => $"Persisting context bag for message [{messageId}] uow [{uowType.FullName}]");
+            Logger.Write(LogLevel.Debug, () => $"Removing persisted context bag for message [{messageId}] uow [{uowType.FullName}]");
             List<Tuple<Type, ContextBag>> existing;
             if (!Storage.TryRemove(messageId, out existing))
                 return Task.FromResult<ContextBag>(null);

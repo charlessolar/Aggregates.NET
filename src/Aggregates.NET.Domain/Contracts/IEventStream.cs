@@ -14,6 +14,14 @@ namespace Aggregates.Contracts
         int StreamVersion { get; }
         int CommitVersion { get; }
 
+        /// <summary>
+        /// Indicates whether the stream has been changed
+        /// </summary>
+        bool Dirty { get; }
+
+        /// <summary>
+        /// The total number of events and snapshots not saved yet
+        /// </summary>
         int TotalUncommitted { get; }
         /// <summary>
         /// All events read from the store
@@ -45,7 +53,8 @@ namespace Aggregates.Contracts
         void AddOutOfBand(IEvent @event, IDictionary<string, string> headers);
         void AddSnapshot(object memento, IDictionary<string, string> headers);
         void Concat(IEnumerable<IWritableEvent> events);
-        Task<Guid> Commit(Guid commitId, Guid startingEventId, IDictionary<string, string> commitHeaders);
+        Task Commit(Guid commitId, IDictionary<string, string> commitHeaders);
+        Task VerifyVersion(Guid commitId);
 
         IEventStream Clone(IWritableEvent @event = null);
         void Flush(bool committed);

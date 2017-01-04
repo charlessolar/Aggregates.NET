@@ -78,7 +78,7 @@ namespace Aggregates.Internal
             if (current.Status == SliceReadStatus.StreamNotFound)
             {
                 Logger.Write(LogLevel.Warn, () => $"Stream [{stream}] does not exist!");
-                return null;
+                throw new NotFoundException($"Stream [{stream}] does not exist!");
             }
 
             ReadEvents.Update(events.Count);

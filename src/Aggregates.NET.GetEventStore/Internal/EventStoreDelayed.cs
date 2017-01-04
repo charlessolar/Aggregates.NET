@@ -115,7 +115,7 @@ namespace Aggregates.Internal
             if (ex == null && _flusher != null)
             {
                 Logger.Write(LogLevel.Debug, () => $"Scheduling save of {_uncommitted.Count()} delayed streams");
-
+                
                 lock (WaitingLock)
                 {
                     foreach (var stream in _uncommitted.GroupBy(x => x.Item1))
