@@ -5,7 +5,7 @@ namespace Aggregates.Contracts
 {
     public interface IWritableEvent
     {
-        Guid? EventId { get; set; }
+        Guid? EventId { get; }
         object Event { get; }
         IEventDescriptor Descriptor { get; }
     }

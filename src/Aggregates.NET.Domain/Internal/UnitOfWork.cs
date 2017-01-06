@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -18,7 +19,15 @@ namespace Aggregates.Internal
 {
     class UnitOfWork : IUnitOfWork, IApplicationUnitOfWork
     {
-        public static AsyncLocal<Guid> CurrentEventId = new AsyncLocal<Guid>();
+        private static readonly ConcurrentDictionary<Guid, Guid> EventIds = new ConcurrentDictionary<Guid, Guid>();
+
+        public static Guid NextEventId(Guid commitId)
+        {
+            // Todo: if we are to set the eventid here its important that an event is processed in the same order every retry
+            // - Conflict resolution?
+            // - Bulk invokes?
+            return EventIds.AddOrUpdate(commitId, commitId, (key, value) => value.Increment());
+        }
 
         private static readonly Metrics.Timer CommitTime = Metric.Timer("UOW Commit Time", Unit.Items);
         public static string PrefixHeader = "Originating";
@@ -157,6 +166,9 @@ namespace Aggregates.Internal
         }
         Task IApplicationUnitOfWork.End(Exception ex)
         {
+            Guid eventId;
+            EventIds.TryRemove(CommitId, out eventId);
+            
             // Todo: If current message is an event, detect if they've modified any entities and warn them.
             if (ex != null || CurrentMessage is IEvent)
                 return Task.CompletedTask;
@@ -197,6 +209,7 @@ namespace Aggregates.Internal
                 
             }
             Logger.Write(LogLevel.Debug, () => $"Commit id {CommitId} complete");
+
         }
 
         public IMutating MutateIncoming(IMutating command)
@@ -248,9 +261,7 @@ namespace Aggregates.Internal
                     CommitId = Guid.Parse(messageId);
             }
             catch (FormatException) { }
-
-            CurrentEventId.Value = CommitId;
-
+            
             return command;
         }
         public IMutating MutateOutgoing(IMutating command)

@@ -108,7 +108,7 @@ namespace Aggregates.Internal
             Saved.Mark();
             if (await _store.WriteEvents(streamName, translatedEvents, commitHeaders).ConfigureAwait(false) == (translatedEvents.Count - 1))
                 // New stream, write metadata
-                await _store.WriteMetadata(streamName, maxCount: 10).ConfigureAwait(false);
+                await _store.WriteMetadata(streamName, maxCount: 5).ConfigureAwait(false);
             
             if (_shouldCache)
                 _cache.Cache(streamName, snapshots.Last());

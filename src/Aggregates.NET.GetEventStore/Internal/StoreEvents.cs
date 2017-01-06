@@ -141,7 +141,7 @@ namespace Aggregates.Internal
                     events.AddRange(result.Events);
             }
 
-            if (count > 1)
+            if (!count.HasValue || count > 1)
             {
                 Logger.Write(LogLevel.Debug,
                     () => $"Reading events backwards from stream [{stream}] starting at {sliceStart}");
@@ -183,7 +183,7 @@ namespace Aggregates.Internal
                 var descriptor = metadata.Deserialize(settings);
                 var @event = data.Deserialize(e.Event.EventType, settings);
 
-                // Special case if event was written without a version - substitue the position from store
+                // Special case if event was written without a version - substitute the position from store
                 if (descriptor.Version == 0)
                     descriptor.Version = e.Event.EventNumber;
 
@@ -201,7 +201,6 @@ namespace Aggregates.Internal
         public async Task<int> WriteEvents(string stream, IEnumerable<IWritableEvent> events,
             IDictionary<string, string> commitHeaders, int? expectedVersion = null)
         {
-
             Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{stream}].  Expected version: {expectedVersion}");
 
             var settings = new JsonSerializerSettings
@@ -219,7 +218,7 @@ namespace Aggregates.Internal
                     EntityType = e.Descriptor.EntityType,
                     Timestamp = e.Descriptor.Timestamp,
                     Version = e.Descriptor.Version,
-                    Headers = commitHeaders != null ? commitHeaders.Merge(e.Descriptor.Headers) : e.Descriptor.Headers
+                    Headers = commitHeaders?.Merge(e.Descriptor.Headers) ?? e.Descriptor.Headers
                 };
 
                 var mappedType = e.Event.GetType();
@@ -258,7 +257,7 @@ namespace Aggregates.Internal
                         var page = 0;
                         while (page < translatedEvents.Count)
                         {
-                            await transaction.WriteAsync(translatedEvents.Skip(page).Take(Math.Min(translatedEvents.Count - page, _readsize))).ConfigureAwait(false);
+                            await transaction.WriteAsync(translatedEvents.Skip(page).Take(_readsize)).ConfigureAwait(false);
                             page += _readsize;
                         }
                         var result = await transaction.CommitAsync().ConfigureAwait(false);

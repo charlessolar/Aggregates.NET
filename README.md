@@ -41,6 +41,7 @@ Current features include -
 - Advanced performance logging
 - NO internal IOC container (NServiceBus used for resolutions)
 - Automatic configuration of competing consumers for event consumers
+- EventStore sharding
 
 
 Status

@@ -46,6 +46,7 @@ namespace Aggregates.Internal
         private readonly IList<IWritableEvent> _uncommitted;
         private readonly IList<IWritableEvent> _outofband;
         private readonly IList<ISnapshot> _pendingShots;
+        private readonly Guid _commitId;
 
         public EventStream(IBuilder builder, IStoreStreams store, string bucket, string streamId, IEnumerable<IWritableEvent> events, ISnapshot snapshot)
         {
@@ -62,6 +63,9 @@ namespace Aggregates.Internal
             _outofband = new List<IWritableEvent>();
             _pendingShots = new List<ISnapshot>();
             
+            // Todo: this is a hack
+            // Get the commit id of the current message because we need it to make writable events
+            _commitId = builder?.Build<IUnitOfWork>().CommitId ?? Guid.Empty;
         }
 
         // Special constructor for building from a cached instance
@@ -79,6 +83,12 @@ namespace Aggregates.Internal
             _outofband = new List<IWritableEvent>();
             _pendingShots = new List<ISnapshot>();
 
+            // Todo: this is a hack
+            // Get the commit id of the current message because we need it to make writable events
+            _commitId = builder?.Build<IUnitOfWork>().CommitId ?? Guid.Empty;
+
+            // The commit version is calculated based on an existing snapshot.
+            // If restoring from cache with a new snapshot, we'll remove committed events before the snapshot
             if (_snapshot != null && Committed.Any() && Committed.First().Descriptor.Version <= _snapshot.Version)
             {
                 _committed = _committed.Where(x => x.Descriptor.Version > _snapshot.Version);
@@ -115,11 +125,6 @@ namespace Aggregates.Internal
 
         private IWritableEvent MakeWritableEvent(IEvent @event, IDictionary<string, string> headers, bool version = true)
         {
-            // Todo: if we are to set the eventid here its important that an event is processed in the same order every retry
-            // - Conflict resolution?
-            var eventId = UnitOfWork.CurrentEventId.Value.Increment();
-            UnitOfWork.CurrentEventId.Value = eventId;
-
             var writable = new WritableEvent
             {
                 Descriptor = new EventDescriptor
@@ -129,7 +134,7 @@ namespace Aggregates.Internal
                     Version = version ? StreamVersion + 1 : StreamVersion,
                     Headers = headers
                 },
-                EventId = eventId,
+                EventId = UnitOfWork.NextEventId(_commitId),
                 Event = @event
             };
 
@@ -174,18 +179,17 @@ namespace Aggregates.Internal
             _pendingShots.Add(snapshot);
         }
 
-        public async Task VerifyVersion(Guid commitId)
+        public Task VerifyVersion(Guid commitId)
         {
             Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] for type {typeof(T).FullName} verifying stream version {CommitVersion}");
 
-            await _store.VerifyVersion<T>(this).ConfigureAwait(false);
+            return _store.VerifyVersion<T>(this);
         }
 
         public Task Commit(Guid commitId, IDictionary<string, string> commitHeaders)
         {
             Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] for type {typeof(T).FullName} commiting {_uncommitted.Count} events, {_pendingShots.Count} snapshots, {_outofband.Count} out of band");
-
-
+            
             if (commitHeaders == null)
                 commitHeaders = new Dictionary<string, string>();
 
@@ -228,7 +232,6 @@ namespace Aggregates.Internal
                 })
             };
             return Task.WhenAll(tasks);
-
         }
 
         public void Flush(bool committed)

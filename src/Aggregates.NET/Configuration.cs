@@ -43,6 +43,7 @@ namespace Aggregates
             {
                 x.NumberOfRetries(immediateRetries);
             });
+            
             recoverability.Delayed(x =>
             {
                 // Delayed retries don't work well with the InMemory context bag storage.  Creating
