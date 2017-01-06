@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -61,7 +60,7 @@ namespace Aggregates.Internal
         private static readonly Histogram WrittenEvents = Metric.Histogram("Written Pocos", Unit.Events);
         private static readonly Meter WriteErrors = Metric.Meter("Poco Write Errors", Unit.Errors);
 
-        protected readonly ConcurrentDictionary<Tuple<string, string>, T> Tracked = new ConcurrentDictionary<Tuple<string, string>, T>();
+        protected readonly IDictionary<Tuple<string, string>, T> Tracked = new Dictionary<Tuple<string, string>, T>();
 
         private bool _disposed;
 

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -38,7 +37,7 @@ namespace Aggregates.Internal
         private static readonly Metrics.Timer CommitTime = Metric.Timer("Repository Commit Time", Unit.Items);
         private static readonly Metrics.Timer ConflictResolutionTime = Metric.Timer("Conflict Resolution Time", Unit.Items);
 
-        protected readonly ConcurrentDictionary<string, T> Tracked = new ConcurrentDictionary<string, T>();
+        protected readonly IDictionary<string, T> Tracked = new Dictionary<string, T>();
 
         private bool _disposed;
 

@@ -131,7 +131,8 @@ namespace Aggregates.Internal
 
                 Invokes.Mark();
                 Logger.Write(LogLevel.Debug, () => $"Invoking handle {msgs.Count()} times for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
-                await msgs.Cast<DelayedMessage>().ToArray().StartEachAsync(3, (msg) => messageHandler.Invoke(msg.Message, context)).ConfigureAwait(false);
+                foreach (var msg in msgs.Cast<DelayedMessage>())
+                    await messageHandler.Invoke(msg.Message, context).ConfigureAwait(false);
                 
                 return;
             }
