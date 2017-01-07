@@ -59,9 +59,9 @@ namespace Aggregates.Internal
         public async Task<IEventStream> GetStream<T>(string bucket, string streamId, ISnapshot snapshot = null) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), bucket, streamId);
-            
+
             Logger.Write(LogLevel.Debug, () => $"Retreiving stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
-            
+
             if (_shouldCache)
             {
                 var cached = _cache.Retreive(streamName) as EventStream<T>;
@@ -84,8 +84,8 @@ namespace Aggregates.Internal
             var events = await _store.GetEvents(streamName, start: snapshot?.Version + 1).ConfigureAwait(false);
 
             var eventstream = new EventStream<T>(Builder, this, bucket, streamId, events, snapshot);
-            if (_shouldCache)
-                await Cache<T>(eventstream).ConfigureAwait(false);
+            
+            await Cache<T>(eventstream).ConfigureAwait(false);
 
             return eventstream;
         }
@@ -107,7 +107,7 @@ namespace Aggregates.Internal
             var streamName = _streamGen(typeof(T), bucket, streamId);
             return _store.GetEventsBackwards(streamName, start: start, count: count);
         }
-        
+
 
         public async Task WriteStream<T>(IEventStream stream, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
@@ -115,14 +115,10 @@ namespace Aggregates.Internal
 
             if (await CheckFrozen<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false))
                 throw new FrozenException();
-            
+
             Saved.Mark();
             await _store.WriteEvents(streamName, stream.Uncommitted, commitHeaders, expectedVersion: stream.CommitVersion).ConfigureAwait(false);
             stream.Flush(true);
-
-            if (_shouldCache)
-                await Cache<T>(stream).ConfigureAwait(false);
-            
         }
 
         public async Task VerifyVersion<T>(IEventStream stream)
@@ -168,9 +164,8 @@ namespace Aggregates.Internal
             catch (VersionException)
             {
                 Logger.Write(LogLevel.Debug, () => $"Unfreeze: stream [{streamName}] is not frozen");
-                return;
             }
-            
+
         }
         private Task<bool> CheckFrozen<T>(string bucket, string streamId) where T : class, IEventSource
         {

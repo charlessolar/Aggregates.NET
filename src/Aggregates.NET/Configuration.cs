@@ -29,6 +29,7 @@ namespace Aggregates
         /// <param name="compress"></param>
         public static void SetCompress(this ExposeSettings settings, bool compress)
         {
+            throw new InvalidOperationException("Compress is not supported yet");
             settings.GetSettings().Set("Compress", compress);
         }
         public static void ConfigureForAggregates(this RecoverabilitySettings recoverability, int immediateRetries = 10)

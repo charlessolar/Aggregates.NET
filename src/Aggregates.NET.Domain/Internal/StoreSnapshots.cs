@@ -111,7 +111,7 @@ namespace Aggregates.Internal
                 await _store.WriteMetadata(streamName, maxCount: 5).ConfigureAwait(false);
             
             if (_shouldCache)
-                _cache.Cache(streamName, snapshots.Last());
+                _cache.Cache(streamName, snapshots.Last(), expires1M: true);
         }
         
     }

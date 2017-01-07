@@ -35,7 +35,6 @@ namespace Aggregates.Internal
     internal class EventSubscriber : IEventSubscriber
     {
         private static readonly Counter QueuedEvents = Metric.Counter("Queued Events", Unit.Events);
-        private static readonly Histogram Acknowledging = Metric.Histogram("Acknowledged Events", Unit.Events);
 
         private static readonly ILog Logger = LogManager.GetLogger("EventSubscriber");
 
@@ -50,6 +49,8 @@ namespace Aggregates.Internal
         private class ClientInfo : IDisposable
         {
             private readonly Metrics.Counter Queued;
+            private readonly Metrics.Counter Processed;
+            private readonly Metrics.Counter Acknowledged;
 
             private readonly IEventStoreConnection _client;
             private readonly string _stream;
@@ -61,11 +62,11 @@ namespace Aggregates.Internal
             private readonly object _ackLock;
             private readonly Timer _acknowledger;
             private readonly ConcurrentQueue<ResolvedEvent> _waitingEvents;
-            
+
             private EventStorePersistentSubscriptionBase _subscription;
 
             public bool Live { get; private set; }
-            public string Id => $"{_client.Settings.GossipSeeds[0].EndPoint.Address}.{_stream.Substring(0,3)}.{_index}";
+            public string Id => $"{_client.Settings.GossipSeeds[0].EndPoint.Address}.{_stream.Substring(0, 3)}.{_index}";
 
             private bool _disposed;
 
@@ -79,10 +80,12 @@ namespace Aggregates.Internal
                 _toAck = new List<ResolvedEvent>();
                 _ackLock = new object();
                 _waitingEvents = new ConcurrentQueue<ResolvedEvent>();
-                
+
                 Queued = Metric.Context("Subscription Clients").Context(Id).Counter("Queued", Unit.Events);
-                
-                
+                Processed = Metric.Context("Subscription Clients").Context(Id).Counter("Processed", Unit.Events);
+                Acknowledged = Metric.Context("Subscription Clients").Context(Id).Counter("Acknowledged", Unit.Events);
+
+
                 _acknowledger = new Timer(state =>
                 {
                     var info = (ClientInfo)state;
@@ -99,8 +102,7 @@ namespace Aggregates.Internal
                         throw new InvalidOperationException(
                             "Subscription was stopped while events were waiting to be ACKed");
 
-
-                    Acknowledging.Update(toAck.Length);
+                    Acknowledged.Increment(toAck.Length);
                     Logger.Write(LogLevel.Info, () => $"Acknowledging {toAck.Length} events");
 
                     var page = 0;
@@ -172,7 +174,7 @@ namespace Aggregates.Internal
                 _subscription = await _client.ConnectToPersistentSubscriptionAsync(_stream, _group,
                     eventAppeared: EventAppeared,
                     subscriptionDropped: SubscriptionDropped,
-                    bufferSize: 10000,
+                    bufferSize: 1000,
                     autoAck: false).ConfigureAwait(false);
                 Live = true;
             }
@@ -182,6 +184,7 @@ namespace Aggregates.Internal
                 if (!Live)
                     throw new InvalidOperationException("Cannot ACK an event, subscription is dead");
 
+                Processed.Increment();
                 lock (_ackLock) _toAck.Add(@event);
             }
 
@@ -205,12 +208,13 @@ namespace Aggregates.Internal
         private CancellationTokenSource _cancelation;
         private string _endpoint;
         private int _readsize;
-        private int _concurrency;
         private bool _extraStats;
 
         private readonly MessageHandlerRegistry _registry;
         private readonly JsonSerializerSettings _settings;
         private readonly MessageMetadataRegistry _messageMeta;
+        private readonly int _concurrency;
+        //private readonly bool _compress;
 
         private readonly IEventStoreConnection[] _clients;
 
@@ -370,9 +374,9 @@ fromAll().when({{
                     {
                     }
 
-                    for(var j = 0; j < _concurrency; j++)
+                    for (var j = 0; j < _concurrency; j++)
                     {
-                        pinnedClients[(i*_concurrency) + j] = new ClientInfo(client, $"APP.{stream}", pinnedGroup, j, clientCancelSource.Token);
+                        pinnedClients[(i * _concurrency) + j] = new ClientInfo(client, $"APP.{stream}", pinnedGroup, j, clientCancelSource.Token);
                         oobClients[(i * _concurrency) + j] = new ClientInfo(client, $"OOB.{stream}", roundRobinGroup, j, clientCancelSource.Token);
                     }
 

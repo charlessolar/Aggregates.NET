@@ -87,7 +87,7 @@
     <Compile Include="Internal\Base.cs" />
     <Compile Include="Internal\DefaultOOBHandler.cs" />
     <Compile Include="Internal\ConflictResolvers.cs" />
-    <Compile Include="Internal\MemoryStreamCache.cs" />
+    <Compile Include="Internal\IntelligentStreamCache.cs" />
     <Compile Include="Internal\MutateIncomingCommands.cs" />
     <Compile Include="Internal\NSBOOBHandler.cs" />
     <Compile Include="Internal\PocoRepository.cs" />

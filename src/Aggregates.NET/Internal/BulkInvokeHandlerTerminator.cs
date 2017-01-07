@@ -128,12 +128,16 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Debug, () => $"No delayed events found for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
                     return;
                 }
-
-                Invokes.Mark();
-                Logger.Write(LogLevel.Debug, () => $"Invoking handle {msgs.Count()} times for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
-                foreach (var msg in msgs.Cast<DelayedMessage>())
-                    await messageHandler.Invoke(msg.Message, context).ConfigureAwait(false);
                 
+                Invokes.Mark();
+                var idx = 0;
+                foreach (var msg in msgs.Cast<DelayedMessage>())
+                {
+                    idx++;
+                    Logger.Write(LogLevel.Debug, () => $"Invoking handle {idx}/{msgs.Count()} times for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
+                    await messageHandler.Invoke(msg.Message, context).ConfigureAwait(false);
+                }
+
                 return;
             }
 

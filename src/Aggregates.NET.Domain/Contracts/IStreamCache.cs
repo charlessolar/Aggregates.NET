@@ -1,6 +1,5 @@
 ﻿namespace Aggregates.Contracts
 {
-    // Will store streams in a cache until they are updated by a new event
     public interface IStreamCache
     {
         //void Cache(String stream, IEventStream eventstream);
@@ -13,6 +12,5 @@
         object Retreive(string stream);
 
         void Evict(string stream);
-        bool Update(string stream, object payload);
     }
 }

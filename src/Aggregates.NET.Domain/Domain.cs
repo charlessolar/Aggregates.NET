@@ -46,7 +46,7 @@ namespace Aggregates
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<Processor>(DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<MemoryStreamCache>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<IntelligentStreamCache>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<ResolveStronglyConflictResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<ResolveWeaklyConflictResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DiscardConflictResolver>(DependencyLifecycle.InstancePerCall);
