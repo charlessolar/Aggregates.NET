@@ -42,7 +42,7 @@ Current features include -
 - NO internal IOC container (NServiceBus used for resolutions)
 - Automatic configuration of competing consumers for event consumers
 - EventStore sharding
-
+- Possibly useful intelligent memory cache
 
 Status
 ------

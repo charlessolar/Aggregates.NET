@@ -29,13 +29,13 @@ namespace Aggregates
 
             var settings = context.Settings;
             context.Container.ConfigureComponent(b => 
-                new StoreStreams(b.Build<IStoreEvents>(), b.Build<IStreamCache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
+                new StoreStreams(b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
                 DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent(b =>
-                new StoreSnapshots(b.Build<IStoreEvents>(), b.Build<IStreamCache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
+                new StoreSnapshots(b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
                 DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent(b =>
-                new StorePocos(b.Build<IStoreEvents>(), b.Build<IStreamCache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
+                new StorePocos(b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
                 DependencyLifecycle.InstancePerCall);
 
             context.Container.ConfigureComponent(b =>
@@ -46,7 +46,6 @@ namespace Aggregates
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<Processor>(DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<IntelligentStreamCache>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<ResolveStronglyConflictResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<ResolveWeaklyConflictResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DiscardConflictResolver>(DependencyLifecycle.InstancePerCall);

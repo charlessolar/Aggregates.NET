@@ -76,7 +76,6 @@
     <Compile Include="Internal\StoreStreams.cs" />
     <Compile Include="IResolveConflicts.cs" />
     <Compile Include="Contracts\IStorePocos.cs" />
-    <Compile Include="Contracts\IStreamCache.cs" />
     <Compile Include="Exceptions\AbandonConflictException.cs" />
     <Compile Include="Exceptions\DiscardEventException.cs" />
     <Compile Include="Exceptions\NoRouteException.cs" />
@@ -87,7 +86,6 @@
     <Compile Include="Internal\Base.cs" />
     <Compile Include="Internal\DefaultOOBHandler.cs" />
     <Compile Include="Internal\ConflictResolvers.cs" />
-    <Compile Include="Internal\IntelligentStreamCache.cs" />
     <Compile Include="Internal\MutateIncomingCommands.cs" />
     <Compile Include="Internal\NSBOOBHandler.cs" />
     <Compile Include="Internal\PocoRepository.cs" />

@@ -103,7 +103,7 @@ namespace Aggregates.Internal
                             "Subscription was stopped while events were waiting to be ACKed");
 
                     Acknowledged.Increment(toAck.Length);
-                    Logger.Write(LogLevel.Info, () => $"Acknowledging {toAck.Length} events");
+                    Logger.Write(LogLevel.Info, () => $"Acknowledging {toAck.Length} events to {Id}");
 
                     var page = 0;
                     while (page < toAck.Length)
@@ -330,10 +330,12 @@ fromAll().when({{
                     .WithMaxRetriesOf(0)
                     .WithReadBatchOf(_readsize)
                     .WithLiveBufferSizeOf(_readsize * _readsize)
-                    .WithMessageTimeoutOf(TimeSpan.FromMilliseconds(Int32.MaxValue))
+                    .WithMessageTimeoutOf(TimeSpan.FromMilliseconds(int.MaxValue))
                     .CheckPointAfter(TimeSpan.FromSeconds(2))
                     .MaximumCheckPointCountOf(_readsize * _readsize)
                     .ResolveLinkTos();
+                if (_extraStats)
+                    settings.WithExtraStatistics();
 
                 var pinnedClients = new ClientInfo[_clients.Count() * _concurrency];
                 var oobClients = new ClientInfo[_clients.Count() * _concurrency];
@@ -438,7 +440,7 @@ fromAll().when({{
 
                         Logger.Write(LogLevel.Debug,
                             () =>
-                                    $"Acknowledging event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
+                                    $"Scheduling acknowledge event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
                         client.Acknowledge(e);
                     }, param.Token);
                 }

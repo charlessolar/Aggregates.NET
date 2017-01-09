@@ -29,6 +29,7 @@ namespace Aggregates
         {
             context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue()));
 
+            context.Container.ConfigureComponent<IntelligentCache>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<MemoryDelayed>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<MemoryPersistence>(DependencyLifecycle.InstancePerCall);
 

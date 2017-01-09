@@ -9,17 +9,17 @@ using NServiceBus.Logging;
 
 namespace Aggregates.Internal
 {
-    // Only actually caches a stream if the stream is read several times without writing to it
-    class IntelligentStreamCache : IStreamCache, IDisposable
+    // Only actually caches an item if the item is cached several times without evicting it
+    class IntelligentCache : ICache, IDisposable
     {
-        private static readonly ILog Logger = LogManager.GetLogger("MemoryStreamCache");
+        private static readonly ILog Logger = LogManager.GetLogger("IntelligentCache");
 
         private static readonly ConcurrentDictionary<string, object> MemCache =
             new ConcurrentDictionary<string, object>();
 
         private static readonly HashSet<string> Expires0 = new HashSet<string>();
         private static readonly HashSet<string> Expires1 = new HashSet<string>();
-        // Only cache streams that don't change very often
+        // Only cache items that don't change very often
         private static readonly HashSet<string> Cachable = new HashSet<string>();
         private static readonly HashSet<string> LevelOne = new HashSet<string>();
         private static readonly HashSet<string> LevelZero = new HashSet<string>();
@@ -31,7 +31,7 @@ namespace Aggregates.Internal
             if (_stage == 120)
             {
                 _stage = 0;
-                Logger.Write(LogLevel.Debug, () => $"Clearing {Cachable.Count} uncachable stream names");
+                Logger.Write(LogLevel.Debug, () => $"Clearing {Cachable.Count} cachable keys");
 
                 lock (Lock)
                 {
@@ -63,47 +63,47 @@ namespace Aggregates.Internal
 
         private bool _disposed;
 
-        public IntelligentStreamCache()
+        public IntelligentCache()
         {
         }
 
-        public void Cache(string stream, object cached, bool expires10S = false, bool expires1M = false)
+        public void Cache(string key, object cached, bool expires10S = false, bool expires1M = false)
         {
             lock (Lock)
             {
-                if (Cachable.Contains(stream) || expires10S || expires1M)
+                if (Cachable.Contains(key) || expires10S || expires1M)
                 {
                     if (!expires10S && !expires1M)
-                        Logger.Write(LogLevel.Debug, () => $"Caching stream [{stream}]");
+                        Logger.Write(LogLevel.Debug, () => $"Caching item [{key}]");
                     else if (expires10S)
                     {
-                        Logger.Write(LogLevel.Debug, () => $"Caching stream [{stream}] expires in 10s");
-                        lock (Lock) Expires0.Add(stream);
+                        Logger.Write(LogLevel.Debug, () => $"Caching item [{key}] expires in 10s");
+                        lock (Lock) Expires0.Add(key);
                     }
                     else if (expires1M)
                     {
-                        Logger.Write(LogLevel.Debug, () => $"Caching stream [{stream}] expires in 1m");
-                        lock (Lock) Expires1.Add(stream);
+                        Logger.Write(LogLevel.Debug, () => $"Caching item [{key}] expires in 1m");
+                        lock (Lock) Expires1.Add(key);
                     }
-                    MemCache.AddOrUpdate(stream, (_) => cached, (_, e) => cached);
+                    MemCache.AddOrUpdate(key, (_) => cached, (_, e) => cached);
 
                     return;
                 }
 
-                if (LevelZero.Contains(stream))
+                if (LevelZero.Contains(key))
                 {
-                    if (LevelOne.Contains(stream))
+                    if (LevelOne.Contains(key))
                     {
                         Logger.Write(LogLevel.Info,
                             () =>
-                                    $"Stream [{stream}] has been read frequenty, marking cachable for a few minutes");
-                        Cachable.Add(stream);
+                                    $"Stream [{key}] has been cahed frequenty, marking cachable for a few minutes");
+                        Cachable.Add(key);
                     }
                     else
-                        LevelOne.Add(stream);
+                        LevelOne.Add(key);
                 }
                 else
-                    LevelZero.Add(stream);
+                    LevelZero.Add(key);
 
             }
 
@@ -111,28 +111,28 @@ namespace Aggregates.Internal
 
 
         }
-        public void Evict(string stream)
+        public void Evict(string key)
         {
-            Logger.Write(LogLevel.Debug, () => $"Evicting stream [{stream}] from cache");
+            Logger.Write(LogLevel.Debug, () => $"Evicting item [{key}] from cache");
 
             lock (Lock)
             {
-                LevelOne.Remove(stream);
-                LevelZero.Remove(stream);
-                Cachable.Remove(stream);
+                LevelOne.Remove(key);
+                LevelZero.Remove(key);
+                Cachable.Remove(key);
             }
 
             object e;
-            MemCache.TryRemove(stream, out e);
+            MemCache.TryRemove(key, out e);
 
         }
-        public object Retreive(string stream)
+        public object Retreive(string key)
         {
             object cached;
-            if (!MemCache.TryGetValue(stream, out cached))
+            if (!MemCache.TryGetValue(key, out cached))
                 cached = null;
             if (cached == null)
-                Logger.Write(LogLevel.Debug, () => $"Stream [{stream}] is not in cache");
+                Logger.Write(LogLevel.Debug, () => $"Item [{key}] is not in cache");
 
             return cached;
         }

@@ -19,11 +19,11 @@ namespace Aggregates.Internal
 
         private static readonly ILog Logger = LogManager.GetLogger("StoreSnapshots");
         private readonly IStoreEvents _store;
-        private readonly IStreamCache _cache;
+        private readonly ICache _cache;
         private readonly bool _shouldCache;
         private readonly StreamIdGenerator _streamGen;
 
-        public StoreSnapshots(IStoreEvents store, IStreamCache cache, bool shouldCache, StreamIdGenerator streamGen)
+        public StoreSnapshots(IStoreEvents store, ICache cache, bool shouldCache, StreamIdGenerator streamGen)
         {
             _store = store;
             _cache = cache;

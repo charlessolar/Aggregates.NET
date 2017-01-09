@@ -25,13 +25,13 @@ namespace Aggregates.Internal
 
         private static readonly ILog Logger = LogManager.GetLogger("StoreStreams");
         private readonly IStoreEvents _store;
-        private readonly IStreamCache _cache;
+        private readonly ICache _cache;
         private readonly bool _shouldCache;
         private readonly StreamIdGenerator _streamGen;
 
         public IBuilder Builder { get; set; }
 
-        public StoreStreams(IStoreEvents store, IStreamCache cache, bool cacheStreams, StreamIdGenerator streamGen)
+        public StoreStreams(IStoreEvents store, ICache cache, bool cacheStreams, StreamIdGenerator streamGen)
         {
             _store = store;
             _cache = cache;
