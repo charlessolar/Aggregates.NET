@@ -186,7 +186,7 @@ namespace Aggregates.Internal
             return _store.VerifyVersion<T>(this);
         }
 
-        public Task Commit(Guid commitId, IDictionary<string, string> commitHeaders)
+        public async Task Commit(Guid commitId, IDictionary<string, string> commitHeaders)
         {
             Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] for type {typeof(T).FullName} commiting {_uncommitted.Count} events, {_pendingShots.Count} snapshots, {_outofband.Count} out of band");
             
@@ -231,7 +231,8 @@ namespace Aggregates.Internal
                     return _snapshots.WriteSnapshots<T>(Bucket, StreamId, _pendingShots, commitHeaders);
                 })
             };
-            return Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+            Flush(true);
         }
 
         public void Flush(bool committed)

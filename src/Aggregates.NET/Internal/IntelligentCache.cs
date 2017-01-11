@@ -90,18 +90,15 @@ namespace Aggregates.Internal
                     return;
                 }
 
-                if (LevelZero.Contains(key))
+                if (LevelOne.Contains(key) && !LevelZero.Contains(key))
                 {
-                    if (LevelOne.Contains(key))
-                    {
-                        Logger.Write(LogLevel.Info,
-                            () =>
-                                    $"Stream [{key}] has been cahed frequenty, marking cachable for a few minutes");
-                        Cachable.Add(key);
-                    }
-                    else
-                        LevelOne.Add(key);
+                    Logger.Write(LogLevel.Info,
+                        () =>
+                                $"Stream [{key}] has been cached frequenty, marking cachable for a few minutes");
+                    Cachable.Add(key);
                 }
+                else if (LevelZero.Contains(key))
+                    LevelOne.Add(key);
                 else
                     LevelZero.Add(key);
 

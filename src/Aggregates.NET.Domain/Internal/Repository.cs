@@ -108,6 +108,7 @@ namespace Aggregates.Internal
 
                         try
                         {
+                            await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
                             await stream.Commit(commitId, headers).ConfigureAwait(false);
                         }
                         catch (VersionException e)
@@ -122,7 +123,6 @@ namespace Aggregates.Internal
                                     $"New stream [{tracked.StreamId}] entity {tracked.GetType().FullName} already exists in store");
                             }
 
-                            await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
                             try
                             {
                                 Logger.Write(LogLevel.Debug,

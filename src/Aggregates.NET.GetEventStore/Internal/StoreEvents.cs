@@ -249,8 +249,8 @@ namespace Aggregates.Internal
                 EventStoreTransaction transaction = null;
                 try
                 {
-                    if (translatedEvents.Count > _readsize)
-                        transaction = await _clients[bucket].StartTransactionAsync(stream, expectedVersion ?? ExpectedVersion.Any).ConfigureAwait(false);
+                    //if (translatedEvents.Count > _readsize)
+                    //    transaction = await _clients[bucket].StartTransactionAsync(stream, expectedVersion ?? ExpectedVersion.Any).ConfigureAwait(false);
                     
                     if (transaction != null)
                     {

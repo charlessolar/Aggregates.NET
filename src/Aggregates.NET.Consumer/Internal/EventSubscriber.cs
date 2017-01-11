@@ -174,7 +174,7 @@ namespace Aggregates.Internal
                 _subscription = await _client.ConnectToPersistentSubscriptionAsync(_stream, _group,
                     eventAppeared: EventAppeared,
                     subscriptionDropped: SubscriptionDropped,
-                    bufferSize: 1000,
+                    bufferSize: 100,
                     autoAck: false).ConfigureAwait(false);
                 Live = true;
             }

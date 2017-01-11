@@ -118,7 +118,6 @@ namespace Aggregates.Internal
 
             Saved.Mark();
             await _store.WriteEvents(streamName, stream.Uncommitted, commitHeaders, expectedVersion: stream.CommitVersion).ConfigureAwait(false);
-            stream.Flush(true);
         }
 
         public async Task VerifyVersion<T>(IEventStream stream)

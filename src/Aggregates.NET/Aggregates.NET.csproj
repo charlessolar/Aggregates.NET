@@ -79,7 +79,7 @@
     <Compile Include="Contracts\IMutating.cs" />
     <Compile Include="Contracts\IPersistence.cs" />
     <Compile Include="Contracts\IStoreEvents.cs" />
-    <Compile Include="Contracts\ICache.cs" />
+    <Compile Include="ICache.cs" />
     <Compile Include="Contracts\IWritableEvent.cs" />
     <Compile Include="Defaults.cs" />
     <Compile Include="Enumeration.cs" />

@@ -1,4 +1,4 @@
-﻿namespace Aggregates.Contracts
+﻿namespace Aggregates
 {
     public interface ICache
     {
