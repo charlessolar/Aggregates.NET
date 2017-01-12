@@ -37,5 +37,10 @@ namespace Aggregates
         {
             settings.GetSettings().Set("StreamGenerator", generator);
         }
+
+        public static void PublishOobToBus(this ExposeSettings settings, bool useOobNsb)
+        {
+            settings.GetSettings().Set("UseNsbForOob", true);
+        }
     }
 }

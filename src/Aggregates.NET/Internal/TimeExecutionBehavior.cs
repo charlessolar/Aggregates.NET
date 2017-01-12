@@ -28,7 +28,8 @@ namespace Aggregates.Internal
 
             string messageTypeIdentifier;
             if (!context.MessageHeaders.TryGetValue(Headers.EnclosedMessageTypes, out messageTypeIdentifier))
-                messageTypeIdentifier = "<UNKNOWN>,";
+                messageTypeIdentifier = "<UNKNOWN>";
+            messageTypeIdentifier += ",";
             messageTypeIdentifier = messageTypeIdentifier.Substring(0, messageTypeIdentifier.IndexOf(','));
 
             try

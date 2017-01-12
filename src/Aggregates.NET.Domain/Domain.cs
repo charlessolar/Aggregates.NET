@@ -21,6 +21,7 @@ namespace Aggregates
                 s.SetDefault("ShouldCacheEntities", false);
                 s.SetDefault("MaxConflictResolves", 3);
                 s.SetDefault("StreamGenerator", new StreamIdGenerator((type, bucket, stream) => $"{bucket}.[{type.FullName}].{stream}"));
+                s.SetDefault("UseNsbForOob", false);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
@@ -38,10 +39,17 @@ namespace Aggregates
                 new StorePocos(b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
                 DependencyLifecycle.InstancePerCall);
 
-            context.Container.ConfigureComponent(b =>
-                new DefaultOobHandler(b.Build<IStoreEvents>(), settings.Get<StreamIdGenerator>("StreamGenerator")),
-                DependencyLifecycle.InstancePerCall);
-
+            if (settings.Get<bool>("UseNsbForOob"))
+            {
+                context.Container.ConfigureComponent<NsbOobHandler>(DependencyLifecycle.InstancePerCall);
+            }
+            else
+            {
+                context.Container.ConfigureComponent(b =>
+                        new DefaultOobHandler(b.Build<IStoreEvents>(),
+                            settings.Get<StreamIdGenerator>("StreamGenerator")),
+                    DependencyLifecycle.InstancePerCall);
+            }
             context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
