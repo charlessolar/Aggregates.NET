@@ -26,6 +26,7 @@ namespace Aggregates.Internal
     {
         private static readonly Meter InvokesDelayed = Metric.Meter("Delayed Invokes", Unit.Items);
         private static readonly Meter Invokes = Metric.Meter("Bulk Invokes", Unit.Items);
+        private static readonly Histogram BulkSize = Metric.Histogram("Bulk Invoke Size", Unit.Items);
         private static readonly ILog Logger = LogManager.GetLogger("BulkInvokeHandlerTerminator");
 
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
@@ -128,7 +129,8 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Debug, () => $"No delayed events found for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
                     return;
                 }
-                
+
+                BulkSize.Update(msgs.Count());
                 Invokes.Mark();
                 var idx = 0;
                 foreach (var msg in msgs.Cast<DelayedMessage>())

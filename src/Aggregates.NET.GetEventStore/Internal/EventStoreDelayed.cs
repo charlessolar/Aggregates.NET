@@ -37,7 +37,7 @@ namespace Aggregates.Internal
         private static readonly Dictionary<string, List<IWritableEvent>> WaitingToBeWritten = new Dictionary<string, List<IWritableEvent>>();
         private static Timer _flusher;
 
-        private static readonly ConcurrentDictionary<string, object> Cache = new ConcurrentDictionary<string, object>();
+        private static readonly ConcurrentDictionary<string, Tuple<DateTime,object>> Cache = new ConcurrentDictionary<string, Tuple<DateTime, object>>();
         private static readonly Dictionary<string, DateTime> RecentlyPulled = new Dictionary<string, DateTime>();
         private static readonly object RecentLock = new object();
 
@@ -141,25 +141,25 @@ namespace Aggregates.Internal
             var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
             Logger.Write(LogLevel.Debug, () => $"Getting age of delayed channel [{channel}]");
 
-            object cached;
-            if (Cache.TryGetValue($"{streamName}.age", out cached))
+            Tuple<DateTime, object> cached;
+            if (Cache.TryGetValue($"{streamName}.age", out cached) && (DateTime.UtcNow - cached.Item1).TotalSeconds < 30)
             {
                 Logger.Write(LogLevel.Debug, () => $"Got age from cache for channel [{channel}]");
-                return DateTime.UtcNow - (DateTime)cached;
+                return DateTime.UtcNow - (DateTime)cached.Item2;
             }
 
             var read = await _store.GetEventsBackwards($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
             if (read != null && read.Any())
             {
                 var snapshot = read.Single().Event as Snapshot;
-                Cache.TryAdd($"{streamName}.age", snapshot.Created);
+                Cache.TryAdd($"{streamName}.age", new Tuple<DateTime, object>(DateTime.UtcNow, snapshot.Created));
                 return DateTime.UtcNow - snapshot.Created;
             }
 
             read = await _store.GetEventsBackwards($"{streamName}", StreamPosition.Start, 1).ConfigureAwait(false);
             if (read != null && read.Any())
             {
-                Cache.TryAdd($"{streamName}.age", read.Single().Descriptor.Timestamp);
+                Cache.TryAdd($"{streamName}.age",new Tuple<DateTime, object>(DateTime.UtcNow, read.Single().Descriptor.Timestamp));
                 return DateTime.UtcNow - read.Single().Descriptor.Timestamp;
             }
 
@@ -182,11 +182,11 @@ namespace Aggregates.Internal
             int existing;
             lock (_lock) existing = _uncommitted.Count(c => c.Item1 == streamName);
 
-            object cached;
-            if (Cache.TryGetValue($"{streamName}.size", out cached))
+            Tuple<DateTime, object> cached;
+            if (Cache.TryGetValue($"{streamName}.size", out cached) && (DateTime.UtcNow - cached.Item1).TotalSeconds < 30)
             {
                 Logger.Write(LogLevel.Debug, () => $"Got size from cache for channel [{channel}]");
-                return existing + (int)cached + 1;
+                return existing + (int)cached.Item2 + 1;
             }
 
             var start = StreamPosition.Start;
@@ -199,11 +199,11 @@ namespace Aggregates.Internal
             read = await _store.GetEventsBackwards(streamName, StreamPosition.End, 1).ConfigureAwait(false);
             if (read != null)
             {
-                Cache.TryAdd($"{streamName}.size", read.Single().Descriptor.Version - start);
+                Cache.TryAdd($"{streamName}.size", new Tuple<DateTime, object>(DateTime.UtcNow, read.Single().Descriptor.Version - start));
                 return existing + (read.Single().Descriptor.Version - start) + 1;
             }
 
-            Cache.TryAdd($"{streamName}.size", existing);
+            Cache.TryAdd($"{streamName}.size", new Tuple<DateTime, object>(DateTime.UtcNow, existing));
             return existing;
         }
 
@@ -232,7 +232,7 @@ namespace Aggregates.Internal
             var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
             Logger.Write(LogLevel.Debug, () => $"Pulling delayed objects from channel [{channel}]");
 
-            object temp;
+            Tuple<DateTime, object> temp;
             Cache.TryRemove($"{streamName}.size", out temp);
             Cache.TryRemove($"{streamName}.age", out temp);
 
