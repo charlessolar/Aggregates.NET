@@ -18,38 +18,40 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger("ExpiringBulkInvokes");
 
         // Todo: this is a terrible structure but the use of this should be pretty limited.  Profiling results needed
-        private static readonly ConcurrentDictionary<string, Dictionary<string, DateTime>> DelayedExpirations = new ConcurrentDictionary<string, Dictionary<string, DateTime>>();
+        private static readonly object Lock = new object();
+        private static readonly Dictionary<string, Dictionary<string, DateTime>> DelayedExpirations = new Dictionary<string, Dictionary<string, DateTime>>();
         
 
         public static void Add(string handlerKey, string channelKey, TimeSpan expires)
         {
-            DelayedExpirations.AddOrUpdate(handlerKey, (k) =>
+            lock (Lock)
             {
-                var map = new Dictionary<string, DateTime>
+                if (!DelayedExpirations.ContainsKey(handlerKey))
+                {
+                    DelayedExpirations[handlerKey] = new Dictionary<string, DateTime>
                             {
                                 {channelKey, DateTime.UtcNow + expires}
                             };
-                return map;
-            }, (k, existing) =>
-            {
-                if (!existing.ContainsKey(channelKey))
-                    existing.Add(channelKey, DateTime.UtcNow + expires);
-
-                return existing;
-            });
+                    return;
+                }
+                if (DelayedExpirations[handlerKey].ContainsKey(channelKey))
+                    return;
+                DelayedExpirations[handlerKey].Add(channelKey, DateTime.UtcNow + expires);
+            }
         }
 
         public static void Remove(string handlerKey, string channelKey)
         {
-            DelayedExpirations.AddOrUpdate(handlerKey, (k) => new Dictionary<string, DateTime>(),
-                (k, existing) =>
-                {
-                    existing.Remove(channelKey);
-                    return existing;
-                });
+            lock (Lock)
+            {
+                if (!DelayedExpirations.ContainsKey(handlerKey))
+                    return;
+                DelayedExpirations[handlerKey].Remove(channelKey);
+            }
+            
         }
 
-        private static readonly object _checkLock = new object();
+        private static readonly object CheckLock = new object();
         private static DateTime _lastCheck = DateTime.UtcNow;
         
         public IBuilder Builder { get; set; }
@@ -63,7 +65,7 @@ namespace Aggregates.Internal
 
         public async Task End(Exception ex = null)
         {
-            lock (_checkLock)
+            lock (CheckLock)
             {
                 if ((DateTime.UtcNow - _lastCheck).TotalSeconds < 10)
                     return;
@@ -74,18 +76,16 @@ namespace Aggregates.Internal
 
             var channel = Builder.Build<IDelayedChannel>();
             var expired = new List<Tuple<string, string>>();
-            foreach (var kv in DelayedExpirations)
+            lock (Lock)
             {
-                DelayedExpirations.AddOrUpdate(kv.Key, (k) => new Dictionary<string, DateTime>(),
-                   (k, existing) =>
-                   {
-                       foreach (var e in existing.Where(x => x.Value < DateTime.UtcNow).ToList())
-                       {
-                           existing.Remove(e.Key);
-                           expired.Add(new Tuple<string, string>(kv.Key, e.Key));
-                       }
-                       return existing;
-                   });
+                foreach (var kv in DelayedExpirations)
+                {
+                    foreach (var e in kv.Value.Where(x => x.Value < DateTime.UtcNow).ToList())
+                    {
+                        kv.Value.Remove(e.Key);
+                        expired.Add(new Tuple<string, string>(kv.Key, e.Key));
+                    }
+                }
             }
             foreach (var e in expired)
             {
