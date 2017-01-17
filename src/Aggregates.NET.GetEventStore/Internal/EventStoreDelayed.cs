@@ -4,22 +4,23 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
+using Metrics;
 using Metrics.Utils;
 using Newtonsoft.Json;
 using NServiceBus.Extensibility;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
+using Timer = System.Threading.Timer;
 
 namespace Aggregates.Internal
 {
-    class EventStoreDelayed : IDelayedChannel, IApplicationUnitOfWork
+    class EventStoreDelayed : IDelayedChannel, ILastApplicationUnitOfWork
     {
         public IBuilder Builder { get; set; }
         // The number of times the event has been re-run due to error
@@ -32,6 +33,7 @@ namespace Aggregates.Internal
             public DateTime Created { get; set; }
             public int Position { get; set; }
         }
+        private static readonly Histogram Delayed = Metric.Histogram("Delayed Channel Size", Unit.Items);
         private static readonly ILog Logger = LogManager.GetLogger("EventStoreDelayed");
         private static readonly object WaitingLock = new object();
         private static readonly Dictionary<string, List<IWritableEvent>> WaitingToBeWritten = new Dictionary<string, List<IWritableEvent>>();
@@ -54,7 +56,7 @@ namespace Aggregates.Internal
 
         private readonly IStoreEvents _store;
 
-        private object _lock = new object();
+        private readonly object _lock = new object();
         private Dictionary<string, Tuple<int?, Snapshot>> _inFlight;
         private List<Tuple<string, WritableEvent>> _uncommitted;
         
@@ -65,18 +67,21 @@ namespace Aggregates.Internal
             ReadOnlyDictionary<string, List<IWritableEvent>> waiting;
             lock (WaitingLock)
             {
-                waiting = new ReadOnlyDictionary<string, List<IWritableEvent>>(WaitingToBeWritten.ToDictionary(x => x.Key, x => x.Value.ToList()));
+                waiting = new ReadOnlyDictionary<string, List<IWritableEvent>>(WaitingToBeWritten.Where(x => x.Value.Any()).ToDictionary(x => x.Key, x => x.Value.ToList()));
                 WaitingToBeWritten.Clear();
             }
             Logger.Write(LogLevel.Debug, () => $"Flushing {waiting.Count} channels with {waiting.Values.Sum(x => x.Count())} events");
-            foreach (var channel in waiting)
+
+            waiting.ToArray().StartEachAsync(3, async (channel) =>
             {
                 try
                 {
-                    eventstore.WriteEvents(channel.Key, channel.Value, null).Wait();
+                    await eventstore.WriteEvents(channel.Key, channel.Value, null).ConfigureAwait(false);
                 }
-                catch
+                catch(Exception e)
                 {
+                    Logger.Write(LogLevel.Warn,
+                        () => $"Failed to write to channel {channel.Key}.  Exception: {e.GetType().Name}: {e.Message}");
                     // Failed to write to ES - requeue events
                     lock (WaitingLock)
                     {
@@ -85,7 +90,8 @@ namespace Aggregates.Internal
                         WaitingToBeWritten[channel.Key].AddRange(channel.Value);
                     }
                 }
-            }
+            }).Wait();
+            
         }
 
         public EventStoreDelayed(IStoreEvents store, TimeSpan? flushInterval)
@@ -241,7 +247,7 @@ namespace Aggregates.Internal
             {
                 if (RecentlyPulled.ContainsKey(streamName))
                 {
-                    Logger.Write(LogLevel.Debug, () => $"Channel [{channel}] was pulled by this instance recently - leaving it alone");
+                    Logger.Write(LogLevel.Warn, () => $"Channel [{channel}] was pulled by this instance recently - leaving it alone.  This could be an indication that the previous pull threw an exception, if this happens a lot there's a problem");
                     return new object[] { }.AsEnumerable();
                 }
                 RecentlyPulled.Add(streamName, DateTime.UtcNow.AddSeconds(30));
@@ -322,6 +328,8 @@ namespace Aggregates.Internal
                 foreach (var e in existing)
                     _uncommitted.Remove(e);
             }
+            Delayed.Update(discovered.Count() + existing.Count);
+
             return discovered.Concat(existing.Select(x => x.Item2.Event));
         }
 
@@ -350,7 +358,7 @@ namespace Aggregates.Internal
             {
                 if (await _store.WriteEvents($"{streamName}.SNAP", new[] { @event }, null, expectedVersion: snap.Item1 ?? ExpectedVersion.NoStream).ConfigureAwait(false) == 1)
                     // New stream, write metadata
-                    await _store.WriteMetadata($"{streamName}.SNAP", maxCount: 5).ConfigureAwait(false);
+                    await _store.WriteMetadata($"{streamName}.SNAP", maxCount: 2).ConfigureAwait(false);
             }
             catch (VersionException)
             {

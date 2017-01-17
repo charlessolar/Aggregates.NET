@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Transactions;
 using Aggregates.Attributes;
@@ -28,20 +29,18 @@ namespace Aggregates.Internal
         private static readonly Meter Invokes = Metric.Meter("Bulk Invokes", Unit.Items);
         private static readonly Histogram BulkSize = Metric.Histogram("Bulk Invoke Size", Unit.Items);
         private static readonly ILog Logger = LogManager.GetLogger("BulkInvokeHandlerTerminator");
-
+        
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
         private static readonly object Lock = new Object();
         private static readonly HashSet<string> IsNotDelayed = new HashSet<string>();
 
-        private static string _bulkedMessageId;
-        
         private readonly IMessageMapper _mapper;
 
         public BulkInvokeHandlerTerminator(IMessageMapper mapper)
         {
             _mapper = mapper;
         }
-        
+
         protected override async Task Terminate(IInvokeHandlerContext context)
         {
             var channel = context.Builder.Build<IDelayedChannel>();
@@ -84,11 +83,12 @@ namespace Aggregates.Internal
 
                 InvokesDelayed.Mark();
 
+                var channelKey = key;
                 if (delayed.KeyPropertyFunc != null)
                 {
                     try
                     {
-                        key = $"{key}:{delayed.KeyPropertyFunc(context.MessageBeingHandled)}";
+                        channelKey = $"{key}:{delayed.KeyPropertyFunc(context.MessageBeingHandled)}";
                     }
                     catch
                     {
@@ -96,9 +96,10 @@ namespace Aggregates.Internal
                     }
                 }
                 Logger.Write(LogLevel.Debug, () => $"Delaying message {msgType.FullName} delivery");
-                await channel.AddToQueue(key, msgPkg).ConfigureAwait(false);
+                await channel.AddToQueue(channelKey, msgPkg).ConfigureAwait(false);
 
-                if (_bulkedMessageId == context.MessageId)
+                bool bulkInvoked;
+                if (context.Extensions.TryGet<bool>("BulkInvoked", out bulkInvoked) && bulkInvoked)
                 {
                     // Prevents a single message from triggering a dozen different bulk invokes
                     Logger.Write(LogLevel.Debug, () => $"Limiting bulk processing for a single message to a single invoke");
@@ -110,34 +111,37 @@ namespace Aggregates.Internal
                 TimeSpan? age = null;
 
                 if (delayed.Delay.HasValue)
-                    age = await channel.Age(key).ConfigureAwait(false);
+                    age = await channel.Age(channelKey).ConfigureAwait(false);
                 if (delayed.Count.HasValue)
-                    size = await channel.Size(key).ConfigureAwait(false);
+                    size = await channel.Size(channelKey).ConfigureAwait(false);
 
                 if ((delayed.Count.HasValue && !size.HasValue) || (delayed.Count.HasValue && size < delayed.Count.Value) || (delayed.Delay.HasValue && !age.HasValue) || (delayed.Delay.HasValue && age < TimeSpan.FromMilliseconds(delayed.Delay.Value)))
                 {
-                    Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing");
+                    // Even if we dont see a message with specific [channelKey] again we'll need to pull the channel eventually if [Age] is used
+                    // DelayedExpirations keeps track of this
+                    if (delayed.Delay.HasValue)
+                        ExpiringBulkInvokes.Add(key, channelKey, TimeSpan.FromMilliseconds(delayed.Delay.Value));
+                        
+
+                    Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
                     return;
                 }
 
-                _bulkedMessageId = context.MessageId;
-                Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing");
-                var msgs = await channel.Pull(key).ConfigureAwait(false);
+                context.Extensions.Set<bool>("BulkInvoked", true);
 
-                if (!msgs.Any())
-                {
-                    Logger.Write(LogLevel.Debug, () => $"No delayed events found for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
-                    return;
-                }
+                // Remove the expiration watcher for channelKey
+                ExpiringBulkInvokes.Remove(key, channelKey);
+                Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
 
-                BulkSize.Update(msgs.Count());
-                Invokes.Mark();
-                var idx = 0;
-                foreach (var msg in msgs.Cast<DelayedMessage>())
+                await InvokeDelayedChannel(channel, channelKey, messageHandler, context).ConfigureAwait(false);
+
+                Logger.Write(LogLevel.Debug, () => $"Checking for channel expirations on key {key}");
+                var expiredChannels = await channel.Pull(key).ConfigureAwait(false);
+                
+                foreach (var expired in expiredChannels.Cast<string>())
                 {
-                    idx++;
-                    Logger.Write(LogLevel.Debug, () => $"Invoking handle {idx}/{msgs.Count()} times for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
-                    await messageHandler.Invoke(msg.Message, context).ConfigureAwait(false);
+                    Logger.Write(LogLevel.Debug, () => $"Found expired channel {expired} - bulk processing message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
+                    await InvokeDelayedChannel(channel, expired, messageHandler, context).ConfigureAwait(false);
                 }
 
                 return;
@@ -149,7 +153,7 @@ namespace Aggregates.Internal
             var single = attrs.SingleOrDefault(x => x.Type == msgType);
             if (single == null)
             {
-                lock(Lock) IsNotDelayed.Add(key);
+                lock (Lock) IsNotDelayed.Add(key);
             }
             else
             {
@@ -158,6 +162,28 @@ namespace Aggregates.Internal
                 IsDelayed.TryAdd(key, single);
             }
             await Terminate(context).ConfigureAwait(false);
+        }
+
+        private async Task InvokeDelayedChannel(IDelayedChannel channel, string channelKey, MessageHandler handler, IInvokeHandlerContext context)
+        {
+
+            var msgs = await channel.Pull(channelKey).ConfigureAwait(false);
+
+            if (!msgs.Any())
+            {
+                Logger.Write(LogLevel.Debug, () => $"No delayed events found on channel {channelKey}");
+                return;
+            }
+
+            BulkSize.Update(msgs.Count());
+            Invokes.Mark();
+            var idx = 0;
+            foreach (var msg in msgs.Cast<DelayedMessage>())
+            {
+                idx++;
+                Logger.Write(LogLevel.Debug, () => $"Invoking handle {idx}/{msgs.Count()} times channel key {channelKey}");
+                await handler.Invoke(msg.Message, context).ConfigureAwait(false);
+            }
         }
 
 

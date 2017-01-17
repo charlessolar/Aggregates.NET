@@ -46,7 +46,9 @@ namespace Aggregates.Internal
                 {
                     using (BeginTimer.NewContext())
                     {
-                        foreach (var uow in context.Builder.BuildAll<IApplicationUnitOfWork>())
+                        var listOfUows = context.Builder.BuildAll<IApplicationUnitOfWork>();
+                        // Trick to put ILastApplicationUnitOfWork at the bottom of the stack to be uow.End'd last
+                        foreach (var uow in listOfUows.Where(x => x is ILastApplicationUnitOfWork).Concat(listOfUows.Where(x => !(x is ILastApplicationUnitOfWork))))
                         {
                             uow.Builder = context.Builder;
 
@@ -72,9 +74,10 @@ namespace Aggregates.Internal
 
                     using (EndTimer.NewContext())
                     {
-                        foreach (var uow in uows.Generate())
+                        foreach (var uow in uows.PopAll())
                         {
                             Logger.Write(LogLevel.Debug, () => $"Running UOW.End for message {context.MessageId} on {uow.GetType().FullName}");
+                            
                             try
                             {
                                 await uow.End().ConfigureAwait(false);
@@ -97,7 +100,7 @@ namespace Aggregates.Internal
                 var trailingExceptions = new List<Exception>();
                 using (EndTimer.NewContext())
                 {
-                    foreach (var uow in uows.Generate())
+                    foreach (var uow in uows.PopAll())
                     {
                         try
                         {

@@ -106,6 +106,7 @@
     <Compile Include="Internal\ExceptionRejector.cs" />
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />
+    <Compile Include="Internal\ExpiringBulkInvokes.cs" />
     <Compile Include="Internal\IntelligentCache.cs" />
     <Compile Include="Internal\MemoryDelayed.cs" />
     <Compile Include="Internal\MemoryPersistence.cs" />

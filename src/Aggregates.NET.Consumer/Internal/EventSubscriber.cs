@@ -327,11 +327,11 @@ fromAll().when({{
 
                 var settings = PersistentSubscriptionSettings.Create()
                     .StartFromBeginning()
-                    .WithMaxRetriesOf(0)
+                    .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readsize)
                     .WithLiveBufferSizeOf(_readsize * _readsize)
                     .WithMessageTimeoutOf(TimeSpan.FromMilliseconds(int.MaxValue))
-                    .CheckPointAfter(TimeSpan.FromSeconds(2))
+                    .CheckPointAfter(TimeSpan.FromSeconds(5))
                     .MaximumCheckPointCountOf(_readsize * _readsize)
                     .ResolveLinkTos();
                 if (_extraStats)

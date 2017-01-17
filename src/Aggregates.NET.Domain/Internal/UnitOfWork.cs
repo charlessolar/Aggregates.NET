@@ -24,8 +24,9 @@ namespace Aggregates.Internal
         public static Guid NextEventId(Guid commitId)
         {
             // Todo: if we are to set the eventid here its important that an event is processed in the same order every retry
-            // - Conflict resolution?
+            // - Conflict resolution? 
             // - Bulk invokes?
+            // (use context bag for above?)
             return EventIds.AddOrUpdate(commitId, commitId, (key, value) => value.Increment());
         }
 
@@ -41,8 +42,7 @@ namespace Aggregates.Internal
         private readonly IDictionary<Type, IRepository> _repositories;
         private readonly IDictionary<string, IEntityRepository> _entityRepositories;
         private readonly IDictionary<string, IRepository> _pocoRepositories;
-
-
+        
         public IBuilder Builder { get; set; }
         public int Retries { get; set; }
         public ContextBag Bag { get; set; }

@@ -71,8 +71,9 @@ namespace Aggregates.Internal
             var result = GetCached(eventsource, eventType);
             if (result == null) return null;
 
-            Action<IEventSource, object> handle = null;
-            result.TryGetValue("Handle", out handle);
+            Action<IEventSource, object> handle;
+            if (!result.TryGetValue("Handle", out handle))
+                handle = null;
             return handle;
         }
         public Action<IEventSource, object> Conflict(IEventSource eventsource, Type eventType)
@@ -80,8 +81,9 @@ namespace Aggregates.Internal
             var result = GetCached(eventsource, eventType);
             if (result == null) return null;
 
-            Action<IEventSource, object> handle = null;
-            result.TryGetValue("Conflict", out handle);
+            Action<IEventSource, object> handle;
+            if (!result.TryGetValue("Conflict", out handle))
+                handle = null;
             return handle;
         }
 

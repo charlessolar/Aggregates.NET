@@ -42,9 +42,7 @@ namespace Aggregates.Internal
                     Defaults.MinimumLogging.Value = LogLevel.Info;
                     verbose = true;
                 }
-
-                // Use TotalProcessorTime instead of Stopwatch because stopwatch includes time wasted in .NET internals
-                // like GC or waiting for IO
+                
                 var start = Stopwatch.GetTimestamp();
 
                 await next().ConfigureAwait(false);

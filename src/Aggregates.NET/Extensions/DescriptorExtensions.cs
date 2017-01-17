@@ -4,7 +4,7 @@ using Aggregates.Contracts;
 
 namespace Aggregates.Extensions
 {
-    public static class DescriptorExtensions
+    static class DescriptorExtensions
     {
         public static IDictionary<string, string> ToDictionary(this IEventDescriptor descriptor)
         {

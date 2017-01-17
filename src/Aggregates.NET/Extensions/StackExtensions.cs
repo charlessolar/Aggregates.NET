@@ -3,10 +3,10 @@ using System.Collections.Generic;
 
 namespace Aggregates.Extensions
 {
-    public static class StackExtensions
+    static class StackExtensions
     {
 
-        public static IEnumerable<T> Generate<T>( this ConcurrentStack<T> source)
+        public static IEnumerable<T> PopAll<T>( this ConcurrentStack<T> source)
         {
             while (source.Count > 0)
             {
@@ -17,7 +17,7 @@ namespace Aggregates.Extensions
                 yield return popped;
             }
         }
-        public static IEnumerable<T> Generate<T>(this Stack<T> source)
+        public static IEnumerable<T> PopAll<T>(this Stack<T> source)
         {
             while (source.Count > 0)
                 yield return source.Pop();

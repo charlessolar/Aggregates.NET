@@ -19,4 +19,5 @@ namespace Aggregates
         Task Begin();
         Task End(Exception ex = null);
     }
+    public interface ILastApplicationUnitOfWork : IApplicationUnitOfWork { }
 }
