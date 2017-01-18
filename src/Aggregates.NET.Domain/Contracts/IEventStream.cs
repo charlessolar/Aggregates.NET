@@ -35,10 +35,6 @@ namespace Aggregates.Contracts
         /// OOB events raised but not committed 
         /// </summary>
         IEnumerable<IWritableEvent> OobUncommitted { get; }
-        /// <summary>
-        /// Snapshots taken but not committed 
-        /// </summary>
-        IEnumerable<ISnapshot> SnapshotsUncommitted { get; }
 
         /// <summary>
         /// Gets all events for the stream from the store regardless of current snapshot 

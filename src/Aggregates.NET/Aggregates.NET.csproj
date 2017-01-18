@@ -78,7 +78,9 @@
     <Compile Include="Contracts\IEventMutator.cs" />
     <Compile Include="Contracts\IMutating.cs" />
     <Compile Include="Contracts\IPersistence.cs" />
+    <Compile Include="Contracts\ISnapshotReader.cs" />
     <Compile Include="Contracts\IStoreEvents.cs" />
+    <Compile Include="Exceptions\EndpointVersionException.cs" />
     <Compile Include="ICache.cs" />
     <Compile Include="Contracts\IWritableEvent.cs" />
     <Compile Include="Defaults.cs" />

@@ -32,11 +32,11 @@ namespace Aggregates.Internal
         public IEnumerable<IWritableEvent> Uncommitted => _uncommitted;
 
         public IEnumerable<IWritableEvent> OobUncommitted => _outofband;
-        public IEnumerable<ISnapshot> SnapshotsUncommitted => _pendingShots;
 
-        public bool Dirty => Uncommitted.Any() || OobUncommitted.Any() || SnapshotsUncommitted.Any();
-        public int TotalUncommitted => Uncommitted.Count() + OobUncommitted.Count() + SnapshotsUncommitted.Count();
+        public bool Dirty => Uncommitted.Any() || OobUncommitted.Any() || _pendingShot != null;
+        public int TotalUncommitted => Uncommitted.Count() + OobUncommitted.Count() + (_pendingShot != null ? 1:0);
 
+        private readonly Guid _commitId;
         private readonly IStoreStreams _store;
         private readonly IStoreSnapshots _snapshots;
         private readonly IOobHandler _oobHandler;
@@ -45,8 +45,7 @@ namespace Aggregates.Internal
         private IEnumerable<IWritableEvent> _committed;
         private readonly IList<IWritableEvent> _uncommitted;
         private readonly IList<IWritableEvent> _outofband;
-        private readonly IList<ISnapshot> _pendingShots;
-        private readonly Guid _commitId;
+        private ISnapshot _pendingShot;
 
         public EventStream(IBuilder builder, IStoreStreams store, string bucket, string streamId, IEnumerable<IWritableEvent> events, ISnapshot snapshot)
         {
@@ -61,7 +60,7 @@ namespace Aggregates.Internal
 
             _uncommitted = new List<IWritableEvent>();
             _outofband = new List<IWritableEvent>();
-            _pendingShots = new List<ISnapshot>();
+            _pendingShot = null;
             
             // Todo: this is a hack
             // Get the commit id of the current message because we need it to make writable events
@@ -81,7 +80,7 @@ namespace Aggregates.Internal
             _committed = clone.Committed.ToList();
             _uncommitted = new List<IWritableEvent>();
             _outofband = new List<IWritableEvent>();
-            _pendingShots = new List<ISnapshot>();
+            _pendingShot = null; ;
 
             // Todo: this is a hack
             // Get the commit id of the current message because we need it to make writable events
@@ -176,7 +175,7 @@ namespace Aggregates.Internal
                 EntityType = memento.GetType().AssemblyQualifiedName,
                 Timestamp = DateTime.UtcNow
             };
-            _pendingShots.Add(snapshot);
+            _pendingShot = snapshot;
         }
 
         public Task VerifyVersion(Guid commitId)
@@ -188,7 +187,8 @@ namespace Aggregates.Internal
 
         public async Task Commit(Guid commitId, IDictionary<string, string> commitHeaders)
         {
-            Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] for type {typeof(T).FullName} commiting {_uncommitted.Count} events, {_pendingShots.Count} snapshots, {_outofband.Count} out of band");
+            var hasSnapshot = _pendingShot == null ? "no" : "with";
+            Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] for type {typeof(T).FullName} commiting {_uncommitted.Count} events, {_outofband.Count} out of band, {hasSnapshot} snapshot");
             
             if (commitHeaders == null)
                 commitHeaders = new Dictionary<string, string>();
@@ -223,12 +223,12 @@ namespace Aggregates.Internal
                 }),
                 Task.Run(() =>
                 {
-                    if (!_pendingShots.Any()) return Task.CompletedTask;
+                    if (_pendingShot == null) return Task.CompletedTask;
 
                     Logger.Write(LogLevel.Debug,
                         () =>
-                                $"Event stream [{StreamId}] in bucket [{Bucket}] committing {_pendingShots.Count} snapshots");
-                    return _snapshots.WriteSnapshots<T>(Bucket, StreamId, _pendingShots, commitHeaders);
+                                $"Event stream [{StreamId}] in bucket [{Bucket}] committing snapshot");
+                    return _snapshots.WriteSnapshots<T>(Bucket, StreamId, _pendingShot, commitHeaders);
                 })
             };
             await Task.WhenAll(tasks).ConfigureAwait(false);
@@ -240,8 +240,8 @@ namespace Aggregates.Internal
             if (committed)
                 _committed = _committed.Concat(_uncommitted).ToList();
 
+            _pendingShot = null;
             _uncommitted.Clear();
-            _pendingShots.Clear();
             _outofband.Clear();
         }
 

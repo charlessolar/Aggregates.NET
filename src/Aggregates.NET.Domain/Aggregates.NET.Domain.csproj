@@ -68,6 +68,7 @@
     <Compile Include="Contracts\IHaveEntities.cs" />
     <Compile Include="Contracts\IOOBHandler.cs" />
     <Compile Include="Contracts\IPocoRepository.cs" />
+    <Compile Include="Contracts\ISnapshot.cs" />
     <Compile Include="Exceptions\ConflictResolutionFailedException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
     <Compile Include="Internal\EventStream.cs" />
@@ -103,7 +104,6 @@
     <Compile Include="Contracts\IRepository.cs" />
     <Compile Include="Contracts\IRepositoryFactory.cs" />
     <Compile Include="Contracts\IRouteResolver.cs" />
-    <Compile Include="Contracts\ISnapshot.cs" />
     <Compile Include="Contracts\ISnapshotting.cs" />
     <Compile Include="Contracts\IStoreStreams.cs" />
     <Compile Include="Entity.cs" />

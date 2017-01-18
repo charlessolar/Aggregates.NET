@@ -18,6 +18,9 @@ namespace Aggregates
 {
     public class GetEventStore : NServiceBus.Features.Feature
     {
+        public GetEventStore()
+        {
+        }
 
         protected override void Setup(FeatureConfigurationContext context)
         {
@@ -31,12 +34,13 @@ namespace Aggregates
                 new EventStoreDelayed(b.Build<IStoreEvents>(), flushInterval),
                 DependencyLifecycle.InstancePerUnitOfWork);
 
+
             context.Container.ConfigureComponent(b =>
             {
                 IEventStoreConnection[] connections;
                 if (!settings.TryGet<IEventStoreConnection[]>("Shards", out connections))
                     connections = new[] { b.Build<IEventStoreConnection>() };
-                return new StoreEvents(b.Build<IMessageMapper>(), settings.Get<int>("ReadSize"), settings.Get<bool>("Compress"), connections);
+                return new StoreEvents(b.Build<IMessageMapper>(), settings.Get<int>("ReadSize"), settings.Get<Compression>("Compress"), connections);
             },
                 DependencyLifecycle.InstancePerCall);
         }

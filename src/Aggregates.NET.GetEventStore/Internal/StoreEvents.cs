@@ -30,15 +30,16 @@ namespace Aggregates.Internal
         private readonly IEventStoreConnection[] _clients;
         private readonly IMessageMapper _mapper;
         private readonly int _readsize;
-        private readonly bool _compress;
+        private readonly Compression _compress;
 
-        public StoreEvents(IMessageMapper mapper, int readsize, bool compress, IEventStoreConnection[] connections)
+        public StoreEvents( IMessageMapper mapper, int readsize, Compression compress, IEventStoreConnection[] connections)
         {
             _clients = connections;
             _mapper = mapper;
             _readsize = readsize;
             _compress = compress;
         }
+        
 
         public async Task<IEnumerable<IWritableEvent>> GetEvents(string stream, int? start = null, int? count = null)
         {
@@ -87,14 +88,11 @@ namespace Aggregates.Internal
                 var metadata = e.Event.Metadata;
                 var data = e.Event.Data;
 
-                // Assume compressed if not JSON
-                if (!e.Event.IsJson)
-                {
-                    metadata = metadata.Decompress();
-                    data = data.Decompress();
-                }
-
                 var descriptor = metadata.Deserialize(settings);
+
+                if (descriptor.Compressed)
+                    data = data.Decompress();
+
                 var @event = data.Deserialize(e.Event.EventType, settings);
 
                 // Special case if event was written without a version - substitue the position from store
@@ -173,14 +171,12 @@ namespace Aggregates.Internal
             {
                 var metadata = e.Event.Metadata;
                 var data = e.Event.Data;
-                // Assume compressed if not JSON
-                if (!e.Event.IsJson)
-                {
-                    metadata = metadata.Decompress();
-                    data = data.Decompress();
-                }
 
                 var descriptor = metadata.Deserialize(settings);
+
+                if (descriptor.Compressed)
+                    data = data.Decompress();
+                
                 var @event = data.Deserialize(e.Event.EventType, settings);
 
                 // Special case if event was written without a version - substitute the position from store
@@ -198,7 +194,52 @@ namespace Aggregates.Internal
             return translatedEvents;
         }
 
-        public async Task<int> WriteEvents(string stream, IEnumerable<IWritableEvent> events,
+        public Task<int> WriteSnapshot(string stream, IWritableEvent snapshot,
+            IDictionary<string, string> commitHeaders)
+        {
+            Logger.Write(LogLevel.Debug, () => $"Writing snapshot to stream id [{stream}]");
+
+            var settings = new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.Auto,
+                Binder = new EventSerializationBinder(_mapper),
+                //ContractResolver = new EventContractResolver(_mapper)
+            };
+
+
+            var descriptor = new EventDescriptor
+            {
+                EventId = snapshot.EventId ?? Guid.NewGuid(),
+                EntityType = snapshot.Descriptor.EntityType,
+                Timestamp = snapshot.Descriptor.Timestamp,
+                Version = snapshot.Descriptor.Version,
+                Headers = commitHeaders?.Merge(snapshot.Descriptor.Headers) ?? snapshot.Descriptor.Headers
+            };
+
+            var mappedType = snapshot.Event.GetType();
+            if (!mappedType.IsInterface)
+                mappedType = _mapper.GetMappedTypeFor(mappedType) ?? mappedType;
+
+            var @event = snapshot.Event.Serialize(settings).AsByteArray();
+
+            if (_compress.HasFlag(Compression.Snapshots))
+            {
+                descriptor.Compressed = true;
+                @event = @event.Compress();
+            }
+            var metadata = descriptor.Serialize(settings).AsByteArray();
+
+            var data = new EventData(
+                descriptor.EventId,
+                mappedType.AssemblyQualifiedName,
+                !descriptor.Compressed,
+                @event,
+                metadata
+                );
+            return DoWrite(stream, new[] { data });
+        }
+
+        public Task<int> WriteEvents(string stream, IEnumerable<IWritableEvent> events,
             IDictionary<string, string> commitHeaders, int? expectedVersion = null)
         {
             Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{stream}].  Expected version: {expectedVersion}");
@@ -226,21 +267,29 @@ namespace Aggregates.Internal
                     mappedType = _mapper.GetMappedTypeFor(mappedType) ?? mappedType;
 
                 var @event = e.Event.Serialize(settings).AsByteArray();
-                var metadata = descriptor.Serialize(settings).AsByteArray();
-                if (_compress)
+
+                if (_compress.HasFlag(Compression.Events))
                 {
+                    descriptor.Compressed = true;
                     @event = @event.Compress();
-                    metadata = metadata.Compress();
                 }
-                
+                var metadata = descriptor.Serialize(settings).AsByteArray();
+
+
                 return new EventData(
                     descriptor.EventId,
                     mappedType.AssemblyQualifiedName,
-                    !_compress,
+                    !descriptor.Compressed,
                     @event,
                     metadata
                     );
             }).ToList();
+
+            return DoWrite(stream, translatedEvents, expectedVersion);
+        }
+
+        private async Task<int> DoWrite(string stream, IEnumerable<EventData> events, int? expectedVersion = null)
+        {
 
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
 
@@ -251,26 +300,26 @@ namespace Aggregates.Internal
                 {
                     //if (translatedEvents.Count > _readsize)
                     //    transaction = await _clients[bucket].StartTransactionAsync(stream, expectedVersion ?? ExpectedVersion.Any).ConfigureAwait(false);
-                    
+
                     if (transaction != null)
                     {
                         var page = 0;
-                        while (page < translatedEvents.Count)
+                        while (page < events.Count())
                         {
-                            await transaction.WriteAsync(translatedEvents.Skip(page).Take(_readsize)).ConfigureAwait(false);
+                            await transaction.WriteAsync(events.Skip(page).Take(_readsize)).ConfigureAwait(false);
                             page += _readsize;
                         }
                         var result = await transaction.CommitAsync().ConfigureAwait(false);
-                        WrittenEvents.Update(translatedEvents.Count);
+                        WrittenEvents.Update(events.Count());
                         return result.NextExpectedVersion;
                     }
                     else
                     {
                         var result = await
                             _clients[bucket].AppendToStreamAsync(stream, expectedVersion ?? ExpectedVersion.Any,
-                                    translatedEvents)
+                                    events)
                                 .ConfigureAwait(false);
-                        WrittenEvents.Update(translatedEvents.Count);
+                        WrittenEvents.Update(events.Count());
                         return result.NextExpectedVersion;
                     }
                 }

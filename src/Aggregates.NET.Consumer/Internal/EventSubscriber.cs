@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
@@ -24,7 +25,6 @@ using NServiceBus.Transport;
 using NServiceBus.Unicast;
 using NServiceBus.Unicast.Messages;
 using MessageContext = NServiceBus.Transport.MessageContext;
-using Timer = System.Threading.Timer;
 
 namespace Aggregates.Internal
 {
@@ -34,174 +34,17 @@ namespace Aggregates.Internal
     // knowing
     internal class EventSubscriber : IEventSubscriber
     {
-        private static readonly Counter QueuedEvents = Metric.Counter("Queued Events", Unit.Events);
 
         private static readonly ILog Logger = LogManager.GetLogger("EventSubscriber");
 
         private class ThreadParam
         {
-            public ClientInfo[] Clients { get; set; }
+            public PersistentClient[] Clients { get; set; }
             public CancellationToken Token { get; set; }
             public MessageMetadataRegistry MessageMeta { get; set; }
             public JsonSerializerSettings JsonSettings { get; set; }
         }
-
-        private class ClientInfo : IDisposable
-        {
-            private readonly Metrics.Counter Queued;
-            private readonly Metrics.Counter Processed;
-            private readonly Metrics.Counter Acknowledged;
-
-            private readonly IEventStoreConnection _client;
-            private readonly string _stream;
-            private readonly string _group;
-            private readonly int _index;
-            private readonly CancellationToken _token;
-            // Todo: Change to List<Guid> when/if PR 1143 is published
-            private readonly List<ResolvedEvent> _toAck;
-            private readonly object _ackLock;
-            private readonly Timer _acknowledger;
-            private readonly ConcurrentQueue<ResolvedEvent> _waitingEvents;
-
-            private EventStorePersistentSubscriptionBase _subscription;
-
-            public bool Live { get; private set; }
-            public string Id => $"{_client.Settings.GossipSeeds[0].EndPoint.Address}.{_stream.Substring(0, 3)}.{_index}";
-
-            private bool _disposed;
-
-            public ClientInfo(IEventStoreConnection client, string stream, string group, int index, CancellationToken token)
-            {
-                _client = client;
-                _stream = stream;
-                _index = index;
-                _group = group;
-                _token = token;
-                _toAck = new List<ResolvedEvent>();
-                _ackLock = new object();
-                _waitingEvents = new ConcurrentQueue<ResolvedEvent>();
-
-                Queued = Metric.Context("Subscription Clients").Context(Id).Counter("Queued", Unit.Events);
-                Processed = Metric.Context("Subscription Clients").Context(Id).Counter("Processed", Unit.Events);
-                Acknowledged = Metric.Context("Subscription Clients").Context(Id).Counter("Acknowledged", Unit.Events);
-
-
-                _acknowledger = new Timer(state =>
-                {
-                    var info = (ClientInfo)state;
-
-                    ResolvedEvent[] toAck;
-                    lock (info._ackLock)
-                    {
-                        toAck = info._toAck.ToArray();
-                        info._toAck.Clear();
-                    }
-                    if (!toAck.Any()) return;
-
-                    if (!info.Live)
-                        throw new InvalidOperationException(
-                            "Subscription was stopped while events were waiting to be ACKed");
-
-                    Acknowledged.Increment(toAck.Length);
-                    Logger.Write(LogLevel.Info, () => $"Acknowledging {toAck.Length} events to {Id}");
-
-                    var page = 0;
-                    while (page < toAck.Length)
-                    {
-                        var working = toAck.Skip(page).Take(2000);
-                        info._subscription.Acknowledge(working);
-                        page += 2000;
-                    }
-                }, this, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
-
-            }
-
-            public void Dispose()
-            {
-                if (_disposed) return;
-                _disposed = true;
-                _subscription.Stop(TimeSpan.FromSeconds(30));
-                _acknowledger.Dispose();
-            }
-
-            private void EventAppeared(EventStorePersistentSubscriptionBase sub, ResolvedEvent e)
-            {
-                _token.ThrowIfCancellationRequested();
-
-                Logger.Write(LogLevel.Debug,
-                    () =>
-                            $"Event appeared {e.Event.EventId} type {e.Event.EventType} stream [{e.Event.EventStreamId}] number {e.Event.EventNumber} projection event number {e.OriginalEventNumber}");
-                Queued.Increment();
-                QueuedEvents.Increment();
-                _waitingEvents.Enqueue(e);
-            }
-
-            private void SubscriptionDropped(EventStorePersistentSubscriptionBase sub, SubscriptionDropReason reason, Exception ex)
-            {
-                Live = false;
-
-                lock (_ackLock)
-                {
-                    // Todo: is it possible to ACK an event from a reconnection?
-                    if (_toAck.Any())
-                        throw new InvalidOperationException(
-                            $"Eventstore subscription dropped and we need to ACK {_toAck.Count} more events");
-                }
-                // Need to clear ReadyEvents of events delivered but not processed before disconnect
-                ResolvedEvent e;
-                while (!_waitingEvents.IsEmpty)
-                {
-                    Queued.Decrement();
-                    QueuedEvents.Decrement();
-                    _waitingEvents.TryDequeue(out e);
-                }
-
-                if (reason == SubscriptionDropReason.UserInitiated) return;
-
-                // Restart
-                try
-                {
-                    Connect().Wait(_token);
-                }
-                catch (OperationCanceledException) { }
-            }
-            public async Task Connect()
-            {
-                Logger.Write(LogLevel.Info,
-                    () =>
-                            $"Connecting to subscription group [{_group}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
-                // Todo: play with buffer size?
-                _subscription = await _client.ConnectToPersistentSubscriptionAsync(_stream, _group,
-                    eventAppeared: EventAppeared,
-                    subscriptionDropped: SubscriptionDropped,
-                    bufferSize: 100,
-                    autoAck: false).ConfigureAwait(false);
-                Live = true;
-            }
-
-            public void Acknowledge(ResolvedEvent @event)
-            {
-                if (!Live)
-                    throw new InvalidOperationException("Cannot ACK an event, subscription is dead");
-
-                Processed.Increment();
-                lock (_ackLock) _toAck.Add(@event);
-            }
-
-            public bool TryDequeue(out ResolvedEvent e)
-            {
-                e = default(ResolvedEvent);
-                if (Live && _waitingEvents.TryDequeue(out e))
-                {
-                    Queued.Decrement();
-                    QueuedEvents.Decrement();
-                    return true;
-                }
-                return false;
-            }
-
-        }
-
+        
 
         private Thread _pinnedThread;
         private Thread _oobThread;
@@ -209,6 +52,7 @@ namespace Aggregates.Internal
         private string _endpoint;
         private int _readsize;
         private bool _extraStats;
+        private Compression _compress;
 
         private readonly MessageHandlerRegistry _registry;
         private readonly JsonSerializerSettings _settings;
@@ -219,16 +63,16 @@ namespace Aggregates.Internal
         private readonly IEventStoreConnection[] _clients;
 
         private bool _disposed;
-
-        public Action<string, Exception> Dropped { get; set; }
+        
 
         public EventSubscriber(MessageHandlerRegistry registry, IMessageMapper mapper,
-            MessageMetadataRegistry messageMeta, IEventStoreConnection[] connections, int concurrency)
+            MessageMetadataRegistry messageMeta, IEventStoreConnection[] connections, int concurrency, Compression compress)
         {
             _registry = registry;
             _clients = connections;
             _messageMeta = messageMeta;
             _concurrency = concurrency;
+            _compress = compress;
             _settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
@@ -337,8 +181,8 @@ fromAll().when({{
                 if (_extraStats)
                     settings.WithExtraStatistics();
 
-                var pinnedClients = new ClientInfo[_clients.Count() * _concurrency];
-                var oobClients = new ClientInfo[_clients.Count() * _concurrency];
+                var pinnedClients = new PersistentClient[_clients.Count() * _concurrency];
+                var oobClients = new PersistentClient[_clients.Count() * _concurrency];
 
                 for (var i = 0; i < _clients.Count(); i++)
                 {
@@ -378,8 +222,8 @@ fromAll().when({{
 
                     for (var j = 0; j < _concurrency; j++)
                     {
-                        pinnedClients[(i * _concurrency) + j] = new ClientInfo(client, $"APP.{stream}", pinnedGroup, j, clientCancelSource.Token);
-                        oobClients[(i * _concurrency) + j] = new ClientInfo(client, $"OOB.{stream}", roundRobinGroup, j, clientCancelSource.Token);
+                        pinnedClients[(i * _concurrency) + j] = new PersistentClient(client, $"APP.{stream}", pinnedGroup, j, clientCancelSource.Token);
+                        oobClients[(i * _concurrency) + j] = new PersistentClient(client, $"OOB.{stream}", roundRobinGroup, j, clientCancelSource.Token);
                     }
 
 
@@ -428,10 +272,7 @@ fromAll().when({{
                     Logger.Write(LogLevel.Debug,
                         () =>
                                 $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
-
-                    if (!@event.IsJson)
-                        continue;
-
+                    
                     noEvents = false;
 
                     tasks[i] = Task.Run(async () =>
@@ -445,7 +286,7 @@ fromAll().when({{
                     }, param.Token);
                 }
                 // Cheap hack to not burn cpu incase there are no events
-                if (noEvents) Thread.Sleep(10);
+                if (noEvents) Thread.Sleep(100);
 
             }
 
@@ -457,7 +298,13 @@ fromAll().when({{
             var transportTransaction = new TransportTransaction();
             var contextBag = new ContextBag();
 
-            var descriptor = @event.Metadata.Deserialize(settings);
+            var metadata = @event.Metadata;
+            var data = @event.Data;
+
+            var descriptor = metadata.Deserialize(settings);
+            
+            if (descriptor.Compressed)
+                data = data.Decompress();
 
             var messageId = Guid.NewGuid().ToString();
             var headers = new Dictionary<string, string>(descriptor.Headers)
@@ -485,7 +332,7 @@ fromAll().when({{
                         // Don't re-use the event id for the message id
                         var messageContext = new MessageContext(messageId,
                             headers,
-                            @event.Data ?? new byte[0], transportTransaction, tokenSource,
+                            data ?? new byte[0], transportTransaction, tokenSource,
                             contextBag);
                         await Bus.OnMessage(messageContext).ConfigureAwait(false);
                         processed = true;
@@ -500,7 +347,7 @@ fromAll().when({{
                         ++numberOfDeliveryAttempts;
                         var errorContext = new ErrorContext(ex, headers,
                             messageId,
-                            @event.Data ?? new byte[0], transportTransaction,
+                            data ?? new byte[0], transportTransaction,
                             numberOfDeliveryAttempts);
                         if (await Bus.OnError(errorContext).ConfigureAwait(false) ==
                             ErrorHandleResult.Handled)

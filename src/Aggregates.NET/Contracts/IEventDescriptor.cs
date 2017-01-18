@@ -8,6 +8,7 @@ namespace Aggregates.Contracts
         Guid EventId { get; }
         string EntityType { get; }
 
+        bool Compressed { get; }
         int Version { get; }
         DateTime Timestamp { get; }
 

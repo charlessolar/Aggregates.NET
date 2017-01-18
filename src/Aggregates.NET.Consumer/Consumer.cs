@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Aggregates.Internal;
 using EventStore.ClientAPI;
@@ -37,8 +38,18 @@ namespace Aggregates
                 if (!settings.TryGet<IEventStoreConnection[]>("Shards", out connections))
                     connections = new[] { b.Build<IEventStoreConnection>() };
                 var concurrency = settings.Get<int>("ParallelEvents");
+                var compress = settings.Get<Compression>("Compress");
 
-                return new EventSubscriber(b.Build<MessageHandlerRegistry>(), b.Build<IMessageMapper>(), b.Build<MessageMetadataRegistry>(), connections, concurrency);
+                return new EventSubscriber(b.Build<MessageHandlerRegistry>(), b.Build<IMessageMapper>(), b.Build<MessageMetadataRegistry>(), connections, concurrency, compress);
+            }, DependencyLifecycle.SingleInstance);
+
+            context.Container.ConfigureComponent(b =>
+            {
+                IEventStoreConnection[] connections;
+                if (!settings.TryGet<IEventStoreConnection[]>("Shards", out connections))
+                    connections = new[] { b.Build<IEventStoreConnection>() };
+                var compress = settings.Get<Compression>("Compress");
+                return new SnapshotReader(b.Build<IStoreEvents>(), b.Build<IMessageMapper>(), connections, compress);
             }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register<MutateIncomingRegistration>();

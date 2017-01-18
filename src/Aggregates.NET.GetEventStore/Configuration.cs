@@ -23,5 +23,6 @@ namespace Aggregates
         {
             settings.GetSettings().Set("Shards", connections);
         }
+
     }
 }

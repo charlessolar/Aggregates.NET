@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
@@ -23,17 +24,18 @@ namespace Aggregates
                 s.SetDefault("StreamGenerator", new StreamIdGenerator((type, bucket, stream) => $"{bucket}.[{type.FullName}].{stream}"));
                 s.SetDefault("UseNsbForOob", false);
             });
+            DependsOn<Aggregates.ConsumerFeature>();
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
-            context.RegisterStartupTask(() => new DomainStart(context.Settings));
+            context.RegisterStartupTask(builder => new DomainStart(builder.Build<ISnapshotReader>(), context.Settings));
 
             var settings = context.Settings;
             context.Container.ConfigureComponent(b => 
                 new StoreStreams(b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
                 DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent(b =>
-                new StoreSnapshots(b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
+                new StoreSnapshots(b.Build<IStoreEvents>(), b.Build<ISnapshotReader>(), settings.Get<StreamIdGenerator>("StreamGenerator")),
                 DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent(b =>
                 new StorePocos(b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
@@ -88,15 +90,19 @@ namespace Aggregates
             //context.Pipeline.Register<TesterBehaviorRegistration>();
         }
 
-        public class DomainStart : FeatureStartupTask
+        public class DomainStart : FeatureStartupTask, IDisposable
         {
             private static readonly ILog Logger = LogManager.GetLogger("DomainStart");
 
             private readonly ReadOnlySettings _settings;
+            private readonly ISnapshotReader _subscriber;
+            private readonly CancellationTokenSource _cancellationTokenSource;
 
-            public DomainStart(ReadOnlySettings settings)
+            public DomainStart(ISnapshotReader subscriber, ReadOnlySettings settings)
             {
+                _subscriber = subscriber;
                 _settings = settings;
+                _cancellationTokenSource = new CancellationTokenSource();
             }
 
             protected override async Task OnStart(IMessageSession session)
@@ -108,6 +114,11 @@ namespace Aggregates
                     x.Instance = Aggregates.Defaults.Instance;
                 }).ConfigureAwait(false);
 
+                Logger.Write(LogLevel.Info, "Starting snapshot consumer");
+                await _subscriber.Setup(_settings.EndpointName()).ConfigureAwait(false);
+
+                await _subscriber.Subscribe(_cancellationTokenSource.Token).ConfigureAwait(false);
+
             }
             protected override async Task OnStop(IMessageSession session)
             {
@@ -117,6 +128,12 @@ namespace Aggregates
                     x.Endpoint = _settings.InstanceSpecificQueue();
                     x.Instance = Aggregates.Defaults.Instance;
                 }).ConfigureAwait(false);
+                Logger.Write(LogLevel.Info, "Stopping snapshot consumer");
+                _cancellationTokenSource.Cancel();
+            }
+            public void Dispose()
+            {
+                _subscriber.Dispose();
             }
         }
     }

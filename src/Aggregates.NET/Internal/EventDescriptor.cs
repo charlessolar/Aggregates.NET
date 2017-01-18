@@ -9,6 +9,7 @@ namespace Aggregates.Internal
         public Guid EventId { get; set; }
         public string EntityType { get; set; }
 
+        public bool Compressed { get; set; }
         public int Version { get; set; }
         public DateTime Timestamp { get; set; }
 

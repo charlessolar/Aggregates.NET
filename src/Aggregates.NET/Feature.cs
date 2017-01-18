@@ -20,7 +20,7 @@ namespace Aggregates
             {
                 s.SetDefault("Retries", 10);
                 s.SetDefault("ReadSize", 200);
-                s.SetDefault("Compress", false);
+                s.SetDefault("Compress", Compression.Snapshots);
                 s.SetDefault("SlowAlertThreshold", 1000);
                 s.SetDefault("SlowAlerts", false);
             });

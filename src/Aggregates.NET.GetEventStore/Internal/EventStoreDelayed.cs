@@ -72,7 +72,7 @@ namespace Aggregates.Internal
             }
             Logger.Write(LogLevel.Debug, () => $"Flushing {waiting.Count} channels with {waiting.Values.Sum(x => x.Count())} events");
 
-            waiting.ToArray().StartEachAsync(3, async (channel) =>
+            Task.Run(() => waiting.ToArray().StartEachAsync(3, async (channel) =>
             {
                 try
                 {
@@ -90,7 +90,7 @@ namespace Aggregates.Internal
                         WaitingToBeWritten[channel.Key].AddRange(channel.Value);
                     }
                 }
-            }).Wait();
+            })).Wait();
             
         }
 

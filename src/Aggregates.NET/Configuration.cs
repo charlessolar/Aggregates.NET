@@ -4,6 +4,13 @@ using NServiceBus.Configuration.AdvanceExtensibility;
 
 namespace Aggregates
 {
+    [Flags]
+    public enum Compression
+    {
+        Events = 0x01,
+        Snapshots = 0x10,
+        All = 0x11,
+    }
     public static class Configuration
     {
         public static void SlowAlertThreshold(this ExposeSettings settings, int milliseconds)
@@ -23,13 +30,12 @@ namespace Aggregates
 
 
         /// <summary>
-        /// Compress events and messages using GZip
+        /// Compress events and messages using GZip (default snapshots only)
         /// </summary>
         /// <param name="settings"></param>
         /// <param name="compress"></param>
-        public static void SetCompress(this ExposeSettings settings, bool compress)
+        public static void SetCompress(this ExposeSettings settings, Compression compress)
         {
-            throw new InvalidOperationException("Compress is not supported yet");
             settings.GetSettings().Set("Compress", compress);
         }
         public static void ConfigureForAggregates(this RecoverabilitySettings recoverability, int immediateRetries = 10)
@@ -44,7 +50,7 @@ namespace Aggregates
             {
                 x.NumberOfRetries(immediateRetries);
             });
-            
+
             recoverability.Delayed(x =>
             {
                 // Delayed retries don't work well with the InMemory context bag storage.  Creating
