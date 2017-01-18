@@ -78,7 +78,7 @@ namespace Aggregates.Internal
             Saved.Mark();
             if (await _store.WriteSnapshot(streamName, e, commitHeaders).ConfigureAwait(false) == 1)
                 // New stream, write metadata
-                await _store.WriteMetadata(streamName, maxAge: TimeSpan.FromMinutes(1)).ConfigureAwait(false);
+                await _store.WriteMetadata(streamName, maxCount: 10).ConfigureAwait(false);
             
         }
         

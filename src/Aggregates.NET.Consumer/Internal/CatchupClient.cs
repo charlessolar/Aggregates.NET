@@ -60,6 +60,11 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug,
                 () =>
                         $"Snapshot appeared {e.Event.EventId} stream [{e.Event.EventStreamId}] number {e.Event.EventNumber} projection event number {e.OriginalEventNumber}");
+
+            // Don't care about metadata streams
+            if (e.OriginalStreamId[0] == '$')
+                return;
+
             Snapshots.Increment();
 
             // Todo: dont like putting serialization stuff here

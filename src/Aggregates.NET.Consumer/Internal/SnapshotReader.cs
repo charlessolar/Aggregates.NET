@@ -72,49 +72,14 @@ namespace Aggregates.Internal
                         connection.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
 
                 await manager.EnableAsync("$by_category", connection.Settings.DefaultUserCredentials).ConfigureAwait(false);
-
-                var stream = $"snapshots";
-
-                var definition = $@"
-function processEvent(s,e) {{
-    linkTo('{stream}', e);
-}}
-fromCategory('{StreamTypes.Snapshot}').when({{
-$any: processEvent
-}});";
-
-                try
-                {
-                    var existing = await manager.GetQueryAsync(stream).ConfigureAwait(false);
-
-                    if (existing != definition)
-                    {
-                        Logger.Fatal(
-                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
-                        throw new EndpointVersionException(
-                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
-                    }
-                }
-                catch (ProjectionCommandFailedException)
-                {
-                    try
-                    {
-                        // Projection doesn't exist 
-                        await
-                            manager.CreateContinuousAsync($"{stream}.projection", definition, false,
-                                    connection.Settings.DefaultUserCredentials)
-                                .ConfigureAwait(false);
-                    }
-                    catch (ProjectionCommandFailedException)
-                    {
-                    }
-                }
+                
             }
         }
 
         public async Task Subscribe(CancellationToken cancelToken)
         {
-            var stream = $"snapshots";
+            // by_category projection of all events in category "SNAPSHOT"
+            var stream = $"$ce-SNAPSHOT";
 
             _cancelation = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
 
