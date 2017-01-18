@@ -5,6 +5,17 @@ using NServiceBus.Logging;
 
 namespace Aggregates
 {
+    public static class StreamTypes
+    {
+        public static string Domain = "DOMAIN";
+        public static string Delayed = "DELAY";
+        public static string Snapshot = "SNAPSHOT";
+        public static string Poco = "POCO";
+        public static string OOB = "OOB";
+    }
+
+    public delegate string StreamIdGenerator(Type entityType, string streamType, string bucket, string id);
+
     public static class Defaults
     {
         public static readonly string SetupCorrectly = "Aggregates.NET.Safe";

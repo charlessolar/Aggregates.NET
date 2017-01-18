@@ -70,17 +70,16 @@ namespace Aggregates.Internal
                 var manager = new ProjectionsManager(connection.Settings.Log,
                     new IPEndPoint(connection.Settings.GossipSeeds[0].EndPoint.Address,
                         connection.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
-                
+
+                await manager.EnableAsync("$by_category", connection.Settings.DefaultUserCredentials).ConfigureAwait(false);
+
                 var stream = $"snapshots";
-                
 
                 var definition = $@"
 function processEvent(s,e) {{
-    var stream = e.streamId;
-    if(stream.charAt(0) !== '$' && stream.substr(stream.indexOf('.') + 1, 4) === 'SNAP')
-        linkTo('{stream}', e);
+    linkTo('{stream}', e);
 }}
-fromAll().when({{
+fromCategory('{StreamTypes.Snapshot}').when({{
 $any: processEvent
 }});";
 

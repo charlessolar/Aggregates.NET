@@ -28,7 +28,6 @@ namespace Aggregates
             settings.GetSettings().Set("SlowAlerts", expose);
         }
 
-
         /// <summary>
         /// Compress events and messages using GZip (default snapshots only)
         /// </summary>

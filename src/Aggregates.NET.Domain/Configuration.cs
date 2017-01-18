@@ -3,7 +3,6 @@ using NServiceBus.Configuration.AdvanceExtensibility;
 
 namespace Aggregates
 {
-    public delegate string StreamIdGenerator(Type entityType, string bucket, string id);
 
     public static class Configuration
     {

@@ -63,7 +63,7 @@ namespace Aggregates.Internal
                 entity.Apply(u.Event as IEvent);
             }
 
-            var streamName = _streamGen(typeof(T), stream.Bucket, stream.StreamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId);
             await _store.WriteEvents(streamName, uncommitted, commitHeaders).ConfigureAwait(false);
             stream.Flush(true);
         }

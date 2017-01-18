@@ -21,8 +21,8 @@ namespace Aggregates.Internal
     class StoreEvents : IStoreEvents
     {
         private static readonly Meter FrozenExceptions = Metric.Meter("Frozen Exceptions", Unit.Items);
-        private static readonly Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Events);
-        private static readonly Histogram ReadEvents = Metric.Histogram("Read Events", Unit.Events);
+        private static readonly Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Bytes);
+        private static readonly Histogram ReadEvents = Metric.Histogram("Read Events", Unit.Bytes);
         private static readonly Timer ReadTime = Metric.Timer("EventStore Read Time", Unit.Items);
         private static readonly Timer WriteTime = Metric.Timer("EventStore Write Time", Unit.Items);
 
@@ -82,7 +82,7 @@ namespace Aggregates.Internal
                 throw new NotFoundException($"Stream [{stream}] does not exist!");
             }
 
-            ReadEvents.Update(events.Count);
+            ReadEvents.Update(events.Sum(x => x.Event.Data.Length));
             var translatedEvents = events.Select(e =>
             {
                 var metadata = e.Event.Metadata;
@@ -166,7 +166,7 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Debug, () => $"Finished reading all events backward from stream [{stream}]");
             }
 
-            ReadEvents.Update(events.Count);
+            ReadEvents.Update(events.Sum(x => x.Event.Data.Length));
             var translatedEvents = events.Select(e =>
             {
                 var metadata = e.Event.Metadata;
@@ -310,7 +310,7 @@ namespace Aggregates.Internal
                             page += _readsize;
                         }
                         var result = await transaction.CommitAsync().ConfigureAwait(false);
-                        WrittenEvents.Update(events.Count());
+                        WrittenEvents.Update(events.Sum(x => x.Data.Length));
                         return result.NextExpectedVersion;
                     }
                     else
@@ -319,7 +319,7 @@ namespace Aggregates.Internal
                             _clients[bucket].AppendToStreamAsync(stream, expectedVersion ?? ExpectedVersion.Any,
                                     events)
                                 .ConfigureAwait(false);
-                        WrittenEvents.Update(events.Count());
+                        WrittenEvents.Update(events.Sum(x => x.Data.Length));
                         return result.NextExpectedVersion;
                     }
                 }

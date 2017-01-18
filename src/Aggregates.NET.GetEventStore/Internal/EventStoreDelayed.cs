@@ -55,6 +55,8 @@ namespace Aggregates.Internal
 
 
         private readonly IStoreEvents _store;
+        private readonly StreamIdGenerator _streamGen;
+        private readonly Type _delayType;
 
         private readonly object _lock = new object();
         private Dictionary<string, Tuple<int?, Snapshot>> _inFlight;
@@ -94,9 +96,11 @@ namespace Aggregates.Internal
             
         }
 
-        public EventStoreDelayed(IStoreEvents store, TimeSpan? flushInterval)
+        public EventStoreDelayed(IStoreEvents store, TimeSpan? flushInterval, StreamIdGenerator streamGen)
         {
             _store = store;
+            _streamGen = streamGen;
+            _delayType = this.GetType();
 
             if (_flusher == null && flushInterval.HasValue)
             {
@@ -144,7 +148,7 @@ namespace Aggregates.Internal
 
         public async Task<TimeSpan?> Age(string channel)
         {
-            var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
+            var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
             Logger.Write(LogLevel.Debug, () => $"Getting age of delayed channel [{channel}]");
 
             Tuple<DateTime, object> cached;
@@ -182,7 +186,7 @@ namespace Aggregates.Internal
 
         public async Task<int> Size(string channel)
         {
-            var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
+            var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
             Logger.Write(LogLevel.Debug, () => $"Getting size of delayed channel [{channel}]");
 
             int existing;
@@ -215,7 +219,7 @@ namespace Aggregates.Internal
 
         public Task AddToQueue(string channel, object queued)
         {
-            var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
+            var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
             Logger.Write(LogLevel.Debug, () => $"Appending delayed object to channel [{channel}]");
 
             var @event = new WritableEvent
@@ -235,7 +239,7 @@ namespace Aggregates.Internal
 
         public async Task<IEnumerable<object>> Pull(string channel)
         {
-            var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
+            var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
             Logger.Write(LogLevel.Debug, () => $"Pulling delayed objects from channel [{channel}]");
 
             Tuple<DateTime, object> temp;
@@ -342,7 +346,7 @@ namespace Aggregates.Internal
             }
             Logger.Write(LogLevel.Debug, () => $"Acking channel {channel}");
 
-            var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
+            var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
             Tuple<int?, Snapshot> snap;
             lock (_lock)
             {
@@ -379,7 +383,7 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"NAcking channel {channel}");
 
             // Remove the freeze so someone else can run the delayed
-            var streamName = $"DELAY.{Assembly.GetEntryAssembly().FullName}.{channel}";
+            var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
             lock (_lock) _inFlight.Remove(channel);
             // Failed to process messages, unfreeze stream
             await _store.WriteMetadata(streamName, frozen: false).ConfigureAwait(false);

@@ -21,7 +21,6 @@ namespace Aggregates
             {
                 s.SetDefault("ShouldCacheEntities", false);
                 s.SetDefault("MaxConflictResolves", 3);
-                s.SetDefault("StreamGenerator", new StreamIdGenerator((type, bucket, stream) => $"{bucket}.[{type.FullName}].{stream}"));
                 s.SetDefault("UseNsbForOob", false);
             });
             DependsOn<Aggregates.ConsumerFeature>();

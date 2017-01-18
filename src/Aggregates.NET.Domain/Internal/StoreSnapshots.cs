@@ -31,7 +31,7 @@ namespace Aggregates.Internal
         
         public async Task<ISnapshot> GetSnapshot<T>(string bucket, string streamId) where T : class, IEventSource
         {
-            var streamName = $"{_streamGen(typeof(T), bucket + ".SNAP", streamId)}";
+            var streamName = _streamGen(typeof(T), StreamTypes.Snapshot, bucket, streamId);
             Logger.Write(LogLevel.Debug, () => $"Getting snapshot for stream [{streamName}]");
 
             var @event = await _snapshots.Retreive(streamName).ConfigureAwait(false);
@@ -60,7 +60,7 @@ namespace Aggregates.Internal
 
         public async Task WriteSnapshots<T>(string bucket, string streamId, ISnapshot snapshot, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
-            var streamName = $"{_streamGen(typeof(T), bucket + ".SNAP", streamId)}";
+            var streamName = _streamGen(typeof(T), StreamTypes.Snapshot, bucket, streamId);
             Logger.Write(LogLevel.Debug, () => $"Writing snapshot to stream [{streamName}]");
             
             var e = new WritableEvent
@@ -78,7 +78,7 @@ namespace Aggregates.Internal
             Saved.Mark();
             if (await _store.WriteSnapshot(streamName, e, commitHeaders).ConfigureAwait(false) == 1)
                 // New stream, write metadata
-                await _store.WriteMetadata(streamName, maxCount: 1).ConfigureAwait(false);
+                await _store.WriteMetadata(streamName, maxCount: 2).ConfigureAwait(false);
             
         }
         

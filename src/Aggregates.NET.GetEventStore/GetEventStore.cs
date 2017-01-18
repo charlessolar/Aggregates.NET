@@ -31,7 +31,7 @@ namespace Aggregates
                 flushInterval = null;
 
             context.Container.ConfigureComponent(b =>
-                new EventStoreDelayed(b.Build<IStoreEvents>(), flushInterval),
+                new EventStoreDelayed(b.Build<IStoreEvents>(), flushInterval, settings.Get<StreamIdGenerator>("StreamGenerator")),
                 DependencyLifecycle.InstancePerUnitOfWork);
 
 

@@ -43,7 +43,7 @@ namespace Aggregates.Internal
         {
             if (!_shouldCache) return Task.CompletedTask;
 
-            var streamName = _streamGen(typeof(T), bucket, streamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
             _cache.Evict(streamName);
             return Task.CompletedTask;
         }
@@ -51,14 +51,14 @@ namespace Aggregates.Internal
         {
             if (!_shouldCache) return Task.CompletedTask;
 
-            var streamName = _streamGen(typeof(T), stream.Bucket, stream.StreamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId);
             _cache.Cache(streamName, stream.Clone());
             return Task.CompletedTask;
         }
 
         public async Task<IEventStream> GetStream<T>(string bucket, string streamId, ISnapshot snapshot = null) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), bucket, streamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
 
             Logger.Write(LogLevel.Debug, () => $"Retreiving stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
 
@@ -99,19 +99,19 @@ namespace Aggregates.Internal
 
         public Task<IEnumerable<IWritableEvent>> GetEvents<T>(string bucket, string streamId, int? start = null, int? count = null) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), bucket, streamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
             return _store.GetEvents(streamName, start: start, count: count);
         }
         public Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(string bucket, string streamId, int? start = null, int? count = null) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), bucket, streamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
             return _store.GetEventsBackwards(streamName, start: start, count: count);
         }
 
 
         public async Task WriteStream<T>(IEventStream stream, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), stream.Bucket, stream.StreamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId);
 
             if (await CheckFrozen<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false))
                 throw new FrozenException();
@@ -126,7 +126,7 @@ namespace Aggregates.Internal
             // New streams dont need verification
             if (stream.CommitVersion == -1) return;
 
-            var streamName = _streamGen(typeof(T), stream.Bucket, stream.StreamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId);
 
             var last = await _store.GetEventsBackwards(streamName, count: 1).ConfigureAwait(false);
             if (!last.Any())
@@ -138,7 +138,7 @@ namespace Aggregates.Internal
 
         public async Task Freeze<T>(string bucket, string streamId) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), bucket, streamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
             Logger.Write(LogLevel.Debug, () => $"Freezing stream [{streamName}]");
             try
             {
@@ -153,7 +153,7 @@ namespace Aggregates.Internal
 
         public async Task Unfreeze<T>(string bucket, string streamId) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), bucket, streamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
             Logger.Write(LogLevel.Debug, () => $"Unfreezing stream [{streamName}]");
 
             try
@@ -168,7 +168,7 @@ namespace Aggregates.Internal
         }
         private Task<bool> CheckFrozen<T>(string bucket, string streamId) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), bucket, streamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
             return _store.IsFrozen(streamName);
         }
 

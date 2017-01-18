@@ -47,18 +47,15 @@ namespace Aggregates.Internal
         
 
         private Thread _pinnedThread;
-        private Thread _oobThread;
         private CancellationTokenSource _cancelation;
         private string _endpoint;
         private int _readsize;
         private bool _extraStats;
-        private Compression _compress;
 
         private readonly MessageHandlerRegistry _registry;
         private readonly JsonSerializerSettings _settings;
         private readonly MessageMetadataRegistry _messageMeta;
         private readonly int _concurrency;
-        //private readonly bool _compress;
 
         private readonly IEventStoreConnection[] _clients;
 
@@ -72,7 +69,6 @@ namespace Aggregates.Internal
             _clients = connections;
             _messageMeta = messageMeta;
             _concurrency = concurrency;
-            _compress = compress;
             _settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
@@ -97,6 +93,8 @@ namespace Aggregates.Internal
                     new IPEndPoint(client.Settings.GossipSeeds[0].EndPoint.Address,
                         client.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
 
+                await manager.EnableAsync("$by_category", client.Settings.DefaultUserCredentials).ConfigureAwait(false);
+
                 var discoveredEvents =
                     _registry.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).ToList();
 
@@ -111,13 +109,10 @@ namespace Aggregates.Internal
 
                 var definition = $@"
 function processEvent(s,e) {{
-    var stream = e.streamId;
-    if(stream.substr(stream.indexOf('.') + 1, 3) === 'OOB')
-        linkTo('OOB.{stream}', e);
-    else
-        linkTo('APP.{stream}', e);
+    linkTo('{stream}', e);
 }}
-fromAll().when({{
+fromStreams(['$ce-{StreamTypes.Domain}', '$ce-{StreamTypes.OOB}']).
+when({{
 {functions}
 }});";
 
@@ -154,7 +149,6 @@ fromAll().when({{
         {
             var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
             var pinnedGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.PINNED";
-            var roundRobinGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.ROUND";
 
             _cancelation = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
 
@@ -182,7 +176,6 @@ fromAll().when({{
                     settings.WithExtraStatistics();
 
                 var pinnedClients = new PersistentClient[_clients.Count() * _concurrency];
-                var oobClients = new PersistentClient[_clients.Count() * _concurrency];
 
                 for (var i = 0; i < _clients.Count(); i++)
                 {
@@ -199,7 +192,7 @@ fromAll().when({{
                     {
                         settings.WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                         await
-                            client.CreatePersistentSubscriptionAsync($"APP.{stream}", pinnedGroup, settings,
+                            client.CreatePersistentSubscriptionAsync($"{stream}", pinnedGroup, settings,
                                 client.Settings.DefaultUserCredentials).ConfigureAwait(false);
                         Logger.Info($"Created PINNED persistent subscription to stream [{stream}]");
 
@@ -207,36 +200,16 @@ fromAll().when({{
                     catch (InvalidOperationException)
                     {
                     }
-                    try
-                    {
-
-                        settings.WithNamedConsumerStrategy(SystemConsumerStrategies.RoundRobin);
-                        await
-                            client.CreatePersistentSubscriptionAsync($"OOB.{stream}", roundRobinGroup, settings,
-                                client.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                        Logger.Info($"Created ROUND ROBIN persistent subscription to stream [{stream}]");
-                    }
-                    catch (InvalidOperationException)
-                    {
-                    }
 
                     for (var j = 0; j < _concurrency; j++)
                     {
-                        pinnedClients[(i * _concurrency) + j] = new PersistentClient(client, $"APP.{stream}", pinnedGroup, j, clientCancelSource.Token);
-                        oobClients[(i * _concurrency) + j] = new PersistentClient(client, $"OOB.{stream}", roundRobinGroup, j, clientCancelSource.Token);
+                        pinnedClients[(i * _concurrency) + j] = new PersistentClient(client, $"{stream}", pinnedGroup, j, clientCancelSource.Token);
                     }
-
-
-
                 }
 
                 _pinnedThread = new Thread(Threaded)
                 { IsBackground = true, Name = $"Main Event Thread" };
                 _pinnedThread.Start(new ThreadParam { Token = cancelToken, Clients = pinnedClients, MessageMeta = _messageMeta, JsonSettings = _settings });
-
-                _oobThread = new Thread(Threaded)
-                { IsBackground = true, Name = $"OOB Event Thread" };
-                _oobThread.Start(new ThreadParam { Token = cancelToken, Clients = oobClients, MessageMeta = _messageMeta, JsonSettings = _settings });
 
             });
 
@@ -393,7 +366,6 @@ fromAll().when({{
             _disposed = true;
             _cancelation.Cancel();
             _pinnedThread.Join();
-            _oobThread.Join();
         }
 
         static string SerializeEnclosedMessageTypes(MessageMetadataRegistry messageMeta, Type messageType)

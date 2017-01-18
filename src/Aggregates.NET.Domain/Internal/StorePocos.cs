@@ -36,7 +36,7 @@ namespace Aggregates.Internal
 
         public Task Evict<T>(string bucket, string streamId) where T : class
         {
-            var streamName = _streamGen(typeof(T), bucket + ".POCO", streamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Poco, bucket, streamId);
             _cache.Evict(streamName);
             return Task.CompletedTask;
         }
@@ -44,7 +44,7 @@ namespace Aggregates.Internal
 
         public async Task<T> Get<T>(string bucket, string stream) where T : class
         {
-            var streamName = $"{_streamGen(typeof(T), bucket + ".POCO", stream)}";
+            var streamName = _streamGen(typeof(T), StreamTypes.Poco, bucket, stream);
             Logger.Write(LogLevel.Debug, () => $"Getting stream [{streamName}]");
 
             if (_shouldCache)
@@ -73,7 +73,7 @@ namespace Aggregates.Internal
         }
         public async Task Write<T>(T poco, string bucket, string stream, IDictionary<string, string> commitHeaders)
         {
-            var streamName = $"{_streamGen(typeof(T), bucket + ".POCO", stream)}";
+            var streamName = _streamGen(typeof(T), StreamTypes.Poco, bucket, stream);
             Logger.Write(LogLevel.Debug, () => $"Writing poco to stream id [{streamName}]");
 
             var descriptor = new EventDescriptor
