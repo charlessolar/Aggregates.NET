@@ -254,7 +254,7 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Warn, () => $"Channel [{channel}] was pulled by this instance recently - leaving it alone.  This could be an indication that the previous pull threw an exception, if this happens a lot there's a problem");
                     return new object[] { }.AsEnumerable();
                 }
-                RecentlyPulled.Add(streamName, DateTime.UtcNow.AddSeconds(30));
+                RecentlyPulled.Add(streamName, DateTime.UtcNow.AddSeconds(5));
             }
 
             // Check if someone else is already processing
