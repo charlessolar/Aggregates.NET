@@ -61,7 +61,7 @@ namespace Aggregates.Internal
             }
 
             var read = await _store.GetEventsBackwards(streamName, StreamPosition.End, 1).ConfigureAwait(false);
-            
+
             if (read == null || !read.Any())
                 return null;
 
@@ -79,6 +79,9 @@ namespace Aggregates.Internal
             var descriptor = new EventDescriptor
             {
                 EntityType = typeof(T).AssemblyQualifiedName,
+                StreamType = StreamTypes.Poco,
+                Bucket = bucket,
+                StreamId = stream,
                 Timestamp = DateTime.UtcNow,
                 Version = -1,
                 Headers = commitHeaders
@@ -92,7 +95,7 @@ namespace Aggregates.Internal
             };
 
             Saved.Mark();
-            if(await _store.WriteEvents(streamName, new[] {@event}, commitHeaders).ConfigureAwait(false) == 1)
+            if (await _store.WriteEvents(streamName, new[] { @event }, commitHeaders).ConfigureAwait(false) == 1)
                 await _store.WriteMetadata(streamName, maxCount: 5).ConfigureAwait(false);
 
             if (_shouldCache)

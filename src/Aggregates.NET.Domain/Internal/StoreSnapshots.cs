@@ -28,29 +28,19 @@ namespace Aggregates.Internal
             _snapshots = snapshots;
             _streamGen = streamGen;
         }
-        
+
         public async Task<ISnapshot> GetSnapshot<T>(string bucket, string streamId) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), StreamTypes.Snapshot, bucket, streamId);
             Logger.Write(LogLevel.Debug, () => $"Getting snapshot for stream [{streamName}]");
 
-            var @event = await _snapshots.Retreive(streamName).ConfigureAwait(false);
-            if (@event == null)
+            var snapshot = await _snapshots.Retreive(streamName).ConfigureAwait(false);
+            if (snapshot == null)
             {
                 MissMeter.Mark();
                 Logger.Write(LogLevel.Debug, () => $"Snapshot [{streamName}] not in store");
                 return null;
             }
-
-            var snapshot = new Snapshot
-            {
-                EntityType = @event.Descriptor.EntityType,
-                Bucket = bucket,
-                Stream = streamId,
-                Timestamp = @event.Descriptor.Timestamp,
-                Version = @event.Descriptor.Version,
-                Payload = @event.Event
-            };
 
             HitMeter.Mark();
             Logger.Write(LogLevel.Debug, () => $"Found snapshot [{streamName}] version {snapshot.Version} in store!");
@@ -62,12 +52,15 @@ namespace Aggregates.Internal
         {
             var streamName = _streamGen(typeof(T), StreamTypes.Snapshot, bucket, streamId);
             Logger.Write(LogLevel.Debug, () => $"Writing snapshot to stream [{streamName}]");
-            
+
             var e = new WritableEvent
             {
                 Descriptor = new EventDescriptor
                 {
                     EntityType = typeof(T).AssemblyQualifiedName,
+                    StreamType = StreamTypes.Snapshot,
+                    Bucket = bucket,
+                    StreamId = streamId,
                     Timestamp = snapshot.Timestamp,
                     Version = snapshot.Version,
                     Headers = commitHeaders
@@ -78,9 +71,9 @@ namespace Aggregates.Internal
             Saved.Mark();
             if (await _store.WriteSnapshot(streamName, e, commitHeaders).ConfigureAwait(false) == 1)
                 // New stream, write metadata
-                await _store.WriteMetadata(streamName, maxCount: 10).ConfigureAwait(false);
-            
+                await _store.WriteMetadata(streamName, maxCount: 5).ConfigureAwait(false);
+
         }
-        
+
     }
 }

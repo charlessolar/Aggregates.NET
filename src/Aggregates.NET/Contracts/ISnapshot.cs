@@ -5,7 +5,7 @@ namespace Aggregates.Contracts
     public interface ISnapshot
     {
         string Bucket { get; }
-        string Stream { get; }
+        string StreamId { get; }
         int Version { get; }
 
         object Payload { get; }

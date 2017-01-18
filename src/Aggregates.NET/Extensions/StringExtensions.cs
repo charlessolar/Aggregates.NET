@@ -2,7 +2,7 @@
 
 namespace Aggregates.Extensions
 {
-    public static class StringExtensions
+    static class StringExtensions
     {
         public static string MaxLength(this string source, int max)
         {

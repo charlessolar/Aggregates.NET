@@ -71,7 +71,7 @@ namespace Aggregates.Internal
             foreach (var @event in events)
                 RouteFor(@event);
         }
-        void IEventSource.Conflict(IEvent @event)
+        void IEventSource.Conflict(IEvent @event, IDictionary<string, string> metadata)
         {
             try
             {
@@ -80,67 +80,54 @@ namespace Aggregates.Internal
 
                 // Todo: Fill with user headers or something
                 var headers = new Dictionary<string, string>();
-                Stream.Add(@event, headers);
+                Stream.Add(@event, metadata);
             }
             catch (DiscardEventException) { }
 
         }
 
-        void IEventSource.Apply(IEvent @event)
+        void IEventSource.Apply(IEvent @event, IDictionary<string, string> metadata)
         {
-            Apply(@event);
+            Apply(@event, metadata);
         }
-        void IEventSource.Raise(IEvent @event)
+        void IEventSource.Raise(IEvent @event, IDictionary<string, string> metadata)
         {
-            Raise(@event);
+            Raise(@event, metadata);
         }
 
         /// <summary>
         /// Apply an event to the current object's eventstream
         /// </summary>
-        /// <typeparam name="TEvent"></typeparam>
-        /// <param name="action"></param>
-        protected void Apply<TEvent>(Action<TEvent> action) where TEvent : IEvent
+        protected void Apply<TEvent>(Action<TEvent> action, IDictionary<string, string> metadata = null) where TEvent : IEvent
         {
             Logger.Write(LogLevel.Debug, () => $"Applying event {typeof(TEvent).FullName} to entity {GetType().FullName} stream [{StreamId}]");
             var @event = EventFactory.CreateInstance(action);
-            Apply(@event);
+            Apply(@event, metadata);
         }
         /// <summary>
         /// Publishes an event, but does not save to object's eventstream.  It will be stored under out of band event stream so as to not pollute object's
         /// </summary>
-        /// <typeparam name="TEvent"></typeparam>
-        /// <param name="action"></param>
-        protected void Raise<TEvent>(Action<TEvent> action) where TEvent : IEvent
+        protected void Raise<TEvent>(Action<TEvent> action, IDictionary<string, string> metadata = null) where TEvent : IEvent
         {
             Logger.Write(LogLevel.Debug, () => $"Raising an OOB event {typeof(TEvent).FullName} on entity {GetType().FullName} stream [{StreamId}]");
             var @event = EventFactory.CreateInstance(action);
 
-            Raise(@event);
+            Raise(@event, metadata);
         }
 
-        private void Apply(IEvent @event)
+        private void Apply(IEvent @event, IDictionary<string, string> metadata = null)
         {
             RouteFor(@event);
             
-            var headers = new Dictionary<string, string>
-            {
-                ["Bucket"] = Bucket,
-                ["EntityType"] = typeof(TThis).FullName,
-                ["StreamId"] = StreamId
-            };
-            Stream.Add(@event, headers);
+            // Todo: Fill with user headers or something
+            var headers = new Dictionary<string, string>();
+            Stream.Add(@event, metadata);
         }
-        private void Raise(IEvent @event)
+        private void Raise(IEvent @event, IDictionary<string, string> metadata = null)
         {
-            var headers = new Dictionary<string, string>
-            {
-                ["Bucket"] = Bucket,
-                ["EntityType"] = typeof(TThis).FullName,
-                ["StreamId"] = StreamId
-            };
-
-            Stream.AddOutOfBand(@event, headers);
+            // Todo: Fill with user headers or something
+            var headers = new Dictionary<string, string>();
+            Stream.AddOutOfBand(@event, metadata);
         }
 
         internal void RouteFor(IEvent @event)

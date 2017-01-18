@@ -2,7 +2,7 @@
 
 namespace Aggregates.Extensions
 {
-    public static class DictionaryExtensions
+    static class DictionaryExtensions
     {
         public static IDictionary<T, TU> Merge<T, TU>(this IDictionary<T, TU> first, IDictionary<T, TU> second)
         {

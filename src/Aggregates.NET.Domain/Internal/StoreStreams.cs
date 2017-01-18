@@ -83,7 +83,7 @@ namespace Aggregates.Internal
 
             var events = await _store.GetEvents(streamName, start: snapshot?.Version + 1).ConfigureAwait(false);
 
-            var eventstream = new EventStream<T>(Builder, this, bucket, streamId, events, snapshot);
+            var eventstream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, events, snapshot);
             
             await Cache<T>(eventstream).ConfigureAwait(false);
 
@@ -93,7 +93,7 @@ namespace Aggregates.Internal
         public Task<IEventStream> NewStream<T>(string bucket, string streamId) where T : class, IEventSource
         {
             Logger.Write(LogLevel.Debug, () => $"Creating new stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
-            IEventStream stream = new EventStream<T>(Builder, this, bucket, streamId, null, null);
+            IEventStream stream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, null, null);
             return Task.FromResult(stream);
         }
 

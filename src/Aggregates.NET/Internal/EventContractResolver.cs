@@ -5,7 +5,7 @@ using NServiceBus.MessageInterfaces;
 
 namespace Aggregates.Internal
 {
-    public class EventContractResolver : DefaultContractResolver
+    class EventContractResolver : DefaultContractResolver
     {
         private readonly IMessageMapper _mapper;
 
@@ -31,7 +31,7 @@ namespace Aggregates.Internal
         }
     }
 
-    public class EventSerializationBinder : DefaultSerializationBinder
+    class EventSerializationBinder : DefaultSerializationBinder
     {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(EventSerializationBinder));
 

@@ -32,7 +32,7 @@ namespace Aggregates.Internal
     // Need to lay all this out and make sure we are processing events correctly, even in the case of
     // a single subscription going down amoung many.  No message should be ACKed or discarded without
     // knowing
-    internal class EventSubscriber : IEventSubscriber
+    class EventSubscriber : IEventSubscriber
     {
 
         private static readonly ILog Logger = LogManager.GetLogger("EventSubscriber");

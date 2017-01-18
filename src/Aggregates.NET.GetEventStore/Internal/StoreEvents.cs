@@ -21,25 +21,28 @@ namespace Aggregates.Internal
     class StoreEvents : IStoreEvents
     {
         private static readonly Meter FrozenExceptions = Metric.Meter("Frozen Exceptions", Unit.Items);
-        private static readonly Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Bytes);
-        private static readonly Histogram ReadEvents = Metric.Histogram("Read Events", Unit.Bytes);
+        private static readonly Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Events);
+        private static readonly Histogram ReadEvents = Metric.Histogram("Read Events", Unit.Events);
+        private static readonly Histogram WrittenEventsSize = Metric.Histogram("Written Events Size", Unit.Bytes);
+        private static readonly Histogram ReadEventsSize = Metric.Histogram("Read Events Size", Unit.Bytes);
         private static readonly Timer ReadTime = Metric.Timer("EventStore Read Time", Unit.Items);
         private static readonly Timer WriteTime = Metric.Timer("EventStore Write Time", Unit.Items);
 
         private static readonly ILog Logger = LogManager.GetLogger("StoreEvents");
+        private static readonly ILog SlowLogger = LogManager.GetLogger("Slow");
         private readonly IEventStoreConnection[] _clients;
         private readonly IMessageMapper _mapper;
         private readonly int _readsize;
         private readonly Compression _compress;
 
-        public StoreEvents( IMessageMapper mapper, int readsize, Compression compress, IEventStoreConnection[] connections)
+        public StoreEvents(IMessageMapper mapper, int readsize, Compression compress, IEventStoreConnection[] connections)
         {
             _clients = connections;
             _mapper = mapper;
             _readsize = readsize;
             _compress = compress;
         }
-        
+
 
         public async Task<IEnumerable<IWritableEvent>> GetEvents(string stream, int? start = null, int? count = null)
         {
@@ -58,7 +61,7 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Reading events from stream [{stream}] starting at {sliceStart}");
 
             var events = new List<ResolvedEvent>();
-            using (ReadTime.NewContext())
+            using (var ctx = ReadTime.NewContext())
             {
                 do
                 {
@@ -73,6 +76,9 @@ namespace Aggregates.Internal
                     events.AddRange(current.Events);
                     sliceStart = current.NextEventNumber;
                 } while (!current.IsEndOfStream);
+
+                if (ctx.Elapsed > TimeSpan.FromSeconds(1))
+                    SlowLogger.Write(LogLevel.Warn, () => $"Reading {events.Count} events of total size {events.Sum(x => x.Event.Data.Length)} from stream [{stream}] took {ctx.Elapsed.TotalSeconds} seconds!");
             }
             Logger.Write(LogLevel.Debug, () => $"Finished reading events from stream [{stream}]");
 
@@ -82,7 +88,8 @@ namespace Aggregates.Internal
                 throw new NotFoundException($"Stream [{stream}] does not exist!");
             }
 
-            ReadEvents.Update(events.Sum(x => x.Event.Data.Length));
+            ReadEvents.Update(events.Count);
+            ReadEventsSize.Update(events.Sum(x => x.Event.Data.Length));
             var translatedEvents = events.Select(e =>
             {
                 var metadata = e.Event.Metadata;
@@ -144,7 +151,7 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Debug,
                     () => $"Reading events backwards from stream [{stream}] starting at {sliceStart}");
 
-                using (ReadTime.NewContext())
+                using (var ctx = ReadTime.NewContext())
                 {
                     do
                     {
@@ -162,11 +169,15 @@ namespace Aggregates.Internal
 
                         sliceStart = current.NextEventNumber;
                     } while (!current.IsEndOfStream);
+
+                    if (ctx.Elapsed > TimeSpan.FromSeconds(1))
+                        SlowLogger.Write(LogLevel.Warn, () => $"Reading {events.Count} events of total size {events.Sum(x => x.Event.Data.Length)} from stream [{stream}] took {ctx.Elapsed.TotalSeconds} seconds!");
                 }
                 Logger.Write(LogLevel.Debug, () => $"Finished reading all events backward from stream [{stream}]");
             }
 
-            ReadEvents.Update(events.Sum(x => x.Event.Data.Length));
+            ReadEvents.Update(events.Count);
+            ReadEventsSize.Update(events.Sum(x => x.Event.Data.Length));
             var translatedEvents = events.Select(e =>
             {
                 var metadata = e.Event.Metadata;
@@ -176,7 +187,7 @@ namespace Aggregates.Internal
 
                 if (descriptor.Compressed)
                     data = data.Decompress();
-                
+
                 var @event = data.Deserialize(e.Event.EventType, settings);
 
                 // Special case if event was written without a version - substitute the position from store
@@ -206,15 +217,9 @@ namespace Aggregates.Internal
                 //ContractResolver = new EventContractResolver(_mapper)
             };
 
-
-            var descriptor = new EventDescriptor
-            {
-                EventId = snapshot.EventId ?? Guid.NewGuid(),
-                EntityType = snapshot.Descriptor.EntityType,
-                Timestamp = snapshot.Descriptor.Timestamp,
-                Version = snapshot.Descriptor.Version,
-                Headers = commitHeaders?.Merge(snapshot.Descriptor.Headers) ?? snapshot.Descriptor.Headers
-            };
+            var descriptor = snapshot.Descriptor;
+            descriptor.EventId = snapshot.EventId ?? Guid.NewGuid();
+            descriptor.CommitHeaders = commitHeaders;
 
             var mappedType = snapshot.Event.GetType();
             if (!mappedType.IsInterface)
@@ -253,14 +258,9 @@ namespace Aggregates.Internal
 
             var translatedEvents = events.Select(e =>
             {
-                var descriptor = new EventDescriptor
-                {
-                    EventId = e.EventId ?? Guid.NewGuid(),
-                    EntityType = e.Descriptor.EntityType,
-                    Timestamp = e.Descriptor.Timestamp,
-                    Version = e.Descriptor.Version,
-                    Headers = commitHeaders?.Merge(e.Descriptor.Headers) ?? e.Descriptor.Headers
-                };
+                var descriptor = e.Descriptor;
+                descriptor.EventId = e.EventId ?? Guid.NewGuid();
+                descriptor.CommitHeaders = commitHeaders;
 
                 var mappedType = e.Event.GetType();
                 if (!mappedType.IsInterface)
@@ -293,7 +293,8 @@ namespace Aggregates.Internal
 
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
 
-            using (WriteTime.NewContext())
+            int nextVersion;
+            using (var ctx = WriteTime.NewContext())
             {
                 EventStoreTransaction transaction = null;
                 try
@@ -310,8 +311,7 @@ namespace Aggregates.Internal
                             page += _readsize;
                         }
                         var result = await transaction.CommitAsync().ConfigureAwait(false);
-                        WrittenEvents.Update(events.Sum(x => x.Data.Length));
-                        return result.NextExpectedVersion;
+                        nextVersion = result.NextExpectedVersion;
                     }
                     else
                     {
@@ -319,8 +319,8 @@ namespace Aggregates.Internal
                             _clients[bucket].AppendToStreamAsync(stream, expectedVersion ?? ExpectedVersion.Any,
                                     events)
                                 .ConfigureAwait(false);
-                        WrittenEvents.Update(events.Sum(x => x.Data.Length));
-                        return result.NextExpectedVersion;
+
+                        nextVersion = result.NextExpectedVersion;
                     }
                 }
                 catch (WrongExpectedVersionException e)
@@ -343,11 +343,17 @@ namespace Aggregates.Internal
                     transaction?.Rollback();
                     throw new PersistenceException(e.Message, e);
                 }
+
+                WrittenEvents.Update(events.Count());
+                WrittenEventsSize.Update(events.Sum(x => x.Data.Length));
+                if (ctx.Elapsed > TimeSpan.FromSeconds(1))
+                    SlowLogger.Write(LogLevel.Warn, () => $"Writing {events.Count()} events of total size {events.Sum(x => x.Data.Length)} from stream [{stream}] took {ctx.Elapsed.TotalSeconds} seconds!");
             }
+            return nextVersion;
         }
 
         public async Task WriteMetadata(string stream, int? maxCount = null, int? truncateBefore = null, TimeSpan? maxAge = null,
-            TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null, bool force=false)
+            TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null, bool force = false)
         {
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
             Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream [{stream}] [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl}, {nameof(frozen)}: {frozen} ]");

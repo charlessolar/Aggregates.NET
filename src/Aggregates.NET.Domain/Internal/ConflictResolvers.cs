@@ -60,7 +60,7 @@ namespace Aggregates.Internal
 
             foreach (var u in uncommitted)
             {
-                entity.Apply(u.Event as IEvent);
+                entity.Apply(u.Event as IEvent, metadata: new Dictionary<string,string> { {"ConflictResolution", ConcurrencyConflict.Ignore.ToString()} });
             }
 
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId);
@@ -121,7 +121,7 @@ namespace Aggregates.Internal
                 try
                 {
                     foreach (var u in uncommitted)
-                        entity.Conflict(u.Event as IEvent);
+                        entity.Conflict(u.Event as IEvent, metadata: new Dictionary<string, string> { { "ConflictResolution", ConcurrencyConflict.ResolveStrongly.ToString() }});
                 }
                 catch (NoRouteException e)
                 {
@@ -138,7 +138,7 @@ namespace Aggregates.Internal
                         () =>
                                 $"Taking snapshot of {typeof(T).FullName} id [{entity.StreamId}] version {stream.StreamVersion}");
                     var memento = ((ISnapshotting) entity).TakeSnapshot();
-                    stream.AddSnapshot(memento, commitHeaders);
+                    stream.AddSnapshot(memento);
                 }
 
                 await stream.Commit(commitId, commitHeaders).ConfigureAwait(false);
@@ -214,7 +214,7 @@ namespace Aggregates.Internal
                 try
                 {
                     foreach (var u in uncommitted)
-                        entity.Conflict(u.Event as IEvent);
+                        entity.Conflict(u.Event as IEvent, metadata: new Dictionary<string, string> { { "ConflictResolution", ConcurrencyConflict.ResolveWeakly.ToString() }});
                 }
                 catch (NoRouteException e)
                 {
@@ -232,7 +232,7 @@ namespace Aggregates.Internal
                         () =>
                                 $"Taking snapshot of [{typeof(T).FullName}] id [{entity.StreamId}] version {stream.StreamVersion}");
                     var memento = ((ISnapshotting) entity).TakeSnapshot();
-                    stream.AddSnapshot(memento, commitHeaders);
+                    stream.AddSnapshot(memento);
                 }
 
                 await stream.Commit(commitId, commitHeaders).ConfigureAwait(false);

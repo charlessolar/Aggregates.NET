@@ -3,7 +3,7 @@ using NServiceBus.Logging;
 
 namespace Aggregates.Extensions
 {
-    public static class LoggerExtensions
+    static class LoggerExtensions
     {
         public static void WriteFormat(this ILog logger, LogLevel level, string message, params object[] args)
         {

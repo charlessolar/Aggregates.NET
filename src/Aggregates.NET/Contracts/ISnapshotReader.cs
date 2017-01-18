@@ -14,6 +14,6 @@ namespace Aggregates.Contracts
 
         Task Subscribe(CancellationToken cancelToken);
 
-        Task<IWritableEvent> Retreive(string stream);
+        Task<ISnapshot> Retreive(string stream);
     }
 }

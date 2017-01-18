@@ -9,3 +9,5 @@ using System.Runtime.CompilerServices;
 [assembly: AssemblyInformationalVersion("0.4.15.0-beta")]
 [assembly: InternalsVisibleTo("Aggregates.NET.UnitTests")]
 [assembly: InternalsVisibleTo("Aggregates.NET.Consumer")]
+[assembly: InternalsVisibleTo("Aggregates.NET.Domain")]
+[assembly: InternalsVisibleTo("Aggregates.NET.GetEventStore")]

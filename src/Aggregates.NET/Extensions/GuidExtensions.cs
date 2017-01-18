@@ -4,7 +4,7 @@ using System.Linq;
 namespace Aggregates.Extensions
 {
     // http://stackoverflow.com/questions/30404965/increment-guid-in-c-sharp#30405028
-    public static class GuidExtensions
+    static class GuidExtensions
     {
         private static readonly int[] GuidByteOrder =
             {15, 14, 13, 12, 11, 10, 9, 8, 6, 7, 4, 5, 0, 1, 2, 3};

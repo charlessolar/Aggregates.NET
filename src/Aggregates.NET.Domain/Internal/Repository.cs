@@ -103,7 +103,7 @@ namespace Aggregates.Internal
                                 () =>
                                         $"Taking snapshot of [{tracked.GetType().FullName}] id [{tracked.StreamId}] version {tracked.Version}");
                             var memento = (tracked as ISnapshotting).TakeSnapshot();
-                            stream.AddSnapshot(memento, headers);
+                            stream.AddSnapshot(memento);
                         }
 
                         try

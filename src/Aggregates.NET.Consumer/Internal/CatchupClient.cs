@@ -19,10 +19,10 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger("CatchupClient");
         private static readonly Counter Snapshots = Metric.Counter("Snapshots Seen", Unit.Items);
-        private static readonly Counter StoredSnapshots = Metric.Counter("Snapshots Stored", Unit.Items);
 
         // Todo: config option for "most snapshots stored" and a LRU cache?
         private readonly SortedDictionary<string, IWritableEvent> _snapshots;
+        private readonly Action<string, ISnapshot> _onSnapshot;
         private readonly IEventStoreConnection _client;
         private readonly string _stream;
         private readonly CancellationToken _token;
@@ -36,8 +36,9 @@ namespace Aggregates.Internal
 
         private bool _disposed;
 
-        public CatchupClient(IEventStoreConnection client, string stream, CancellationToken token, JsonSerializerSettings settings, Compression compress)
+        public CatchupClient(Action<string, ISnapshot> onSnapshot, IEventStoreConnection client, string stream, CancellationToken token, JsonSerializerSettings settings, Compression compress)
         {
+            _onSnapshot = onSnapshot;
             _client = client;
             _stream = stream;
             _token = token;
@@ -78,18 +79,18 @@ namespace Aggregates.Internal
 
             var payload = data.Deserialize(e.Event.EventType, _settings);
             
-            var @event = new WritableEvent
+            var snapshot = new Snapshot
             {
-                Descriptor = descriptor,
-                Event = payload,
-                EventId = e.Event.EventId
+                EntityType = descriptor.EntityType,
+                Bucket = descriptor.Bucket,
+                StreamId = descriptor.StreamId,
+                Timestamp = descriptor.Timestamp,
+                Version = descriptor.Version,
+                Payload = payload
             };
 
-            // Cheap way to tell if Add actually added
-            var oldCount = _snapshots.Count;
-            _snapshots[e.Event.EventStreamId] = @event;
-            if (oldCount != _snapshots.Count)
-                StoredSnapshots.Increment();
+            _onSnapshot(e.OriginalStreamId, snapshot);
+
         }
 
         private void SubscriptionDropped(EventStoreCatchUpSubscription sub, SubscriptionDropReason reason, Exception ex)

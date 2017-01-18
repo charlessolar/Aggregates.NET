@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -18,6 +19,7 @@ using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.Unicast;
 using NServiceBus.Unicast.Messages;
+using Aggregates.Extensions;
 
 namespace Aggregates.Internal
 {
@@ -29,6 +31,9 @@ namespace Aggregates.Internal
     class SnapshotReader : ISnapshotReader
     {
         private static readonly ILog Logger = LogManager.GetLogger("SnapshotReader");
+        private static readonly Counter StoredSnapshots = Metric.Counter("Snapshots Stored", Unit.Items);
+
+        private static readonly ConcurrentDictionary<string,ISnapshot> Snapshots = new ConcurrentDictionary<string, ISnapshot>();
 
         private CancellationTokenSource _cancelation;
         private string _endpoint;
@@ -95,16 +100,28 @@ namespace Aggregates.Internal
                     clientCancelSource.Cancel();
                 };
 
-                _clients[i] = new CatchupClient(connection, stream, clientCancelSource.Token, _settings, _compress);
+                _clients[i] = new CatchupClient(onSnapshot, connection, stream, clientCancelSource.Token, _settings, _compress);
                 await _clients[i].Connect().ConfigureAwait(false);
             }
         }
 
-        public Task<IWritableEvent> Retreive(string stream)
+        private void onSnapshot(string stream, ISnapshot snapshot)
         {
-            // Todo: abstract away bucket calculation so it can be used anywhere
-            var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
-            return _clients[bucket].Retreive(stream);
+            Logger.Write(LogLevel.Debug, () => $"Got snapshot stream [{stream}] version {snapshot.Version}");
+            Snapshots.AddOrUpdate(stream, (key) =>
+            {
+                StoredSnapshots.Increment();
+                return snapshot;
+            }, (key, existing) => snapshot);
+
+        }
+
+        public Task<ISnapshot> Retreive(string stream)
+        {
+            ISnapshot snapshot;
+            if (!Snapshots.TryGetValue(stream, out snapshot))
+                snapshot = null;
+            return Task.FromResult(snapshot);
         }
         public void Dispose()
         {

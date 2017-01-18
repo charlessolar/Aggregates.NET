@@ -8,7 +8,7 @@ using NServiceBus;
 
 namespace Aggregates.Internal
 {
-    public class Mutating : IMutating
+    class Mutating : IMutating
     {
         public Mutating(object message, IDictionary<string, string> headers)
         {

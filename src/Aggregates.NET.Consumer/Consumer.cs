@@ -53,7 +53,7 @@ namespace Aggregates
                 return new SnapshotReader(b.Build<IStoreEvents>(), b.Build<IMessageMapper>(), connections, compress);
             }, DependencyLifecycle.SingleInstance);
 
-            context.Pipeline.Register<MutateIncomingRegistration>();
+            context.Pipeline.Register<MutateIncomingEventRegistration>();
         }
     }
     internal class EventStoreRunner : FeatureStartupTask, IDisposable

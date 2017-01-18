@@ -4,15 +4,20 @@ using Aggregates.Contracts;
 
 namespace Aggregates.Internal
 {
-    public class EventDescriptor : IEventDescriptor
+    class EventDescriptor : IEventDescriptor
     {
         public Guid EventId { get; set; }
+
         public string EntityType { get; set; }
+        public string StreamType { get; set; }
+        public string Bucket { get; set; }
+        public string StreamId { get; set; }
 
         public bool Compressed { get; set; }
         public int Version { get; set; }
         public DateTime Timestamp { get; set; }
 
         public IDictionary<string, string> Headers { get; set; }
+        public IDictionary<string, string> CommitHeaders { get; set; }
     }
 }

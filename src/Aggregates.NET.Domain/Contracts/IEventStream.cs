@@ -9,6 +9,7 @@ namespace Aggregates.Contracts
     {
         object CurrentMemento { get; }
         int? LastSnapshot { get; }
+        string StreamType { get; }
         string Bucket { get; }
         string StreamId { get; }
         int StreamVersion { get; }
@@ -47,7 +48,7 @@ namespace Aggregates.Contracts
 
         void Add(IEvent @event, IDictionary<string, string> headers);
         void AddOutOfBand(IEvent @event, IDictionary<string, string> headers);
-        void AddSnapshot(object memento, IDictionary<string, string> headers);
+        void AddSnapshot(object memento);
         void Concat(IEnumerable<IWritableEvent> events);
         Task Commit(Guid commitId, IDictionary<string, string> commitHeaders);
         Task VerifyVersion(Guid commitId);

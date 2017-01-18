@@ -17,6 +17,7 @@ namespace Aggregates.Internal
         private const string CommitHeader = "CommitId";
         private static readonly ILog Logger = LogManager.GetLogger("EventStream");
 
+        public string StreamType { get; }
         public string Bucket { get; }
 
         public string StreamId { get; }
@@ -34,7 +35,7 @@ namespace Aggregates.Internal
         public IEnumerable<IWritableEvent> OobUncommitted => _outofband;
 
         public bool Dirty => Uncommitted.Any() || OobUncommitted.Any() || _pendingShot != null;
-        public int TotalUncommitted => Uncommitted.Count() + OobUncommitted.Count() + (_pendingShot != null ? 1:0);
+        public int TotalUncommitted => Uncommitted.Count() + OobUncommitted.Count() + (_pendingShot != null ? 1 : 0);
 
         private readonly Guid _commitId;
         private readonly IStoreStreams _store;
@@ -47,12 +48,13 @@ namespace Aggregates.Internal
         private readonly IList<IWritableEvent> _outofband;
         private ISnapshot _pendingShot;
 
-        public EventStream(IBuilder builder, IStoreStreams store, string bucket, string streamId, IEnumerable<IWritableEvent> events, ISnapshot snapshot)
+        public EventStream(IBuilder builder, IStoreStreams store, string streamType, string bucket, string streamId, IEnumerable<IWritableEvent> events, ISnapshot snapshot)
         {
             _store = store;
             _snapshots = builder?.Build<IStoreSnapshots>();
             _oobHandler = builder?.Build<IOobHandler>();
             _builder = builder;
+            StreamType = streamType;
             Bucket = bucket;
             StreamId = streamId;
             _committed = events?.ToList() ?? new List<IWritableEvent>();
@@ -61,7 +63,7 @@ namespace Aggregates.Internal
             _uncommitted = new List<IWritableEvent>();
             _outofband = new List<IWritableEvent>();
             _pendingShot = null;
-            
+
             // Todo: this is a hack
             // Get the commit id of the current message because we need it to make writable events
             _commitId = builder?.Build<IUnitOfWork>().CommitId ?? Guid.Empty;
@@ -105,7 +107,7 @@ namespace Aggregates.Internal
             if (@event != null)
                 committed.Add(@event);
 
-            return new EventStream<T>(null, null, Bucket, StreamId, committed, _snapshot);
+            return new EventStream<T>(null, null, StreamType, Bucket, StreamId, committed, _snapshot);
         }
 
         void IEventStream.Concat(IEnumerable<IWritableEvent> events)
@@ -129,6 +131,9 @@ namespace Aggregates.Internal
                 Descriptor = new EventDescriptor
                 {
                     EntityType = typeof(T).AssemblyQualifiedName,
+                    StreamType = StreamType,
+                    Bucket = Bucket,
+                    StreamId = StreamId,
                     Timestamp = DateTime.UtcNow,
                     Version = version ? StreamVersion + 1 : StreamVersion,
                     Headers = headers
@@ -164,16 +169,16 @@ namespace Aggregates.Internal
             _uncommitted.Add(MakeWritableEvent(@event, headers));
         }
 
-        public void AddSnapshot(object memento, IDictionary<string, string> headers)
+        public void AddSnapshot(object memento)
         {
             var snapshot = new Snapshot
             {
                 Bucket = Bucket,
-                Stream = StreamId,
+                StreamId = StreamId,
                 Payload = memento,
                 Version = StreamVersion + 1,
                 EntityType = memento.GetType().AssemblyQualifiedName,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow,
             };
             _pendingShot = snapshot;
         }
@@ -189,7 +194,7 @@ namespace Aggregates.Internal
         {
             var hasSnapshot = _pendingShot == null ? "no" : "with";
             Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] for type {typeof(T).FullName} commiting {_uncommitted.Count} events, {_outofband.Count} out of band, {hasSnapshot} snapshot");
-            
+
             if (commitHeaders == null)
                 commitHeaders = new Dictionary<string, string>();
 

@@ -41,9 +41,9 @@ namespace Aggregates.Internal
         }
     }
 
-    internal class MutateIncomingRegistration : RegisterStep
+    internal class MutateIncomingEventRegistration : RegisterStep
     {
-        public MutateIncomingRegistration() : base(
+        public MutateIncomingEventRegistration() : base(
             stepId: "MutateIncomingEvents",
             behavior: typeof(MutateIncomingEvents),
             description: "Running event mutators for incoming messages"

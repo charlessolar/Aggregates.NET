@@ -4,7 +4,7 @@ using NServiceBus;
 
 namespace Aggregates.Internal
 {
-    public class WritableEvent : IWritableEvent
+    class WritableEvent : IWritableEvent
     {
         public IEventDescriptor Descriptor { get; set; }
         public object Event { get; set; }

@@ -13,6 +13,7 @@ namespace Aggregates.Internal
     internal class TimeExecutionBehavior : Behavior<IIncomingPhysicalMessageContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger("TimeExecutionBehavior");
+        private static readonly ILog SlowLogger = LogManager.GetLogger("Slow");
         private static readonly HashSet<string> SlowCommandTypes = new HashSet<string>();
         private static readonly object SlowLock = new object();
         private readonly int _slowAlert;
@@ -52,7 +53,7 @@ namespace Aggregates.Internal
 
                 if (elapsed > _slowAlert)
                 {
-                    Logger.Write(LogLevel.Warn,
+                    SlowLogger.Write(LogLevel.Warn,
                         () => $" - SLOW ALERT - Processing message {context.MessageId} {messageTypeIdentifier} took {elapsed} ms\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}");
                     if (!verbose)
                         lock (SlowLock) SlowCommandTypes.Add(messageTypeIdentifier);

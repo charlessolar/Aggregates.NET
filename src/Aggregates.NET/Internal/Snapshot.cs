@@ -6,7 +6,7 @@ namespace Aggregates.Internal
     class Snapshot : ISnapshot
     {
         public string Bucket { get; set; }
-        public string Stream { get; set; }
+        public string StreamId { get; set; }
         public int Version { get; set; }
         public object Payload { get; set; }
 

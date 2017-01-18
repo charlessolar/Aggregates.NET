@@ -39,7 +39,7 @@ namespace Aggregates.Internal
         private static readonly Dictionary<string, List<IWritableEvent>> WaitingToBeWritten = new Dictionary<string, List<IWritableEvent>>();
         private static Timer _flusher;
 
-        private static readonly ConcurrentDictionary<string, Tuple<DateTime,object>> Cache = new ConcurrentDictionary<string, Tuple<DateTime, object>>();
+        private static readonly ConcurrentDictionary<string, Tuple<DateTime, object>> Cache = new ConcurrentDictionary<string, Tuple<DateTime, object>>();
         private static readonly Dictionary<string, DateTime> RecentlyPulled = new Dictionary<string, DateTime>();
         private static readonly object RecentLock = new object();
 
@@ -61,7 +61,7 @@ namespace Aggregates.Internal
         private readonly object _lock = new object();
         private Dictionary<string, Tuple<int?, Snapshot>> _inFlight;
         private List<Tuple<string, WritableEvent>> _uncommitted;
-        
+
         static void Flush(object state)
         {
             var eventstore = state as IStoreEvents;
@@ -80,7 +80,7 @@ namespace Aggregates.Internal
                 {
                     await eventstore.WriteEvents(channel.Key, channel.Value, null).ConfigureAwait(false);
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     Logger.Write(LogLevel.Warn,
                         () => $"Failed to write to channel {channel.Key}.  Exception: {e.GetType().Name}: {e.Message}");
@@ -93,7 +93,7 @@ namespace Aggregates.Internal
                     }
                 }
             })).Wait();
-            
+
         }
 
         public EventStoreDelayed(IStoreEvents store, TimeSpan? flushInterval, StreamIdGenerator streamGen)
@@ -125,7 +125,7 @@ namespace Aggregates.Internal
             if (ex == null && _flusher != null)
             {
                 Logger.Write(LogLevel.Debug, () => $"Scheduling save of {_uncommitted.Count()} delayed streams");
-                
+
                 lock (WaitingLock)
                 {
                     foreach (var stream in _uncommitted.GroupBy(x => x.Item1))
@@ -158,7 +158,8 @@ namespace Aggregates.Internal
                 return DateTime.UtcNow - (DateTime)cached.Item2;
             }
 
-            var read = await _store.GetEventsBackwards($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
+            var snapshotStream = _streamGen(_delayType, StreamTypes.Snapshot, Assembly.GetEntryAssembly().FullName, channel);
+            var read = await _store.GetEventsBackwards(snapshotStream, StreamPosition.End, 1).ConfigureAwait(false);
             if (read != null && read.Any())
             {
                 var snapshot = read.Single().Event as Snapshot;
@@ -166,10 +167,10 @@ namespace Aggregates.Internal
                 return DateTime.UtcNow - snapshot.Created;
             }
 
-            read = await _store.GetEventsBackwards($"{streamName}", StreamPosition.Start, 1).ConfigureAwait(false);
+            read = await _store.GetEventsBackwards(streamName, StreamPosition.Start, 1).ConfigureAwait(false);
             if (read != null && read.Any())
             {
-                Cache.TryAdd($"{streamName}.age",new Tuple<DateTime, object>(DateTime.UtcNow, read.Single().Descriptor.Timestamp));
+                Cache.TryAdd($"{streamName}.age", new Tuple<DateTime, object>(DateTime.UtcNow, read.Single().Descriptor.Timestamp));
                 return DateTime.UtcNow - read.Single().Descriptor.Timestamp;
             }
 
@@ -199,8 +200,9 @@ namespace Aggregates.Internal
                 return existing + (int)cached.Item2 + 1;
             }
 
+            var snapshotStream = _streamGen(_delayType, StreamTypes.Snapshot, Assembly.GetEntryAssembly().FullName, channel);
             var start = StreamPosition.Start;
-            var read = await _store.GetEventsBackwards($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
+            var read = await _store.GetEventsBackwards(snapshotStream, StreamPosition.End, 1).ConfigureAwait(false);
             if (read != null && read.Any())
             {
                 var snapshot = read.Single().Event as Snapshot;
@@ -227,6 +229,9 @@ namespace Aggregates.Internal
                 Descriptor = new EventDescriptor
                 {
                     EntityType = "DELAY",
+                    StreamType = StreamTypes.Delayed,
+                    Bucket = Assembly.GetEntryAssembly().FullName,
+                    StreamId = channel,
                     Timestamp = DateTime.UtcNow,
                 },
                 Event = queued,
@@ -276,10 +281,11 @@ namespace Aggregates.Internal
                     await _store.WriteMetadata(streamName, frozen: true, owner: Defaults.Instance).ConfigureAwait(false);
                     didFreeze = true;
 
+                    var snapshotStream = _streamGen(_delayType, StreamTypes.Snapshot, Assembly.GetEntryAssembly().FullName, channel);
                     var start = StreamPosition.Start;
                     var read =
                         await
-                            _store.GetEventsBackwards($"{streamName}.SNAP", StreamPosition.End, 1).ConfigureAwait(false);
+                            _store.GetEventsBackwards(snapshotStream, StreamPosition.End, 1).ConfigureAwait(false);
                     if (read != null && read.Any())
                     {
                         var snapshot = read.Single().Event as Snapshot;
@@ -346,7 +352,7 @@ namespace Aggregates.Internal
             }
             Logger.Write(LogLevel.Debug, () => $"Acking channel {channel}");
 
-            var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
+            var streamName = _streamGen(_delayType, StreamTypes.Snapshot, Assembly.GetEntryAssembly().FullName, channel);
             Tuple<int?, Snapshot> snap;
             lock (_lock)
             {
@@ -355,14 +361,21 @@ namespace Aggregates.Internal
             }
             var @event = new WritableEvent
             {
-                Descriptor = new EventDescriptor { EntityType = "DELAY", Timestamp = DateTime.UtcNow },
+                Descriptor = new EventDescriptor
+                {
+                    EntityType = "DELAY",
+                    StreamType = StreamTypes.Snapshot,
+                    Bucket = Assembly.GetEntryAssembly().FullName,
+                    StreamId = channel,
+                    Timestamp = DateTime.UtcNow
+                },
                 Event = snap.Item2
             };
             try
             {
-                if (await _store.WriteEvents($"{streamName}.SNAP", new[] { @event }, null, expectedVersion: snap.Item1 ?? ExpectedVersion.NoStream).ConfigureAwait(false) == 1)
+                if (await _store.WriteEvents(streamName, new[] { @event }, null, expectedVersion: snap.Item1 ?? ExpectedVersion.NoStream).ConfigureAwait(false) == 1)
                     // New stream, write metadata
-                    await _store.WriteMetadata($"{streamName}.SNAP", maxCount: 2).ConfigureAwait(false);
+                    await _store.WriteMetadata(streamName, maxCount: 5).ConfigureAwait(false);
             }
             catch (VersionException)
             {

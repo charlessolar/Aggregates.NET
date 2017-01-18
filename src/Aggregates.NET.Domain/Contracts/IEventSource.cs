@@ -11,9 +11,9 @@ namespace Aggregates.Contracts
 
         IEventStream Stream { get; }
         void Hydrate(IEnumerable<IEvent> events);
-        void Conflict(IEvent @event);
-        void Apply(IEvent @event);
-        void Raise(IEvent @event);
+        void Conflict(IEvent @event, IDictionary<string, string> metadata = null);
+        void Apply(IEvent @event, IDictionary<string, string> metadata = null);
+        void Raise(IEvent @event, IDictionary<string, string> metadata = null);
     }
 
     public interface IEventSource<TId> : IEventSource

@@ -7,7 +7,7 @@ using Newtonsoft.Json;
 
 namespace Aggregates.Extensions
 {
-    public static class StoreExtensions
+    static class StoreExtensions
     {
         public static byte[] AsByteArray(this string json)
         {
