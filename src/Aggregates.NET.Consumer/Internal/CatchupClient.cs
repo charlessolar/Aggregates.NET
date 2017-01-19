@@ -58,13 +58,14 @@ namespace Aggregates.Internal
         {
             _token.ThrowIfCancellationRequested();
 
+
+            // Don't care about metadata streams
+            if (e.Event == null || e.Event.EventStreamId[0] == '$')
+                return;
+
             Logger.Write(LogLevel.Debug,
                 () =>
                         $"Snapshot appeared {e.Event.EventId} stream [{e.Event.EventStreamId}] number {e.Event.EventNumber} projection event number {e.OriginalEventNumber}");
-
-            // Don't care about metadata streams
-            if (e.Event.EventStreamId[0] == '$')
-                return;
 
             Snapshots.Increment();
 

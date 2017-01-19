@@ -124,13 +124,13 @@ namespace Aggregates.Internal
                         ExpiringBulkInvokes.Add(key, channelKey, TimeSpan.FromMilliseconds(delayed.Delay.Value));
                         
 
-                    Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
+                    Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing channel {channelKey}");
                     return;
                 }
 
                 context.Extensions.Set<bool>("BulkInvoked", true);
 
-                Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
+                Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing channel {channelKey}");
 
                 await InvokeDelayedChannel(channel, channelKey, messageHandler, context).ConfigureAwait(false);
 

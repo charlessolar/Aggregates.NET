@@ -65,22 +65,26 @@ namespace Aggregates.Internal
             {
                 do
                 {
+                    var readsize = _readsize;
+                    if (count.HasValue)
+                        readsize = Math.Min(count.Value - events.Count, _readsize);
+
                     current =
-                        await _clients[bucket].ReadStreamEventsForwardAsync(stream, sliceStart, _readsize, false)
+                        await _clients[bucket].ReadStreamEventsForwardAsync(stream, sliceStart, readsize, false)
                             .ConfigureAwait(false);
 
                     Logger.Write(LogLevel.Debug,
                         () =>
-                                $"Retreived {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
+                                $"Read {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                     events.AddRange(current.Events);
                     sliceStart = current.NextEventNumber;
-                } while (!current.IsEndOfStream);
+                } while (!current.IsEndOfStream && (!count.HasValue || (events.Count != count.Value)));
 
                 if (ctx.Elapsed > TimeSpan.FromSeconds(1))
                     SlowLogger.Write(LogLevel.Warn, () => $"Reading {events.Count} events of total size {events.Sum(x => x.Event.Data.Length)} from stream [{stream}] took {ctx.Elapsed.TotalSeconds} seconds!");
             }
-            Logger.Write(LogLevel.Debug, () => $"Finished reading events from stream [{stream}]");
+            Logger.Write(LogLevel.Debug, () => $"Finished reading {events.Count} events from stream [{stream}]");
 
             if (current.Status == SliceReadStatus.StreamNotFound)
             {
@@ -130,9 +134,9 @@ namespace Aggregates.Internal
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
 
             var events = new List<ResolvedEvent>();
-            StreamEventsSlice current;
             var sliceStart = StreamPosition.End;
 
+            StreamEventsSlice current;
             Logger.Write(LogLevel.Debug, () => $"Reading events from stream [{stream}] starting at {sliceStart}");
             if (start.HasValue || count == 1)
             {
@@ -163,7 +167,7 @@ namespace Aggregates.Internal
 
                         Logger.Write(LogLevel.Debug,
                             () =>
-                                    $"Retreived backwards {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
+                                    $"Read backwards {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                         events.AddRange(current.Events);
 
@@ -173,7 +177,13 @@ namespace Aggregates.Internal
                     if (ctx.Elapsed > TimeSpan.FromSeconds(1))
                         SlowLogger.Write(LogLevel.Warn, () => $"Reading {events.Count} events of total size {events.Sum(x => x.Event.Data.Length)} from stream [{stream}] took {ctx.Elapsed.TotalSeconds} seconds!");
                 }
-                Logger.Write(LogLevel.Debug, () => $"Finished reading all events backward from stream [{stream}]");
+                Logger.Write(LogLevel.Debug, () => $"Finished reading {events.Count} events backward from stream [{stream}]");
+
+                if (current.Status == SliceReadStatus.StreamNotFound)
+                {
+                    Logger.Write(LogLevel.Warn, () => $"Stream [{stream}] does not exist!");
+                    throw new NotFoundException($"Stream [{stream}] does not exist!");
+                }
             }
 
             ReadEvents.Update(events.Count);
@@ -441,6 +451,8 @@ namespace Aggregates.Internal
                 FrozenExceptions.Mark();
                 throw new FrozenException();
             }
+            if (existing.StreamMetadata == null)
+                Logger.Write(LogLevel.Debug, () => $"No metadata exists for stream [{stream}]");
 
             string property = "";
             if (!existing.StreamMetadata?.TryGetValue(key, out property) ?? false)
