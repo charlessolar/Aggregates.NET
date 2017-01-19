@@ -63,7 +63,7 @@ namespace Aggregates.Internal
                         $"Snapshot appeared {e.Event.EventId} stream [{e.Event.EventStreamId}] number {e.Event.EventNumber} projection event number {e.OriginalEventNumber}");
 
             // Don't care about metadata streams
-            if (e.OriginalStreamId[0] == '$')
+            if (e.Event.EventStreamId[0] == '$')
                 return;
 
             Snapshots.Increment();
@@ -89,7 +89,7 @@ namespace Aggregates.Internal
                 Payload = payload
             };
 
-            _onSnapshot(e.OriginalStreamId, snapshot);
+            _onSnapshot(e.Event.EventStreamId, snapshot);
 
         }
 
