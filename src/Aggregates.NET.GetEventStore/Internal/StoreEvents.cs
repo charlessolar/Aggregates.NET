@@ -353,7 +353,7 @@ namespace Aggregates.Internal
         }
 
         public async Task WriteMetadata(string stream, int? maxCount = null, int? truncateBefore = null, TimeSpan? maxAge = null,
-            TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null, bool force = false)
+            TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null, bool force = false, IDictionary<string, string> custom=null)
         {
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
             Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream [{stream}] [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl}, {nameof(frozen)}: {frozen} ]");
@@ -399,8 +399,15 @@ namespace Aggregates.Internal
             if (owner.HasValue)
                 metadata.SetCustomProperty("owner", Defaults.Instance.ToString());
 
+            if (custom != null)
+            {
+                foreach (var kv in custom)
+                    metadata.SetCustomProperty(kv.Key, kv.Value.ToString());
+            }
+
             try
             {
+                Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream [{stream}] version {existing.MetastreamVersion} ");
                 await _clients[bucket].SetStreamMetadataAsync(stream, existing.MetastreamVersion, metadata).ConfigureAwait(false);
 
             }
@@ -420,6 +427,25 @@ namespace Aggregates.Internal
             {
                 throw new PersistenceException(e.Message, e);
             }
+        }
+
+        public async Task<string> GetMetadata(string stream, string key)
+        {
+            var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
+            Logger.Write(LogLevel.Debug, () => $"Getting metadata '{key}' from stream [{stream}]");
+
+            var existing = await _clients[bucket].GetStreamMetadataAsync(stream).ConfigureAwait(false);
+            
+            if ((existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false))
+            {
+                FrozenExceptions.Mark();
+                throw new FrozenException();
+            }
+
+            string property = "";
+            if (!existing.StreamMetadata?.TryGetValue(key, out property) ?? false)
+                property = "";
+            return property;
         }
 
         public async Task<bool> IsFrozen(string stream)

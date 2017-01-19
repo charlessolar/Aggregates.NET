@@ -34,9 +34,8 @@ namespace Aggregates.Internal
                             };
                     return;
                 }
-                if (DelayedExpirations[handlerKey].ContainsKey(channelKey))
-                    return;
-                DelayedExpirations[handlerKey].Add(channelKey, DateTime.UtcNow + expires);
+                // Reset expires since we saw the channelKey again
+                DelayedExpirations[handlerKey][channelKey] = DateTime.UtcNow + expires;
             }
         }
 

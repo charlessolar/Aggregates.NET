@@ -95,6 +95,7 @@ namespace Aggregates.Internal
                         Logger.Warn($"Failed to get key properties from message {msgType.FullName}");
                     }
                 }
+
                 Logger.Write(LogLevel.Debug, () => $"Delaying message {msgType.FullName} delivery");
                 await channel.AddToQueue(channelKey, msgPkg).ConfigureAwait(false);
 
@@ -129,8 +130,6 @@ namespace Aggregates.Internal
 
                 context.Extensions.Set<bool>("BulkInvoked", true);
 
-                // Remove the expiration watcher for channelKey
-                ExpiringBulkInvokes.Remove(key, channelKey);
                 Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
 
                 await InvokeDelayedChannel(channel, channelKey, messageHandler, context).ConfigureAwait(false);

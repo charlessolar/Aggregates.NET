@@ -170,24 +170,25 @@ namespace Aggregates.Internal
         }
         Task IApplicationUnitOfWork.End(Exception ex)
         {
-            Guid eventId;
-            EventIds.TryRemove(CommitId, out eventId);
-            
             // Todo: If current message is an event, detect if they've modified any entities and warn them.
             if (ex != null || CurrentMessage is IEvent)
+            {
+                Guid eventId;
+                EventIds.TryRemove(CommitId, out eventId);
                 return Task.CompletedTask;
+            }
 
             return Commit();
         }
 
         private async Task Commit()
         {
-            Guid terminatingEventId;
-            var eventId = EventIds.TryGetValue(CommitId, out terminatingEventId);
+            Guid eventId;
+            EventIds.TryRemove(CommitId, out eventId);
             var headers = new Dictionary<string, string>
             {
                 [CommitHeader] = CommitId.ToString(),
-                [TerminatingEventIdHeader] = terminatingEventId.ToString()
+                [TerminatingEventIdHeader] = eventId.ToString()
                 // Todo: what else can we put in here?
             };
 
