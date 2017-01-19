@@ -30,11 +30,15 @@ namespace Aggregates.Internal
             return EventIds.AddOrUpdate(commitId, commitId, (key, value) => value.Increment());
         }
 
+        private static readonly Metrics.Timer PrepareTime = Metric.Timer("UOW Prepare Time", Unit.Items);
         private static readonly Metrics.Timer CommitTime = Metric.Timer("UOW Commit Time", Unit.Items);
+        private const string CommitHeader = "CommitId";
+        private const string TerminatingEventIdHeader = "FinalEventId";
         public static string PrefixHeader = "Originating";
         public static string NotFound = "<NOT FOUND>";
 
         private static readonly ILog Logger = LogManager.GetLogger("UnitOfWork");
+        private static readonly ILog SlowLogger = LogManager.GetLogger("Slow");
         private readonly IRepositoryFactory _repoFactory;
         private readonly IMessageMapper _mapper;
 
@@ -178,35 +182,47 @@ namespace Aggregates.Internal
 
         private async Task Commit()
         {
-            // Insert all command headers into the commit
-            var headers = new Dictionary<string, string>(CurrentHeaders);
-            
-            using (CommitTime.NewContext())
+            Guid terminatingEventId;
+            var eventId = EventIds.TryGetValue(CommitId, out terminatingEventId);
+            var headers = new Dictionary<string, string>
             {
+                [CommitHeader] = CommitId.ToString(),
+                [TerminatingEventIdHeader] = terminatingEventId.ToString()
+                // Todo: what else can we put in here?
+            };
 
-                var allRepos = _repositories.Values.Concat(_entityRepositories.Values).Concat(_pocoRepositories.Values).ToArray();
+            var allRepos =
+                _repositories.Values.Concat(_entityRepositories.Values).Concat(_pocoRepositories.Values).ToArray();
 
-                Logger.Write(LogLevel.Debug, () =>
-                        $"Starting prepare for commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories");
+            Logger.Write(LogLevel.Debug, () =>
+                    $"Starting prepare for commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories");
+            using (PrepareTime.NewContext())
+            {
                 // First check all streams read but not modified - if the store has a different version a VersionException will be thrown
                 await allRepos.StartEachAsync(3, (x) => x.Prepare(CommitId)).ConfigureAwait(false);
+            }
 
-                // this log message can be expensive as the list is computed for a check
-                // so only warn users about multiple stream commits when debugging
-                Logger.Write(LogLevel.Debug, () =>
-                {
-                    var orderedRepos = _repositories.Select(x => new Tuple<int, IRepository>(x.Value.ChangedStreams, x.Value))
-                                                    .Concat(_entityRepositories.Select(x => new Tuple<int, IRepository>(x.Value.ChangedStreams, x.Value)));
-                    if (orderedRepos.Count(x => x.Item1 != 0) > 1)
-                        return
-                             $"Starting commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories. You changed {orderedRepos.Sum(x => x.Item1)} streams.  We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams";
-
+            // this log message can be expensive as the list is computed for a check
+            // so only warn users about multiple stream commits when debugging
+            Logger.Write(LogLevel.Debug, () =>
+            {
+                var orderedRepos = _repositories.Select(x => new Tuple<int, IRepository>(x.Value.ChangedStreams, x.Value))
+                                                .Concat(_entityRepositories.Select(x => new Tuple<int, IRepository>(x.Value.ChangedStreams, x.Value)));
+                if (orderedRepos.Count(x => x.Item1 != 0) > 1)
                     return
-                            $"Starting commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories";
-                });
+                         $"Starting commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories. You changed {orderedRepos.Sum(x => x.Item1)} streams.  We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams";
 
+                return
+                        $"Starting commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories";
+            });
+
+
+            using (var ctx = CommitTime.NewContext())
+            {
                 await allRepos.StartEachAsync(3, (x) => x.Commit(CommitId, headers)).ConfigureAwait(false);
-                
+
+                if(ctx.Elapsed > TimeSpan.FromSeconds(1))
+                    SlowLogger.Write(LogLevel.Warn, () => $"Commit id {CommitId} took {ctx.Elapsed.TotalSeconds} seconds!");
             }
             Logger.Write(LogLevel.Debug, () => $"Commit id {CommitId} complete");
 

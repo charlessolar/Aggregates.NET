@@ -219,7 +219,7 @@ namespace Aggregates.Internal
 
             var descriptor = snapshot.Descriptor;
             descriptor.EventId = snapshot.EventId ?? Guid.NewGuid();
-            descriptor.CommitHeaders = commitHeaders;
+            descriptor.CommitHeaders = commitHeaders ?? new Dictionary<string, string>();
 
             var mappedType = snapshot.Event.GetType();
             if (!mappedType.IsInterface)
@@ -260,7 +260,7 @@ namespace Aggregates.Internal
             {
                 var descriptor = e.Descriptor;
                 descriptor.EventId = e.EventId ?? Guid.NewGuid();
-                descriptor.CommitHeaders = commitHeaders;
+                descriptor.CommitHeaders = commitHeaders ?? new Dictionary<string,string>();
 
                 var mappedType = e.Event.GetType();
                 if (!mappedType.IsInterface)

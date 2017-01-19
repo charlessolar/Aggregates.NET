@@ -14,7 +14,6 @@ namespace Aggregates.Internal
 
     class EventStream<T> : IEventStream where T : class, IEventSource
     {
-        private const string CommitHeader = "CommitId";
         private static readonly ILog Logger = LogManager.GetLogger("EventStream");
 
         public string StreamType { get; }
@@ -194,11 +193,7 @@ namespace Aggregates.Internal
         {
             var hasSnapshot = _pendingShot == null ? "no" : "with";
             Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] for type {typeof(T).FullName} commiting {_uncommitted.Count} events, {_outofband.Count} out of band, {hasSnapshot} snapshot");
-
-            if (commitHeaders == null)
-                commitHeaders = new Dictionary<string, string>();
-
-            commitHeaders[CommitHeader] = commitId.ToString();
+            
 
             var tasks = new Task[]
             {
