@@ -136,7 +136,7 @@ namespace Aggregates.Internal
                     StreamId = StreamId,
                     Timestamp = DateTime.UtcNow,
                     Version = version ? StreamVersion + 1 : StreamVersion,
-                    Headers = headers
+                    Headers = headers ?? new Dictionary<string,string>()
                 },
                 EventId = UnitOfWork.NextEventId(_commitId),
                 Event = @event

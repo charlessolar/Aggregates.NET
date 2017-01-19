@@ -63,7 +63,8 @@ namespace Aggregates.Internal
                     StreamId = streamId,
                     Timestamp = snapshot.Timestamp,
                     Version = snapshot.Version,
-                    Headers = commitHeaders
+                    Headers = new Dictionary<string, string>(),
+                    CommitHeaders = commitHeaders
                 },
                 Event = snapshot.Payload,
             };

@@ -84,7 +84,8 @@ namespace Aggregates.Internal
                 StreamId = stream,
                 Timestamp = DateTime.UtcNow,
                 Version = -1,
-                Headers = commitHeaders
+                Headers = new Dictionary<string, string>(),
+                CommitHeaders = commitHeaders
             };
 
             var @event = new WritableEvent

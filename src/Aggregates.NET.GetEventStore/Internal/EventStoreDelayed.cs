@@ -233,6 +233,7 @@ namespace Aggregates.Internal
                     Bucket = Assembly.GetEntryAssembly().FullName,
                     StreamId = channel,
                     Timestamp = DateTime.UtcNow,
+                    Headers = new Dictionary<string, string>()
                 },
                 Event = queued,
             };
@@ -367,7 +368,8 @@ namespace Aggregates.Internal
                     StreamType = StreamTypes.Snapshot,
                     Bucket = Assembly.GetEntryAssembly().FullName,
                     StreamId = channel,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.UtcNow,
+                    Headers = new Dictionary<string, string>()
                 },
                 Event = snap.Item2
             };
