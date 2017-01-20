@@ -15,7 +15,8 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger("DefaultRouteResolver");
 
         // Yuck!
-        private static readonly ConcurrentDictionary<Type, IDictionary<string, Action<IEventSource, object>>> Cache = new ConcurrentDictionary<Type, IDictionary<string, Action<IEventSource, object>>>();
+        private static readonly Dictionary<Type, IDictionary<string, Action<IEventSource, object>>> Cache = new Dictionary<Type, IDictionary<string, Action<IEventSource, object>>>();
+        private static readonly object Lock = new object();
         private readonly IMessageMapper _mapper;
 
         public DefaultRouteResolver(IMessageMapper mapper)
@@ -23,10 +24,8 @@ namespace Aggregates.Internal
             _mapper = mapper;
         }
 
-
         private IDictionary<string, Action<IEventSource, object>> GetCached(IEventSource eventsource, Type eventType)
         {
-
             // Wtf is going on here? Well allow me to explain
             // In our eventsources we have methods that look like:
             // private void Handle(Events.MyEvent e) {}
@@ -35,35 +34,42 @@ namespace Aggregates.Internal
             // this little cache GetOrAdd is basically searching for those methods and returning an Action the caller 
             // can use to execute the method 
             var mappedType = _mapper.GetMappedTypeFor(eventType);
-            return Cache.GetOrAdd(mappedType, key =>
+            IDictionary<string, Action<IEventSource, object>> handles;
+            lock (Lock)
             {
+                if (Cache.TryGetValue(eventType, out handles))
+                    return handles;
+            }
 
-                var methods = eventsource.GetType()
+            var methods = eventsource.GetType()
                                      .GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
                                      .Where(
                                             m => (m.Name == "Handle" || m.Name == "Conflict") &&
                                              m.GetParameters().Length == 1 &&
                                              m.GetParameters().Single().ParameterType == mappedType &&
                                              m.ReturnParameter.ParameterType == typeof(void));
-                //.Select(m => new { Method = m, MessageType = m.GetParameters().Single().ParameterType });
+            //.Select(m => new { Method = m, MessageType = m.GetParameters().Single().ParameterType });
 
-                var methodInfos = methods as MethodInfo[] ?? methods.ToArray();
-                if (!methodInfos.Any())
-                    return null;
+            var methodInfos = methods as MethodInfo[] ?? methods.ToArray();
+            if (!methodInfos.Any())
+                return null;
 
-                return methodInfos.ToDictionary(x => x.Name, x => (Action<IEventSource, object>)((es, m) =>
+            handles = methodInfos.ToDictionary(x => x.Name, x => (Action<IEventSource, object>)((es, m) =>
+            {
+                try
                 {
-                    try
-                    {
-                        x.Invoke(es, new[] { m });
-                    }
-                    catch (TargetInvocationException e)
-                    {
-                        ExceptionDispatchInfo.Capture(e.InnerException).Throw();
-                    }
-                }));
+                    x.Invoke(es, new[] { m });
+                }
+                catch (TargetInvocationException e)
+                {
+                    ExceptionDispatchInfo.Capture(e.InnerException).Throw();
+                }
+            }));
 
-            });
+            lock (Lock)
+            {
+                return Cache[eventType] = handles;
+            }
         }
 
         public Action<IEventSource, object> Resolve(IEventSource eventsource, Type eventType)

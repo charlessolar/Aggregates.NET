@@ -100,18 +100,9 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Info, () => $"Disconnected from subscription.  Reason: {reason} Exception: {ex}");
 
             if (reason == SubscriptionDropReason.UserInitiated) return;
-
-            Task.Run(async () =>
-            {
-                // Restart
-                try
-                {
-                    await Connect().ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                }
-            }, _token).Wait(_token);
+            
+            // Run in task.Run because mixing .Wait and async methods is bad bad 
+            Task.Run(Connect, _token).Wait(_token);
         }
         public async Task Connect()
         {
