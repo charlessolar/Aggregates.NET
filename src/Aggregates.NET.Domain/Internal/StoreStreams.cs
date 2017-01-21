@@ -87,6 +87,7 @@ namespace Aggregates.Internal
             
             await Cache<T>(eventstream).ConfigureAwait(false);
 
+            Logger.Write(LogLevel.Debug, () => $"Stream [{streamName}] read - version is {eventstream.CommitVersion}");
             return eventstream;
         }
 

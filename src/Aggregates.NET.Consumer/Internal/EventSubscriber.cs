@@ -44,7 +44,7 @@ namespace Aggregates.Internal
             public MessageMetadataRegistry MessageMeta { get; set; }
             public JsonSerializerSettings JsonSettings { get; set; }
         }
-        
+
 
         private Thread _pinnedThread;
         private CancellationTokenSource _cancelation;
@@ -60,10 +60,10 @@ namespace Aggregates.Internal
         private readonly IEventStoreConnection[] _clients;
 
         private bool _disposed;
-        
+
 
         public EventSubscriber(MessageHandlerRegistry registry, IMessageMapper mapper,
-            MessageMetadataRegistry messageMeta, IEventStoreConnection[] connections, int concurrency, Compression compress)
+            MessageMetadataRegistry messageMeta, IEventStoreConnection[] connections, int concurrency)
         {
             _registry = registry;
             _clients = connections;
@@ -98,7 +98,8 @@ namespace Aggregates.Internal
                 var discoveredEvents =
                     _registry.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).ToList();
 
-                var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
+                // Dont use - we dont need category projection projecting our projection
+                var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}".Replace("-","");
 
                 // Link all events we are subscribing to to a stream
                 var functions =
@@ -107,20 +108,28 @@ namespace Aggregates.Internal
                             eventType => $"'{eventType.AssemblyQualifiedName}': processEvent")
                         .Aggregate((cur, next) => $"{cur},\n{next}");
 
-                var definition = $@"
+                // Don't tab this '@' will create tabs in projection definition
+                var definition = @"
 function processEvent(s,e) {{
-    linkTo('{stream}', e);
+    linkTo('{1}.{0}', e);
 }}
-fromStreams(['$ce-{StreamTypes.Domain}', '$ce-{StreamTypes.OOB}']).
+fromCategory('{0}').
 when({{
-{functions}
+{2}
 }});";
 
+                var appDefinition = string.Format(definition, StreamTypes.Domain, stream, functions);
+                var oobDefinition = string.Format(definition, StreamTypes.OOB, stream, functions);
+
+                // Create a projection for domain events and one for OOB events, later we'll subscribe as PINNED to domain events
+                // and ROUNDROBIN for OOB events.  
+                // OOB events by definition don't need ordering, so theres no reason to overload a single PINNED consumer
+                // if the user uses a ton of OOB events
                 try
                 {
-                    var existing = await manager.GetQueryAsync(stream).ConfigureAwait(false);
+                    var existing = await manager.GetQueryAsync($"{stream}.app.projection").ConfigureAwait(false);
 
-                    if (existing != definition)
+                    if (existing != appDefinition)
                     {
                         Logger.Fatal(
                             $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
@@ -134,7 +143,33 @@ when({{
                     {
                         // Projection doesn't exist 
                         await
-                            manager.CreateContinuousAsync($"{stream}.projection", definition, false,
+                            manager.CreateContinuousAsync($"{stream}.app.projection", appDefinition, false,
+                                    client.Settings.DefaultUserCredentials)
+                                .ConfigureAwait(false);
+                    }
+                    catch (ProjectionCommandFailedException)
+                    {
+                    }
+                }
+                try
+                {
+                    var existing = await manager.GetQueryAsync($"{stream}.oob.projection").ConfigureAwait(false);
+
+                    if (existing != oobDefinition)
+                    {
+                        Logger.Fatal(
+                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
+                        throw new EndpointVersionException(
+                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
+                    }
+                }
+                catch (ProjectionCommandFailedException)
+                {
+                    try
+                    {
+                        // Projection doesn't exist 
+                        await
+                            manager.CreateContinuousAsync($"{stream}.oob.projection", oobDefinition, false,
                                     client.Settings.DefaultUserCredentials)
                                 .ConfigureAwait(false);
                     }
@@ -148,6 +183,7 @@ when({{
         public Task Subscribe(CancellationToken cancelToken)
         {
             var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
+            var roundRobbinGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.ROUND";
             var pinnedGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.PINNED";
 
             _cancelation = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
@@ -175,7 +211,7 @@ when({{
                 if (_extraStats)
                     settings.WithExtraStatistics();
 
-                var pinnedClients = new PersistentClient[_clients.Count() * _concurrency];
+                var clients = new PersistentClient[_clients.Count() * _concurrency * 2];
 
                 for (var i = 0; i < _clients.Count(); i++)
                 {
@@ -192,7 +228,19 @@ when({{
                     {
                         settings.WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                         await
-                            client.CreatePersistentSubscriptionAsync($"{stream}", pinnedGroup, settings,
+                            client.CreatePersistentSubscriptionAsync($"{stream}.{StreamTypes.Domain}", pinnedGroup, settings,
+                                client.Settings.DefaultUserCredentials).ConfigureAwait(false);
+                        Logger.Info($"Created PINNED persistent subscription to stream [{stream}]");
+
+                    }
+                    catch (InvalidOperationException)
+                    {
+                    }
+                    try
+                    {
+                        settings.WithNamedConsumerStrategy(SystemConsumerStrategies.RoundRobin);
+                        await
+                            client.CreatePersistentSubscriptionAsync($"{stream}.{StreamTypes.OOB}", roundRobbinGroup, settings,
                                 client.Settings.DefaultUserCredentials).ConfigureAwait(false);
                         Logger.Info($"Created PINNED persistent subscription to stream [{stream}]");
 
@@ -201,15 +249,16 @@ when({{
                     {
                     }
 
-                    for (var j = 0; j < _concurrency; j++)
+                    for (var j = 0; j < _concurrency * 2; j += 2)
                     {
-                        pinnedClients[(i * _concurrency) + j] = new PersistentClient(client, $"{stream}", pinnedGroup, j, clientCancelSource.Token);
+                        clients[(i * _concurrency) + j] = new PersistentClient(client, $"{stream}.{StreamTypes.Domain}", pinnedGroup, j, clientCancelSource.Token);
+                        clients[(i * _concurrency) + j + 1] = new PersistentClient(client, $"{stream}.{StreamTypes.OOB}", roundRobbinGroup, j, clientCancelSource.Token);
                     }
                 }
 
                 _pinnedThread = new Thread(Threaded)
                 { IsBackground = true, Name = $"Main Event Thread" };
-                _pinnedThread.Start(new ThreadParam { Token = cancelToken, Clients = pinnedClients, MessageMeta = _messageMeta, JsonSettings = _settings });
+                _pinnedThread.Start(new ThreadParam { Token = cancelToken, Clients = clients, MessageMeta = _messageMeta, JsonSettings = _settings });
 
             });
 
@@ -220,9 +269,12 @@ when({{
         {
             var param = (ThreadParam)state;
 
-            Task.WhenAll(param.Clients.Select(x => x.Connect())).Wait();
+            param.Clients.SelectAsync(x => x.Connect()).Wait();
 
+            var threadIdle = Metric.Timer("Process Events Idle", Unit.None);
             var tasks = new Task[param.Clients.Count()];
+
+            TimerContext? idleContext = threadIdle.NewContext();
             while (true)
             {
                 param.Token.ThrowIfCancellationRequested();
@@ -243,24 +295,26 @@ when({{
                     var @event = e.Event;
 
                     Logger.Write(LogLevel.Debug,
-                        () =>
-                                $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
-                    
+                        () => $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
+
                     noEvents = false;
+
+                    idleContext?.Dispose();
+                    idleContext = null;
 
                     tasks[i] = Task.Run(async () =>
                     {
                         await ProcessEvent(param.MessageMeta, param.JsonSettings, @event, param.Token).ConfigureAwait(false);
 
                         Logger.Write(LogLevel.Debug,
-                            () =>
-                                    $"Scheduling acknowledge event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
+                            () => $"Scheduling acknowledge event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
                         client.Acknowledge(e);
                     }, param.Token);
                 }
+                if (idleContext == null)
+                    idleContext = threadIdle.NewContext();
                 // Cheap hack to not burn cpu incase there are no events
-                if (noEvents) Thread.Sleep(100);
-
+                if (noEvents) Thread.Sleep(10);
             }
 
 
@@ -275,7 +329,7 @@ when({{
             var data = @event.Data;
 
             var descriptor = metadata.Deserialize(settings);
-            
+
             if (descriptor.Compressed)
                 data = data.Decompress();
 
@@ -326,7 +380,6 @@ when({{
                             ErrorHandleResult.Handled)
                             break;
 
-                        await Task.Delay(100 * numberOfDeliveryAttempts, token).ConfigureAwait(false);
                     }
                 }
             }
@@ -336,7 +389,6 @@ when({{
         private static async Task PoisonEvent(MessageMetadataRegistry messageMeta, JsonSerializerSettings settings, RecordedEvent e)
         {
             var transportTransaction = new TransportTransaction();
-            var contextBag = new ContextBag();
 
             var descriptor = e.Metadata.Deserialize(settings);
 

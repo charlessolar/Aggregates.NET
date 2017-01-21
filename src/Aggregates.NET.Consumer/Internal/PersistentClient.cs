@@ -21,6 +21,7 @@ namespace Aggregates.Internal
         private readonly Metrics.Counter Queued;
         private readonly Metrics.Counter Processed;
         private readonly Metrics.Counter Acknowledged;
+        private readonly Metrics.Timer Idle;
 
         private readonly IEventStoreConnection _client;
         private readonly string _stream;
@@ -30,13 +31,14 @@ namespace Aggregates.Internal
         // Todo: Change to List<Guid> when/if PR 1143 is published
         private readonly List<ResolvedEvent> _toAck;
         private readonly object _ackLock;
-        private readonly Timer _acknowledger;
+        private readonly Task _acknowledger;
         private readonly ConcurrentQueue<ResolvedEvent> _waitingEvents;
 
         private EventStorePersistentSubscriptionBase _subscription;
+        private TimerContext _idleContext;
 
         public bool Live { get; private set; }
-        public string Id => $"{_client.Settings.GossipSeeds[0].EndPoint.Address}.{_stream.Substring(0, 3)}.{_index}";
+        public string Id => $"{_client.Settings.GossipSeeds[0].EndPoint.Address}.{_stream.Substring(_stream.LastIndexOf(".")+1)}.{_index}";
 
         private bool _disposed;
 
@@ -54,9 +56,10 @@ namespace Aggregates.Internal
             Queued = Metric.Context("Subscription Clients").Context(Id).Counter("Queued", Unit.Events);
             Processed = Metric.Context("Subscription Clients").Context(Id).Counter("Processed", Unit.Events);
             Acknowledged = Metric.Context("Subscription Clients").Context(Id).Counter("Acknowledged", Unit.Events);
+            Idle = Metric.Context("Subscription Clients").Context(Id).Timer("Idle", Unit.None);
+            
 
-
-            _acknowledger = new Timer(state =>
+            _acknowledger = Timer.Repeat(state =>
             {
                 var info = (PersistentClient)state;
 
@@ -66,7 +69,8 @@ namespace Aggregates.Internal
                     toAck = info._toAck.ToArray();
                     info._toAck.Clear();
                 }
-                if (!toAck.Any()) return;
+                if (!toAck.Any())
+                    return Task.CompletedTask;
 
                 if (!info.Live)
                     throw new InvalidOperationException(
@@ -82,7 +86,8 @@ namespace Aggregates.Internal
                     info._subscription.Acknowledge(working);
                     page += 2000;
                 }
-            }, this, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+                return Task.CompletedTask;
+            }, this, TimeSpan.FromSeconds(5), token);
 
         }
 
@@ -142,7 +147,7 @@ namespace Aggregates.Internal
             _subscription = await _client.ConnectToPersistentSubscriptionAsync(_stream, _group,
                 eventAppeared: EventAppeared,
                 subscriptionDropped: SubscriptionDropped,
-                bufferSize: 100,
+                bufferSize: 500,
                 autoAck: false).ConfigureAwait(false);
             Live = true;
         }
@@ -153,6 +158,7 @@ namespace Aggregates.Internal
                 throw new InvalidOperationException("Cannot ACK an event, subscription is dead");
 
             Processed.Increment();
+            _idleContext.Dispose();
             lock (_ackLock) _toAck.Add(@event);
         }
 
@@ -163,6 +169,7 @@ namespace Aggregates.Internal
             {
                 Queued.Decrement();
                 QueuedEvents.Decrement();
+                _idleContext = Idle.NewContext();
                 return true;
             }
             return false;

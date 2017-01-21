@@ -24,7 +24,7 @@ namespace Aggregates.Internal
         private static readonly HashSet<string> RecentEvictions = new HashSet<string>();
         private static readonly object Lock = new object();
         private static int _stage;
-        private static readonly Timer CachableEviction = new Timer(_ =>
+        private static readonly System.Threading.Timer CachableEviction = new System.Threading.Timer(_ =>
         {
             // Clear cachable every 10 minutes
             if (_stage % 120 == 0)

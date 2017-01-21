@@ -37,13 +37,13 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger("EventStoreDelayed");
         private static readonly object WaitingLock = new object();
         private static readonly Dictionary<string, List<IWritableEvent>> WaitingToBeWritten = new Dictionary<string, List<IWritableEvent>>();
-        private static Timer _flusher;
+        private static Task _flusher;
 
         private static readonly ConcurrentDictionary<string, Tuple<DateTime, object>> Cache = new ConcurrentDictionary<string, Tuple<DateTime, object>>();
         private static readonly Dictionary<string, DateTime> RecentlyPulled = new Dictionary<string, DateTime>();
         private static readonly object RecentLock = new object();
 
-        private static readonly Timer Expiring = new Timer(_ =>
+        private static readonly Task Expiring = Timer.Repeat(() =>
         {
             lock (RecentLock)
             {
@@ -51,7 +51,8 @@ namespace Aggregates.Internal
                 foreach (var e in expired)
                     RecentlyPulled.Remove(e.Key);
             }
-        }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+            return Task.CompletedTask;
+        }, TimeSpan.FromSeconds(2));
 
 
         private readonly IStoreEvents _store;
@@ -62,7 +63,7 @@ namespace Aggregates.Internal
         private Dictionary<string, InFlightInfo> _inFlight;
         private List<Tuple<string, WritableEvent>> _uncommitted;
 
-        static void Flush(object state)
+        static async Task Flush(object state)
         {
             var eventstore = state as IStoreEvents;
 
@@ -74,7 +75,7 @@ namespace Aggregates.Internal
             }
             Logger.Write(LogLevel.Debug, () => $"Flushing {waiting.Count} channels with {waiting.Values.Sum(x => x.Count())} events");
 
-            Task.Run(() => waiting.ToArray().StartEachAsync(3, async (channel) =>
+            await waiting.SelectAsync(async (channel) =>
             {
                 try
                 {
@@ -92,7 +93,7 @@ namespace Aggregates.Internal
                         WaitingToBeWritten[channel.Key].AddRange(channel.Value);
                     }
                 }
-            })).Wait();
+            }).ConfigureAwait(false);
 
         }
 
@@ -106,8 +107,8 @@ namespace Aggregates.Internal
             {
                 // Add a process exit event handler to flush cached delayed events before exiting the app
                 // Not perfect in the case of a fatal app error - but something
-                AppDomain.CurrentDomain.ProcessExit += (sender, e) => Flush(store);
-                _flusher = new Timer(Flush, store, flushInterval.Value, flushInterval.Value);
+                AppDomain.CurrentDomain.ProcessExit += (sender, e) => Flush(store).Wait();
+                _flusher = Timer.Repeat(Flush, store, flushInterval.Value);
             }
         }
 
@@ -121,7 +122,7 @@ namespace Aggregates.Internal
         public async Task End(Exception ex = null)
         {
             Logger.Write(LogLevel.Debug, () => $"Saving {_inFlight.Count()} {(ex == null ? "ACKs" : "NACKs")}");
-            await Task.WhenAll(_inFlight.ToList().Select(x => ex == null ? Ack(x.Key) : NAck(x.Key))).ConfigureAwait(false);
+            await _inFlight.ToList().SelectAsync(x => ex == null ? Ack(x.Key) : NAck(x.Key)).ConfigureAwait(false);
             if (ex == null && _flusher != null)
             {
                 Logger.Write(LogLevel.Debug, () => $"Scheduling save of {_uncommitted.Count()} delayed streams");
@@ -139,8 +140,7 @@ namespace Aggregates.Internal
             if (ex == null && _flusher == null)
             {
                 Logger.Write(LogLevel.Debug, () => $"Saving {_uncommitted.Count()} delayed streams");
-                await _uncommitted.GroupBy(x => x.Item1).ToArray().StartEachAsync(3, (x) => _store.WriteEvents(x.Key, x.Select(y => y.Item2), null)).ConfigureAwait(false);
-
+                await _uncommitted.GroupBy(x => x.Item1).SelectAsync(x => _store.WriteEvents(x.Key, x.Select(y => y.Item2), null)).ConfigureAwait(false);
             }
         }
 

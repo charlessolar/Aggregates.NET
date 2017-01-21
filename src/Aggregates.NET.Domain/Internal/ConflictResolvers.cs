@@ -26,7 +26,13 @@ namespace Aggregates.Internal
             });
         public static ConcurrencyStrategy Discard = new ConcurrencyStrategy(ConcurrencyConflict.Discard, "Discard", (b, _) => b.Build<DiscardConflictResolver>());
         public static ConcurrencyStrategy ResolveStrongly = new ConcurrencyStrategy(ConcurrencyConflict.ResolveStrongly, "ResolveStrongly", (b, _) => b.Build<ResolveStronglyConflictResolver>());
-        public static ConcurrencyStrategy ResolveWeakly = new ConcurrencyStrategy(ConcurrencyConflict.ResolveWeakly, "ResolveWeakly", (b, _) => b.Build<ResolveWeaklyConflictResolver>());
+        public static ConcurrencyStrategy ResolveWeakly = new ConcurrencyStrategy(ConcurrencyConflict.ResolveWeakly, "ResolveWeakly",
+            (b, _) =>
+            {
+                var settings = b.Build<ReadOnlySettings>();
+                return new ResolveWeaklyConflictResolver(b.Build<IStoreStreams>(), b.Build<IDelayedChannel>(),
+                    settings.Get<StreamIdGenerator>("StreamGenerator"));
+            });
         public static ConcurrencyStrategy Custom = new ConcurrencyStrategy(ConcurrencyConflict.Custom, "Custom", (b, type) => (IResolveConflicts)b.Build(type));
 
         public ConcurrencyStrategy(ConcurrencyConflict value, string displayName, ResolverBuilder builder) : base(value, displayName)
@@ -158,11 +164,13 @@ namespace Aggregates.Internal
 
         private readonly IStoreStreams _store;
         private readonly IDelayedChannel _delay;
+        private readonly StreamIdGenerator _streamGen;
 
-        public ResolveWeaklyConflictResolver(IStoreStreams eventstore, IDelayedChannel delay)
+        public ResolveWeaklyConflictResolver(IStoreStreams eventstore, IDelayedChannel delay, StreamIdGenerator streamGen)
         {
             _store = eventstore;
             _delay = delay;
+            _streamGen = streamGen;
         }
 
         public async Task Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
@@ -170,11 +178,12 @@ namespace Aggregates.Internal
             // Store conflicting events in memory
             // After 100 or so pile up pull the latest stream and attempt to write them again
 
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, entity.Bucket, entity.StreamId);
             foreach (var @event in uncommitted)
-                await _delay.AddToQueue(entity.StreamId, @event).ConfigureAwait(false);
+                await _delay.AddToQueue(streamName, @event).ConfigureAwait(false);
 
             // Todo: make 30 seconds configurable
-            var age = await _delay.Age(entity.StreamId).ConfigureAwait(false);
+            var age = await _delay.Age(streamName).ConfigureAwait(false);
             if (!age.HasValue || age < TimeSpan.FromSeconds(30))
                 return;
 
@@ -191,7 +200,7 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Debug, () => $"Stopping weak conflict resolve - someone else is processing");
                     return;
                 }
-                uncommitted = (await _delay.Pull(entity.StreamId).ConfigureAwait(false)).Cast<IWritableEvent>();
+                uncommitted = (await _delay.Pull(streamName).ConfigureAwait(false)).Cast<IWritableEvent>();
                 // If someone else pulled while we were waiting
                 if (!uncommitted.Any())
                     return;
@@ -203,7 +212,7 @@ namespace Aggregates.Internal
                     await
                         _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1)
                             .ConfigureAwait(false);
-                Logger.Write(LogLevel.Debug, () => $"Stream is {latestEvents.Count()} events behind store");
+                Logger.Write(LogLevel.Debug, () => $"Stream [{stream.StreamId}] bucket [{stream.Bucket}] is {latestEvents.Count()} events behind store");
 
                 var writableEvents = latestEvents as IWritableEvent[] ?? latestEvents.ToArray();
                 stream.Concat(writableEvents);

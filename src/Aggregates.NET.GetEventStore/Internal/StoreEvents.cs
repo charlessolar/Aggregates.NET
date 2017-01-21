@@ -25,8 +25,8 @@ namespace Aggregates.Internal
         private static readonly Histogram ReadEvents = Metric.Histogram("Read Events", Unit.Events);
         private static readonly Histogram WrittenEventsSize = Metric.Histogram("Written Events Size", Unit.Bytes);
         private static readonly Histogram ReadEventsSize = Metric.Histogram("Read Events Size", Unit.Bytes);
-        private static readonly Timer ReadTime = Metric.Timer("EventStore Read Time", Unit.Items);
-        private static readonly Timer WriteTime = Metric.Timer("EventStore Write Time", Unit.Items);
+        private static readonly Metrics.Timer ReadTime = Metric.Timer("EventStore Read Time", Unit.Items);
+        private static readonly Metrics.Timer WriteTime = Metric.Timer("EventStore Write Time", Unit.Items);
 
         private static readonly ILog Logger = LogManager.GetLogger("StoreEvents");
         private static readonly ILog SlowLogger = LogManager.GetLogger("Slow");
@@ -336,7 +336,7 @@ namespace Aggregates.Internal
                 catch (WrongExpectedVersionException e)
                 {
                     transaction?.Rollback();
-                    throw new VersionException(e.Message, e);
+                    throw new VersionException($"We expected version {expectedVersion ?? ExpectedVersion.Any}", e);
                 }
                 catch (CannotEstablishConnectionException e)
                 {

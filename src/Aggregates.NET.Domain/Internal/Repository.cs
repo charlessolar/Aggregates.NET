@@ -63,9 +63,9 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Repository {typeof(T).FullName} starting prepare {commitId}");
 
             return
-                Tracked.Values.Where(x => !x.Stream.Dirty)
+                Tracked.Values
                     .ToArray()
-                    .StartEachAsync(3, async (x) =>
+                    .SelectAsync(async (x) =>
                     {
                         try
                         {
@@ -88,7 +88,7 @@ namespace Aggregates.Internal
                 await Tracked.Values
                     .Where(x => x.Stream.Dirty)
                     .ToArray()
-                    .StartEachAsync(3, async (tracked) =>
+                    .SelectAsync(async (tracked) =>
                     {
                         var headers = new Dictionary<string, string>(commitHeaders);
 
@@ -127,7 +127,7 @@ namespace Aggregates.Internal
                             {
                                 Logger.Write(LogLevel.Debug,
                                     () =>
-                                            $"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} version {stream.StreamVersion} has version conflicts with store - Message: {e.Message}");
+                                            $"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} version {stream.StreamVersion} has version conflicts with store - Message: {e.Message} Store: {e.InnerException?.Message}");
 
 
                                 using (ConflictResolutionTime.NewContext())
@@ -248,7 +248,6 @@ namespace Aggregates.Internal
 
         public async Task<T> Get<TId>(string bucket, TId id)
         {
-            Logger.Write(LogLevel.Debug, () => $"Retreiving aggregate id [{id}] in bucket [{bucket}] for type {typeof(T).FullName} in store");
             var root = await Get(bucket, id.ToString()).ConfigureAwait(false);
             (root as IEventSource<TId>).Id = id;
             return root;
@@ -264,10 +263,19 @@ namespace Aggregates.Internal
         }
         private async Task<T> GetUntracked(string bucket, string streamId)
         {
+            Logger.Write(LogLevel.Debug, () => $"Retreiving aggregate id [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} in store");
             ISnapshot snapshot = null;
             if (typeof(ISnapshotting).IsAssignableFrom(typeof(T)))
+            {
                 snapshot = await _snapstore.GetSnapshot<T>(bucket, streamId).ConfigureAwait(false);
-
+                Logger.Write(LogLevel.Debug, () =>
+                {
+                    if (snapshot != null)
+                        return $"Retreived snapshot for aggregate id [{streamId}] version {snapshot.Version}";
+                    return $"No snapshot found for aggregate id [{streamId}]";
+                });
+            }
+            
             var stream = await _store.GetStream<T>(bucket, streamId, snapshot).ConfigureAwait(false);
 
             return await GetUntracked(stream).ConfigureAwait(false);

@@ -43,5 +43,6 @@ namespace Aggregates.Extensions
             foreach (var val in values)
                 await asyncAction.Invoke(val).ConfigureAwait(false);
         }
+        
     }
 }

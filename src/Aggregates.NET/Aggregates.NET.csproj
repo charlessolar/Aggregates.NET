@@ -119,6 +119,7 @@
     <Compile Include="Internal\Snapshot.cs" />
     <Compile Include="Internal\StreamPosition.cs" />
     <Compile Include="Internal\TimeExecutionBehavior.cs" />
+    <Compile Include="Internal\Timer.cs" />
     <Compile Include="Internal\WritableEvent.cs" />
     <Compile Include="IApplicationUnitOfWork.cs" />
     <Compile Include="Messages\Accept.cs" />

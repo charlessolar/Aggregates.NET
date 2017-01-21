@@ -39,9 +39,8 @@ namespace Aggregates
                 if (!settings.TryGet<IEventStoreConnection[]>("Shards", out connections))
                     connections = new[] { b.Build<IEventStoreConnection>() };
                 var concurrency = settings.Get<int>("ParallelEvents");
-                var compress = settings.Get<Compression>("Compress");
 
-                return new EventSubscriber(b.Build<MessageHandlerRegistry>(), b.Build<IMessageMapper>(), b.Build<MessageMetadataRegistry>(), connections, concurrency, compress);
+                return new EventSubscriber(b.Build<MessageHandlerRegistry>(), b.Build<IMessageMapper>(), b.Build<MessageMetadataRegistry>(), connections, concurrency);
             }, DependencyLifecycle.SingleInstance);
 
             context.Container.ConfigureComponent(b =>

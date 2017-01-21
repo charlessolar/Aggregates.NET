@@ -19,10 +19,10 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger("ApplicationUnitOfWork");
 
         private static readonly Meter MessagesMeter = Metric.Meter("Messages", Unit.Items);
-        private static readonly Timer MessagesTimer = Metric.Timer("Message Duration", Unit.Items);
-        private static readonly Timer BeginTimer = Metric.Timer("UOW Begin Duration", Unit.Items);
-        private static readonly Timer ProcessTimer = Metric.Timer("UOW Process Duration", Unit.Items);
-        private static readonly Timer EndTimer = Metric.Timer("UOW End Duration", Unit.Items);
+        private static readonly Metrics.Timer MessagesTimer = Metric.Timer("Message Duration", Unit.Items);
+        private static readonly Metrics.Timer BeginTimer = Metric.Timer("UOW Begin Duration", Unit.Items);
+        private static readonly Metrics.Timer ProcessTimer = Metric.Timer("UOW Process Duration", Unit.Items);
+        private static readonly Metrics.Timer EndTimer = Metric.Timer("UOW End Duration", Unit.Items);
         private static readonly Counter MessagesConcurrent = Metric.Counter("Messages Concurrent", Unit.Items);
 
         private static readonly Meter ErrorsMeter = Metric.Meter("UOW Errors", Unit.Errors);
@@ -80,14 +80,16 @@ namespace Aggregates.Internal
                             
                             try
                             {
-                                await uow.End().ConfigureAwait(false);
+                                // ConfigureAwait trye because we don't want uow.End running in parrallel
+                                await uow.End().ConfigureAwait(true);
                             }
                             finally
                             {
-                                await _persistence.Save(context.MessageId, uow.GetType(), uow.Bag).ConfigureAwait(false);
+                                await _persistence.Save(context.MessageId, uow.GetType(), uow.Bag).ConfigureAwait(true);
                             }
                         }
                     }
+                    // Only clear context bags once all UOWs complete successfully
                     await _persistence.Clear(context.MessageId).ConfigureAwait(false);
                 }
 
@@ -106,13 +108,13 @@ namespace Aggregates.Internal
                         {
                             Logger.Write(LogLevel.Debug,
                                 () => $"Running UOW.End with exception [{e.GetType().Name}] for message {context.MessageId} on {uow.GetType().FullName}");
-                            await uow.End(e).ConfigureAwait(false);
+                            await uow.End(e).ConfigureAwait(true);
                         }
                         catch (Exception endException)
                         {
                             trailingExceptions.Add(endException);
                         }
-                        await _persistence.Save(context.MessageId, uow.GetType(), uow.Bag).ConfigureAwait(false);
+                        await _persistence.Save(context.MessageId, uow.GetType(), uow.Bag).ConfigureAwait(true);
                     }
                 }
 

@@ -200,7 +200,7 @@ namespace Aggregates.Internal
             using (PrepareTime.NewContext())
             {
                 // First check all streams read but not modified - if the store has a different version a VersionException will be thrown
-                await allRepos.StartEachAsync(3, (x) => x.Prepare(CommitId)).ConfigureAwait(false);
+                await allRepos.SelectAsync(x => x.Prepare(CommitId)).ConfigureAwait(false);
             }
 
             // this log message can be expensive as the list is computed for a check
@@ -220,7 +220,7 @@ namespace Aggregates.Internal
 
             using (var ctx = CommitTime.NewContext())
             {
-                await allRepos.StartEachAsync(3, (x) => x.Commit(CommitId, headers)).ConfigureAwait(false);
+                await allRepos.SelectAsync(x => x.Commit(CommitId, headers)).ConfigureAwait(false);
 
                 if(ctx.Elapsed > TimeSpan.FromSeconds(1))
                     SlowLogger.Write(LogLevel.Warn, () => $"Commit id {CommitId} took {ctx.Elapsed.TotalSeconds} seconds!");
