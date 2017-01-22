@@ -29,6 +29,18 @@ namespace Aggregates
         }
 
         /// <summary>
+        /// The maximum amount of messages to read when pulling from a delayed channel
+        /// Prevents a high traffic stream from slowing down general message processing by
+        /// limiting the amount of messages to handle in bulk
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <param name="max"></param>
+        public static void MaxPulledDelayed(this ExposeSettings settings, int max)
+        {
+            settings.GetSettings().Set("MaxPulledDelayed", max);
+        }
+
+        /// <summary>
         /// Compress events and messages using GZip (default snapshots only)
         /// </summary>
         /// <param name="settings"></param>

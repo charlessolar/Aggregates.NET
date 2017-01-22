@@ -33,8 +33,12 @@ namespace Aggregates.Internal
             public DateTime At { get; set; }
             public int Position { get; set; }
         }
-        private static readonly Histogram Delayed = Metric.Histogram("Delayed Channel Size", Unit.Items);
+        private static readonly Histogram DelayedRead = Metric.Histogram("Delayed Channel Read", Unit.Items);
+        private static readonly Histogram DelayedSize = Metric.Histogram("Delayed Channel Size", Unit.Items);
+        private static readonly Histogram DelayedAge = Metric.Histogram("Delayed Channel Age", Unit.Items);
         private static readonly ILog Logger = LogManager.GetLogger("EventStoreDelayed");
+        private static readonly ILog SlowLogger = LogManager.GetLogger("Slow");
+
         private static readonly object WaitingLock = new object();
         private static readonly Dictionary<string, List<IWritableEvent>> WaitingToBeWritten = new Dictionary<string, List<IWritableEvent>>();
         private static Task _flusher;
@@ -165,13 +169,16 @@ namespace Aggregates.Internal
 
             try
             {
-                int at;
                 var metadata = await _store.GetMetadata(streamName, "At").ConfigureAwait(false);
                 if (!string.IsNullOrEmpty(metadata))
                 {
-                    at = int.Parse(metadata);
+                    var at = int.Parse(metadata);
                     Logger.Write(LogLevel.Debug, () => $"Got age from metadata of delayed channel [{channel}]");
-                    return TimeSpan.FromSeconds(DateTime.UtcNow.ToUnixTime() - at);
+                    var age = TimeSpan.FromSeconds(DateTime.UtcNow.ToUnixTime() - at);
+                    if (age > TimeSpan.FromMinutes(30))
+                        SlowLogger.Write(LogLevel.Warn, () => $"Delayed channel [{channel}] is {age.TotalMinutes} minutes old!");
+                    DelayedAge.Update(age.Ticks);
+                    return age;
                 }
             }
             catch (FrozenException)
@@ -190,7 +197,11 @@ namespace Aggregates.Internal
                     Cache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow,
                         firstEvent.Single().Descriptor.Timestamp);
                     Logger.Write(LogLevel.Debug, () => $"Got age from first event of delayed channel [{channel}]");
-                    return DateTime.UtcNow - firstEvent.Single().Descriptor.Timestamp;
+                    var age = DateTime.UtcNow - firstEvent.Single().Descriptor.Timestamp;
+                    if (age > TimeSpan.FromMinutes(30))
+                        SlowLogger.Write(LogLevel.Warn, () => $"Delayed channel [{channel}] is {age.TotalMinutes} minutes old!");
+                    DelayedAge.Update(age.Ticks);
+                    return age;
                 }
             }
             catch (NotFoundException) { }
@@ -250,7 +261,11 @@ namespace Aggregates.Internal
                         lastEvent.Single().Descriptor.Version - lastPosition);
                     Logger.Write(LogLevel.Debug,
                         () => $"Got size from metadata and last event of delayed channel [{channel}]");
-                    return ((lastEvent.Single().Descriptor.Version - lastPosition) + 1);
+                    var size= ((lastEvent.Single().Descriptor.Version - lastPosition) + 1);
+                    if (size > 5000)
+                        SlowLogger.Write(LogLevel.Warn, () => $"Delayed channel [{channel}] size is {size}!");
+                    DelayedSize.Update(size);
+                    return size;
                 }
             }
             catch (NotFoundException) { }
@@ -290,7 +305,7 @@ namespace Aggregates.Internal
             return Task.CompletedTask;
         }
 
-        public async Task<IEnumerable<object>> Pull(string channel)
+        public async Task<IEnumerable<object>> Pull(string channel, int? max=null)
         {
             var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
             Logger.Write(LogLevel.Debug, () => $"Pulling delayed objects from channel [{channel}]");
@@ -335,7 +350,7 @@ namespace Aggregates.Internal
                     await _store.WriteMetadata(streamName, frozen: true, owner: Defaults.Instance).ConfigureAwait(false);
                     didFreeze = true;
                     
-                    delayed = await _store.GetEvents(streamName, lastPosition).ConfigureAwait(false) ?? new IWritableEvent[] { }.AsEnumerable();
+                    delayed = await _store.GetEvents(streamName, lastPosition, count: max).ConfigureAwait(false) ?? new IWritableEvent[] { }.AsEnumerable();
 
                     if (!delayed.Any())
                         throw new Exception("No delayed messages");
@@ -384,7 +399,7 @@ namespace Aggregates.Internal
                 foreach (var e in existing)
                     _uncommitted.Remove(e);
             }
-            Delayed.Update(discovered.Count() + existing.Count);
+            DelayedRead.Update(discovered.Count() + existing.Count);
 
             var messages = discovered.Concat(existing.Select(x => x.Item2.Event));
             Logger.Write(LogLevel.Debug, () => $"Got {messages.Count()} delayed messages from channel [{channel}]");

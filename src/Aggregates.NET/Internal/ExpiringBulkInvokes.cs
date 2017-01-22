@@ -64,6 +64,8 @@ namespace Aggregates.Internal
 
         public async Task End(Exception ex = null)
         {
+            if (ex != null) return;
+
             lock (CheckLock)
             {
                 if ((DateTime.UtcNow - _lastCheck).TotalSeconds < 10)

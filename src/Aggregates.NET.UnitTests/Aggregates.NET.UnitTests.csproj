@@ -71,6 +71,7 @@
   </Choose>
   <ItemGroup>
     <Compile Include="Common\Enumeration.cs" />
+    <Compile Include="Common\Internal\ApplicationUnitOfWork.cs" />
     <Compile Include="Common\Internal\ExceptionRejector.cs" />
     <Compile Include="Common\Internal\MutateOutgoingCommands.cs" />
     <Compile Include="Common\Specifications\ExpressionSerialization.cs" />

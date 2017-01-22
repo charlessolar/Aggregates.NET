@@ -74,8 +74,7 @@ namespace Aggregates.Internal
                             .ConfigureAwait(false);
 
                     Logger.Write(LogLevel.Debug,
-                        () =>
-                                $"Read {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
+                        () => $"Read {current.Events.Length} events from position {sliceStart}. Status: {current.Status} LastEventNumber: {current.LastEventNumber} NextEventNumber: {current.NextEventNumber}");
 
                     events.AddRange(current.Events);
                     sliceStart = current.NextEventNumber;
@@ -309,8 +308,8 @@ namespace Aggregates.Internal
                 EventStoreTransaction transaction = null;
                 try
                 {
-                    //if (translatedEvents.Count > _readsize)
-                    //    transaction = await _clients[bucket].StartTransactionAsync(stream, expectedVersion ?? ExpectedVersion.Any).ConfigureAwait(false);
+                    if (events.Count() > _readsize)
+                        transaction = await _clients[bucket].StartTransactionAsync(stream, expectedVersion ?? ExpectedVersion.Any).ConfigureAwait(false);
 
                     if (transaction != null)
                     {
@@ -370,27 +369,39 @@ namespace Aggregates.Internal
 
             var existing = await _clients[bucket].GetStreamMetadataAsync(stream).ConfigureAwait(false);
 
-            if ((existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) &&
-                existing.StreamMetadata?.GetValue<string>("owner") != Defaults.Instance.ToString())
+            try
             {
-                FrozenExceptions.Mark();
-                throw new VersionException("Stream is frozen - we are not the owner");
-            }
-            if (frozen.HasValue && !force && frozen == false && (
-                    existing.StreamMetadata == null ||
-                    (existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) == false ||
-                    existing.StreamMetadata?.GetValue<string>("owner") != Defaults.Instance.ToString()))
-            {
-                FrozenExceptions.Mark();
-                throw new FrozenException();
-            }
+                if ((existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) &&
+                    existing.StreamMetadata?.GetValue<string>("owner") != Defaults.Instance.ToString())
+                {
+                    FrozenExceptions.Mark();
+                    throw new VersionException("Stream is frozen - we are not the owner");
+                }
+                if (frozen.HasValue && !force && frozen == false && (
+                        existing.StreamMetadata == null ||
+                        (existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) == false ||
+                        existing.StreamMetadata?.GetValue<string>("owner") != Defaults.Instance.ToString()))
+                {
+                    FrozenExceptions.Mark();
+                    throw new FrozenException();
+                }
 
-            // If we are trying to freeze the stream that we've already frozen (to prevent multiple threads from attempting to process the same frozen data)
-            if (frozen.HasValue && frozen == true && (existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) &&
-                existing.StreamMetadata?.GetValue<string>("owner") == Defaults.Instance.ToString())
+                // If we are trying to freeze the stream that we've already frozen (to prevent multiple threads from attempting to process the same frozen data)
+                if (frozen.HasValue && frozen == true &&
+                    (existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) &&
+                    existing.StreamMetadata?.GetValue<string>("owner") == Defaults.Instance.ToString())
+                {
+                    FrozenExceptions.Mark();
+                    throw new FrozenException();
+                }
+            }
+            catch (FrozenException)
             {
-                FrozenExceptions.Mark();
-                throw new FrozenException();
+
+                var time = existing.StreamMetadata.GetValue<long>("frozen");
+                if ((DateTime.UtcNow.ToUnixTime() - time) > 60)
+                    SlowLogger.Write(LogLevel.Warn, () => $"Stream [{stream}] has been frozen for {DateTime.UtcNow.ToUnixTime() - time} seconds!");
+                throw;
             }
 
             var metadata = StreamMetadata.Build();

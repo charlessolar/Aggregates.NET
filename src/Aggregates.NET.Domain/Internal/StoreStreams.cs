@@ -65,7 +65,7 @@ namespace Aggregates.Internal
             if (_shouldCache)
             {
                 var cached = _cache.Retreive(streamName) as EventStream<T>;
-                if (cached != null && (snapshot == null || cached.CommitVersion >= (snapshot.Version + 1)))
+                if (cached != null)
                 {
                     HitMeter.Mark();
                     Logger.Write(LogLevel.Debug, () => $"Found stream [{streamName}] in cache");
@@ -127,6 +127,8 @@ namespace Aggregates.Internal
             // New streams dont need verification
             if (stream.CommitVersion == -1) return;
 
+            Logger.Write(LogLevel.Debug, () => $"Stream [{stream.StreamId}] in bucket [{stream.Bucket}] for type {typeof(T).FullName} verifying stream version {stream.CommitVersion}");
+
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId);
 
             var last = await _store.GetEventsBackwards(streamName, count: 1).ConfigureAwait(false);
@@ -135,6 +137,8 @@ namespace Aggregates.Internal
             if (last.First().Descriptor.Version != stream.CommitVersion)
                 throw new VersionException(
                     $"Expected version {stream.CommitVersion} on stream [{streamName}] - but read {last.First().Descriptor.Version}");
+
+            Logger.Write(LogLevel.Debug, () => $"Verified version of stream [{stream.StreamId}] in bucket [{stream.Bucket}] for type {typeof(T).FullName}");
         }
 
         public async Task Freeze<T>(string bucket, string streamId) where T : class, IEventSource

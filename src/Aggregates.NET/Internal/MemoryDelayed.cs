@@ -49,13 +49,23 @@ namespace Aggregates.Internal
             return Task.CompletedTask;
         }
 
-        public Task<IEnumerable<object>> Pull(string channel)
+        public Task<IEnumerable<object>> Pull(string channel, int? max =null)
         {
             Tuple<DateTime, LinkedList<object>> existing;
             if (InFlight.ContainsKey(channel) || !Store.TryRemove(channel, out existing))
                 return Task.FromResult(new object[] {}.AsEnumerable());
 
             InFlight[channel] = existing;
+
+            if (max.HasValue)
+            {
+                var objects = existing.Item2.Take(max.Value).ToList();
+                for (var i = 0; i < max; i++)
+                    existing.Item2.RemoveFirst();
+
+                Store.TryAdd(channel, existing);
+                return Task.FromResult(objects.AsEnumerable());
+            }
 
             return Task.FromResult(existing.Item2.AsEnumerable());
         }

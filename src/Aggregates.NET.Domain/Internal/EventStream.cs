@@ -22,7 +22,10 @@ namespace Aggregates.Internal
         public string StreamId { get; }
 
         public int StreamVersion => CommitVersion + Uncommitted.Count();
-        public int CommitVersion => (LastSnapshot ?? 0) + Committed.Count() - 1;
+        // +1 because Version is 0 indexed.  If we have a stream of 100 events with a snapshot at event 100 the snapshot version would be 100
+        // When we read the stream we'll get 1 snapshot and 0 events making CommitVersion 99 if no +1
+        // -1 because if you have a stream with 1 event CommitVersion should be 0
+        public int CommitVersion => (LastSnapshot + 1 ?? 0) + Committed.Count() - 1;
 
         public object CurrentMemento => _snapshot?.Payload;
         public int? LastSnapshot => _snapshot?.Version;
@@ -175,7 +178,7 @@ namespace Aggregates.Internal
                 Bucket = Bucket,
                 StreamId = StreamId,
                 Payload = memento,
-                Version = StreamVersion + 1,
+                Version = StreamVersion,
                 EntityType = memento.GetType().AssemblyQualifiedName,
                 Timestamp = DateTime.UtcNow,
             };
@@ -184,8 +187,6 @@ namespace Aggregates.Internal
 
         public Task VerifyVersion(Guid commitId)
         {
-            Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] for type {typeof(T).FullName} verifying stream version {CommitVersion}");
-
             return _store.VerifyVersion<T>(this);
         }
 

@@ -31,7 +31,7 @@ namespace Aggregates.Internal
             {
                 var settings = b.Build<ReadOnlySettings>();
                 return new ResolveWeaklyConflictResolver(b.Build<IStoreStreams>(), b.Build<IDelayedChannel>(),
-                    settings.Get<StreamIdGenerator>("StreamGenerator"));
+                    settings.Get<StreamIdGenerator>("StreamGenerator"), settings.Get<int>("MaxPulledDelayed"));
             });
         public static ConcurrencyStrategy Custom = new ConcurrencyStrategy(ConcurrencyConflict.Custom, "Custom", (b, type) => (IResolveConflicts)b.Build(type));
 
@@ -165,12 +165,14 @@ namespace Aggregates.Internal
         private readonly IStoreStreams _store;
         private readonly IDelayedChannel _delay;
         private readonly StreamIdGenerator _streamGen;
+        private readonly int _maxPulledDelayed;
 
-        public ResolveWeaklyConflictResolver(IStoreStreams eventstore, IDelayedChannel delay, StreamIdGenerator streamGen)
+        public ResolveWeaklyConflictResolver(IStoreStreams eventstore, IDelayedChannel delay, StreamIdGenerator streamGen, int maxPulledDelayed)
         {
             _store = eventstore;
             _delay = delay;
             _streamGen = streamGen;
+            _maxPulledDelayed = maxPulledDelayed;
         }
 
         public async Task Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
@@ -200,17 +202,17 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Debug, () => $"Stopping weak conflict resolve - someone else is processing");
                     return;
                 }
-                uncommitted = (await _delay.Pull(streamName).ConfigureAwait(false)).Cast<IWritableEvent>();
+                uncommitted = (await _delay.Pull(streamName, max: _maxPulledDelayed).ConfigureAwait(false)).Cast<IWritableEvent>();
+
                 // If someone else pulled while we were waiting
                 if (!uncommitted.Any())
                     return;
+
                 Logger.Write(LogLevel.Info,
-                    () =>
-                            $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
+                    () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
 
                 var latestEvents =
-                    await
-                        _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1)
+                    await _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1)
                             .ConfigureAwait(false);
                 Logger.Write(LogLevel.Debug, () => $"Stream [{stream.StreamId}] bucket [{stream.Bucket}] is {latestEvents.Count()} events behind store");
 
@@ -230,7 +232,6 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
                     throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
                 }
-
 
                 Logger.Write(LogLevel.Debug, () => "Successfully merged conflicted events");
 

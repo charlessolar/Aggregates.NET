@@ -8,6 +8,7 @@ using Aggregates.Messages;
 using NServiceBus;
 using NServiceBus.Features;
 using NServiceBus.Logging;
+using NServiceBus.MessageInterfaces;
 
 namespace Aggregates
 {
@@ -24,6 +25,7 @@ namespace Aggregates
                 s.SetDefault("SlowAlertThreshold", 1000);
                 s.SetDefault("SlowAlerts", false);
                 s.SetDefault("StreamGenerator", new StreamIdGenerator((type, streamType, bucket, stream) => $"{streamType}-{bucket}-{type.FullName.Replace(".", "")}-{stream}"));
+                s.SetDefault("MaxPulledDelayed", 500);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
@@ -52,7 +54,9 @@ namespace Aggregates
                 behavior: typeof(MutateOutgoingEvents),
                 description: "runs command mutators on outgoing events"
                 );
-            context.Pipeline.Replace("InvokeHandlers", (b) => b.Build<BulkInvokeHandlerTerminator>(), "Replaces default invoke handlers with one that supports our custom delayed invoker");
+            context.Pipeline.Replace("InvokeHandlers", (b) => 
+                new BulkInvokeHandlerTerminator(b.Build<IMessageMapper>(), settings.Get<int>("MaxPulledDelayed")),
+                "Replaces default invoke handlers with one that supports our custom delayed invoker");
 
             if(context.Settings.Get<bool>("SlowAlerts"))
                 context.Pipeline.Register(

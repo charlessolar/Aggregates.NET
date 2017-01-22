@@ -48,20 +48,20 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
-                retries++;
                 var stackTrace = string.Join("\n", (e.StackTrace?.Split('\n').Take(10) ?? new string[] { }).AsEnumerable());
 
                 if (retries < _retries || _retries == -1)
                 {
                     Logger.WriteFormat(LogLevel.Warn,
                         $"Message {context.MessageId} has faulted! {retries}/{_retries} times\nException: {e.GetType().FullName} {e.Message}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}\nStack: {stackTrace}");
-                    RetryRegistry.TryAdd(messageId, retries);
+                    RetryRegistry.TryAdd(messageId, retries + 1);
                     throw;
                 }
 
 
                 // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth
-                if (context.Message.GetMesssageIntent() != MessageIntentEnum.Send) return;
+                if (context.Message.GetMesssageIntent() != MessageIntentEnum.Send)
+                    throw;
 
                 // At this point message is dead - should be moved to error queue, send message to client that their request was rejected due to error 
                 ErrorsMeter.Mark();
@@ -77,8 +77,7 @@ namespace Aggregates.Internal
                 // Tell the sender the command was not handled due to a service exception
                 var rejection = context.Builder.Build<Func<Exception, string, Error>>();
                 // Wrap exception in our object which is serializable
-                await
-                    context.Reply(rejection(e,
+                await context.Reply(rejection(e,
                             $"Rejected message after {retries} attempts!\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}"))
                         .ConfigureAwait(false);
 

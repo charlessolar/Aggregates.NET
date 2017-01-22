@@ -26,13 +26,13 @@ namespace Aggregates.Internal
             var mutators= context.Builder.BuildAll<ICommandMutator>();
             if (!mutators.Any()) return next();
 
-            IMutating mutated = new Mutating(command, context.Headers);
+            IMutating mutated = new Mutating(command, context.Headers ?? new Dictionary<string, string>());
             foreach (var mutator in mutators)
             {
                 Logger.Write(LogLevel.Debug, () => $"Mutating outgoing command {context.Message.MessageType.FullName} with mutator {mutator.GetType().FullName}");
                 mutated = mutator.MutateOutgoing(mutated);
             }
-
+            
             foreach (var header in mutated.Headers)
                 context.Headers[header.Key] = header.Value;
             context.UpdateMessage(mutated.Message);

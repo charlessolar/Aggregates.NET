@@ -12,7 +12,7 @@ namespace Aggregates.Contracts
 
         Task AddToQueue(string channel, object queued);
 
-        Task<IEnumerable<object>> Pull(string channel);
+        Task<IEnumerable<object>> Pull(string channel, int? max=null);
         
     }
 }
