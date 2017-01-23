@@ -50,7 +50,7 @@ namespace Aggregates.Internal
 
             var read = await _store.GetEventsBackwards(streamName, StreamPosition.End, 1).ConfigureAwait(false);
 
-            if (read != null || read.Any())
+            if (read != null && read.Any())
             {
                 var @event = read.Single();
                 var snapshot = new Snapshot
