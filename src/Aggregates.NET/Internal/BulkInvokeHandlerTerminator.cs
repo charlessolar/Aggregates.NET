@@ -135,7 +135,7 @@ namespace Aggregates.Internal
                     foreach (var expired in expiredChannels.Cast<string>())
                     {
                         Logger.Write(LogLevel.Debug, () => $"Found expired channel {expired} - bulk processing message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
-                        await InvokeDelayedChannel(channel, expired, messageHandler, context).ConfigureAwait(false);
+                        await InvokeDelayedChannel(channel, expired, delayed, messageHandler, context).ConfigureAwait(false);
                     }
 
                     return;
@@ -145,7 +145,7 @@ namespace Aggregates.Internal
 
                 Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing channel [{channelKey}]");
 
-                await InvokeDelayedChannel(channel, channelKey, messageHandler, context).ConfigureAwait(false);
+                await InvokeDelayedChannel(channel, channelKey, delayed, messageHandler, context).ConfigureAwait(false);
 
                 return;
             }
@@ -167,10 +167,13 @@ namespace Aggregates.Internal
             await Terminate(context).ConfigureAwait(false);
         }
 
-        private async Task InvokeDelayedChannel(IDelayedChannel channel, string channelKey, MessageHandler handler, IInvokeHandlerContext context)
+        private async Task InvokeDelayedChannel(IDelayedChannel channel, string channelKey, DelayedAttribute attr, MessageHandler handler, IInvokeHandlerContext context)
         {
+            var pull = _maxPulledDelayed;
+            if (attr.MaxPull.HasValue)
+                pull = Math.Min(attr.MaxPull.Value, _maxPulledDelayed);
 
-            var msgs = await channel.Pull(channelKey, max: _maxPulledDelayed).ConfigureAwait(false);
+            var msgs = await channel.Pull(channelKey, max: pull).ConfigureAwait(false);
 
             if (!msgs.Any())
             {

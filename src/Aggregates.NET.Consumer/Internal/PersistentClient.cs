@@ -28,17 +28,17 @@ namespace Aggregates.Internal
         private readonly string _group;
         private readonly int _index;
         private readonly CancellationToken _token;
-        // Todo: Change to List<Guid> when/if PR 1143 is published
-        private readonly List<ResolvedEvent> _toAck;
-        private readonly object _ackLock;
         private readonly Task _acknowledger;
         private readonly ConcurrentQueue<ResolvedEvent> _waitingEvents;
+
+        // Todo: Change to List<Guid> when/if PR 1143 is published
+        private List<ResolvedEvent> _toAck;
 
         private EventStorePersistentSubscriptionBase _subscription;
         private TimerContext _idleContext;
 
         public bool Live { get; private set; }
-        public string Id => $"{_client.Settings.GossipSeeds[0].EndPoint.Address}.{_stream.Substring(_stream.LastIndexOf(".")+1)}.{_index}";
+        public string Id => $"{_client.Settings.GossipSeeds[0].EndPoint.Address}.{_stream.Substring(_stream.LastIndexOf(".") + 1)}.{_index}";
 
         private bool _disposed;
 
@@ -50,25 +50,20 @@ namespace Aggregates.Internal
             _group = group;
             _token = token;
             _toAck = new List<ResolvedEvent>();
-            _ackLock = new object();
             _waitingEvents = new ConcurrentQueue<ResolvedEvent>();
 
             Queued = Metric.Context("Subscription Clients").Context(Id).Counter("Queued", Unit.Events);
             Processed = Metric.Context("Subscription Clients").Context(Id).Counter("Processed", Unit.Events);
             Acknowledged = Metric.Context("Subscription Clients").Context(Id).Counter("Acknowledged", Unit.Events);
             Idle = Metric.Context("Subscription Clients").Context(Id).Timer("Idle", Unit.None);
-            
+
 
             _acknowledger = Timer.Repeat(state =>
             {
                 var info = (PersistentClient)state;
 
-                ResolvedEvent[] toAck;
-                lock (info._ackLock)
-                {
-                    toAck = info._toAck.ToArray();
-                    info._toAck.Clear();
-                }
+                ResolvedEvent[] toAck = Interlocked.Exchange(ref _toAck, new List<ResolvedEvent>()).ToArray();
+
                 if (!toAck.Any())
                     return Task.CompletedTask;
 
@@ -117,13 +112,11 @@ namespace Aggregates.Internal
 
             Logger.Write(LogLevel.Info, () => $"Disconnected from subscription.  Reason: {reason} Exception: {ex}");
 
-            lock (_ackLock)
-            {
-                // Todo: is it possible to ACK an event from a reconnection?
-                if (_toAck.Any())
-                    throw new InvalidOperationException(
-                        $"Eventstore subscription dropped and we need to ACK {_toAck.Count} more events");
-            }
+            // Todo: is it possible to ACK an event from a reconnection?
+            if (_toAck.Any())
+                throw new InvalidOperationException(
+                    $"Eventstore subscription dropped and we need to ACK {_toAck.Count} more events");
+
             // Need to clear ReadyEvents of events delivered but not processed before disconnect
             ResolvedEvent e;
             while (!_waitingEvents.IsEmpty)
@@ -134,7 +127,7 @@ namespace Aggregates.Internal
             }
 
             if (reason == SubscriptionDropReason.UserInitiated) return;
-            
+
             // Run in task.Run because mixing .Wait and async methods is bad bad 
             Task.Run(Connect, _token).Wait(_token);
         }
@@ -159,7 +152,7 @@ namespace Aggregates.Internal
 
             Processed.Increment();
             _idleContext.Dispose();
-            lock (_ackLock) _toAck.Add(@event);
+            _toAck.Add(@event);
         }
 
         public bool TryDequeue(out ResolvedEvent e)

@@ -33,18 +33,43 @@ namespace Aggregates.Internal
         {
             var streamName = _streamGen(typeof(T), StreamTypes.Snapshot, bucket, streamId);
             Logger.Write(LogLevel.Debug, () => $"Getting snapshot for stream [{streamName}]");
-
-            var snapshot = await _snapshots.Retreive(streamName).ConfigureAwait(false);
-            if (snapshot == null)
             {
-                MissMeter.Mark();
-                Logger.Write(LogLevel.Debug, () => $"Snapshot [{streamName}] not in store");
-                return null;
+                var snapshot = await _snapshots.Retreive(streamName).ConfigureAwait(false);
+                if (snapshot != null)
+                {
+                    HitMeter.Mark();
+                    Logger.Write(LogLevel.Debug,
+                        () => $"Found snapshot [{streamName}] version {snapshot.Version} from subscription!");
+                    return snapshot;
+                }
             }
 
-            HitMeter.Mark();
-            Logger.Write(LogLevel.Debug, () => $"Found snapshot [{streamName}] version {snapshot.Version} in store!");
-            return snapshot;
+            // Check store directly (this might be a new instance which hasn't caught up to snapshot stream yet
+
+            Logger.Write(LogLevel.Debug, () => $"Checking for snapshot for stream [{streamName}] in store");
+
+            var read = await _store.GetEventsBackwards(streamName, StreamPosition.End, 1).ConfigureAwait(false);
+
+            if (read != null || read.Any())
+            {
+                var @event = read.Single();
+                var snapshot = new Snapshot
+                {
+                    EntityType = @event.Descriptor.EntityType,
+                    Bucket = bucket,
+                    StreamId = streamId,
+                    Timestamp = @event.Descriptor.Timestamp,
+                    Version = @event.Descriptor.Version,
+                    Payload = @event.Event
+                };
+                HitMeter.Mark();
+                Logger.Write(LogLevel.Debug, () => $"Found snapshot [{streamName}] version {snapshot.Version} from store!");
+                return snapshot;
+            }
+
+            MissMeter.Mark();
+            Logger.Write(LogLevel.Debug, () => $"Snapshot [{streamName}] not found");
+            return null;
         }
 
 

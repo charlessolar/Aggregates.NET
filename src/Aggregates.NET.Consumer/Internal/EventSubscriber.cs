@@ -288,6 +288,7 @@ when({{
 
                     // Ready for a new event
                     var client = param.Clients.ElementAt(i);
+                    
                     ResolvedEvent e;
                     if (!client.TryDequeue(out e))
                         continue;

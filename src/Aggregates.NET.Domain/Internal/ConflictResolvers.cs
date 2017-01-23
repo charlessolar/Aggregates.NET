@@ -185,6 +185,7 @@ namespace Aggregates.Internal
                 await _delay.AddToQueue(streamName, @event).ConfigureAwait(false);
 
             // Todo: make 30 seconds configurable
+            // Todo: if a stream has a single conflict and never conflicts again, the event we delay will never be processed
             var age = await _delay.Age(streamName).ConfigureAwait(false);
             if (!age.HasValue || age < TimeSpan.FromSeconds(30))
                 return;

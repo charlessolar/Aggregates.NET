@@ -313,6 +313,7 @@ namespace Aggregates.Internal
 
                     if (transaction != null)
                     {
+                        Logger.Write(LogLevel.Debug, () => $"Using transaction {events.Count()} is over max {_readsize} to write stream id [{stream}]");
                         var page = 0;
                         while (page < events.Count())
                         {

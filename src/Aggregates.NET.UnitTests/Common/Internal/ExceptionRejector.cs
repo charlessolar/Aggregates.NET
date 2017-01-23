@@ -38,7 +38,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
         public async Task sets_context_bag()
         {
             var bag = new ContextBag();
-        var context = new Moq.Mock<IIncomingPhysicalMessageContext>();
+            var context = new Moq.Mock<IIncomingPhysicalMessageContext>();
             var next = new Moq.Mock<Func<Task>>();
             context.Setup(x => x.MessageId).Returns("1");
             context.Setup(x => x.Message).Returns(new IncomingMessage("1", new Dictionary<string, string>(), new byte[] { }));
