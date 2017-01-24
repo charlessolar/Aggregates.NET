@@ -98,7 +98,8 @@ namespace Aggregates.Internal
             {
                 Logger.Warn(
                     $"Caught exception '{e.GetType().FullName}' while executing message {context.MessageId} {context.Message.MessageType.FullName}");
-                ErrorsMeter.Mark();
+
+                ErrorsMeter.Mark(context.Message.MessageType.FullName);
                 var trailingExceptions = new List<Exception>();
                 using (EndTimer.NewContext())
                 {

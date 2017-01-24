@@ -39,7 +39,7 @@ namespace Aggregates.Internal
                 {
                     HitMeter.Mark();
                     Logger.Write(LogLevel.Debug,
-                        () => $"Found snapshot [{streamName}] version {snapshot.Version} from subscription!");
+                        () => $"Found snapshot [{streamName}] version {snapshot.Version} from subscription");
                     return snapshot;
                 }
             }
@@ -63,7 +63,7 @@ namespace Aggregates.Internal
                     Payload = @event.Event
                 };
                 HitMeter.Mark();
-                Logger.Write(LogLevel.Debug, () => $"Found snapshot [{streamName}] version {snapshot.Version} from store!");
+                Logger.Write(LogLevel.Debug, () => $"Found snapshot [{streamName}] version {snapshot.Version} from store");
                 return snapshot;
             }
 

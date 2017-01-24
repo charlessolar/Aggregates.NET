@@ -38,7 +38,7 @@ namespace Aggregates.Internal
         public static string NotFound = "<NOT FOUND>";
 
         private static readonly ILog Logger = LogManager.GetLogger("UnitOfWork");
-        private static readonly ILog SlowLogger = LogManager.GetLogger("Slow");
+        private static readonly ILog SlowLogger = LogManager.GetLogger("Slow Alarm");
         private readonly IRepositoryFactory _repoFactory;
         private readonly IMessageMapper _mapper;
 

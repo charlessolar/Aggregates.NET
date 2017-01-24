@@ -21,7 +21,7 @@ namespace Aggregates.Internal
             var command = context.Message.Instance as ICommand;
             if (command == null) return next();
 
-            Commands.Mark();
+            Commands.Mark(context.Message.MessageType.FullName);
 
             var mutators= context.Builder.BuildAll<ICommandMutator>();
             if (!mutators.Any()) return next();

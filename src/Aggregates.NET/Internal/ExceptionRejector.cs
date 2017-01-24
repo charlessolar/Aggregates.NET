@@ -64,7 +64,7 @@ namespace Aggregates.Internal
                     throw;
 
                 // At this point message is dead - should be moved to error queue, send message to client that their request was rejected due to error 
-                ErrorsMeter.Mark();
+                ErrorsMeter.Mark(e.GetType().FullName);
 
                 Logger.WriteFormat(LogLevel.Warn,
                     $"Message {context.MessageId} has failed after {retries} attempts!\nException: {e.GetType().FullName} {e.Message}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}\nStack: {stackTrace}");

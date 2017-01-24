@@ -29,7 +29,7 @@ namespace Aggregates.Internal
         private static readonly Metrics.Timer WriteTime = Metric.Timer("EventStore Write Time", Unit.Items);
 
         private static readonly ILog Logger = LogManager.GetLogger("StoreEvents");
-        private static readonly ILog SlowLogger = LogManager.GetLogger("Slow");
+        private static readonly ILog SlowLogger = LogManager.GetLogger("Slow Alarm");
         private readonly IEventStoreConnection[] _clients;
         private readonly IMessageMapper _mapper;
         private readonly int _readsize;

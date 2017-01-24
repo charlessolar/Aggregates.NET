@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Metrics;
 using NServiceBus.Extensibility;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
@@ -16,6 +17,7 @@ namespace Aggregates.Internal
     class ExpiringBulkInvokes : IApplicationUnitOfWork
     {
         private static readonly ILog Logger = LogManager.GetLogger("ExpiringBulkInvokes");
+        private static readonly Meter ExpiredMeter = Metric.Meter("Expired Channels", Unit.Items);
 
         // Todo: this is a terrible structure but the use of this should be pretty limited.  Profiling results needed
         private static readonly object Lock = new object();
@@ -90,6 +92,7 @@ namespace Aggregates.Internal
             }
             foreach (var e in expired)
             {
+                ExpiredMeter.Mark(e.Item2);
                 Logger.Write(LogLevel.Debug, () => $"Found expired channel {e.Item2}");
                 await channel.AddToQueue(e.Item1, e.Item2).ConfigureAwait(false);
             }

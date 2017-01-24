@@ -117,25 +117,29 @@ namespace Aggregates.Internal
                 if (delayed.Count.HasValue)
                     size = await channel.Size(channelKey).ConfigureAwait(false);
 
-                if ((delayed.Count.HasValue && !size.HasValue) || (delayed.Count.HasValue && size < delayed.Count.Value) || (delayed.Delay.HasValue && !age.HasValue) || (delayed.Delay.HasValue && age < TimeSpan.FromMilliseconds(delayed.Delay.Value)))
+
+                if (!ShouldExecute(delayed, size, age))
                 {
+                    Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing channel [{channelKey}]");
+
                     // Even if we dont see a message with specific [channelKey] again we'll need to pull the channel eventually if [Age] is used
                     // DelayedExpirations keeps track of this
                     if (delayed.Delay.HasValue)
-                        ExpiringBulkInvokes.Add(key, channelKey, TimeSpan.FromMilliseconds(delayed.Delay.Value));
-                        
-
-                    Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing channel [{channelKey}]");
-
-
-
-                    Logger.Write(LogLevel.Debug, () => $"Checking for channel expirations on key {key}");
-                    var expiredChannels = await channel.Pull(key, max: 1).ConfigureAwait(false);
-
-                    foreach (var expired in expiredChannels.Cast<string>())
                     {
-                        Logger.Write(LogLevel.Debug, () => $"Found expired channel {expired} - bulk processing message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
-                        await InvokeDelayedChannel(channel, expired, delayed, messageHandler, context).ConfigureAwait(false);
+                        ExpiringBulkInvokes.Add(key, channelKey, TimeSpan.FromMilliseconds(delayed.Delay.Value));
+
+                        Logger.Write(LogLevel.Debug, () => $"Checking for channel expirations on key {key}");
+                        var expiredChannels = await channel.Pull(key, max: 1).ConfigureAwait(false);
+
+                        foreach (var expired in expiredChannels.Cast<string>())
+                        {
+                            Logger.Write(LogLevel.Debug,
+                                () =>
+                                        $"Found expired channel {expired} - bulk processing message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
+                            await
+                                InvokeDelayedChannel(channel, expired, delayed, messageHandler, context)
+                                    .ConfigureAwait(false);
+                        }
                     }
 
                     return;
@@ -165,6 +169,16 @@ namespace Aggregates.Internal
                 IsDelayed.TryAdd(key, single);
             }
             await Terminate(context).ConfigureAwait(false);
+        }
+
+        private bool ShouldExecute(DelayedAttribute attr, int? size, TimeSpan? age)
+        {
+            if (attr.Count.HasValue && size.HasValue)
+                if (attr.Count.Value <= size)
+                    return true;
+            if (attr.Delay.HasValue && age.HasValue)
+                return TimeSpan.FromMilliseconds(attr.Delay.Value) <= age;
+            return false;
         }
 
         private async Task InvokeDelayedChannel(IDelayedChannel channel, string channelKey, DelayedAttribute attr, MessageHandler handler, IInvokeHandlerContext context)

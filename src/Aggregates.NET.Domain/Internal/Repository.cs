@@ -187,7 +187,7 @@ namespace Aggregates.Internal
                             Logger.WriteFormat(LogLevel.Warn,
                                 "Failed to commit events to store for stream: [{0}] bucket [{1}] Exception: {3}: {2}",
                                 stream.StreamId, stream.Bucket, e.Message, e.GetType().Name);
-                            WriteErrors.Mark();
+                            WriteErrors.Mark(e.Message);
                             throw;
                         }
                         catch (DuplicateCommitException)
@@ -195,7 +195,7 @@ namespace Aggregates.Internal
                             Logger.WriteFormat(LogLevel.Warn,
                                 "Detected a double commit for stream: [{0}] bucket [{1}] - discarding changes for this stream",
                                 stream.StreamId, stream.Bucket);
-                            WriteErrors.Mark();
+                            WriteErrors.Mark("Duplicate");
                             // I was throwing this, but if this happens it means the events for this message have already been committed.  Possibly as a partial message failure earlier. 
                             // Im changing to just discard the changes, perhaps can take a deeper look later if this ever bites me on the ass
                             //throw;
@@ -290,6 +290,7 @@ namespace Aggregates.Internal
 
             root.Hydrate(stream.Committed.Select(e => e.Event as IEvent));
 
+            Logger.Write(LogLevel.Debug, () => $"Hydrated aggregate id [{stream.StreamId}] in bucket [{stream.Bucket}] for type {typeof(T).FullName} to version {stream.CommitVersion}");
             return Task.FromResult(root);
         }
 

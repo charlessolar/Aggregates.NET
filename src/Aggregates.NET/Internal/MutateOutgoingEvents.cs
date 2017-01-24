@@ -21,7 +21,7 @@ namespace Aggregates.Internal
             var @event = context.Message.Instance as IEvent;
             if (@event == null) return next();
 
-            Events.Mark();
+            Events.Mark(context.Message.MessageType.FullName);
             
             var mutators=context.Builder.BuildAll<IEventMutator>();
             if (!mutators.Any()) return next();

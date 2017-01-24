@@ -37,10 +37,11 @@ namespace Aggregates.Internal
         private static readonly Histogram DelayedSize = Metric.Histogram("Delayed Channel Size", Unit.Items);
         private static readonly Histogram DelayedAge = Metric.Histogram("Delayed Channel Age", Unit.Items);
         private static readonly ILog Logger = LogManager.GetLogger("EventStoreDelayed");
-        private static readonly ILog SlowLogger = LogManager.GetLogger("Slow");
+        private static readonly ILog SlowLogger = LogManager.GetLogger("Slow Alarm");
 
         private static readonly object WaitingLock = new object();
         private static readonly Dictionary<string, List<IWritableEvent>> WaitingToBeWritten = new Dictionary<string, List<IWritableEvent>>();
+        private static readonly Dictionary<string, List<IWritableEvent>> InFlightWaitingToBeWritten = new Dictionary<string, List<IWritableEvent>>();
         private static Task _flusher;
 
         private static readonly ConcurrentDictionary<string, Tuple<DateTime, object>> Cache = new ConcurrentDictionary<string, Tuple<DateTime, object>>();
@@ -319,7 +320,7 @@ namespace Aggregates.Internal
             {
                 if (RecentlyPulled.ContainsKey(streamName))
                 {
-                    Logger.Write(LogLevel.Warn, () => $"Channel [{channel}] was pulled by this instance recently - leaving it alone");
+                    Logger.Write(LogLevel.Debug, () => $"Channel [{channel}] was pulled by this instance recently - leaving it alone");
                     return new object[] { }.AsEnumerable();
                 }
                 RecentlyPulled.Add(streamName, DateTime.UtcNow.AddSeconds(5));
@@ -344,7 +345,7 @@ namespace Aggregates.Internal
                     // Pull metadata before freezing
                     int lastPosition = StreamPosition.Start;
                     var metadata = await _store.GetMetadata(streamName, "Position").ConfigureAwait(false);
-                    if (!String.IsNullOrEmpty(metadata))
+                    if (!string.IsNullOrEmpty(metadata))
                         lastPosition = int.Parse(metadata) + 1;
 
                     await _store.WriteMetadata(streamName, frozen: true, owner: Defaults.Instance).ConfigureAwait(false);
@@ -392,16 +393,28 @@ namespace Aggregates.Internal
 
 
             var discovered = delayed.Select(x => x.Event);
-            List<Tuple<string, WritableEvent>> existing;
+            var existing = new List<IWritableEvent>();
             lock (_lock)
             {
-                existing = _uncommitted.Where(c => c.Item1 == streamName).ToList();
-                foreach (var e in existing)
+                foreach (var e in _uncommitted.Where(c => c.Item1 == streamName).ToList())
+                {
+                    existing.Add(e.Item2);
                     _uncommitted.Remove(e);
+                }
             }
-            DelayedRead.Update(discovered.Count() + existing.Count);
+            // Pull events waiting to be written to store
+            lock (WaitingLock)
+            {
+                if (WaitingToBeWritten.ContainsKey(streamName))
+                    existing.AddRange(WaitingToBeWritten[streamName]);
+                // Don't remove yet, remove at ACK
+                InFlightWaitingToBeWritten[streamName] = WaitingToBeWritten[streamName];
+                WaitingToBeWritten.Remove(streamName);
+            }
 
-            var messages = discovered.Concat(existing.Select(x => x.Item2.Event));
+            var messages = discovered.Concat(existing.Select(x => x.Event));
+            DelayedRead.Update(messages.Count());
+
             Logger.Write(LogLevel.Debug, () => $"Got {messages.Count()} delayed messages from channel [{channel}]");
             return messages;
         }
@@ -420,6 +433,8 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Acking channel [{channel}] position {info.Position} at {info.At.ToUnixTime()}");
 
             var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
+
+            lock (WaitingToBeWritten) InFlightWaitingToBeWritten.Remove(streamName);
 
             try
             {
@@ -447,6 +462,19 @@ namespace Aggregates.Internal
 
             // Remove the freeze so someone else can run the delayed
             var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
+
+            lock (WaitingToBeWritten)
+            {
+                // If PULL took from WaitingToBeWritten we need to put them back since message failed
+                if (InFlightWaitingToBeWritten.ContainsKey(streamName))
+                {
+                    if (!WaitingToBeWritten.ContainsKey(streamName))
+                        WaitingToBeWritten[streamName] = new List<IWritableEvent>();
+                    WaitingToBeWritten[streamName].AddRange(InFlightWaitingToBeWritten[streamName]);
+                    InFlightWaitingToBeWritten.Remove(streamName);
+                }
+            }
+
             lock (_lock) _inFlight.Remove(channel);
             // Failed to process messages, unfreeze stream
             await _store.WriteMetadata(streamName, frozen: false).ConfigureAwait(false);

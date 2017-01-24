@@ -14,74 +14,84 @@ namespace Aggregates.Internal
             var cts = new CancellationTokenSource();
             return Repeat(action, interval, cts.Token);
         }
-        public static async Task Repeat(Func<Task> action, TimeSpan interval, CancellationToken cancellationToken)
+        public static Task Repeat(Func<Task> action, TimeSpan interval, CancellationToken cancellationToken)
         {
-            while (true)
+            return Task.Run(async () =>
             {
-                await action().ConfigureAwait(false);
-                try
+                while (true)
                 {
-                    await Task.Delay(interval, cancellationToken).ConfigureAwait(false);
+                    await action().ConfigureAwait(false);
+                    try
+                    {
+                        await Task.Delay(interval, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        return;
+                    }
                 }
-                catch (TaskCanceledException)
-                {
-                    return;
-                }
-            }
+            }, cancellationToken);
         }
 
         public static Task Repeat(Func<object, Task> action, object state, TimeSpan interval)
         {
             return Repeat(action, state, interval, CancellationToken.None);
         }
-        public static async Task Repeat(Func<object, Task> action, object state, TimeSpan interval, CancellationToken cancellationToken)
+        public static Task Repeat(Func<object, Task> action, object state, TimeSpan interval, CancellationToken cancellationToken)
         {
-            while (true)
+            return Task.Run(async () =>
             {
-                await action(state).ConfigureAwait(false);
-                try
+                while (true)
                 {
-                    await Task.Delay(interval, cancellationToken).ConfigureAwait(false);
+                    await action(state).ConfigureAwait(false);
+                    try
+                    {
+                        await Task.Delay(interval, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        return;
+                    }
                 }
-                catch (TaskCanceledException)
-                {
-                    return;
-                }
-            }
+            }, cancellationToken);
         }
         public static Task Expire(Func<object, Task> action, object state, TimeSpan when)
         {
             return Expire(action, state, when, CancellationToken.None);
         }
-        public static async Task Expire(Func<object, Task> action, object state, TimeSpan when, CancellationToken cancellationToken)
+        public static Task Expire(Func<object, Task> action, object state, TimeSpan when, CancellationToken cancellationToken)
         {
-            try
+            return Task.Run(async () =>
             {
-                await Task.Delay(when, cancellationToken).ConfigureAwait(false);
-            }
-            catch (TaskCanceledException)
-            {
-                return;
-            }
-            await action(state).ConfigureAwait(false);
-
+                try
+                {
+                    await Task.Delay(when, cancellationToken).ConfigureAwait(false);
+                }
+                catch (TaskCanceledException)
+                {
+                    return;
+                }
+                await action(state).ConfigureAwait(false);
+            }, cancellationToken);
         }
         public static Task Expire(Func<Task> action, TimeSpan when)
         {
             return Expire(action, when, CancellationToken.None);
         }
-        public static async Task Expire(Func<Task> action, TimeSpan when, CancellationToken cancellationToken)
+        public static Task Expire(Func<Task> action, TimeSpan when, CancellationToken cancellationToken)
         {
-            try
+            return Task.Run(async () =>
             {
-                await Task.Delay(when, cancellationToken).ConfigureAwait(false);
-            }
-            catch (TaskCanceledException)
-            {
-                return;
-            }
-            await action().ConfigureAwait(false);
-
+                try
+                {
+                    await Task.Delay(when, cancellationToken).ConfigureAwait(false);
+                }
+                catch (TaskCanceledException)
+                {
+                    return;
+                }
+                await action().ConfigureAwait(false);
+            }, cancellationToken);
         }
     }
 }

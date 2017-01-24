@@ -13,7 +13,7 @@ namespace Aggregates.Internal
     internal class TimeExecutionBehavior : Behavior<IIncomingPhysicalMessageContext>
     {
         private static readonly ILog Logger = LogManager.GetLogger("TimeExecutionBehavior");
-        private static readonly ILog SlowLogger = LogManager.GetLogger("Slow");
+        private static readonly ILog SlowLogger = LogManager.GetLogger("Slow Alarm");
         private static readonly HashSet<string> SlowCommandTypes = new HashSet<string>();
         private static readonly object SlowLock = new object();
         private readonly int _slowAlert;

@@ -34,7 +34,7 @@ namespace Aggregates.Internal
                 }
                 catch (BusinessException e)
                 {
-                    ErrorsMeter.Mark();
+                    ErrorsMeter.Mark(e.Message);
 
                     Logger.Write(LogLevel.Info, () => $"Caught business exception: {e.Message}");
                     if (!context.MessageHeaders.ContainsKey(Defaults.RequestResponse) || context.MessageHeaders[Defaults.RequestResponse] != "1")
