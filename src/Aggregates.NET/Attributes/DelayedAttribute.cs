@@ -8,15 +8,13 @@ namespace Aggregates.Attributes
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = true)]
     public class DelayedAttribute : Attribute
     {
-        public DelayedAttribute(Type type, int count = -1, int delayMs = -1, int maxPull = -1)
+        public DelayedAttribute(Type type, int count = -1, int delayMs = -1)
         {
             this.Type = type;
             if(count != -1)
                 this.Count = count;
             if(delayMs != -1)
                 this.Delay = delayMs;
-            if (maxPull != -1)
-                this.MaxPull = maxPull;
 
             if (Count > 200000)
                 throw new ArgumentException($"{nameof(Count)} too large - maximum is 200000");
@@ -38,7 +36,6 @@ namespace Aggregates.Attributes
         public Type Type { get; private set; }
         public int? Count { get; private set; }
         public int? Delay { get; private set; }
-        public int? MaxPull { get; private set; }
         public Func<object, string> KeyPropertyFunc { get; private set; }
     }
     

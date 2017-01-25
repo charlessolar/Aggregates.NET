@@ -33,18 +33,26 @@ namespace Aggregates.Internal
             public DateTime At { get; set; }
             public int Position { get; set; }
         }
+
+        private class FlushState
+        {
+            public IStoreEvents Store { get; set; }
+            public StreamIdGenerator StreamGen { get; set; }
+        }
         private static readonly Histogram DelayedRead = Metric.Histogram("Delayed Channel Read", Unit.Items);
         private static readonly Histogram DelayedSize = Metric.Histogram("Delayed Channel Size", Unit.Items);
         private static readonly Histogram DelayedAge = Metric.Histogram("Delayed Channel Age", Unit.Items);
+        private static readonly Counter MemCacheSize = Metric.Counter("Delayed Cache Size", Unit.Items);
         private static readonly ILog Logger = LogManager.GetLogger("EventStoreDelayed");
         private static readonly ILog SlowLogger = LogManager.GetLogger("Slow Alarm");
 
-        private static readonly object WaitingLock = new object();
-        private static readonly Dictionary<string, List<IWritableEvent>> WaitingToBeWritten = new Dictionary<string, List<IWritableEvent>>();
-        private static readonly Dictionary<string, List<IWritableEvent>> InFlightWaitingToBeWritten = new Dictionary<string, List<IWritableEvent>>();
         private static Task _flusher;
 
-        private static readonly ConcurrentDictionary<string, Tuple<DateTime, object>> Cache = new ConcurrentDictionary<string, Tuple<DateTime, object>>();
+        //                                                Channel  key          Last Pull   Stored Objects
+        private static readonly ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, List<object>>> MemCache = new ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, List<object>>>();
+
+
+        private static readonly ConcurrentDictionary<string, Tuple<DateTime, object>> AgeSizeCache = new ConcurrentDictionary<string, Tuple<DateTime, object>>();
         private static readonly Dictionary<string, DateTime> RecentlyPulled = new Dictionary<string, DateTime>();
         private static readonly object RecentLock = new object();
 
@@ -62,43 +70,64 @@ namespace Aggregates.Internal
 
         private readonly IStoreEvents _store;
         private readonly StreamIdGenerator _streamGen;
-        private readonly Type _delayType;
 
         private readonly object _lock = new object();
-        private Dictionary<string, InFlightInfo> _inFlight;
-        private List<Tuple<string, WritableEvent>> _uncommitted;
+        private Dictionary<Tuple<string, string>, List<object>> _inFlightMemCache;
+        private Dictionary<string, InFlightInfo> _inFlightChannel;
+        private Dictionary<Tuple<string, string>, List<object>> _uncommitted;
 
-        static async Task Flush(object state)
+        static async Task Flush(object state, bool? all = null)
         {
-            var eventstore = state as IStoreEvents;
+            var flushState = state as FlushState;
 
-            ReadOnlyDictionary<string, List<IWritableEvent>> waiting;
-            lock (WaitingLock)
-            {
-                waiting = new ReadOnlyDictionary<string, List<IWritableEvent>>(WaitingToBeWritten.Where(x => x.Value.Any()).ToDictionary(x => x.Key, x => x.Value.ToList()));
-                WaitingToBeWritten.Clear();
-            }
-            Logger.Write(LogLevel.Debug, () => $"Flushing {waiting.Count} channels with {waiting.Values.Sum(x => x.Count())} events");
+            // Todo: make expiration configurable
+            var expiredSpecificChannels = MemCache.Where(x => (DateTime.UtcNow - x.Value.Item1) > TimeSpan.FromMinutes(5)).Select(x => x.Key).ToList();
 
-            await waiting.SelectAsync(async (channel) =>
+            await expiredSpecificChannels.SelectAsync(async (expired) =>
             {
+                Tuple<DateTime, List<object>> fromCache;
+                if (!MemCache.TryRemove(expired, out fromCache))
+                    return;
+
+                Logger.Write(LogLevel.Debug,
+                    () =>
+                            $"Flushing expired channel {expired.Item1} key {expired.Item2} with {fromCache.Item2.Count} objects");
+
+                var translatedEvents = fromCache.Item2.Select(x => new WritableEvent
+                {
+                    Descriptor = new EventDescriptor
+                    {
+                        EntityType = "DELAY",
+                        StreamType = StreamTypes.Delayed,
+                        Bucket = Assembly.GetEntryAssembly().FullName,
+                        StreamId = expired.Item1,
+                        Timestamp = DateTime.UtcNow,
+                        Headers = new Dictionary<string, string>()
+                    },
+                    Event = x,
+                });
                 try
                 {
-                    await eventstore.WriteEvents(channel.Key, channel.Value, null).ConfigureAwait(false);
+                    var streamName = flushState.StreamGen(typeof(EventStoreDelayed), StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, expired.Item1);
+                    await flushState.Store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
+                    MemCacheSize.Decrement(fromCache.Item2.Count);
                 }
                 catch (Exception e)
                 {
                     Logger.Write(LogLevel.Warn,
-                        () => $"Failed to write to channel [{channel.Key}].  Exception: {e.GetType().Name}: {e.Message}");
-                    // Failed to write to ES - requeue events
-                    lock (WaitingLock)
-                    {
-                        if (!WaitingToBeWritten.ContainsKey(channel.Key))
-                            WaitingToBeWritten[channel.Key] = new List<IWritableEvent>();
-                        WaitingToBeWritten[channel.Key].AddRange(channel.Value);
-                    }
+                        () =>
+                                $"Failed to write to channel [{expired.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
+                    // Failed to write to ES - put object back in memcache
+                    MemCache.AddOrUpdate(expired,
+                        (key) =>
+                                new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
+                        (key, existing) =>
+                            new Tuple<DateTime, List<object>>(DateTime.UtcNow,
+                                existing.Item2.Concat(fromCache.Item2).ToList())
+                    );
+
                 }
-            }).ConfigureAwait(false);
+            });
 
         }
 
@@ -106,78 +135,139 @@ namespace Aggregates.Internal
         {
             _store = store;
             _streamGen = streamGen;
-            _delayType = this.GetType();
 
             if (_flusher == null && flushInterval.HasValue)
             {
                 // Add a process exit event handler to flush cached delayed events before exiting the app
                 // Not perfect in the case of a fatal app error - but something
-                AppDomain.CurrentDomain.ProcessExit += (sender, e) => Flush(store).Wait();
-                _flusher = Timer.Repeat(Flush, store, flushInterval.Value);
+                AppDomain.CurrentDomain.ProcessExit += (sender, e) => Flush(store, all: true).Wait();
+                _flusher = Timer.Repeat((s) => Flush(s), store, flushInterval.Value);
             }
         }
 
         public Task Begin()
         {
-            _uncommitted = new List<Tuple<string, WritableEvent>>();
-            _inFlight = new Dictionary<string, InFlightInfo>();
+            _uncommitted = new Dictionary<Tuple<string, string>, List<object>>();
+            _inFlightChannel = new Dictionary<string, InFlightInfo>();
+            _inFlightMemCache = new Dictionary<Tuple<string, string>, List<object>>();
             return Task.CompletedTask;
         }
 
         public async Task End(Exception ex = null)
         {
-            Logger.Write(LogLevel.Debug, () => $"Saving {_inFlight.Count()} {(ex == null ? "ACKs" : "NACKs")}");
-            await _inFlight.ToList().SelectAsync(x => ex == null ? Ack(x.Key) : NAck(x.Key)).ConfigureAwait(false);
-            if (ex == null && _flusher != null)
-            {
-                Logger.Write(LogLevel.Debug, () => $"Scheduling save of {_uncommitted.Count()} delayed streams");
+            Logger.Write(LogLevel.Debug, () => $"Saving {_inFlightChannel.Count()} {(ex == null ? "ACKs" : "NACKs")}");
+            await _inFlightChannel.ToList().SelectAsync(x => ex == null ? Ack(x.Key) : NAck(x.Key)).ConfigureAwait(false);
 
-                lock (WaitingLock)
+            if (ex != null)
+            {
+                Logger.Write(LogLevel.Debug, () => $"Putting {_inFlightMemCache.Count()} in flight channels back into memcache");
+                foreach (var inflight in _inFlightMemCache)
                 {
-                    foreach (var stream in _uncommitted.GroupBy(x => x.Item1))
-                    {
-                        if (!WaitingToBeWritten.ContainsKey(stream.Key))
-                            WaitingToBeWritten[stream.Key] = new List<IWritableEvent>();
-                        WaitingToBeWritten[stream.Key].AddRange(stream.Select(x => x.Item2));
-                    }
+                    MemCache.AddOrUpdate(inflight.Key,
+                        (key) =>
+                                new Tuple<DateTime, List<object>>(DateTime.UtcNow, inflight.Value),
+                        (key, existing) =>
+                            new Tuple<DateTime, List<object>>(DateTime.UtcNow,
+                                existing.Item2.Concat(inflight.Value).ToList())
+                    );
+                    MemCacheSize.Increment(inflight.Value.Count);
                 }
             }
-            if (ex == null && _flusher == null)
+
+            if (ex == null)
             {
-                Logger.Write(LogLevel.Debug, () => $"Saving {_uncommitted.Count()} delayed streams");
-                await _uncommitted.GroupBy(x => x.Item1).SelectAsync(x => _store.WriteEvents(x.Key, x.Select(y => y.Item2), null)).ConfigureAwait(false);
+                Logger.Write(LogLevel.Debug, () => $"Putting {_uncommitted.Count()} delayed streams into mem cache");
+
+                _inFlightMemCache.Clear();
+                // Anything with a specific key goes into memcache
+                foreach (var kv in _uncommitted.Where(x => !string.IsNullOrEmpty( x.Key.Item2)))
+                {
+                    MemCache.AddOrUpdate(kv.Key,
+                        (key) =>
+                            new Tuple<DateTime, List<object>>(DateTime.UtcNow, kv.Value),
+                        (key, existing) =>
+                            new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2.Concat(kv.Value).ToList())
+                        );
+                    MemCacheSize.Increment(kv.Value.Count);
+                }
+
+                await _uncommitted.SelectAsync(async kv =>
+                {
+                    // Anything without specific key gets committed to ES right away
+                    if (string.IsNullOrEmpty(kv.Key.Item2))
+                    {
+                        var translatedEvents = kv.Value.Select(x => new WritableEvent
+                        {
+                            Descriptor = new EventDescriptor
+                            {
+                                EntityType = "DELAY",
+                                StreamType = StreamTypes.Delayed,
+                                Bucket = Assembly.GetEntryAssembly().FullName,
+                                StreamId = kv.Key.Item1,
+                                Timestamp = DateTime.UtcNow,
+                                Headers = new Dictionary<string, string>()
+                            },
+                            Event = x,
+                        });
+                        try
+                        {
+                            var streamName = _streamGen(typeof(EventStoreDelayed), StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, kv.Key.Item1);
+                            await _store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
+                            return;
+                        }
+                        catch (Exception e)
+                        {
+                            Logger.Write(LogLevel.Warn,
+                                () => $"Failed to write to channel [{kv.Key.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
+                        }
+                    }
+
+                    // Failed to write to ES or has specific key - put objects into memcache
+                    MemCache.AddOrUpdate(kv.Key,
+                        (key) =>
+                                new Tuple<DateTime, List<object>>(DateTime.UtcNow, kv.Value),
+                        (key, existing) =>
+                            new Tuple<DateTime, List<object>>(DateTime.UtcNow,
+                                existing.Item2.Concat(kv.Value).ToList())
+                    );
+                    MemCacheSize.Increment(kv.Value.Count);
+
+
+                }).ConfigureAwait(false);
             }
         }
 
-        public async Task<TimeSpan?> Age(string channel)
+        private async Task<TimeSpan?> ChannelAge(string channel)
         {
-            var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
+            var streamName = _streamGen(typeof(EventStoreDelayed), StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
+
             Logger.Write(LogLevel.Debug, () => $"Getting age of delayed channel [{channel}]");
 
+            // Try cache
             Tuple<DateTime, object> cached;
-            if (Cache.TryGetValue($"{streamName}.age", out cached) && (DateTime.UtcNow - cached.Item1).TotalSeconds < 5)
+            if (AgeSizeCache.TryGetValue($"{streamName}.age", out cached) && (DateTime.UtcNow - cached.Item1).TotalSeconds < 5)
             {
                 Logger.Write(LogLevel.Debug, () => $"Got age from cache for channel [{channel}]");
+                // null means we cached a negative result
                 if (cached.Item2 == null)
-                {
-
-                    Tuple<string, WritableEvent> existing;
-                    lock (_lock) existing = _uncommitted.FirstOrDefault(c => c.Item1 == streamName);
-                    return DateTime.UtcNow - existing.Item2.Descriptor.Timestamp;
-                }
+                    return null;
                 return DateTime.UtcNow - (DateTime)cached.Item2;
             }
 
+            // Try metadata
             try
             {
                 var metadata = await _store.GetMetadata(streamName, "At").ConfigureAwait(false);
                 if (!string.IsNullOrEmpty(metadata))
                 {
                     var at = int.Parse(metadata);
+                    AgeSizeCache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow, at);
+
                     Logger.Write(LogLevel.Debug, () => $"Got age from metadata of delayed channel [{channel}]");
                     var age = TimeSpan.FromSeconds(DateTime.UtcNow.ToUnixTime() - at);
                     if (age > TimeSpan.FromMinutes(30))
                         SlowLogger.Write(LogLevel.Warn, () => $"Delayed channel [{channel}] is {age.TotalMinutes} minutes old!");
+
                     DelayedAge.Update(age.Ticks);
                     return age;
                 }
@@ -185,18 +275,19 @@ namespace Aggregates.Internal
             catch (FrozenException)
             {
                 // Someone else is processing
-                Cache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow, null);
+                AgeSizeCache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow, null);
                 Logger.Write(LogLevel.Debug, () => $"Age is unavailable from delayed channel [{channel}] - stream frozen");
                 return null;
             }
 
+            // Try from first event in stream
             try
             {
                 var firstEvent = await _store.GetEvents(streamName, StreamPosition.Start, 1).ConfigureAwait(false);
                 if (firstEvent != null && firstEvent.Any())
                 {
-                    Cache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow,
-                        firstEvent.Single().Descriptor.Timestamp);
+                    AgeSizeCache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow, firstEvent.Single().Descriptor.Timestamp);
+
                     Logger.Write(LogLevel.Debug, () => $"Got age from first event of delayed channel [{channel}]");
                     var age = DateTime.UtcNow - firstEvent.Single().Descriptor.Timestamp;
                     if (age > TimeSpan.FromMinutes(30))
@@ -207,38 +298,46 @@ namespace Aggregates.Internal
             }
             catch (NotFoundException) { }
 
-            {
-                Tuple<string, WritableEvent> existing;
-                lock (_lock) existing = _uncommitted.FirstOrDefault(c => c.Item1 == streamName);
-                Cache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow, null);
-                if (existing != null)
-                {
-                    Logger.Write(LogLevel.Debug, () => $"Got age from uncommitted of delayed channel [{channel}]");
-                    return DateTime.UtcNow - existing.Item2.Descriptor.Timestamp;
-                }
-            }
-            
+            // failed to get age from store, store a negative result
+            AgeSizeCache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow, null);
+            Logger.Write(LogLevel.Debug, () => $"Failed to get age of delayed channel [{channel}]");
             return null;
         }
 
-        public async Task<int> Size(string channel)
+        public async Task<TimeSpan?> Age(string channel, string key = null)
         {
-            var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
+            Logger.Write(LogLevel.Debug, () => $"Getting age of delayed channel [{channel}] key [{key}]");
+
+            var channelAge = await ChannelAge(channel).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(key))
+                return channelAge;
+
+            // Get age from memcache
+            var specificKey = new Tuple<string, string>(channel, key);
+            Tuple<DateTime, List<object>> temp;
+            if (!MemCache.TryGetValue(specificKey, out temp))
+                return channelAge;
+            var specificAge = DateTime.UtcNow - temp.Item1;
+
+            return channelAge.HasValue && channelAge.Value > specificAge ? channelAge.Value : specificAge;
+        }
+
+        public async Task<int> ChannelSize(string channel)
+        {
+            var streamName = _streamGen(typeof(EventStoreDelayed), StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
             Logger.Write(LogLevel.Debug, () => $"Getting size of delayed channel [{channel}]");
 
-
+            // Try cache
             Tuple<DateTime, object> cached;
-            if (Cache.TryGetValue($"{streamName}.size", out cached) && (DateTime.UtcNow - cached.Item1).TotalSeconds < 5)
+            if (AgeSizeCache.TryGetValue($"{streamName}.size", out cached) && (DateTime.UtcNow - cached.Item1).TotalSeconds < 5)
             {
                 Logger.Write(LogLevel.Debug, () => $"Got size from cache for channel [{channel}]");
                 if (cached.Item2 == null)
-                {
-                    int existing;
-                    lock (_lock) existing = _uncommitted.Count(x => x.Item1 == streamName);
-                    return existing;
-                }
+                    return 0;
                 return (int)cached.Item2 + 1;
             }
+
+            // Read last processed position + last event position
             int lastPosition = StreamPosition.Start;
             try
             {
@@ -249,7 +348,7 @@ namespace Aggregates.Internal
             catch (FrozenException)
             {
                 // Someone else is processing
-                Cache[$"{streamName}.size"] = new Tuple<DateTime, object>(DateTime.UtcNow, null);
+                AgeSizeCache[$"{streamName}.size"] = new Tuple<DateTime, object>(DateTime.UtcNow, null);
                 Logger.Write(LogLevel.Debug, () => $"Size is unavailable from delayed channel [{channel}] - stream frozen");
                 return 0;
             }
@@ -258,11 +357,10 @@ namespace Aggregates.Internal
                 var lastEvent = await _store.GetEventsBackwards(streamName, StreamPosition.End, 1).ConfigureAwait(false);
                 if (lastEvent != null && lastEvent.Any())
                 {
-                    Cache[$"{streamName}.size"] = new Tuple<DateTime, object>(DateTime.UtcNow,
-                        lastEvent.Single().Descriptor.Version - lastPosition);
-                    Logger.Write(LogLevel.Debug,
-                        () => $"Got size from metadata and last event of delayed channel [{channel}]");
-                    var size= ((lastEvent.Single().Descriptor.Version - lastPosition) + 1);
+                    AgeSizeCache[$"{streamName}.size"] = new Tuple<DateTime, object>(DateTime.UtcNow, lastEvent.Single().Descriptor.Version - lastPosition);
+
+                    Logger.Write(LogLevel.Debug, () => $"Got size from metadata and last event of delayed channel [{channel}]");
+                    var size = ((lastEvent.Single().Descriptor.Version - lastPosition) + 1);
                     if (size > 5000)
                         SlowLogger.Write(LogLevel.Warn, () => $"Delayed channel [{channel}] size is {size}!");
                     DelayedSize.Update(size);
@@ -271,49 +369,57 @@ namespace Aggregates.Internal
             }
             catch (NotFoundException) { }
 
-            {
-                int existing;
-                lock (_lock) existing = _uncommitted.Count(x => x.Item1 == streamName);
-
-                // cache that we dont have one yet
-                Cache[$"{streamName}.size"] = new Tuple<DateTime, object>(DateTime.UtcNow, null);
-                Logger.Write(LogLevel.Debug, () => $"Got size from uncommitted of delayed channel [{channel}]");
-                return existing;
-            }
+            // cache that we dont have one yet
+            AgeSizeCache[$"{streamName}.size"] = new Tuple<DateTime, object>(DateTime.UtcNow, null);
+            Logger.Write(LogLevel.Debug, () => $"Failed to get size of delayed channel [{channel}]");
+            return 0;
         }
 
-        public Task AddToQueue(string channel, object queued)
+        public async Task<int> Size(string channel, string key = null)
         {
-            var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
-            Logger.Write(LogLevel.Debug, () => $"Appending delayed object to channel [{channel}]");
+            Logger.Write(LogLevel.Debug, () => $"Getting size of delayed channel [{channel}] key [{key}]");
 
-            var @event = new WritableEvent
+            var channelSize = await ChannelSize(channel).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(key))
+                return channelSize;
+
+            // Get age from memcache
+            var specificKey = new Tuple<string, string>(channel, key);
+            Tuple<DateTime, List<object>> temp;
+            if (!MemCache.TryGetValue(specificKey, out temp))
+                return channelSize;
+            var specificSize = temp.Item2.Count;
+
+            return channelSize + specificSize;
+        }
+
+        public Task AddToQueue(string channel, object queued, string key = null)
+        {
+            var streamName = _streamGen(typeof(EventStoreDelayed), StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
+            Logger.Write(LogLevel.Debug, () => $"Appending delayed object to channel [{channel}] key [{key}]");
+
+
+            var specificKey = new Tuple<string, string>(channel, key);
+            lock (_lock)
             {
-                Descriptor = new EventDescriptor
-                {
-                    EntityType = "DELAY",
-                    StreamType = StreamTypes.Delayed,
-                    Bucket = Assembly.GetEntryAssembly().FullName,
-                    StreamId = channel,
-                    Timestamp = DateTime.UtcNow,
-                    Headers = new Dictionary<string, string>()
-                },
-                Event = queued,
-            };
+                if (!_uncommitted.ContainsKey(specificKey))
+                    _uncommitted[specificKey] = new List<object>();
+                _uncommitted[specificKey].Add(queued);
+            }
 
-            lock (_lock) _uncommitted.Add(new Tuple<string, WritableEvent>(streamName, @event));
 
             return Task.CompletedTask;
         }
 
-        public async Task<IEnumerable<object>> Pull(string channel, int? max=null)
+        private async Task<IEnumerable<object>> PullChannel(string channel, int? max = null)
         {
-            var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
+            var streamName = _streamGen(typeof(EventStoreDelayed), StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
             Logger.Write(LogLevel.Debug, () => $"Pulling delayed objects from channel [{channel}]");
 
+            // Clear cache, even if stream is recently pulled Age and Size should be recalced next message
             Tuple<DateTime, object> temp;
-            Cache.TryRemove($"{streamName}.size", out temp);
-            Cache.TryRemove($"{streamName}.age", out temp);
+            AgeSizeCache.TryRemove($"{streamName}.size", out temp);
+            AgeSizeCache.TryRemove($"{streamName}.age", out temp);
 
             // If a stream has been attempted to pull recently (<30 seconds) don't try again
             lock (RecentLock)
@@ -329,7 +435,7 @@ namespace Aggregates.Internal
             // Check if someone else is already processing
             lock (_lock)
             {
-                if (_inFlight.ContainsKey(channel))
+                if (_inFlightChannel.ContainsKey(channel))
                 {
                     Logger.Write(LogLevel.Debug, () => $"Channel [{channel}] is already being processed by this pipeline");
                     return new object[] { }.AsEnumerable();
@@ -350,7 +456,7 @@ namespace Aggregates.Internal
 
                     await _store.WriteMetadata(streamName, frozen: true, owner: Defaults.Instance).ConfigureAwait(false);
                     didFreeze = true;
-                    
+
                     delayed = await _store.GetEvents(streamName, lastPosition, count: max).ConfigureAwait(false) ?? new IWritableEvent[] { }.AsEnumerable();
 
                     if (!delayed.Any())
@@ -363,7 +469,7 @@ namespace Aggregates.Internal
                         Position = delayed.Last().Descriptor.Version
                     };
 
-                    lock (_lock) _inFlight.Add(channel, info);
+                    lock (_lock) _inFlightChannel.Add(channel, info);
                 }
                 catch (ArgumentException)
                 {
@@ -389,34 +495,56 @@ namespace Aggregates.Internal
                 }
             }
             if (delayed == null)
-                return new object[] {};
+                return new object[] { };
 
 
             var discovered = delayed.Select(x => x.Event);
-            var existing = new List<IWritableEvent>();
-            lock (_lock)
+            DelayedRead.Update(discovered.Count());
+
+            Logger.Write(LogLevel.Debug, () => $"Got {discovered.Count()} delayed messages from channel [{channel}]");
+            return discovered;
+        }
+
+        public async Task<IEnumerable<object>> Pull(string channel, string key = null, int? max = null)
+        {
+            Logger.Write(LogLevel.Debug, () => $"Pulling delayed channel [{channel}] key [{key}]");
+
+            var specificKey = new Tuple<string, string>(channel, key);
+
+            Tuple<DateTime, List<object>> fromCache;
+
+            // Check memcache even if key == null because messages failing to save to ES are put in memcache
+            if (!MemCache.TryRemove(specificKey, out fromCache))
+                fromCache = null;
+            
+            var discovered = fromCache?.Item2.GetRange(0, Math.Min( max ?? int.MaxValue, fromCache.Item2.Count)).ToList() ?? new List<object>();
+            if (max.HasValue)
+                fromCache?.Item2.RemoveRange(0, Math.Min( max.Value, fromCache.Item2.Count));
+            else
+                fromCache?.Item2.Clear();
+
+            // Add back into memcache if Max was used and some elements remain
+            if (fromCache != null && fromCache.Item2.Any())
             {
-                foreach (var e in _uncommitted.Where(c => c.Item1 == streamName).ToList())
-                {
-                    existing.Add(e.Item2);
-                    _uncommitted.Remove(e);
-                }
+                lock (_lock) _inFlightMemCache.Add(specificKey, discovered);
+                MemCache.AddOrUpdate(specificKey,
+                    (_) =>
+                            new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
+                    (_, existing) =>
+                        new Tuple<DateTime, List<object>>(DateTime.UtcNow,
+                            existing.Item2.Concat(fromCache.Item2).ToList()));
             }
-            // Pull events waiting to be written to store
-            lock (WaitingLock)
+            MemCacheSize.Decrement(discovered.Count);
+
+            // Skip getting from store if max already hit
+            if (discovered.Count >= max)
             {
-                if (WaitingToBeWritten.ContainsKey(streamName))
-                    existing.AddRange(WaitingToBeWritten[streamName]);
-                // Don't remove yet, remove at ACK
-                InFlightWaitingToBeWritten[streamName] = WaitingToBeWritten[streamName];
-                WaitingToBeWritten.Remove(streamName);
+                Logger.Write(LogLevel.Debug, () => $"Pulled max events {discovered.Count} from delayed channel [{channel}] key [{key}], skipping store");
+                return discovered;
             }
 
-            var messages = discovered.Concat(existing.Select(x => x.Event));
-            DelayedRead.Update(messages.Count());
-
-            Logger.Write(LogLevel.Debug, () => $"Got {messages.Count()} delayed messages from channel [{channel}]");
-            return messages;
+            var fromStore = await PullChannel(channel, max - discovered.Count).ConfigureAwait(false);
+            return discovered.Concat(fromStore);
         }
 
         private async Task Ack(string channel)
@@ -424,17 +552,15 @@ namespace Aggregates.Internal
             InFlightInfo info;
             lock (_lock)
             {
-                if (!_inFlight.ContainsKey(channel))
+                if (!_inFlightChannel.ContainsKey(channel))
                     return;
-                info = _inFlight[channel];
-                _inFlight.Remove(channel);
+                info = _inFlightChannel[channel];
+                _inFlightChannel.Remove(channel);
             }
 
             Logger.Write(LogLevel.Debug, () => $"Acking channel [{channel}] position {info.Position} at {info.At.ToUnixTime()}");
 
-            var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
-
-            lock (WaitingToBeWritten) InFlightWaitingToBeWritten.Remove(streamName);
+            var streamName = _streamGen(typeof(EventStoreDelayed), StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
 
             try
             {
@@ -455,27 +581,15 @@ namespace Aggregates.Internal
         {
             lock (_lock)
             {
-                if (!_inFlight.ContainsKey(channel))
+                if (!_inFlightChannel.ContainsKey(channel))
                     return;
             }
             Logger.Write(LogLevel.Debug, () => $"NAcking channel [{channel}]");
 
             // Remove the freeze so someone else can run the delayed
-            var streamName = _streamGen(_delayType, StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
+            var streamName = _streamGen(typeof(EventStoreDelayed), StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
 
-            lock (WaitingToBeWritten)
-            {
-                // If PULL took from WaitingToBeWritten we need to put them back since message failed
-                if (InFlightWaitingToBeWritten.ContainsKey(streamName))
-                {
-                    if (!WaitingToBeWritten.ContainsKey(streamName))
-                        WaitingToBeWritten[streamName] = new List<IWritableEvent>();
-                    WaitingToBeWritten[streamName].AddRange(InFlightWaitingToBeWritten[streamName]);
-                    InFlightWaitingToBeWritten.Remove(streamName);
-                }
-            }
-
-            lock (_lock) _inFlight.Remove(channel);
+            lock (_lock) _inFlightChannel.Remove(channel);
             // Failed to process messages, unfreeze stream
             await _store.WriteMetadata(streamName, frozen: false).ConfigureAwait(false);
         }

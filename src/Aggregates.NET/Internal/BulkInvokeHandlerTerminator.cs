@@ -58,10 +58,10 @@ namespace Aggregates.Internal
             var messageHandler = context.MessageHandler;
 
 
-            var key = $"{messageHandler.HandlerType.FullName}:{msgType.FullName}";
+            var channelKey = $"{messageHandler.HandlerType.FullName}:{msgType.FullName}";
 
             bool contains = false;
-            lock (Lock) contains = IsNotDelayed.Contains(key);
+            lock (Lock) contains = IsNotDelayed.Contains(channelKey);
 
             if (contains)
             {
@@ -69,10 +69,10 @@ namespace Aggregates.Internal
                 await messageHandler.Invoke(context.MessageBeingHandled, context).ConfigureAwait(false);
                 return;
             }
-            if (IsDelayed.ContainsKey(key))
+            if (IsDelayed.ContainsKey(channelKey))
             {
                 DelayedAttribute delayed;
-                IsDelayed.TryGetValue(key, out delayed);
+                IsDelayed.TryGetValue(channelKey, out delayed);
 
                 var msgPkg = new DelayedMessage
                 {
@@ -84,12 +84,12 @@ namespace Aggregates.Internal
 
                 InvokesDelayed.Mark();
 
-                var channelKey = key;
+                var specificKey = "";
                 if (delayed.KeyPropertyFunc != null)
                 {
                     try
                     {
-                        channelKey = $"{key}:{delayed.KeyPropertyFunc(context.MessageBeingHandled)}";
+                        specificKey = delayed.KeyPropertyFunc(context.MessageBeingHandled);
                     }
                     catch
                     {
@@ -98,7 +98,7 @@ namespace Aggregates.Internal
                 }
 
                 Logger.Write(LogLevel.Debug, () => $"Delaying message {msgType.FullName} delivery");
-                await channel.AddToQueue(channelKey, msgPkg).ConfigureAwait(false);
+                await channel.AddToQueue(channelKey, msgPkg, key: specificKey).ConfigureAwait(false);
 
                 bool bulkInvoked;
                 if (context.Extensions.TryGet<bool>("BulkInvoked", out bulkInvoked) && bulkInvoked)
@@ -113,35 +113,15 @@ namespace Aggregates.Internal
                 TimeSpan? age = null;
 
                 if (delayed.Delay.HasValue)
-                    age = await channel.Age(channelKey).ConfigureAwait(false);
+                    age = await channel.Age(channelKey, key: specificKey).ConfigureAwait(false);
                 if (delayed.Count.HasValue)
-                    size = await channel.Size(channelKey).ConfigureAwait(false);
+                    size = await channel.Size(channelKey, key: specificKey).ConfigureAwait(false);
 
 
                 if (!ShouldExecute(delayed, size, age))
                 {
                     Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing channel [{channelKey}]");
-
-                    // Even if we dont see a message with specific [channelKey] again we'll need to pull the channel eventually if [Age] is used
-                    // DelayedExpirations keeps track of this
-                    if (delayed.Delay.HasValue)
-                    {
-                        ExpiringBulkInvokes.Add(key, channelKey, TimeSpan.FromMilliseconds(delayed.Delay.Value));
-
-                        Logger.Write(LogLevel.Debug, () => $"Checking for channel expirations on key {key}");
-                        var expiredChannels = await channel.Pull(key, max: 1).ConfigureAwait(false);
-
-                        foreach (var expired in expiredChannels.Cast<string>())
-                        {
-                            Logger.Write(LogLevel.Debug,
-                                () =>
-                                        $"Found expired channel {expired} - bulk processing message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
-                            await
-                                InvokeDelayedChannel(channel, expired, delayed, messageHandler, context)
-                                    .ConfigureAwait(false);
-                        }
-                    }
-
+                    
                     return;
                 }
 
@@ -149,7 +129,7 @@ namespace Aggregates.Internal
 
                 Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing channel [{channelKey}]");
 
-                await InvokeDelayedChannel(channel, channelKey, delayed, messageHandler, context).ConfigureAwait(false);
+                await InvokeDelayedChannel(channel, channelKey, specificKey, delayed, messageHandler, context).ConfigureAwait(false);
 
                 return;
             }
@@ -160,13 +140,13 @@ namespace Aggregates.Internal
             var single = attrs.SingleOrDefault(x => x.Type == msgType);
             if (single == null)
             {
-                lock (Lock) IsNotDelayed.Add(key);
+                lock (Lock) IsNotDelayed.Add(channelKey);
             }
             else
             {
                 Logger.Write(LogLevel.Debug,
                     () => $"Found delayed handler {messageHandler.HandlerType.FullName} for message {msgType.FullName}");
-                IsDelayed.TryAdd(key, single);
+                IsDelayed.TryAdd(channelKey, single);
             }
             await Terminate(context).ConfigureAwait(false);
         }
@@ -181,13 +161,13 @@ namespace Aggregates.Internal
             return false;
         }
 
-        private async Task InvokeDelayedChannel(IDelayedChannel channel, string channelKey, DelayedAttribute attr, MessageHandler handler, IInvokeHandlerContext context)
+        private async Task InvokeDelayedChannel(IDelayedChannel channel, string channelKey, string specificKey, DelayedAttribute attr, MessageHandler handler, IInvokeHandlerContext context)
         {
             var pull = _maxPulledDelayed;
-            if (attr.MaxPull.HasValue)
-                pull = Math.Min(attr.MaxPull.Value, _maxPulledDelayed);
+            if (attr.Count.HasValue)
+                pull = Math.Min(attr.Count.Value, _maxPulledDelayed);
 
-            var msgs = await channel.Pull(channelKey, max: pull).ConfigureAwait(false);
+            var msgs = await channel.Pull(channelKey, key: specificKey, max: pull).ConfigureAwait(false);
 
             if (!msgs.Any())
             {

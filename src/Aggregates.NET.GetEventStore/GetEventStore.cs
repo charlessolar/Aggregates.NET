@@ -20,6 +20,10 @@ namespace Aggregates
     {
         public GetEventStore()
         {
+            Defaults(s =>
+            {
+                s.Set("FlushInterval", TimeSpan.FromSeconds(30));
+            });
         }
 
         protected override void Setup(FeatureConfigurationContext context)
