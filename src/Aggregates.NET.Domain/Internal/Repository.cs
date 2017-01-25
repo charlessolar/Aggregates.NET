@@ -29,12 +29,12 @@ namespace Aggregates.Internal
         private readonly IBuilder _builder;
         private readonly ReadOnlySettings _settings;
 
-        private static readonly Histogram WrittenEvents = Metric.Histogram("Written Events", Unit.Events);
         private static readonly Meter Conflicts = Metric.Meter("Conflicts", Unit.Items);
         private static readonly Meter ConflictsResolved = Metric.Meter("Conflicts Resolved", Unit.Items);
         private static readonly Meter ConflictsUnresolved = Metric.Meter("Conflicts Unresolved", Unit.Items);
         private static readonly Meter WriteErrors = Metric.Meter("Event Write Errors", Unit.Errors);
         private static readonly Metrics.Timer CommitTime = Metric.Timer("Repository Commit Time", Unit.Items);
+        private static readonly Meter WrittenEvents = Metric.Meter("Repository Written Events", Unit.Events);
         private static readonly Metrics.Timer ConflictResolutionTime = Metric.Timer("Conflict Resolution Time", Unit.Items);
 
         protected readonly IDictionary<string, T> Tracked = new Dictionary<string, T>();
@@ -126,8 +126,7 @@ namespace Aggregates.Internal
                             try
                             {
                                 Logger.Write(LogLevel.Debug,
-                                    () =>
-                                            $"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} version {stream.StreamVersion} has version conflicts with store - Message: {e.Message} Store: {e.InnerException?.Message}");
+                                    () => $"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} stream version {stream.StreamVersion} commit verison {stream.CommitVersion} has version conflicts with store - Message: {e.Message} Store: {e.InnerException?.Message}");
 
 
                                 using (ConflictResolutionTime.NewContext())
@@ -203,8 +202,8 @@ namespace Aggregates.Internal
                     });
 
             }
-            WrittenEvents.Update(written);
-            Logger.Write(LogLevel.Debug, () => $"Repository {typeof(T).FullName} finished commit {commitId}");
+            WrittenEvents.Mark(typeof(T).FullName, written);
+            Logger.Write(LogLevel.Debug, () => $"Repository {typeof(T).FullName} finished commit {commitId} wrote {written} events");
 
         }
 

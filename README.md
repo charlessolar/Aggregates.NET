@@ -54,7 +54,6 @@ Currently Aggregates.NET offers the following performance features:
 - Out of band events
 - Async throughout
 
-
 ## Status
 
 Aggregates.NET is still under development but I personally am using it in 2 projects so its very usable.  Expect fairly often updates via Nuget as I tend to add and fix things when the issue pops up.  Sometimes the packages have a bug or some small issue but I always fix it right away. 

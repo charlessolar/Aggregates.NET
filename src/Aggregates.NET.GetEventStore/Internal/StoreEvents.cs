@@ -276,7 +276,6 @@ namespace Aggregates.Internal
                     mappedType = _mapper.GetMappedTypeFor(mappedType) ?? mappedType;
 
                 var @event = e.Event.Serialize(settings).AsByteArray();
-
                 if (_compress.HasFlag(Compression.Events))
                 {
                     descriptor.Compressed = true;
@@ -357,7 +356,7 @@ namespace Aggregates.Internal
                 WrittenEvents.Update(events.Count());
                 WrittenEventsSize.Update(events.Sum(x => x.Data.Length));
                 if (ctx.Elapsed > TimeSpan.FromSeconds(1))
-                    SlowLogger.Write(LogLevel.Warn, () => $"Writing {events.Count()} events of total size {events.Sum(x => x.Data.Length)} from stream [{stream}] took {ctx.Elapsed.TotalSeconds} seconds!");
+                    SlowLogger.Write(LogLevel.Warn, () => $"Writing {events.Count()} events of total size {events.Sum(x => x.Data.Length)} to stream [{stream}] version {expectedVersion} took {ctx.Elapsed.TotalSeconds} seconds!");
             }
             return nextVersion;
         }

@@ -2,9 +2,11 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Threading;
+using System.Linq;
+using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Aggregates.Internal;
 using NServiceBus.Logging;
 
 namespace Aggregates.Internal
@@ -21,22 +23,22 @@ namespace Aggregates.Internal
         private static readonly HashSet<string> Expires2 = new HashSet<string>();
         // Only cache items that don't change very often
         private static readonly HashSet<string> Cachable = new HashSet<string>();
-        private static readonly HashSet<string> RecentEvictions = new HashSet<string>();
+        //                                          Last attempt  count  
+        private static readonly Dictionary<string,Tuple<DateTime, int>> CacheAttempts = new Dictionary<string, Tuple<DateTime, int>>();
         private static readonly object Lock = new object();
         private static int _stage;
-        private static readonly System.Threading.Timer CachableEviction = new System.Threading.Timer(_ =>
+        private static readonly Task CachableEviction = Timer.Repeat(() =>
         {
             // Clear cachable every 10 minutes
             if (_stage % 120 == 0)
             {
                 _stage = 0;
-                Logger.Write(LogLevel.Debug, () => $"Clearing {Cachable.Count} cachable keys");
+                Logger.Write(LogLevel.Debug, () => $"Clearing old cache attempt counters");
 
                 lock (Lock)
                 {
-                    foreach (var stream in Cachable)
-                        MemCache.Remove(stream);
-                    Cachable.Clear();
+                    foreach(var expired in CacheAttempts.Where(x => (DateTime.UtcNow - x.Value.Item1).TotalMinutes > 10).Select(x => x.Key).ToList())
+                        CacheAttempts.Remove(expired);
                 }
             }
 
@@ -58,7 +60,6 @@ namespace Aggregates.Internal
                     foreach (var stream in Expires1)
                         MemCache.Remove(stream);
                     Expires1.Clear();
-                    RecentEvictions.Clear();
                 }
             }
 
@@ -74,7 +75,8 @@ namespace Aggregates.Internal
             }
             
             _stage++;
-        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+            return Task.CompletedTask;
+        }, TimeSpan.FromSeconds(5));
 
         private bool _disposed;
         
@@ -107,14 +109,17 @@ namespace Aggregates.Internal
                     return;
                 }
 
-                if (!RecentEvictions.Contains(key))
+                if (!CacheAttempts.ContainsKey(key))
+                    CacheAttempts[key] = new Tuple<DateTime, int>(DateTime.UtcNow, 1);
+                else
+                    CacheAttempts[key] = new Tuple<DateTime, int>(DateTime.UtcNow, Math.Min(20, CacheAttempts[key].Item2 + 1));
+                
+                if (CacheAttempts[key].Item2 >= 20)
                 {
                     Logger.Write(LogLevel.Info,
-                        () =>
-                                $"Stream [{key}] has not been evicted recently, marking cachable for a few minutes");
+                        () => $"Stream [{key}] has not been evicted recently, marking cachable for a few minutes");
                     Cachable.Add(key);
                 }
-
             }
 
         }
@@ -124,7 +129,10 @@ namespace Aggregates.Internal
 
             lock (Lock)
             {
-                RecentEvictions.Add(key);
+                // Decrease by 5 - evicting is a terrible thing, usually means there was a version conflict
+                if(CacheAttempts.ContainsKey(key))
+                    CacheAttempts[key] = new Tuple<DateTime, int>(DateTime.UtcNow, Math.Max(0, CacheAttempts[key].Item2 - 5));
+
                 Cachable.Remove(key);
 
                 MemCache.Remove(key);
