@@ -22,7 +22,7 @@ namespace Aggregates.Internal
 
         // Todo: config option for "most snapshots stored" and a LRU cache?
         private readonly SortedDictionary<string, IWritableEvent> _snapshots;
-        private readonly Action<string, ISnapshot> _onSnapshot;
+        private readonly Action<string, int, ISnapshot> _onSnapshot;
         private readonly IEventStoreConnection _client;
         private readonly string _stream;
         private readonly CancellationToken _token;
@@ -36,7 +36,7 @@ namespace Aggregates.Internal
 
         private bool _disposed;
 
-        public CatchupClient(Action<string, ISnapshot> onSnapshot, IEventStoreConnection client, string stream, CancellationToken token, JsonSerializerSettings settings, Compression compress)
+        public CatchupClient(Action<string, int, ISnapshot> onSnapshot, IEventStoreConnection client, string stream, CancellationToken token, JsonSerializerSettings settings, Compression compress)
         {
             _onSnapshot = onSnapshot;
             _client = client;
@@ -89,7 +89,7 @@ namespace Aggregates.Internal
                 Payload = payload
             };
 
-            _onSnapshot(e.Event.EventStreamId, snapshot);
+            _onSnapshot(e.Event.EventStreamId, e.Event.EventNumber, snapshot);
 
         }
 

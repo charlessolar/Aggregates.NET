@@ -21,6 +21,7 @@ using NServiceBus.Unicast;
 using NServiceBus.Unicast.Messages;
 using Aggregates.Extensions;
 
+
 namespace Aggregates.Internal
 {
     /// <summary>
@@ -33,7 +34,10 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger("SnapshotReader");
         private static readonly Counter StoredSnapshots = Metric.Counter("Snapshots Stored", Unit.Items);
 
-        private static readonly ConcurrentDictionary<string,ISnapshot> Snapshots = new ConcurrentDictionary<string, ISnapshot>();
+        private static readonly ConcurrentDictionary<string, ISnapshot> Snapshots = new ConcurrentDictionary<string, ISnapshot>();
+        private static readonly ConcurrentDictionary<string, int> TruncateBefore = new ConcurrentDictionary<string, int>();
+
+        private static Task Truncate;
 
         private CancellationTokenSource _cancelation;
         private string _endpoint;
@@ -59,6 +63,28 @@ namespace Aggregates.Internal
                 Binder = new EventSerializationBinder(mapper),
                 ContractResolver = new EventContractResolver(mapper)
             };
+            if (Truncate == null)
+            {
+                Truncate = Timer.Repeat(async (state) =>
+                {
+                    var eventstore = state as IStoreEvents;
+
+                    var truncates = TruncateBefore.Keys;
+
+                    await truncates.SelectAsync(async x =>
+                    {
+                        int tb;
+                        if (!TruncateBefore.TryRemove(x, out tb))
+                            return;
+
+                        try
+                        {
+                            await eventstore.WriteMetadata(x, truncateBefore: tb);
+                        }
+                        catch {}
+                    });
+                }, store, TimeSpan.FromSeconds(30));
+            }
         }
 
         public async Task Setup(string endpoint)
@@ -77,7 +103,7 @@ namespace Aggregates.Internal
                         connection.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
 
                 await manager.EnableAsync("$by_category", connection.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                
+
             }
         }
 
@@ -105,14 +131,18 @@ namespace Aggregates.Internal
             }
         }
 
-        private void onSnapshot(string stream, ISnapshot snapshot)
+        private void onSnapshot(string stream, int position, ISnapshot snapshot)
         {
             Logger.Write(LogLevel.Debug, () => $"Got snapshot stream [{stream}] version {snapshot.Version}");
             Snapshots.AddOrUpdate(stream, (key) =>
             {
                 StoredSnapshots.Increment();
                 return snapshot;
-            }, (key, existing) => snapshot);
+            }, (key, existing) =>
+            {
+                TruncateBefore[key] = position;
+                return snapshot;
+            });
 
         }
 
@@ -134,5 +164,5 @@ namespace Aggregates.Internal
                 client.Dispose();
         }
     }
-    
+
 }

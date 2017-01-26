@@ -409,7 +409,7 @@ namespace Aggregates.Internal
             if ((maxCount ?? existing.StreamMetadata?.MaxCount).HasValue)
                 metadata.SetMaxCount((maxCount ?? existing.StreamMetadata?.MaxCount).Value);
             if ((truncateBefore ?? existing.StreamMetadata?.TruncateBefore).HasValue)
-                metadata.SetTruncateBefore((truncateBefore ?? existing.StreamMetadata?.TruncateBefore).Value);
+                metadata.SetTruncateBefore(Math.Max(truncateBefore ?? 0, (truncateBefore ?? existing.StreamMetadata?.TruncateBefore).Value));
             if ((maxAge ?? existing.StreamMetadata?.MaxAge).HasValue)
                 metadata.SetMaxAge((maxAge ?? existing.StreamMetadata?.MaxAge).Value);
             if ((cacheControl ?? existing.StreamMetadata?.CacheControl).HasValue)
