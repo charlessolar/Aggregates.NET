@@ -72,7 +72,7 @@ namespace Aggregates.Internal
                         "Subscription was stopped while events were waiting to be ACKed");
 
                 Acknowledged.Increment(toAck.Length);
-                Logger.Write(LogLevel.Info, () => $"Acknowledging {toAck.Length} events to {Id}");
+                Logger.Write(LogLevel.Debug, () => $"Acknowledging {toAck.Length} events to {Id}");
 
                 var page = 0;
                 while (page < toAck.Length)
@@ -134,8 +134,7 @@ namespace Aggregates.Internal
         public async Task Connect()
         {
             Logger.Write(LogLevel.Info,
-                () =>
-                        $"Connecting to subscription group [{_group}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
+                () => $"Connecting to subscription group [{_group}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
             // Todo: play with buffer size?
             _subscription = await _client.ConnectToPersistentSubscriptionAsync(_stream, _group,
                 eventAppeared: EventAppeared,

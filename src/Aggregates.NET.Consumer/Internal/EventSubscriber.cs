@@ -249,10 +249,16 @@ when({{
                     {
                     }
 
-                    for (var j = 0; j < _concurrency * 2; j += 2)
+                    for (var j = 0; j < _concurrency; j += 1)
                     {
-                        clients[(i * _concurrency) + j] = new PersistentClient(client, $"{stream}.{StreamTypes.Domain}", pinnedGroup, j, clientCancelSource.Token);
-                        clients[(i * _concurrency) + j + 1] = new PersistentClient(client, $"{stream}.{StreamTypes.OOB}", roundRobbinGroup, j, clientCancelSource.Token);
+                        // If multiple clients lay out clients array like so:  (assuming 2 clients with 4 concurrency)
+                        //
+                        //  ij
+                        //  00 00 01 01 02 02 03 03
+                        //  10 10 11 11 12 12 13 13
+                        //
+                        clients[2 * ((i * _concurrency) + j)] = new PersistentClient(client, $"{stream}.{StreamTypes.Domain}", pinnedGroup, j, clientCancelSource.Token);
+                        clients[2 * ((i * _concurrency) + j) + 1] = new PersistentClient(client, $"{stream}.{StreamTypes.OOB}", roundRobbinGroup, j, clientCancelSource.Token);
                     }
                 }
 
