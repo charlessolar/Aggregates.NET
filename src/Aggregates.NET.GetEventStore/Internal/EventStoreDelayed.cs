@@ -76,13 +76,17 @@ namespace Aggregates.Internal
         private Dictionary<string, InFlightInfo> _inFlightChannel;
         private Dictionary<Tuple<string, string>, List<object>> _uncommitted;
 
-        static async Task Flush(object state, bool? all = null)
+        static async Task Flush(object state, bool all = false)
         {
             var flushState = state as FlushState;
+            if (all)
+                Logger.Write(LogLevel.Info,
+                    () => $"App shutting down, flushing ALL memcached channels");
+            
 
             // Todo: make expiration configurable
-            var expiredSpecificChannels = MemCache.Where(x => (DateTime.UtcNow - x.Value.Item1) > TimeSpan.FromMinutes(5)).Select(x => x.Key).ToList();
-            var tooLargeSpecificChannels = MemCache.Where(x => x.Value.Item2.Count > 500).Select(x => x.Key).ToList();
+            var expiredSpecificChannels = MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > TimeSpan.FromMinutes(5)).Select(x => x.Key).ToList();
+            var tooLargeSpecificChannels = MemCache.Where(x => !all && x.Value.Item2.Count > 500).Select(x => x.Key).ToList();
 
             await expiredSpecificChannels.SelectAsync(async (expired) =>
             {
@@ -196,8 +200,8 @@ namespace Aggregates.Internal
             {
                 // Add a process exit event handler to flush cached delayed events before exiting the app
                 // Not perfect in the case of a fatal app error - but something
-                AppDomain.CurrentDomain.ProcessExit += (sender, e) => Flush(store, all: true).Wait();
-                _flusher = Timer.Repeat((s) => Flush(s), store, flushInterval.Value);
+                AppDomain.CurrentDomain.ProcessExit += (sender, e) => Flush(new FlushState { Store = store, StreamGen = streamGen }, all: true).Wait();
+                _flusher = Timer.Repeat((s) => Flush(s), new FlushState { Store = store, StreamGen = streamGen }, flushInterval.Value);
             }
         }
 

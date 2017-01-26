@@ -95,9 +95,11 @@ namespace Aggregates.Internal
             };
 
             Saved.Mark();
+            // Todo: the $ce-SNAPSHOT stream falls behind and maxCount snapshots end up being deleted before linked to snapshot stream
+            // the better way would be for snapshot store to update truncateBefore periodically to reflect snapshots it's already seen and has new version of
             if (await _store.WriteSnapshot(streamName, e, commitHeaders).ConfigureAwait(false) == 1)
                 // New stream, write metadata
-                await _store.WriteMetadata(streamName, maxCount: 5).ConfigureAwait(false);
+                await _store.WriteMetadata(streamName, maxCount: 500).ConfigureAwait(false);
 
         }
 
