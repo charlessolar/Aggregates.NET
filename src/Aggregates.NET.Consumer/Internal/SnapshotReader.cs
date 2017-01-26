@@ -83,7 +83,7 @@ namespace Aggregates.Internal
                         }
                         catch {}
                     });
-                }, store, TimeSpan.FromSeconds(30));
+                }, store, TimeSpan.FromMinutes(5));
             }
         }
 

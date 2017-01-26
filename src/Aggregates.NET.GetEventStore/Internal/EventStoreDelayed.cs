@@ -311,7 +311,7 @@ namespace Aggregates.Internal
                 // null means we cached a negative result
                 if (cached.Item2 == null)
                     return null;
-                return DateTime.UtcNow - (DateTime)cached.Item2;
+                return (TimeSpan)cached.Item2;
             }
 
             // Try metadata
@@ -321,10 +321,10 @@ namespace Aggregates.Internal
                 if (!string.IsNullOrEmpty(metadata))
                 {
                     var at = int.Parse(metadata);
-                    AgeSizeCache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow, at);
 
                     Logger.Write(LogLevel.Debug, () => $"Got age from metadata of delayed channel [{channel}]");
                     var age = TimeSpan.FromSeconds(DateTime.UtcNow.ToUnixTime() - at);
+                    AgeSizeCache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow, age);
 
                     return age;
                 }
@@ -343,10 +343,10 @@ namespace Aggregates.Internal
                 var firstEvent = await _store.GetEvents(streamName, StreamPosition.Start, 1).ConfigureAwait(false);
                 if (firstEvent != null && firstEvent.Any())
                 {
-                    AgeSizeCache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow, firstEvent.Single().Descriptor.Timestamp);
 
                     Logger.Write(LogLevel.Debug, () => $"Got age from first event of delayed channel [{channel}]");
                     var age = DateTime.UtcNow - firstEvent.Single().Descriptor.Timestamp;
+                    AgeSizeCache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow, age);
 
                     return age;
                 }
