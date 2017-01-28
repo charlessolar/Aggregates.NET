@@ -29,13 +29,9 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             var settings = context.Settings;
-
-            TimeSpan? flushInterval;
-            if (!settings.TryGet<TimeSpan?>("FlushInterval", out flushInterval))
-                flushInterval = null;
-
+            
             context.Container.ConfigureComponent(b =>
-                new EventStoreDelayed(b.Build<IStoreEvents>(), flushInterval, settings.Get<StreamIdGenerator>("StreamGenerator")),
+                new EventStoreDelayed(b.Build<IStoreEvents>(), settings.EndpointName(), settings.Get<int>("MaxDelayed"), settings.Get<TimeSpan>("FlushInterval"), settings.Get<StreamIdGenerator>("StreamGenerator")),
                 DependencyLifecycle.InstancePerUnitOfWork);
 
 

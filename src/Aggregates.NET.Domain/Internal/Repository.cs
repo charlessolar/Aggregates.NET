@@ -30,12 +30,12 @@ namespace Aggregates.Internal
         private readonly ReadOnlySettings _settings;
 
         private static readonly Meter Conflicts = Metric.Meter("Conflicts", Unit.Items);
-        private static readonly Meter ConflictsResolved = Metric.Meter("Conflicts Resolved", Unit.Items);
-        private static readonly Meter ConflictsUnresolved = Metric.Meter("Conflicts Unresolved", Unit.Items);
+        private static readonly Meter ConflictsResolved = Metric.Meter("Conflicts Resolved", Unit.Items, tags: "debug");
+        private static readonly Meter ConflictsUnresolved = Metric.Meter("Conflicts Unresolved", Unit.Items, tags: "debug");
         private static readonly Meter WriteErrors = Metric.Meter("Event Write Errors", Unit.Errors);
-        private static readonly Metrics.Timer CommitTime = Metric.Timer("Repository Commit Time", Unit.Items);
-        private static readonly Meter WrittenEvents = Metric.Meter("Repository Written Events", Unit.Events);
-        private static readonly Metrics.Timer ConflictResolutionTime = Metric.Timer("Conflict Resolution Time", Unit.Items);
+        private static readonly Metrics.Timer CommitTime = Metric.Timer("Repository Commit Time", Unit.Items, tags: "debug");
+        private static readonly Meter WrittenEvents = Metric.Meter("Repository Written Events", Unit.Events, tags: "debug");
+        private static readonly Metrics.Timer ConflictResolutionTime = Metric.Timer("Conflict Resolution Time", Unit.Items, tags: "debug");
 
         protected readonly IDictionary<string, T> Tracked = new Dictionary<string, T>();
 

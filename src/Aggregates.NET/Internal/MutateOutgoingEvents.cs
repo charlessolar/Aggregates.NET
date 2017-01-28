@@ -13,7 +13,7 @@ namespace Aggregates.Internal
 {
     internal class MutateOutgoingEvents : Behavior<IOutgoingLogicalMessageContext>
     {
-        private static readonly Meter Events = Metric.Meter("Outgoing Events", Unit.Items);
+        private static readonly Meter Events = Metric.Meter("Outgoing Events", Unit.Items, tags: "debug");
         private static readonly ILog Logger = LogManager.GetLogger("MutateOutgoingEvents");
 
         public override Task Invoke(IOutgoingLogicalMessageContext context, Func<Task> next)

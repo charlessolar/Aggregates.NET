@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
@@ -30,7 +31,7 @@ namespace Aggregates
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
-            context.RegisterStartupTask(builder => new EventStoreRunner(builder.Build<IEventSubscriber>(), context.Settings));
+            context.RegisterStartupTask(builder => new EventStoreRunner(builder.BuildAll<IEventSubscriber>(), context.Settings));
 
             var settings = context.Settings;
             context.Container.ConfigureComponent(b =>
@@ -52,6 +53,15 @@ namespace Aggregates
                 return new SnapshotReader(b.Build<IStoreEvents>(), b.Build<IMessageMapper>(), connections, compress);
             }, DependencyLifecycle.SingleInstance);
 
+            context.Container.ConfigureComponent(b =>
+            {
+                IEventStoreConnection[] connections;
+                if (!settings.TryGet<IEventStoreConnection[]>("Shards", out connections))
+                    connections = new[] { b.Build<IEventStoreConnection>() };
+
+                return new DelayedSubscriber(b.Build<IMessageMapper>(), connections, settings.Get<int>("MaxDelayed"));
+            }, DependencyLifecycle.SingleInstance);
+
             context.Pipeline.Register<MutateIncomingEventRegistration>();
         }
     }
@@ -59,12 +69,12 @@ namespace Aggregates
     {
         private static readonly ILog Logger = LogManager.GetLogger("EventStoreRunner");
         private readonly ReadOnlySettings _settings;
-        private readonly IEventSubscriber _subscriber;
+        private readonly IEnumerable<IEventSubscriber> _subscribers;
         private readonly CancellationTokenSource _cancellationTokenSource;
 
-        public EventStoreRunner(IEventSubscriber subscriber, ReadOnlySettings settings)
+        public EventStoreRunner(IEnumerable<IEventSubscriber> subscribers, ReadOnlySettings settings)
         {
-            _subscriber = subscriber;
+            _subscribers = subscribers;
             _settings = settings;
             _cancellationTokenSource = new CancellationTokenSource();
         }
@@ -72,12 +82,13 @@ namespace Aggregates
         protected override async Task OnStart(IMessageSession session)
         {
             Logger.Write(LogLevel.Info, "Starting event consumer");
-            await _subscriber.Setup(
-                _settings.EndpointName(),
-                _settings.Get<int>("ReadSize"),
-                _settings.Get<bool>("ExtraStats")).ConfigureAwait(false);
+            await _subscribers.SelectAsync(x => x.Setup(
+                    _settings.EndpointName(),
+                    _settings.Get<int>("ReadSize"),
+                    _settings.Get<bool>("ExtraStats"))
+            ).ConfigureAwait(false);
 
-            await _subscriber.Subscribe(_cancellationTokenSource.Token).ConfigureAwait(false);
+            await _subscribers.SelectAsync(x => x.Subscribe(_cancellationTokenSource.Token)).ConfigureAwait(false);
         }
 
         protected override Task OnStop(IMessageSession session)
@@ -89,7 +100,8 @@ namespace Aggregates
 
         public void Dispose()
         {
-            _subscriber.Dispose();
+            foreach(var subscriber in _subscribers)
+                subscriber.Dispose();
         }
     }
 

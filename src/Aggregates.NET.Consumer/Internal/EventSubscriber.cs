@@ -242,7 +242,7 @@ when({{
                         await
                             client.CreatePersistentSubscriptionAsync($"{stream}.{StreamTypes.OOB}", roundRobbinGroup, settings,
                                 client.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                        Logger.Info($"Created PINNED persistent subscription to stream [{stream}]");
+                        Logger.Info($"Created ROUND ROBIN persistent subscription to stream [{stream}]");
 
                     }
                     catch (InvalidOperationException)
@@ -257,8 +257,8 @@ when({{
                         //  00 00 01 01 02 02 03 03
                         //  10 10 11 11 12 12 13 13
                         //
-                        clients[2 * ((i * _concurrency) + j)] = new PersistentClient(client, $"{stream}.{StreamTypes.Domain}", pinnedGroup, j, clientCancelSource.Token);
-                        clients[2 * ((i * _concurrency) + j) + 1] = new PersistentClient(client, $"{stream}.{StreamTypes.OOB}", roundRobbinGroup, j, clientCancelSource.Token);
+                        clients[2 * ((i * _concurrency) + j)] = new PersistentClient(client, $"{stream}.{StreamTypes.Domain}", pinnedGroup, _readsize, j, clientCancelSource.Token);
+                        clients[2 * ((i * _concurrency) + j) + 1] = new PersistentClient(client, $"{stream}.{StreamTypes.OOB}", roundRobbinGroup, _readsize, j, clientCancelSource.Token);
                     }
                 }
 
@@ -277,7 +277,7 @@ when({{
 
             param.Clients.SelectAsync(x => x.Connect()).Wait();
 
-            var threadIdle = Metric.Timer("Process Events Idle", Unit.None);
+            var threadIdle = Metric.Timer("Process Events Idle", Unit.None, tags: "debug");
             var tasks = new Task[param.Clients.Count()];
 
             TimerContext? idleContext = threadIdle.NewContext();
@@ -321,7 +321,7 @@ when({{
                 if (idleContext == null)
                     idleContext = threadIdle.NewContext();
                 // Cheap hack to not burn cpu incase there are no events
-                if (noEvents) Thread.Sleep(10);
+                if (noEvents) Thread.Sleep(50);
             }
 
 

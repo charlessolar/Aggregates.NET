@@ -14,7 +14,7 @@ namespace Aggregates.Internal
 {
     class StorePocos : IStorePocos
     {
-        private static readonly Meter Saved = Metric.Meter("Saved Pocos", Unit.Items);
+        private static readonly Meter Saved = Metric.Meter("Saved Pocos", Unit.Items, tags: "debug");
         private static readonly Meter HitMeter = Metric.Meter("Poco Cache Hits", Unit.Events);
         private static readonly Meter MissMeter = Metric.Meter("Poco Cache Misses", Unit.Events);
 

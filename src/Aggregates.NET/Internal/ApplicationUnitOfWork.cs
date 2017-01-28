@@ -20,9 +20,9 @@ namespace Aggregates.Internal
 
         private static readonly Meter MessagesMeter = Metric.Meter("Messages", Unit.Items);
         private static readonly Metrics.Timer MessagesTimer = Metric.Timer("Message Duration", Unit.Items);
-        private static readonly Metrics.Timer BeginTimer = Metric.Timer("UOW Begin Duration", Unit.Items);
-        private static readonly Metrics.Timer ProcessTimer = Metric.Timer("UOW Process Duration", Unit.Items);
-        private static readonly Metrics.Timer EndTimer = Metric.Timer("UOW End Duration", Unit.Items);
+        private static readonly Metrics.Timer BeginTimer = Metric.Timer("UOW Begin Duration", Unit.Items, tags: "debug");
+        private static readonly Metrics.Timer ProcessTimer = Metric.Timer("UOW Process Duration", Unit.Items, tags: "debug");
+        private static readonly Metrics.Timer EndTimer = Metric.Timer("UOW End Duration", Unit.Items, tags: "debug");
         private static readonly Counter MessagesConcurrent = Metric.Counter("Messages Concurrent", Unit.Items);
 
         private static readonly Meter ErrorsMeter = Metric.Meter("UOW Errors", Unit.Errors);
@@ -69,7 +69,25 @@ namespace Aggregates.Internal
 
                     using (ProcessTimer.NewContext())
                     {
-                        await next().ConfigureAwait(false);
+                        // Special case for delayed messages read from delayed stream
+                        if (context.Headers.ContainsKey(Defaults.BulkHeader))
+                        {
+                            DelayedMessage[] delayed;
+                            if (!context.Extensions.TryGet(Defaults.BulkHeader, out delayed))
+                                await next().ConfigureAwait(false);
+
+                            foreach (var x in delayed)
+                            {
+                                // Todo: should we overwrite the headers for the message with the delayed ones?
+                                // dont really see the point yet
+                                context.Headers[Defaults.ChannelKey] = x.ChannelKey;
+                                context.UpdateMessageInstance(x.Message);
+                                await next().ConfigureAwait(false);
+                            }
+
+                        }
+                        else
+                            await next().ConfigureAwait(false);
                     }
 
                     using (EndTimer.NewContext())

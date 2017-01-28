@@ -21,6 +21,8 @@ namespace Aggregates
         public static readonly string SetupCorrectly = "Aggregates.NET.Safe";
         public static readonly string Retries = "Aggregates.NET.Retries";
         public static readonly string RequestResponse = "Aggregates.NET.Request";
+        public static readonly string BulkHeader = "Aggregates.NET.Bulk";
+        public static readonly string ChannelKey = "Aggregates.NET.ChannelKey";
 
         public static Guid Instance = Guid.NewGuid();
         public static string Bucket = "default";

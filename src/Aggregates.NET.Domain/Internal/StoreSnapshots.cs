@@ -13,7 +13,7 @@ namespace Aggregates.Internal
 {
     class StoreSnapshots : IStoreSnapshots
     {
-        private static readonly Meter Saved = Metric.Meter("Saved Snapshots", Unit.Items);
+        private static readonly Meter Saved = Metric.Meter("Saved Snapshots", Unit.Items, tags: "debug");
         private static readonly Meter HitMeter = Metric.Meter("Snapshot Cache Hits", Unit.Events);
         private static readonly Meter MissMeter = Metric.Meter("Snapshot Cache Misses", Unit.Events);
 

@@ -25,7 +25,7 @@ namespace Aggregates
                 s.SetDefault("SlowAlertThreshold", 1000);
                 s.SetDefault("SlowAlerts", false);
                 s.SetDefault("StreamGenerator", new StreamIdGenerator((type, streamType, bucket, stream) => $"{streamType}-{bucket}-{type.FullName.Replace(".", "")}-{stream}"));
-                s.SetDefault("MaxPulledDelayed", 500);
+                s.SetDefault("MaxDelayed", 1000);
             });
         }
         protected override void Setup(FeatureConfigurationContext context)
@@ -53,7 +53,7 @@ namespace Aggregates
                 description: "runs command mutators on outgoing events"
                 );
             context.Pipeline.Replace("InvokeHandlers", (b) => 
-                new BulkInvokeHandlerTerminator(b.Build<IMessageMapper>(), settings.Get<int>("MaxPulledDelayed")),
+                new BulkInvokeHandlerTerminator(b.Build<IMessageMapper>()),
                 "Replaces default invoke handlers with one that supports our custom delayed invoker");
 
             if(context.Settings.Get<bool>("SlowAlerts"))

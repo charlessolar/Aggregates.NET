@@ -34,7 +34,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
         public void Setup()
         {
             _mapper = new Moq.Mock<IMessageMapper>();
-            _terminator = new Aggregates.Internal.BulkInvokeHandlerTerminator(_mapper.Object, 10);
+            _terminator = new Aggregates.Internal.BulkInvokeHandlerTerminator(_mapper.Object);
         }
 
         [Test]

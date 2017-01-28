@@ -19,7 +19,7 @@ namespace Aggregates.Internal
 {
     class StoreStreams : IStoreStreams
     {
-        private static readonly Meter Saved = Metric.Meter("Saved Streams", Unit.Items);
+        private static readonly Meter Saved = Metric.Meter("Saved Streams", Unit.Items, tags: "debug");
         private static readonly Meter HitMeter = Metric.Meter("Stream Cache Hits", Unit.Events);
         private static readonly Meter MissMeter = Metric.Meter("Stream Cache Misses", Unit.Events);
 

@@ -22,24 +22,23 @@ namespace Aggregates.Internal
         public IDictionary<string, string> Headers { get; set; }
         public object Message { get; set; }
         public DateTime Received { get; set; }
+        public String ChannelKey { get; set; }
     }
     internal class BulkInvokeHandlerTerminator : PipelineTerminator<IInvokeHandlerContext>
     {
-        private static readonly Meter InvokesDelayed = Metric.Meter("Delayed Invokes", Unit.Items);
+        private static readonly Meter InvokesDelayed = Metric.Meter("Delayed Invokes", Unit.Items, tags: "debug");
         private static readonly Meter Invokes = Metric.Meter("Bulk Invokes", Unit.Items);
         private static readonly ILog Logger = LogManager.GetLogger("BulkInvokeHandlerTerminator");
-        
+
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
         private static readonly object Lock = new Object();
         private static readonly HashSet<string> IsNotDelayed = new HashSet<string>();
 
         private readonly IMessageMapper _mapper;
-        private readonly int _maxPulledDelayed;
 
-        public BulkInvokeHandlerTerminator(IMessageMapper mapper, int maxPulledDelayed)
+        public BulkInvokeHandlerTerminator(IMessageMapper mapper)
         {
             _mapper = mapper;
-            _maxPulledDelayed = maxPulledDelayed;
         }
 
         protected override async Task Terminate(IInvokeHandlerContext context)
@@ -62,8 +61,9 @@ namespace Aggregates.Internal
 
             bool contains = false;
             lock (Lock) contains = IsNotDelayed.Contains(channelKey);
-
-            if (contains)
+            
+            // Special case for when we are bulk processing messages from DelayedSubscriber, simply process it and return dont check for more bulk
+            if (contains || (context.Headers.ContainsKey(Defaults.ChannelKey) && context.Headers[Defaults.ChannelKey] == channelKey))
             {
                 Logger.Write(LogLevel.Debug, () => $"Invoking handle for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
                 await messageHandler.Invoke(context.MessageBeingHandled, context).ConfigureAwait(false);
@@ -80,6 +80,7 @@ namespace Aggregates.Internal
                     Headers = context.Headers,
                     Message = context.MessageBeingHandled,
                     Received = DateTime.UtcNow,
+                    ChannelKey = channelKey
                 };
 
                 InvokesDelayed.Mark();
@@ -121,7 +122,7 @@ namespace Aggregates.Internal
                 if (!ShouldExecute(delayed, size, age))
                 {
                     Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing channel [{channelKey}]");
-                    
+
                     return;
                 }
 
@@ -163,26 +164,26 @@ namespace Aggregates.Internal
 
         private async Task InvokeDelayedChannel(IDelayedChannel channel, string channelKey, string specificKey, DelayedAttribute attr, MessageHandler handler, IInvokeHandlerContext context)
         {
-            var pull = _maxPulledDelayed;
-            if (attr.Count.HasValue)
-                pull = Math.Min(attr.Count.Value, _maxPulledDelayed);
 
-            var msgs = await channel.Pull(channelKey, key: specificKey, max: pull).ConfigureAwait(false);
+            var msgs = await channel.Pull(channelKey, key: specificKey, max: attr.Count).ConfigureAwait(false);
 
             if (!msgs.Any())
             {
-                Logger.Write(LogLevel.Debug, () => $"No delayed events found on channel [{channelKey}]");
+                Logger.Write(LogLevel.Debug, () => $"No delayed events found on channel [{channelKey}] specific key [{specificKey}]");
                 return;
             }
-            
+
             Invokes.Mark();
             var idx = 0;
+            var count = msgs.Count();
+            Logger.Write(LogLevel.Debug, () => $"Starting invoke handle {count} times channel key [{channelKey}] specific key [{specificKey}]");
             foreach (var msg in msgs.Cast<DelayedMessage>())
             {
                 idx++;
-                Logger.Write(LogLevel.Debug, () => $"Invoking handle {idx}/{msgs.Count()} times channel key {channelKey}");
+                Logger.Write(LogLevel.Debug, () => $"Invoking handle {idx}/{count} times channel key [{channelKey}] specific key [{specificKey}]");
                 await handler.Invoke(msg.Message, context).ConfigureAwait(false);
             }
+            Logger.Write(LogLevel.Debug, () => $"Finished invoke handle {count} times channel key [{channelKey}] specific key [{specificKey}]");
         }
 
 

@@ -30,8 +30,9 @@ namespace Aggregates.Internal
             return EventIds.AddOrUpdate(commitId, commitId, (key, value) => value.Increment());
         }
 
-        private static readonly Metrics.Timer PrepareTime = Metric.Timer("UOW Prepare Time", Unit.Items);
-        private static readonly Metrics.Timer CommitTime = Metric.Timer("UOW Commit Time", Unit.Items);
+        private static readonly Metrics.Timer PrepareTime = Metric.Timer("UOW Prepare Time", Unit.Items, tags: "debug");
+        private static readonly Metrics.Timer CommitTime = Metric.Timer("UOW Commit Time", Unit.Items, tags: "debug");
+
         private const string CommitHeader = "CommitId";
         private const string TerminatingEventIdHeader = "FinalEventId";
         public static string PrefixHeader = "Originating";

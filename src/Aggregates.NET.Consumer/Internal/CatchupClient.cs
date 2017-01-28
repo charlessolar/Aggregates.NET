@@ -18,7 +18,7 @@ namespace Aggregates.Internal
     class CatchupClient : IDisposable
     {
         private static readonly ILog Logger = LogManager.GetLogger("CatchupClient");
-        private static readonly Counter Snapshots = Metric.Counter("Snapshots Seen", Unit.Items);
+        private static readonly Counter Snapshots = Metric.Counter("Snapshots Seen", Unit.Items, tags: "debug");
 
         // Todo: config option for "most snapshots stored" and a LRU cache?
         private readonly SortedDictionary<string, IWritableEvent> _snapshots;

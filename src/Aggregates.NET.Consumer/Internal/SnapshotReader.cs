@@ -32,7 +32,7 @@ namespace Aggregates.Internal
     class SnapshotReader : ISnapshotReader
     {
         private static readonly ILog Logger = LogManager.GetLogger("SnapshotReader");
-        private static readonly Counter StoredSnapshots = Metric.Counter("Snapshots Stored", Unit.Items);
+        private static readonly Counter StoredSnapshots = Metric.Counter("Snapshots Stored", Unit.Items, tags: "debug");
 
         private static readonly ConcurrentDictionary<string, ISnapshot> Snapshots = new ConcurrentDictionary<string, ISnapshot>();
         private static readonly ConcurrentDictionary<string, int> TruncateBefore = new ConcurrentDictionary<string, int>();
