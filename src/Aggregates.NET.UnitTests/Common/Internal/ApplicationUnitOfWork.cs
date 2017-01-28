@@ -51,6 +51,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.MessageId).Returns("1");
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
 
             await _uow.Invoke(context.Object, next.Object);
             next.Verify(x => x(), Moq.Times.Once);
@@ -67,6 +68,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.MessageId).Returns("1");
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
 
             await _uow.Invoke(context.Object, next.Object);
             next.Verify(x => x(), Moq.Times.Once);
@@ -86,6 +88,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.MessageId).Returns("1");
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             _persistence.Setup(x => x.Clear("1")).Returns(Task.CompletedTask);
 
             await _uow.Invoke(context.Object, next.Object);
@@ -108,6 +111,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             uow.Setup(x => x.End(null)).Throws(new Exception("test"));
             uow.Setup(x => x.Bag).Returns(bag);
 
@@ -133,6 +137,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             _persistence.Setup(x => x.Remove("1", uow.GetType())).Returns(Task.FromResult(bag));
 
             await _uow.Invoke(context.Object, next.Object);
@@ -160,6 +165,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
 
             await _uow.Invoke(context.Object, next.Object);
             next.Verify(x => x(), Moq.Times.Once);
@@ -181,6 +187,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.MessageId).Returns("1");
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             var ordering = new List<bool>();
             uow.Setup(x => x.End(null)).Returns(Task.CompletedTask).Callback(() => ordering.Add(false));
             uow2.Setup(x => x.End(null)).Returns(Task.CompletedTask).Callback(() => ordering.Add(true));
@@ -203,6 +210,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             uow.Setup(x => x.End(null)).Throws(new Exception());
 
             Assert.ThrowsAsync<Exception>(() => _uow.Invoke(context.Object, next.Object));
@@ -225,7 +233,8 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
-            
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+
 
             await _uow.Invoke(context.Object, next.Object);
             next.Verify(x => x(), Moq.Times.Once);
@@ -245,6 +254,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             uow.Setup(x => x.End(null)).Throws(new Exception());
             uow2.Setup(x => x.End(Moq.It.IsAny<Exception>())).Throws(new Exception());
 
@@ -267,6 +277,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             uow.Setup(x => x.End(null)).Throws(new Exception());
             uow2.Setup(x => x.End(Moq.It.IsAny<Exception>())).Throws(new Exception());
             uow2.Setup(x => x.Bag).Returns(bag);

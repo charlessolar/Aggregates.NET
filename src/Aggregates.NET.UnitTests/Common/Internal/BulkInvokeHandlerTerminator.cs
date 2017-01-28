@@ -54,6 +54,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.MessageBeingHandled).Returns(new object());
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
 
             await _terminator.Invoke(context.Object, next.Object);
             Assert.True(invoked);
@@ -78,6 +79,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.MessageBeingHandled).Returns(new object());
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
 
             await _terminator.Invoke(context.Object, next.Object);
             Assert.True(invoked);
@@ -105,6 +107,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.MessageBeingHandled).Returns(new DelayedMessage());
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
 
             await _terminator.Invoke(context.Object, next.Object);
             Assert.False(invoked);
@@ -131,6 +134,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.MessageHandler).Returns(handler);
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             var channelKey = "";
             var keyPropChannelKey = "";
             
@@ -172,6 +176,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.MessageBeingHandled).Returns(new DelayedMessage());
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             channel.Setup(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>())).Returns(Task.FromResult(2));
             channel.Setup(x => x.Pull(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<int?>()))
                 .Returns(Task.FromResult(new object[] {new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage()}.AsEnumerable()));
@@ -205,6 +210,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.MessageBeingHandled).Returns(new DelayedMessage());
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             channel.Setup(x => x.Age(Moq.It.IsAny<string>(), Moq.It.IsAny<string>())).Returns(Task.FromResult<TimeSpan?>(TimeSpan.FromSeconds(2)));
             channel.Setup(x => x.Pull(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<int?>()))
                 .Returns(Task.FromResult(new object[] { new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage() }.AsEnumerable()));
@@ -238,6 +244,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.MessageBeingHandled).Returns(new DelayedMessage());
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             channel.Setup(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>())).Returns(Task.FromResult(2));
             channel.Setup(x => x.Pull(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<int?>()))
                 .Returns(Task.FromResult(new object[] { new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage() }.AsEnumerable()));
@@ -273,6 +280,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.MessageBeingHandled).Returns(new DelayedMessage());
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             channel.Setup(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>())).Returns(Task.FromResult(2));
             channel.Setup(x => x.Pull(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<int?>()))
                 .Returns(Task.FromResult(new object[] { new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage() }.AsEnumerable()));
@@ -303,6 +311,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.MessageBeingHandled).Returns(new DelayedMessageNoProps());
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             channel.Setup(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>())).Returns(Task.FromResult(1));
 
             channel.Setup(x => x.Pull(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), 1))
