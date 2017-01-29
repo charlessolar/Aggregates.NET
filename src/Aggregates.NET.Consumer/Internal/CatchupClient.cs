@@ -101,7 +101,7 @@ namespace Aggregates.Internal
             if (reason == SubscriptionDropReason.UserInitiated) return;
             
             // Run in task.Run because mixing .Wait and async methods is bad bad 
-            Task.Run(Connect, _token).Wait(_token);
+            Task.Run(Connect, _token);
         }
         public async Task Connect()
         {

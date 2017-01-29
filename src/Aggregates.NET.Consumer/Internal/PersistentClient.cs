@@ -114,6 +114,7 @@ namespace Aggregates.Internal
                 throw new InvalidOperationException(
                     $"Eventstore subscription dropped and we need to ACK {_toAck.Count} more events");
 
+            
             // Need to clear ReadyEvents of events delivered but not processed before disconnect
             ResolvedEvent e;
             while (!_waitingEvents.IsEmpty)
@@ -126,7 +127,7 @@ namespace Aggregates.Internal
             if (reason == SubscriptionDropReason.UserInitiated) return;
 
             // Run in task.Run because mixing .Wait and async methods is bad bad 
-            Task.Run(Connect, _token).Wait(_token);
+            Task.Run(Connect, _token);
         }
         public async Task Connect()
         {

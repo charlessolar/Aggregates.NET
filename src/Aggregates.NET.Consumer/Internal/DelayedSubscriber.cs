@@ -91,7 +91,7 @@ namespace Aggregates.Internal
         {
             _cancelation = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
             var stream = $"$ce-{_endpoint}.{StreamTypes.Delayed}";
-            var pinnedGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.{StreamTypes.Delayed}.PINNED";
+            var group = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.{StreamTypes.Delayed}.ROUND";
 
             Task.Run(async () =>
             {
@@ -112,8 +112,7 @@ namespace Aggregates.Internal
                     .CheckPointAfter(TimeSpan.FromSeconds(30))
                     .MaximumCheckPointCountOf(_readsize * _readsize)
                     .ResolveLinkTos()
-                    // Pinned because we want to bulk process whole streams, round robin would spread streams all around
-                    .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned); 
+                    .WithNamedConsumerStrategy(SystemConsumerStrategies.RoundRobin); 
                 if (_extraStats)
                     settings.WithExtraStatistics();
 
@@ -132,16 +131,16 @@ namespace Aggregates.Internal
                     try
                     {
                         await
-                            client.CreatePersistentSubscriptionAsync(stream, pinnedGroup, settings,
+                            client.CreatePersistentSubscriptionAsync(stream, group, settings,
                                 client.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                        Logger.Info($"Created PINNED persistent subscription to stream [{stream}]");
+                        Logger.Info($"Created ROUND ROBIN persistent subscription to stream [{stream}]");
 
                     }
                     catch (InvalidOperationException)
                     {
                     }
 
-                    clients[i] = new DelayedClient(client, stream, pinnedGroup, _maxDelayed, clientCancelSource.Token);
+                    clients[i] = new DelayedClient(client, stream, group, _maxDelayed, clientCancelSource.Token);
                 }
                 _delayedThread = new Thread(Threaded)
                 { IsBackground = true, Name = $"Delayed Event Thread" };
@@ -158,7 +157,7 @@ namespace Aggregates.Internal
 
             param.Clients.SelectAsync(x => x.Connect()).Wait();
 
-            var threadIdle = Metric.Timer("Delayed Events Idle", Unit.None);
+            var threadIdle = Metric.Timer("Delayed Events Idle", Unit.None, tags: "debug");
 
             TimerContext? idleContext = threadIdle.NewContext();
             while (true)
