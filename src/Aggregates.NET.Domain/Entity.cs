@@ -16,7 +16,7 @@ namespace Aggregates
 
     public abstract class EntityWithMemento<TThis, TId, TParent, TParentId, TMemento> : Entity<TThis, TId, TParent, TParentId>, ISnapshotting where TMemento : class, IMemento<TId> where TParent : Base<TParent, TParentId> where TThis : EntityWithMemento<TThis, TId, TParent, TParentId, TMemento>
     {
-        int? ISnapshotting.LastSnapshot => Stream.LastSnapshot;
+        ISnapshot ISnapshotting.Snapshot => Stream.Snapshot;
 
         void ISnapshotting.RestoreSnapshot(object snapshot)
         {
@@ -33,7 +33,7 @@ namespace Aggregates
             return ShouldTakeSnapshot();
         }
 
-        public int? LastSnapshot => (this as ISnapshotting).LastSnapshot;
+        public ISnapshot Snapshot => (this as ISnapshotting).Snapshot;
 
         protected abstract void RestoreSnapshot(TMemento memento);
 

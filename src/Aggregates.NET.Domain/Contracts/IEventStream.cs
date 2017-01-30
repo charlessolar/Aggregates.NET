@@ -8,7 +8,7 @@ namespace Aggregates.Contracts
     public interface IEventStream
     {
         object CurrentMemento { get; }
-        int? LastSnapshot { get; }
+        ISnapshot Snapshot { get; }
         string StreamType { get; }
         string Bucket { get; }
         string StreamId { get; }

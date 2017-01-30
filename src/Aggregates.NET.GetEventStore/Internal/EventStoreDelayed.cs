@@ -43,10 +43,10 @@ namespace Aggregates.Internal
             public string Endpoint { get; set; }
             public int MaxSize { get; set; }
         }
-        private static readonly Histogram DelayedRead = Metric.Histogram("Delayed Channel Read", Unit.Items, tags: "debug");
+
+        private static readonly Counter MemCacheSize = Metric.Counter("Delayed Cache Size", Unit.Items);
         private static readonly Histogram DelayedSize = Metric.Histogram("Delayed Channel Size", Unit.Items, tags: "debug");
         private static readonly Histogram DelayedAge = Metric.Histogram("Delayed Channel Age", Unit.Items, tags: "debug");
-        private static readonly Counter MemCacheSize = Metric.Counter("Delayed Cache Size", Unit.Items);
         private static readonly Histogram FlushedSize = Metric.Histogram("Delayed Flushed", Unit.Items, tags: "debug");
         private static readonly Metrics.Timer FlushedTime = Metric.Timer("Delayed Flush Time", Unit.None, tags: "debug");
 
@@ -503,90 +503,7 @@ namespace Aggregates.Internal
 
             return Task.CompletedTask;
         }
-
-        private async Task<IEnumerable<object>> PullChannel(string channel, int? max = null)
-        {
-            var streamName = _streamGen(typeof(EventStoreDelayed), StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
-            Logger.Write(LogLevel.Debug, () => $"Pulling delayed objects from channel [{channel}]");
-
-            // Clear cache, even if stream is recently pulled Age and Size should be recalced next message
-            Tuple<DateTime, object> temp;
-            AgeSizeCache.TryRemove($"{streamName}.size", out temp);
-            AgeSizeCache.TryRemove($"{streamName}.age", out temp);
-
-            // Check if someone else is already processing
-            lock (_lock)
-            {
-                if (_inFlightChannel.ContainsKey(channel))
-                {
-                    Logger.Write(LogLevel.Debug, () => $"Channel [{channel}] is already being processed by this pipeline");
-                    return new object[] { }.AsEnumerable();
-                }
-            }
-
-            IEnumerable<IWritableEvent> delayed = null;
-            var didFreeze = false;
-            try
-            {
-                try
-                {
-                    // Pull metadata before freezing
-                    int lastPosition = StreamPosition.Start;
-                    var metadata = await _store.GetMetadata(streamName, "Position").ConfigureAwait(false);
-                    if (!string.IsNullOrEmpty(metadata))
-                        lastPosition = int.Parse(metadata) + 1;
-
-                    await _store.WriteMetadata(streamName, frozen: true, owner: Defaults.Instance).ConfigureAwait(false);
-                    didFreeze = true;
-
-                    delayed = await _store.GetEvents(streamName, lastPosition, count: max).ConfigureAwait(false) ?? new IWritableEvent[] { }.AsEnumerable();
-
-                    if (!delayed.Any())
-                        throw new Exception("No delayed messages");
-
-                    // Record events as InFlight
-                    var info = new InFlightInfo
-                    {
-                        At = DateTime.UtcNow,
-                        Position = delayed.Last().Descriptor.Version
-                    };
-
-                    lock (_lock) _inFlightChannel.Add(channel, info);
-                }
-                catch (ArgumentException)
-                {
-                    Logger.Write(LogLevel.Debug, () => $"Delayed channel [{channel}] already being processed");
-                    throw;
-                }
-                catch (VersionException)
-                {
-                    Logger.Write(LogLevel.Debug, () => $"Delayed channel [{channel}] is currently frozen");
-                    throw;
-                }
-            }
-            catch (Exception)
-            {
-                try
-                {
-                    if (didFreeze)
-                        await _store.WriteMetadata(streamName, frozen: false).ConfigureAwait(false);
-                }
-                catch (VersionException)
-                {
-                    Logger.Write(LogLevel.Error, () => $"Received exception while unfreezing channel [{channel}] - should never happen");
-                }
-            }
-            if (delayed == null)
-                return new object[] { };
-
-
-            var discovered = delayed.Select(x => x.Event);
-            DelayedRead.Update(discovered.Count());
-
-            Logger.Write(LogLevel.Debug, () => $"Got {discovered.Count()} delayed messages from channel [{channel}]");
-            return discovered;
-        }
-
+        
         public Task<IEnumerable<object>> Pull(string channel, string key = null, int? max = null)
         {
             Logger.Write(LogLevel.Debug, () => $"Pulling delayed channel [{channel}] key [{key}]");
@@ -618,20 +535,8 @@ namespace Aggregates.Internal
             }
             MemCacheSize.Decrement(discovered.Count);
             Interlocked.Add(ref _memCacheTotalSize, -discovered.Count);
-
-            // Skip getting from store if max already hit
-            //if (discovered.Count >= max)
-            //{
-            //    Logger.Write(LogLevel.Debug, () => $"Pulled max events {discovered.Count} from delayed channel [{channel}] key [{key}], skipping store");
-            //    return discovered;
-            //}
-
-            // A minor hit here to check if the store actually has any events to read, but its faster than trying to pull which will freeze and unfreeze the stream
-            //if (await ChannelSize(channel).ConfigureAwait(false) == 0)
+            
             return Task.FromResult<IEnumerable<object>>(discovered);
-
-            //var fromStore = await PullChannel(channel, max - discovered.Count).ConfigureAwait(false);
-            //return discovered.Concat(fromStore);
         }
 
         private async Task Ack(string channel)

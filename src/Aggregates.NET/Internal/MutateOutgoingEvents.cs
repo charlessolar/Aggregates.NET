@@ -26,7 +26,7 @@ namespace Aggregates.Internal
             var mutators=context.Builder.BuildAll<IEventMutator>();
             if (!mutators.Any()) return next();
 
-            IMutating mutated = new Mutating(@event, context.Headers);
+            IMutating mutated = new Mutating(@event, context.Headers ?? new Dictionary<string, string>());
             foreach (var mutator in mutators)
             {
                 Logger.Write(LogLevel.Debug, () => $"Mutating outgoing event {context.Message.MessageType.FullName} with mutator {mutator.GetType().FullName}");

@@ -2,7 +2,7 @@
 {
     public interface ISnapshotting
     {
-        int? LastSnapshot { get; }
+        ISnapshot Snapshot { get; }
 
         void RestoreSnapshot(object snapshot);
         object TakeSnapshot();

@@ -68,7 +68,7 @@ namespace Aggregates.Internal
             }
 
             MissMeter.Mark();
-            Logger.Write(LogLevel.Debug, () => $"Snapshot [{streamName}] not found");
+            Logger.Write(LogLevel.Debug, () => $"Snapshot not found for stream [{streamName}]");
             return null;
         }
 
