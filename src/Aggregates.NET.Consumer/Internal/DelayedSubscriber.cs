@@ -29,6 +29,7 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger("DelaySubscriber");
         private static readonly ILog SlowLogger = LogManager.GetLogger("Slow Alarm");
+
         private static readonly Metrics.Timer DelayedExecution = Metric.Timer("Delayed Execution", Unit.Items, tags: "debug");
         private static readonly Histogram DelayedHandled = Metric.Histogram("Delayed Handled", Unit.Items, tags: "debug");
 
@@ -234,7 +235,7 @@ namespace Aggregates.Internal
 
                                 }
                             }
-                            if(ctx.Elapsed > TimeSpan.FromSeconds(10))
+                            if(ctx.Elapsed > TimeSpan.FromSeconds(5))
                                 SlowLogger.Warn($"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
                         }
                     }

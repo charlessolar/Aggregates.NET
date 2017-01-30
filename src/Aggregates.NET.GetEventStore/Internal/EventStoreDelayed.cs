@@ -61,6 +61,19 @@ namespace Aggregates.Internal
 
         private static readonly ConcurrentDictionary<string, Tuple<DateTime, object>> AgeSizeCache = new ConcurrentDictionary<string, Tuple<DateTime, object>>();
 
+        private static readonly Dictionary<Tuple<string, string>, DateTime> RecentlyPulled = new Dictionary<Tuple<string, string>, DateTime>();
+        private static readonly object RecentLock = new object();
+
+        private static readonly Task Expiring = Timer.Repeat(() =>
+        {
+            lock (RecentLock)
+            {
+                var expired = RecentlyPulled.Where(x => x.Value < DateTime.UtcNow).ToList();
+                foreach (var e in expired)
+                    RecentlyPulled.Remove(e.Key);
+            }
+            return Task.CompletedTask;
+        }, TimeSpan.FromSeconds(5));
 
 
         private readonly IStoreEvents _store;
@@ -409,58 +422,7 @@ namespace Aggregates.Internal
             return Task.FromResult<TimeSpan?>(oldest);
 
         }
-
-        public async Task<int> ChannelSize(string channel)
-        {
-            var streamName = _streamGen(typeof(EventStoreDelayed), StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
-            Logger.Write(LogLevel.Debug, () => $"Getting size of delayed channel [{channel}]");
-
-            // Try cache
-            Tuple<DateTime, object> cached;
-            if (AgeSizeCache.TryGetValue($"{streamName}.size", out cached) && (DateTime.UtcNow - cached.Item1).TotalSeconds < 5)
-            {
-                Logger.Write(LogLevel.Debug, () => $"Got size from cache for channel [{channel}]");
-                if (cached.Item2 == null)
-                    return 0;
-                return (int)cached.Item2 + 1;
-            }
-
-            // Read last processed position + last event position
-            int lastPosition = StreamPosition.Start;
-            try
-            {
-                var metadata = await _store.GetMetadata(streamName, "Position").ConfigureAwait(false);
-                if (!String.IsNullOrEmpty(metadata))
-                    lastPosition = int.Parse(metadata) + 1;
-            }
-            catch (FrozenException)
-            {
-                // Someone else is processing
-                AgeSizeCache[$"{streamName}.size"] = new Tuple<DateTime, object>(DateTime.UtcNow, null);
-                Logger.Write(LogLevel.Debug, () => $"Size is unavailable from delayed channel [{channel}] - stream frozen");
-                return 0;
-            }
-            try
-            {
-                var lastEvent = await _store.GetEventsBackwards(streamName, StreamPosition.End, 1).ConfigureAwait(false);
-                if (lastEvent != null && lastEvent.Any())
-                {
-                    AgeSizeCache[$"{streamName}.size"] = new Tuple<DateTime, object>(DateTime.UtcNow, lastEvent.Single().Descriptor.Version - lastPosition);
-
-                    Logger.Write(LogLevel.Debug, () => $"Got size from metadata and last event of delayed channel [{channel}]");
-                    var size = ((lastEvent.Single().Descriptor.Version - lastPosition) + 1);
-
-                    return size;
-                }
-            }
-            catch (NotFoundException) { }
-
-            // cache that we dont have one yet
-            AgeSizeCache[$"{streamName}.size"] = new Tuple<DateTime, object>(DateTime.UtcNow, null);
-            Logger.Write(LogLevel.Debug, () => $"Failed to get size of delayed channel [{channel}]");
-            return 0;
-        }
-
+        
         public Task<int> Size(string channel, string key = null)
         {
             Logger.Write(LogLevel.Debug, () => $"Getting size of delayed channel [{channel}] key [{key}]");
@@ -506,9 +468,21 @@ namespace Aggregates.Internal
         
         public Task<IEnumerable<object>> Pull(string channel, string key = null, int? max = null)
         {
+            var specificKey = new Tuple<string, string>(channel, key);
+
+            // If a stream has been attempted to pull recently (<10 seconds) don't try again
+            lock (RecentLock)
+            {
+                if (RecentlyPulled.ContainsKey(specificKey))
+                {
+                    Logger.Write(LogLevel.Debug, () => $"Channel [{channel}] was pulled by this instance recently - leaving it alone");
+                    return Task.FromResult(new object[] {}.AsEnumerable());
+                }
+                RecentlyPulled.Add(specificKey, DateTime.UtcNow.AddSeconds(10));
+            }
+
             Logger.Write(LogLevel.Debug, () => $"Pulling delayed channel [{channel}] key [{key}]");
 
-            var specificKey = new Tuple<string, string>(channel, key);
 
             Tuple<DateTime, List<object>> fromCache;
 
