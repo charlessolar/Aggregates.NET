@@ -34,6 +34,18 @@ namespace Aggregates.Internal
         private static readonly Histogram InvokeSize = Metric.Histogram("Bulk Invoke Size", Unit.Items, tags: "debug");
         private static readonly Metrics.Timer InvokeTime = Metric.Timer("Bulk Invoke Time", Unit.None, tags: "debug");
 
+        internal static readonly Dictionary<Tuple<string, string>, DateTime> RecentlyInvoked = new Dictionary<Tuple<string, string>, DateTime>();
+        private static readonly object RecentLock = new object();
+        private static readonly Task Expiring = Timer.Repeat(() =>
+        {
+            lock (RecentLock)
+            {
+                var expired = RecentlyInvoked.Where(x => x.Value < DateTime.UtcNow).ToList();
+                foreach (var e in expired)
+                    RecentlyInvoked.Remove(e.Key);
+            }
+            return Task.CompletedTask;
+        }, TimeSpan.FromSeconds(5));
 
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
         private static readonly object Lock = new Object();
@@ -112,6 +124,17 @@ namespace Aggregates.Internal
                     // Prevents a single message from triggering a dozen different bulk invokes
                     Logger.Write(LogLevel.Debug, () => $"Limiting bulk processing for a single message to a single invoke");
                     return;
+                }
+
+                lock (RecentLock)
+                {
+                    var key = new Tuple<string, string>(channelKey, specificKey);
+                    if (RecentlyInvoked.ContainsKey(key))
+                    {
+                        Logger.Write(LogLevel.Debug, () => $"Channel [{channel}] specific [{specificKey}] was bulk invoked by this instance recently - leaving it alone");
+                        return;
+                    }
+                    RecentlyInvoked.Add(key, DateTime.UtcNow.AddSeconds(10));
                 }
 
 
