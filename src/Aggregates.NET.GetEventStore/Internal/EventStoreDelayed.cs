@@ -89,7 +89,8 @@ namespace Aggregates.Internal
             var flushState = state as FlushState;
             if (all)
                 Logger.Write(LogLevel.Info, () => $"App shutting down, flushing ALL mem cached channels");
-
+            
+            Logger.Write(LogLevel.Info, () => $"Flushing delayed channels - cache size: {_memCacheTotalSize} - total channels: {MemCache.Keys.Count}");
             using (var ctx = FlushedTime.NewContext())
             {
                 var totalFlushed = 0;
@@ -108,7 +109,23 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Debug,
                         () => $"Flushing expired channel {expired.Item1} key {expired.Item2} with {fromCache.Item2.Count} objects");
 
-                    var translatedEvents = fromCache.Item2.Select(x => new WritableEvent
+                    // Just take 500 from the end of the channel to prevent trying to write 20,000 items in 1 go
+                    var overLimit = fromCache.Item2.GetRange(Math.Max(0, fromCache.Item2.Count - 500), Math.Min(fromCache.Item2.Count, 500)).ToList();
+                    fromCache.Item2.RemoveRange(Math.Max(0, fromCache.Item2.Count - 500), Math.Min(fromCache.Item2.Count, 500));
+
+                    if (fromCache.Item2.Any())
+                    {
+                        // Put rest back in cache
+                        MemCache.AddOrUpdate(expired,
+                            (key) =>
+                                    new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
+                            (key, existing) =>
+                                new Tuple<DateTime, List<object>>(DateTime.UtcNow,
+                                    existing.Item2.Concat(fromCache.Item2).ToList())
+                        );
+                    }
+
+                    var translatedEvents = overLimit.Select(x => new WritableEvent
                     {
                         Descriptor = new EventDescriptor
                         {
@@ -127,9 +144,9 @@ namespace Aggregates.Internal
                             $"{flushState.Endpoint}.{StreamTypes.Delayed}", Assembly.GetEntryAssembly().FullName,
                             expired.Item1);
                         await flushState.Store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
-                        MemCacheSize.Decrement(fromCache.Item2.Count);
-                        Interlocked.Add(ref totalFlushed, fromCache.Item2.Count);
-                        Interlocked.Add(ref _memCacheTotalSize, -fromCache.Item2.Count);
+                        MemCacheSize.Decrement(overLimit.Count);
+                        Interlocked.Add(ref totalFlushed, overLimit.Count);
+                        Interlocked.Add(ref _memCacheTotalSize, -overLimit.Count);
                     }
                     catch (Exception e)
                     {
@@ -148,10 +165,13 @@ namespace Aggregates.Internal
                     }
                 }).ConfigureAwait(false);
 
-                // Flush the oldest streams until total size is under limit
-                while (_memCacheTotalSize > flushState.MaxSize)
+                // Flush 500 off the oldest streams until total size is under limit or we've flushed all the streams
+                var page = 0;
+                var ordered = MemCache.OrderBy(x => x.Value.Item1).Select(x => x.Key);
+                while (_memCacheTotalSize > flushState.MaxSize && page < MemCache.Keys.Count)
                 {
-                    var toFlush = MemCache.OrderBy(x => x.Value.Item1).Select(x => x.Key).Take(10);
+                    var toFlush = ordered.Skip(page).Take(10).ToList();
+                    page += 10;
 
                     await toFlush.SelectAsync(async (expired) =>
                     {
@@ -159,22 +179,24 @@ namespace Aggregates.Internal
                         if (!MemCache.TryRemove(expired, out fromCache))
                             return;
 
+                        // Take 500 from the end of the channel
+                        var overLimit = fromCache.Item2.GetRange(Math.Max(0, fromCache.Item2.Count - 500), Math.Min(fromCache.Item2.Count, 500)).ToList();
+                        fromCache.Item2.RemoveRange(Math.Max(0,fromCache.Item2.Count - 500), Math.Min(fromCache.Item2.Count, 500));
 
-                        var overLimit = fromCache.Item2.GetRange(500, fromCache.Item2.Count - 500).ToList();
-                        fromCache.Item2.RemoveRange(500, fromCache.Item2.Count - 500);
-
-                        // Put 500 back in cache
-                        MemCache.AddOrUpdate(expired,
-                            (key) =>
-                                    new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
-                            (key, existing) =>
-                                new Tuple<DateTime, List<object>>(DateTime.UtcNow,
-                                    existing.Item2.Concat(fromCache.Item2).ToList())
-                        );
+                        if (fromCache.Item2.Any())
+                        {
+                            // Put rest back in cache
+                            MemCache.AddOrUpdate(expired,
+                                (key) =>
+                                        new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
+                                (key, existing) =>
+                                    new Tuple<DateTime, List<object>>(DateTime.UtcNow,
+                                        existing.Item2.Concat(fromCache.Item2).ToList())
+                            );
+                        }
 
                         Logger.Write(LogLevel.Debug,
-                            () =>
-                                    $"Flushing too large channel {expired.Item1} key {expired.Item2} with {overLimit.Count} objects");
+                            () => $"Flushing too large channel {expired.Item1} key {expired.Item2} with {overLimit.Count} objects");
                         var translatedEvents = overLimit.Select(x => new WritableEvent
                         {
                             Descriptor = new EventDescriptor
@@ -194,9 +216,9 @@ namespace Aggregates.Internal
                                 $"{flushState.Endpoint}.{StreamTypes.Delayed}", Assembly.GetEntryAssembly().FullName,
                                 expired.Item1);
                             await flushState.Store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
-                            MemCacheSize.Decrement(fromCache.Item2.Count);
-                            Interlocked.Add(ref totalFlushed, fromCache.Item2.Count);
-                            Interlocked.Add(ref _memCacheTotalSize, -fromCache.Item2.Count);
+                            MemCacheSize.Decrement(overLimit.Count);
+                            Interlocked.Add(ref totalFlushed, overLimit.Count);
+                            Interlocked.Add(ref _memCacheTotalSize, -overLimit.Count);
                         }
                         catch (Exception e)
                         {
@@ -398,10 +420,8 @@ namespace Aggregates.Internal
         public Task<TimeSpan?> Age(string channel, string key = null)
         {
             Logger.Write(LogLevel.Debug, () => $"Getting age of delayed channel [{channel}] key [{key}]");
-
-            var channelAge = TimeSpan.Zero;//await ChannelAge(channel).ConfigureAwait(false) ?? TimeSpan.Zero;
+            
             var specificAge = TimeSpan.Zero;
-            var oldest = channelAge;
 
             if (!string.IsNullOrEmpty(key))
             {
@@ -410,42 +430,35 @@ namespace Aggregates.Internal
                 var specificKey = new Tuple<string, string>(channel, key);
                 Tuple<DateTime, List<object>> temp;
                 if (MemCache.TryGetValue(specificKey, out temp))
-                {
                     specificAge = DateTime.UtcNow - temp.Item1;
-                    oldest = channelAge > specificAge ? channelAge : specificAge;
-                }
+                
             }
-            DelayedAge.Update(Convert.ToInt64(oldest.TotalSeconds));
-            if (oldest > TimeSpan.FromMinutes(30))
-                SlowLogger.Write(LogLevel.Warn, () => $"Delayed channel [{channel}] is {channelAge.TotalMinutes} minutes old specific [{key}] is {specificAge.TotalMinutes} minites old!");
+            DelayedAge.Update(Convert.ToInt64(specificAge.TotalSeconds));
+            if (specificAge > TimeSpan.FromMinutes(30))
+                SlowLogger.Write(LogLevel.Warn, () => $"Delayed channel [{channel}] specific [{key}] is {specificAge.TotalMinutes} minutes old!");
 
-            return Task.FromResult<TimeSpan?>(oldest);
+            return Task.FromResult<TimeSpan?>(specificAge);
 
         }
         
         public Task<int> Size(string channel, string key = null)
         {
             Logger.Write(LogLevel.Debug, () => $"Getting size of delayed channel [{channel}] key [{key}]");
-
-            var channelSize = 0;//await ChannelSize(channel).ConfigureAwait(false);
+            
             var specificSize = 0;
-            var totalSize = channelSize;
             if (!string.IsNullOrEmpty(key))
             {
-
-                // Get age from memcache
+                // Get size from memcache
                 var specificKey = new Tuple<string, string>(channel, key);
                 Tuple<DateTime, List<object>> temp;
                 if (MemCache.TryGetValue(specificKey, out temp))
-                {
                     specificSize = temp.Item2.Count;
-                    totalSize = channelSize + specificSize;
-                }
+                
             }
-            if (totalSize > 5000)
-                SlowLogger.Write(LogLevel.Warn, () => $"Delayed channel [{channel}] size is {channelSize} specific [{key}] is {specificSize}!");
-            DelayedSize.Update(totalSize);
-            return Task.FromResult(totalSize);
+            if (specificSize > 5000)
+                SlowLogger.Write(LogLevel.Warn, () => $"Delayed channel [{channel}] specific [{key}] size is {specificSize}!");
+            DelayedSize.Update(specificSize);
+            return Task.FromResult(specificSize);
         }
 
         public Task AddToQueue(string channel, object queued, string key = null)

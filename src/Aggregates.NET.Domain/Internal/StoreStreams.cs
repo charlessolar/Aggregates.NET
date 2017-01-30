@@ -135,9 +135,12 @@ namespace Aggregates.Internal
             if (!last.Any())
                 throw new VersionException($"Expected version {stream.CommitVersion} on stream [{streamName}] - but no stream found");
             if (last.First().Descriptor.Version != stream.CommitVersion)
+            {
+                if (last.First().Descriptor.Version < stream.CommitVersion)
+                    Logger.Write(LogLevel.Warn, $"Stream [{streamName}] is {last.First().Descriptor.Version} in the store but we expected {stream.CommitVersion} - which is weird");
                 throw new VersionException(
                     $"Expected version {stream.CommitVersion} on stream [{streamName}] - but read {last.First().Descriptor.Version}");
-
+            }
             Logger.Write(LogLevel.Debug, () => $"Verified version of stream [{stream.StreamId}] in bucket [{stream.Bucket}] for type {typeof(T).FullName}");
         }
 
