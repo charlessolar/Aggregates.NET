@@ -194,18 +194,17 @@ namespace Aggregates.Internal
         {
             var hasSnapshot = _pendingShot == null ? "no" : "with";
             Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] for type {typeof(T).FullName} commiting {_uncommitted.Count} events, {_outofband.Count} out of band, {hasSnapshot} snapshot");
-            
+
+            // Flush events first, guarantee consistency through expected version THEN write snapshots and OOB
+            if (_uncommitted.Any())
+            {
+                Logger.Write(LogLevel.Debug,
+                    () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {Uncommitted.Count()} events");
+                await _store.WriteStream<T>(this, commitHeaders).ConfigureAwait(false);
+            }
 
             var tasks = new Task[]
             {
-                Task.Run(() =>
-                {
-                    if (!_uncommitted.Any()) return Task.CompletedTask;
-
-                    Logger.Write(LogLevel.Debug,
-                        () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {Uncommitted.Count()} events");
-                    return _store.WriteStream<T>(this, commitHeaders);
-                }),
                 Task.Run(() =>
                 {
                     if (!_outofband.Any()) return Task.CompletedTask;

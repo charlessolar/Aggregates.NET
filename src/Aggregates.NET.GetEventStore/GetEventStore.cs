@@ -31,7 +31,7 @@ namespace Aggregates
             var settings = context.Settings;
             
             context.Container.ConfigureComponent(b =>
-                new EventStoreDelayed(b.Build<IStoreEvents>(), settings.EndpointName(), settings.Get<int>("MaxDelayed"), settings.Get<TimeSpan>("FlushInterval"), settings.Get<StreamIdGenerator>("StreamGenerator")),
+                new EventStoreDelayed(b.Build<IStoreEvents>(), settings.EndpointName(), settings.Get<int>("MaxDelayed"), settings.Get<int>("ReadSize"), settings.Get<TimeSpan>("FlushInterval"), settings.Get<StreamIdGenerator>("StreamGenerator")),
                 DependencyLifecycle.InstancePerUnitOfWork);
 
 

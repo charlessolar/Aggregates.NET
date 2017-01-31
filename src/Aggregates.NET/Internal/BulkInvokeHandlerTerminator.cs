@@ -29,12 +29,12 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger("BulkInvokeHandlerTerminator");
         private static readonly ILog SlowLogger = LogManager.GetLogger("Slow Alarm");
 
-        private static readonly Meter InvokesDelayed = Metric.Meter("Delayed Invokes", Unit.Items, tags: "debug");
         private static readonly Meter Invokes = Metric.Meter("Bulk Invokes", Unit.Items);
+        private static readonly Meter InvokesDelayed = Metric.Meter("Delayed Invokes", Unit.Items, tags: "debug");
         private static readonly Histogram InvokeSize = Metric.Histogram("Bulk Invoke Size", Unit.Items, tags: "debug");
         private static readonly Metrics.Timer InvokeTime = Metric.Timer("Bulk Invoke Time", Unit.None, tags: "debug");
 
-        internal static readonly Dictionary<Tuple<string, string>, DateTime> RecentlyInvoked = new Dictionary<Tuple<string, string>, DateTime>();
+        internal static readonly Dictionary<string, DateTime> RecentlyInvoked = new Dictionary<string, DateTime>();
         private static readonly object RecentLock = new object();
         private static readonly Task Expiring = Timer.Repeat(() =>
         {
@@ -45,7 +45,7 @@ namespace Aggregates.Internal
                     RecentlyInvoked.Remove(e.Key);
             }
             return Task.CompletedTask;
-        }, TimeSpan.FromSeconds(5));
+        }, TimeSpan.FromSeconds(5), "recently invoked eviction");
 
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
         private static readonly object Lock = new Object();
@@ -128,13 +128,12 @@ namespace Aggregates.Internal
 
                 lock (RecentLock)
                 {
-                    var key = new Tuple<string, string>(channelKey, specificKey);
-                    if (RecentlyInvoked.ContainsKey(key))
+                    if (RecentlyInvoked.ContainsKey($"{channelKey}.{specificKey}"))
                     {
-                        Logger.Write(LogLevel.Debug, () => $"Channel [{channel}] specific [{specificKey}] was bulk invoked by this instance recently - leaving it alone");
+                        Logger.Write(LogLevel.Debug, () => $"Channel [{channel}] specific [{specificKey}] was checked by this instance recently - leaving it alone");
                         return;
                     }
-                    RecentlyInvoked.Add(key, DateTime.UtcNow.AddSeconds(10));
+                    RecentlyInvoked.Add($"{channelKey}.{specificKey}", DateTime.UtcNow.AddSeconds(10));
                 }
 
 
@@ -192,7 +191,6 @@ namespace Aggregates.Internal
 
         private async Task InvokeDelayedChannel(IDelayedChannel channel, string channelKey, string specificKey, DelayedAttribute attr, MessageHandler handler, IInvokeHandlerContext context)
         {
-
             var msgs = await channel.Pull(channelKey, key: specificKey, max: attr.Count).ConfigureAwait(false);
 
             if (!msgs.Any())
@@ -213,12 +211,11 @@ namespace Aggregates.Internal
                 {
                     idx++;
                     Logger.Write(LogLevel.Debug,
-                        () =>
-                                $"Invoking handle {idx}/{count} times channel key [{channelKey}] specific key [{specificKey}]");
+                        () => $"Invoking handle {idx}/{count} times channel key [{channelKey}] specific key [{specificKey}]");
                     await handler.Invoke(msg.Message, context).ConfigureAwait(false);
                 }
                 if(ctx.Elapsed > TimeSpan.FromSeconds(5))
-                    Logger.Write(LogLevel.Warn, () => $"Bulk invoking {count} times on channel key [{channelKey}] specific key [{specificKey}] took {ctx.Elapsed.TotalSeconds} seconds!");
+                    SlowLogger.Write(LogLevel.Warn, () => $"Bulk invoking {count} times on channel key [{channelKey}] specific key [{specificKey}] took {ctx.Elapsed.TotalSeconds} seconds!");
             }
             Logger.Write(LogLevel.Debug, () => $"Finished invoke handle {count} times channel key [{channelKey}] specific key [{specificKey}]");
         }

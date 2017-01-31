@@ -76,7 +76,7 @@ namespace Aggregates.Internal
             
             _stage++;
             return Task.CompletedTask;
-        }, TimeSpan.FromSeconds(5));
+        }, TimeSpan.FromSeconds(5), "intelligent cache eviction");
 
         private bool _disposed;
         

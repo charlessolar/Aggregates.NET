@@ -78,7 +78,7 @@ namespace Aggregates.Internal
                     page += 2000;
                 }
                 return Task.CompletedTask;
-            }, this, TimeSpan.FromSeconds(5), token);
+            }, this, TimeSpan.FromSeconds(5), token, "delayed event acknowledger");
 
         }
 

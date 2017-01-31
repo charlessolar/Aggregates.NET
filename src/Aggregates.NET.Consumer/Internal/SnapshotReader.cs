@@ -69,7 +69,7 @@ namespace Aggregates.Internal
                 {
                     var eventstore = state as IStoreEvents;
 
-                    var truncates = TruncateBefore.Keys;
+                    var truncates = TruncateBefore.Keys.ToList();
 
                     await truncates.SelectAsync(async x =>
                     {
@@ -79,11 +79,11 @@ namespace Aggregates.Internal
 
                         try
                         {
-                            await eventstore.WriteMetadata(x, truncateBefore: tb);
+                            await eventstore.WriteMetadata(x, truncateBefore: tb).ConfigureAwait(false);
                         }
                         catch {}
                     });
-                }, store, TimeSpan.FromMinutes(5));
+                }, store, TimeSpan.FromMinutes(5), "snapshot truncate before");
             }
         }
 

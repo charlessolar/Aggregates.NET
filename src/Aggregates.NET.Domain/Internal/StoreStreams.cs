@@ -126,7 +126,6 @@ namespace Aggregates.Internal
         {
             // New streams dont need verification
             if (stream.CommitVersion == -1) return;
-
             Logger.Write(LogLevel.Debug, () => $"Stream [{stream.StreamId}] in bucket [{stream.Bucket}] for type {typeof(T).FullName} verifying stream version {stream.CommitVersion}");
 
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId);
@@ -137,7 +136,11 @@ namespace Aggregates.Internal
             if (last.First().Descriptor.Version != stream.CommitVersion)
             {
                 if (last.First().Descriptor.Version < stream.CommitVersion)
-                    Logger.Write(LogLevel.Warn, $"Stream [{streamName}] at the store is version {last.First().Descriptor.Version} - our stream is version {stream.CommitVersion} - which is weird");
+                {
+                    Logger.Write(LogLevel.Warn,
+                        $"Stream [{streamName}] at the store is version {last.First().Descriptor.Version} - our stream is version {stream.CommitVersion} - which is weird");
+                    Logger.Write(LogLevel.Warn, $"Stream [{streamName}] snapshot version is: {stream.Snapshot?.Version} - committed count is: {stream.Committed.Count()} - uncomitted is: {stream.Uncommitted.Count()}");
+                }
                 throw new VersionException(
                     $"Expected version {stream.CommitVersion} on stream [{streamName}] - but read {last.First().Descriptor.Version}");
             }

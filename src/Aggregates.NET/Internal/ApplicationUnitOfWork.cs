@@ -98,7 +98,7 @@ namespace Aggregates.Internal
                             
                             try
                             {
-                                // ConfigureAwait trye because we don't want uow.End running in parrallel
+                                // ConfigureAwait true because we don't want uow.End running in parrallel
                                 await uow.End().ConfigureAwait(true);
                             }
                             finally
