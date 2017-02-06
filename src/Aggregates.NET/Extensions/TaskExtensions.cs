@@ -43,6 +43,34 @@ namespace Aggregates.Extensions
             foreach (var val in values)
                 await asyncAction.Invoke(val).ConfigureAwait(false);
         }
-        
+
+        public static async Task WhileAsync<TSource>(this ICollection<TSource> values, Func<TSource, Task> asyncSelector)
+        {
+            while (values.Any())
+            {
+                var value = values.First();
+                values.Remove(value);
+                await asyncSelector.Invoke(value).ConfigureAwait(false);
+            }
+        }
+        public static async Task WhileAsync<TKey, TValue>(this ICollection<KeyValuePair<TKey, TValue>> values, Func<KeyValuePair<TKey, TValue>, Task> asyncSelector)
+        {
+            while (values.Any())
+            {
+                var value = values.First();
+                values.Remove(value);
+                await asyncSelector.Invoke(value).ConfigureAwait(false);
+            }
+        }
+        public static async Task WhileAsync<TKey, TValue>(this ICollection<KeyValuePair<TKey, TValue>> values, Func<KeyValuePair<TKey,TValue>, bool> whereSelector, Func<KeyValuePair<TKey, TValue>, Task> asyncSelector)
+        {
+            while (values.Any(whereSelector))
+            {
+                var value = values.First(whereSelector);
+                values.Remove(value);
+                await asyncSelector.Invoke(value).ConfigureAwait(false);
+            }
+        }
+
     }
 }

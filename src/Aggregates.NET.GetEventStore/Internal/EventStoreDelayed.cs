@@ -85,8 +85,9 @@ namespace Aggregates.Internal
             {
                 var totalFlushed = 0;
 
+                // A list of channels who have expired or have more than 1/10 the max total cache size
                 var expiredSpecificChannels =
-                    MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > flushState.Expiration)
+                    MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > flushState.Expiration || (x.Value.Item2.Count > (_memCacheTotalSize / 10)))
                         .Select(x => x.Key).Take(10)
                         .ToList();
 
@@ -310,24 +311,29 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Debug, () => $"Putting {_uncommitted.Count()} delayed streams into mem cache");
 
                 _inFlightMemCache.Clear();
+
                 // Anything with a specific key goes into memcache
-                foreach (var kv in _uncommitted.Where(x => !string.IsNullOrEmpty(x.Key.Item2)))
+                await _uncommitted.WhileAsync(x => !string.IsNullOrEmpty(x.Key.Item2), kv =>
                 {
                     MemCache.AddOrUpdate(kv.Key,
                         (key) =>
-                            new Tuple<DateTime, List<object>>(DateTime.UtcNow, kv.Value),
+                                new Tuple<DateTime, List<object>>(DateTime.UtcNow, kv.Value),
                         (key, existing) =>
-                            new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2.Concat(kv.Value).ToList())
-                        );
+                            new Tuple<DateTime, List<object>>(DateTime.UtcNow,
+                                existing.Item2.Concat(kv.Value).ToList())
+                    );
                     MemCacheSize.Increment(kv.Value.Count);
                     Interlocked.Add(ref _memCacheTotalSize, kv.Value.Count);
-                }
+
+                    return Task.CompletedTask;
+                }).ConfigureAwait(false);
 
                 // Will block if currently flushing a large cache
                 await TooLargeLock.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    await _uncommitted.SelectAsync(async kv =>
+
+                    await _uncommitted.WhileAsync(async kv =>
                     {
                         // Anything without specific key gets committed to ES right away
                         if (string.IsNullOrEmpty(kv.Key.Item2))
