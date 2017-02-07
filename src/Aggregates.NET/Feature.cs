@@ -34,6 +34,7 @@ namespace Aggregates
 
             context.Container.ConfigureComponent<IntelligentCache>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<MemoryPersistence>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<IDelayedChannel>(() => null, DependencyLifecycle.InstancePerCall);
 
             // Check that aggregates has been properly setup
             if (!context.Settings.Get<bool>(Aggregates.Defaults.SetupCorrectly))

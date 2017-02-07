@@ -80,7 +80,7 @@ namespace Aggregates.Internal
             lock (Lock) contains = IsNotDelayed.Contains(channelKey);
             
             // Special case for when we are bulk processing messages from DelayedSubscriber, simply process it and return dont check for more bulk
-            if (contains || (context.Headers.ContainsKey(Defaults.ChannelKey) && context.Headers[Defaults.ChannelKey] == channelKey))
+            if (channel == null || contains || (context.Headers.ContainsKey(Defaults.ChannelKey) && context.Headers[Defaults.ChannelKey] == channelKey))
             {
                 Logger.Write(LogLevel.Debug, () => $"Invoking handle for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
                 await messageHandler.Invoke(context.MessageBeingHandled, context).ConfigureAwait(false);
