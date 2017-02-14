@@ -114,8 +114,10 @@ namespace Aggregates.Internal
                             (key) =>
                                     new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
                             (key, existing) =>
-                                new Tuple<DateTime, List<object>>(DateTime.UtcNow,
-                                    existing.Item2.Concat(fromCache.Item2).ToList())
+                            {
+                                existing.Item2.AddRange(fromCache.Item2);
+                                return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                            }
                         );
                     }
 
@@ -146,15 +148,16 @@ namespace Aggregates.Internal
                     catch (Exception e)
                     {
                         Logger.Write(LogLevel.Warn,
-                            () =>
-                                    $"Failed to write to channel [{expired.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
+                            () => $"Failed to write to channel [{expired.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
                         // Failed to write to ES - put object back in memcache
                         MemCache.AddOrUpdate(expired,
                             (key) =>
                                     new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
                             (key, existing) =>
-                                new Tuple<DateTime, List<object>>(DateTime.UtcNow,
-                                    existing.Item2.Concat(fromCache.Item2).ToList())
+                            {
+                                existing.Item2.AddRange(fromCache.Item2);
+                                return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                            }
                         );
 
                     }
@@ -186,12 +189,19 @@ namespace Aggregates.Internal
                             if (!MemCache.TryRemove(expired, out fromCache))
                                 return;
 
-                            // Take 500 from the end of the channel
-                            var overLimit =
-                                fromCache.Item2.GetRange(Math.Max(0, fromCache.Item2.Count - flushState.ReadSize),
-                                    Math.Min(fromCache.Item2.Count, flushState.ReadSize)).ToList();
-                            fromCache.Item2.RemoveRange(Math.Max(0, fromCache.Item2.Count - flushState.ReadSize),
-                                Math.Min(fromCache.Item2.Count, flushState.ReadSize));
+                            var start = Math.Max(0, fromCache.Item2.Count - flushState.ReadSize);
+                            var toTake = Math.Min(fromCache.Item2.Count, flushState.ReadSize);
+
+                            // Special case if a channel is so large it begins to dominate the whole cache
+                            if (fromCache.Item2.Count > (_memCacheTotalSize/3))
+                            {
+                                start = fromCache.Item2.Count - (_memCacheTotalSize/10);
+                                toTake = (_memCacheTotalSize/10);
+                            }
+
+                            // Take from the end of the channel
+                            var overLimit = fromCache.Item2.GetRange(start, toTake).ToList();
+                            fromCache.Item2.RemoveRange(start, toTake);
 
                             if (fromCache.Item2.Any())
                             {
@@ -200,8 +210,10 @@ namespace Aggregates.Internal
                                     (key) =>
                                             new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
                                     (key, existing) =>
-                                        new Tuple<DateTime, List<object>>(DateTime.UtcNow,
-                                            existing.Item2.Concat(fromCache.Item2).ToList())
+                                    {
+                                        existing.Item2.AddRange(fromCache.Item2);
+                                        return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                                    }
                                 );
                             }
 
@@ -242,8 +254,10 @@ namespace Aggregates.Internal
                                     (key) =>
                                             new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
                                     (key, existing) =>
-                                        new Tuple<DateTime, List<object>>(DateTime.UtcNow,
-                                            existing.Item2.Concat(fromCache.Item2).ToList())
+                                    {
+                                        existing.Item2.AddRange(fromCache.Item2);
+                                        return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                                    }
                                 );
 
                             }
@@ -298,8 +312,10 @@ namespace Aggregates.Internal
                         (key) =>
                                 new Tuple<DateTime, List<object>>(DateTime.UtcNow, inflight.Value),
                         (key, existing) =>
-                            new Tuple<DateTime, List<object>>(DateTime.UtcNow,
-                                existing.Item2.Concat(inflight.Value).ToList())
+                        {
+                            existing.Item2.AddRange(inflight.Value);
+                            return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                        }
                     );
                     MemCacheSize.Increment(inflight.Value.Count);
                     Interlocked.Add(ref _memCacheTotalSize, inflight.Value.Count);
@@ -319,8 +335,10 @@ namespace Aggregates.Internal
                         (key) =>
                                 new Tuple<DateTime, List<object>>(DateTime.UtcNow, kv.Value),
                         (key, existing) =>
-                            new Tuple<DateTime, List<object>>(DateTime.UtcNow,
-                                existing.Item2.Concat(kv.Value).ToList())
+                        {
+                            existing.Item2.AddRange(kv.Value);
+                            return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                        }
                     );
                     MemCacheSize.Increment(kv.Value.Count);
                     Interlocked.Add(ref _memCacheTotalSize, kv.Value.Count);
@@ -361,8 +379,7 @@ namespace Aggregates.Internal
                             catch (Exception e)
                             {
                                 Logger.Write(LogLevel.Warn,
-                                    () =>
-                                            $"Failed to write to channel [{kv.Key.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
+                                    () => $"Failed to write to channel [{kv.Key.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
                             }
                         }
 
@@ -371,8 +388,10 @@ namespace Aggregates.Internal
                             (key) =>
                                     new Tuple<DateTime, List<object>>(DateTime.UtcNow, kv.Value),
                             (key, existing) =>
-                                new Tuple<DateTime, List<object>>(DateTime.UtcNow,
-                                    existing.Item2.Concat(kv.Value).ToList())
+                            {
+                                existing.Item2.AddRange(kv.Value);
+                                return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                            }
                         );
                         MemCacheSize.Increment(kv.Value.Count);
                         Interlocked.Add(ref _memCacheTotalSize, kv.Value.Count);
@@ -385,68 +404,6 @@ namespace Aggregates.Internal
                     TooLargeLock.Release();
                 }
             }
-        }
-
-        private async Task<TimeSpan?> ChannelAge(string channel)
-        {
-            var streamName = _streamGen(typeof(EventStoreDelayed), StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
-
-            Logger.Write(LogLevel.Debug, () => $"Getting age of delayed channel [{channel}]");
-
-            // Try cache
-            Tuple<DateTime, object> cached;
-            if (AgeSizeCache.TryGetValue($"{streamName}.age", out cached) && (DateTime.UtcNow - cached.Item1).TotalSeconds < 5)
-            {
-                Logger.Write(LogLevel.Debug, () => $"Got age from cache for channel [{channel}]");
-                // null means we cached a negative result
-                if (cached.Item2 == null)
-                    return null;
-                return (TimeSpan)cached.Item2;
-            }
-
-            // Try metadata
-            try
-            {
-                var metadata = await _store.GetMetadata(streamName, "At").ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(metadata))
-                {
-                    var at = int.Parse(metadata);
-
-                    Logger.Write(LogLevel.Debug, () => $"Got age from metadata of delayed channel [{channel}]");
-                    var age = TimeSpan.FromSeconds(DateTime.UtcNow.ToUnixTime() - at);
-                    AgeSizeCache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow, age);
-
-                    return age;
-                }
-            }
-            catch (FrozenException)
-            {
-                // Someone else is processing
-                AgeSizeCache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow, null);
-                Logger.Write(LogLevel.Debug, () => $"Age is unavailable from delayed channel [{channel}] - stream frozen");
-                return null;
-            }
-
-            // Try from first event in stream
-            try
-            {
-                var firstEvent = await _store.GetEvents(streamName, StreamPosition.Start, 1).ConfigureAwait(false);
-                if (firstEvent != null && firstEvent.Any())
-                {
-
-                    Logger.Write(LogLevel.Debug, () => $"Got age from first event of delayed channel [{channel}]");
-                    var age = DateTime.UtcNow - firstEvent.Single().Descriptor.Timestamp;
-                    AgeSizeCache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow, age);
-
-                    return age;
-                }
-            }
-            catch (NotFoundException) { }
-
-            // failed to get age from store, store a negative result
-            AgeSizeCache[$"{streamName}.age"] = new Tuple<DateTime, object>(DateTime.UtcNow, null);
-            Logger.Write(LogLevel.Debug, () => $"Failed to get age of delayed channel [{channel}]");
-            return null;
         }
 
         public Task<TimeSpan?> Age(string channel, string key = null)
@@ -537,8 +494,10 @@ namespace Aggregates.Internal
                     (_) =>
                             new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
                     (_, existing) =>
-                        new Tuple<DateTime, List<object>>(DateTime.UtcNow,
-                            existing.Item2.Concat(fromCache.Item2).ToList()));
+                    {
+                        existing.Item2.AddRange(fromCache.Item2);
+                        return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                    });
             }
             MemCacheSize.Decrement(discovered.Count);
             Interlocked.Add(ref _memCacheTotalSize, -discovered.Count);
