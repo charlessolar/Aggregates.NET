@@ -65,8 +65,9 @@ namespace Aggregates.Internal
                     return Task.CompletedTask;
 
                 if (!info.Live)
-                    throw new InvalidOperationException(
-                        "Subscription was stopped while events were waiting to be ACKed");
+                    return Task.CompletedTask;
+                    //throw new InvalidOperationException(
+                    //    "Subscription was stopped while events were waiting to be ACKed");
 
                 Acknowledged.Increment(Id, toAck.Length);
                 Logger.Write(LogLevel.Debug, () => $"Acknowledging {toAck.Length} events to {Id}");
@@ -81,6 +82,12 @@ namespace Aggregates.Internal
                 return Task.CompletedTask;
             }, this, TimeSpan.FromSeconds(5), token, "event acknowledger");
 
+            _client.Connected += _client_Connected;
+        }
+
+        private void _client_Connected(object sender, ClientConnectionEventArgs e)
+        {
+            Task.Run(Connect, _token);
         }
 
         public void Dispose()
@@ -110,9 +117,9 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Info, () => $"Disconnected from subscription.  Reason: {reason} Exception: {ex}");
 
             // Todo: is it possible to ACK an event from a reconnection?
-            if (_toAck.Any())
-                throw new InvalidOperationException(
-                    $"Eventstore subscription dropped and we need to ACK {_toAck.Count} more events");
+            //if (_toAck.Any())
+            //    throw new InvalidOperationException(
+            //        $"Eventstore subscription dropped and we need to ACK {_toAck.Count} more events");
 
             
             // Need to clear ReadyEvents of events delivered but not processed before disconnect
@@ -123,11 +130,6 @@ namespace Aggregates.Internal
                 QueuedEvents.Decrement(Id);
                 _waitingEvents.TryDequeue(out e);
             }
-
-            if (reason == SubscriptionDropReason.UserInitiated) return;
-
-            // Run in task.Run because mixing .Wait and async methods is bad bad 
-            Task.Run(Connect, _token);
         }
         public async Task Connect()
         {

@@ -45,6 +45,13 @@ namespace Aggregates.Internal
             _settings = settings;
             _compress = compress;
             _snapshots = new SortedDictionary<string, IWritableEvent>();
+
+            _client.Connected += _client_Connected;
+        }
+
+        private void _client_Connected(object sender, ClientConnectionEventArgs e)
+        {
+            Task.Run(Connect, _token);
         }
 
         public void Dispose()
@@ -97,11 +104,7 @@ namespace Aggregates.Internal
         {
             Live = false;
             Logger.Write(LogLevel.Info, () => $"Disconnected from subscription.  Reason: {reason} Exception: {ex}");
-
-            if (reason == SubscriptionDropReason.UserInitiated) return;
             
-            // Run in task.Run because mixing .Wait and async methods is bad bad 
-            Task.Run(Connect, _token);
         }
         public async Task Connect()
         {

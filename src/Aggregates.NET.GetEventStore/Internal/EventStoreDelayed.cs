@@ -60,7 +60,7 @@ namespace Aggregates.Internal
         private static Task _flusher;
 
         //                                                Channel  key          Last Pull   Stored Objects
-        private static readonly ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, List<object>>> MemCache = new ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, List<object>>>();
+        private static readonly ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, object, List<object>>> MemCache = new ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, object, List<object>>>();
         private static int _memCacheTotalSize = 0;
 
         private static readonly ConcurrentDictionary<string, Tuple<DateTime, object>> AgeSizeCache = new ConcurrentDictionary<string, Tuple<DateTime, object>>();
@@ -87,36 +87,40 @@ namespace Aggregates.Internal
 
                 // A list of channels who have expired or have more than 1/10 the max total cache size
                 var expiredSpecificChannels =
-                    MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > flushState.Expiration || (x.Value.Item2.Count > (_memCacheTotalSize / 10)))
+                    MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > flushState.Expiration || (x.Value.Item3.Count > (_memCacheTotalSize / 10)))
                         .Select(x => x.Key).Take(10)
                         .ToList();
 
                 await expiredSpecificChannels.SelectAsync(async (expired) =>
                 {
-                    Tuple<DateTime, List<object>> fromCache;
+                    Tuple<DateTime, object, List<object>> fromCache;
                     if (!MemCache.TryRemove(expired, out fromCache))
                         return;
 
                     Logger.Write(LogLevel.Debug,
-                        () => $"Flushing expired channel {expired.Item1} key {expired.Item2} with {fromCache.Item2.Count} objects");
+                        () => $"Flushing expired channel {expired.Item1} key {expired.Item2} with {fromCache.Item3.Count} objects");
 
                     // Just take 500 from the end of the channel to prevent trying to write 20,000 items in 1 go
-                    var overLimit =
-                        fromCache.Item2.GetRange(Math.Max(0, fromCache.Item2.Count - flushState.ReadSize),
-                            Math.Min(fromCache.Item2.Count, flushState.ReadSize)).ToList();
-                    fromCache.Item2.RemoveRange(Math.Max(0, fromCache.Item2.Count - flushState.ReadSize),
-                        Math.Min(fromCache.Item2.Count, flushState.ReadSize));
+                    List<object> overLimit;
+                    lock (fromCache.Item2)
+                    {
+                        overLimit =
+                            fromCache.Item3.GetRange(Math.Max(0, fromCache.Item3.Count - flushState.ReadSize),
+                                Math.Min(fromCache.Item3.Count, flushState.ReadSize)).ToList();
+                        fromCache.Item3.RemoveRange(Math.Max(0, fromCache.Item3.Count - flushState.ReadSize),
+                            Math.Min(fromCache.Item3.Count, flushState.ReadSize));
+                    }
 
-                    if (fromCache.Item2.Any())
+                    if (fromCache.Item3.Any())
                     {
                         // Put rest back in cache
                         MemCache.AddOrUpdate(expired,
                             (key) =>
-                                    new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
+                                    new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
                             (key, existing) =>
                             {
-                                existing.Item2.AddRange(fromCache.Item2);
-                                return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                                lock(existing.Item2) existing.Item3.AddRange(fromCache.Item3);
+                                return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, existing.Item2, existing.Item3);
                             }
                         );
                     }
@@ -141,7 +145,7 @@ namespace Aggregates.Internal
                             expired.Item1);
                         await flushState.Store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
                         Flushes.Mark(expired.Item1);
-                        MemCacheSize.Decrement(-overLimit.Count);
+                        MemCacheSize.Decrement(overLimit.Count);
                         Interlocked.Add(ref totalFlushed, overLimit.Count);
                         Interlocked.Add(ref _memCacheTotalSize, -overLimit.Count);
                     }
@@ -152,11 +156,11 @@ namespace Aggregates.Internal
                         // Failed to write to ES - put object back in memcache
                         MemCache.AddOrUpdate(expired,
                             (key) =>
-                                    new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
+                                    new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
                             (key, existing) =>
                             {
-                                existing.Item2.AddRange(fromCache.Item2);
-                                return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                                lock(existing.Item2) existing.Item3.AddRange(fromCache.Item3);
+                                return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, existing.Item2, existing.Item3);
                             }
                         );
 
@@ -185,34 +189,38 @@ namespace Aggregates.Internal
 
                         await toFlush.SelectAsync(async (expired) =>
                         {
-                            Tuple<DateTime, List<object>> fromCache;
+                            Tuple<DateTime, object, List<object>> fromCache;
                             if (!MemCache.TryRemove(expired, out fromCache))
                                 return;
 
-                            var start = Math.Max(0, fromCache.Item2.Count - flushState.ReadSize);
-                            var toTake = Math.Min(fromCache.Item2.Count, flushState.ReadSize);
+                            var start = Math.Max(0, fromCache.Item3.Count - flushState.ReadSize);
+                            var toTake = Math.Min(fromCache.Item3.Count, flushState.ReadSize);
 
                             // Special case if a channel is so large it begins to dominate the whole cache
-                            if (fromCache.Item2.Count > (_memCacheTotalSize/3))
+                            if (fromCache.Item3.Count > (_memCacheTotalSize/3))
                             {
-                                start = fromCache.Item2.Count - (_memCacheTotalSize/10);
+                                start = fromCache.Item3.Count - (_memCacheTotalSize/10);
                                 toTake = (_memCacheTotalSize/10);
                             }
 
-                            // Take from the end of the channel
-                            var overLimit = fromCache.Item2.GetRange(start, toTake).ToList();
-                            fromCache.Item2.RemoveRange(start, toTake);
+                            List<object> overLimit;
+                            lock (fromCache.Item2)
+                            {
+                                // Take from the end of the channel
+                                overLimit = fromCache.Item3.GetRange(start, toTake).ToList();
+                                fromCache.Item3.RemoveRange(start, toTake);
+                            }
 
-                            if (fromCache.Item2.Any())
+                            if (fromCache.Item3.Any())
                             {
                                 // Put rest back in cache
                                 MemCache.AddOrUpdate(expired,
                                     (key) =>
-                                            new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
+                                            new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
                                     (key, existing) =>
                                     {
-                                        existing.Item2.AddRange(fromCache.Item2);
-                                        return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                                        lock(existing.Item2) existing.Item3.AddRange(fromCache.Item3);
+                                        return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, existing.Item2, existing.Item3);
                                     }
                                 );
                             }
@@ -252,11 +260,11 @@ namespace Aggregates.Internal
                                 // Failed to write to ES - put object back in memcache
                                 MemCache.AddOrUpdate(expired,
                                     (key) =>
-                                            new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
+                                            new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
                                     (key, existing) =>
                                     {
-                                        existing.Item2.AddRange(fromCache.Item2);
-                                        return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                                        lock(existing.Item2) existing.Item3.AddRange(fromCache.Item3);
+                                        return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, existing.Item2, existing.Item3);
                                     }
                                 );
 
@@ -310,11 +318,11 @@ namespace Aggregates.Internal
                 {
                     MemCache.AddOrUpdate(inflight.Key,
                         (key) =>
-                                new Tuple<DateTime, List<object>>(DateTime.UtcNow, inflight.Value),
+                                new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, new object(), inflight.Value),
                         (key, existing) =>
                         {
-                            existing.Item2.AddRange(inflight.Value);
-                            return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                            lock(existing.Item2) existing.Item3.AddRange(inflight.Value);
+                            return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, existing.Item2, existing.Item3);
                         }
                     );
                     MemCacheSize.Increment(inflight.Value.Count);
@@ -333,11 +341,11 @@ namespace Aggregates.Internal
                 {
                     MemCache.AddOrUpdate(kv.Key,
                         (key) =>
-                                new Tuple<DateTime, List<object>>(DateTime.UtcNow, kv.Value),
+                                new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, new object(), kv.Value),
                         (key, existing) =>
                         {
-                            existing.Item2.AddRange(kv.Value);
-                            return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                            lock(existing.Item2) existing.Item3.AddRange(kv.Value);
+                            return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, existing.Item2, existing.Item3);
                         }
                     );
                     MemCacheSize.Increment(kv.Value.Count);
@@ -386,11 +394,11 @@ namespace Aggregates.Internal
                         // Failed to write to ES or has specific key - put objects into memcache
                         MemCache.AddOrUpdate(kv.Key,
                             (key) =>
-                                    new Tuple<DateTime, List<object>>(DateTime.UtcNow, kv.Value),
+                                    new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, new object(), kv.Value),
                             (key, existing) =>
                             {
-                                existing.Item2.AddRange(kv.Value);
-                                return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                                lock(existing.Item2) existing.Item3.AddRange(kv.Value);
+                                return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, existing.Item2, existing.Item3);
                             }
                         );
                         MemCacheSize.Increment(kv.Value.Count);
@@ -417,7 +425,7 @@ namespace Aggregates.Internal
 
                 // Get age from memcache
                 var specificKey = new Tuple<string, string>(channel, key);
-                Tuple<DateTime, List<object>> temp;
+                Tuple<DateTime, object, List<object>> temp;
                 if (MemCache.TryGetValue(specificKey, out temp))
                     specificAge = DateTime.UtcNow - temp.Item1;
 
@@ -439,9 +447,9 @@ namespace Aggregates.Internal
             {
                 // Get size from memcache
                 var specificKey = new Tuple<string, string>(channel, key);
-                Tuple<DateTime, List<object>> temp;
+                Tuple<DateTime, object, List<object>> temp;
                 if (MemCache.TryGetValue(specificKey, out temp))
-                    specificSize = temp.Item2.Count;
+                    specificSize = temp.Item3.Count;
 
             }
             if (specificSize > 5000)
@@ -473,30 +481,38 @@ namespace Aggregates.Internal
 
             Logger.Write(LogLevel.Debug, () => $"Pulling delayed channel [{channel}] key [{key}]");
 
-            Tuple<DateTime, List<object>> fromCache;
+            Tuple<DateTime, object, List<object>> fromCache;
 
             // Check memcache even if key == null because messages failing to save to ES are put in memcache
             if (!MemCache.TryRemove(specificKey, out fromCache))
                 fromCache = null;
 
-            var discovered = fromCache?.Item2.GetRange(0, Math.Min(max ?? int.MaxValue, fromCache.Item2.Count)).ToList() ?? new List<object>();
+            List<object> discovered = new List<object>();
+            if (fromCache != null)
+            {
+                lock (fromCache.Item2)
+                {
+                    discovered = fromCache.Item3.GetRange(0, Math.Min(max ?? int.MaxValue, fromCache.Item3.Count)).ToList();
+                    if (max.HasValue)
+                        fromCache?.Item3.RemoveRange(0, Math.Min(max.Value, fromCache.Item3.Count));
+                    else
+                        fromCache?.Item3.Clear();
+                }
+            }
+            
             lock (_lock) _inFlightMemCache.Add(specificKey, discovered);
 
-            if (max.HasValue)
-                fromCache?.Item2.RemoveRange(0, Math.Min(max.Value, fromCache.Item2.Count));
-            else
-                fromCache?.Item2.Clear();
 
             // Add back into memcache if Max was used and some elements remain
-            if (fromCache != null && fromCache.Item2.Any())
+            if (fromCache != null && fromCache.Item3.Any())
             {
                 MemCache.AddOrUpdate(specificKey,
                     (_) =>
-                            new Tuple<DateTime, List<object>>(DateTime.UtcNow, fromCache.Item2),
+                            new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
                     (_, existing) =>
                     {
-                        existing.Item2.AddRange(fromCache.Item2);
-                        return new Tuple<DateTime, List<object>>(DateTime.UtcNow, existing.Item2);
+                        lock(existing.Item2) existing.Item3.AddRange(fromCache.Item3);
+                        return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, existing.Item2, existing.Item3);
                     });
             }
             MemCacheSize.Decrement(discovered.Count);
