@@ -121,8 +121,9 @@ namespace Aggregates.Internal
 
                 var clientCancelSource = CancellationTokenSource.CreateLinkedTokenSource(_cancelation.Token);
 
-                connection.Disconnected += (object s, ClientConnectionEventArgs args) =>
+                connection.Closed += (object s, ClientClosedEventArgs args) =>
                 {
+                    Logger.Info($"Eventstore disconnected - shutting down snapshot subscription");
                     clientCancelSource.Cancel();
                 };
 

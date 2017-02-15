@@ -42,7 +42,8 @@ namespace Aggregates.Internal
 
         private bool _disposed;
 
-        public DelayedClient(IEventStoreConnection client, string stream, string group, int maxDelayed, CancellationToken token)
+        public DelayedClient(IEventStoreConnection client, string stream, string group, int maxDelayed,
+            CancellationToken token)
         {
             _client = client;
             _stream = stream;
@@ -51,12 +52,12 @@ namespace Aggregates.Internal
             _token = token;
             _toAck = new List<ResolvedEvent>();
             _waitingEvents = new ConcurrentBag<ResolvedEvent>();
-            
+
 
 
             _acknowledger = Timer.Repeat(state =>
             {
-                var info = (DelayedClient)state;
+                var info = (DelayedClient) state;
 
                 ResolvedEvent[] toAck = Interlocked.Exchange(ref _toAck, new List<ResolvedEvent>()).ToArray();
 
@@ -79,7 +80,6 @@ namespace Aggregates.Internal
                 }
                 return Task.CompletedTask;
             }, this, TimeSpan.FromSeconds(5), token, "delayed event acknowledger");
-
 
             _client.Connected += _client_Connected;
         }
@@ -123,10 +123,14 @@ namespace Aggregates.Internal
             Queued.Decrement(Id, _waitingEvents.Count);
             QueuedEvents.Decrement(Id, _waitingEvents.Count);
             Interlocked.Exchange(ref _waitingEvents, new ConcurrentBag<ResolvedEvent>());
-            
+
+            if (reason == SubscriptionDropReason.UserInitiated) return;
+
+            //Task.Run(Connect, _token);
         }
         public async Task Connect()
         {
+
             Logger.Write(LogLevel.Info,
                 () => $"Connecting to subscription group [{_group}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
             // Todo: play with buffer size?
@@ -137,6 +141,8 @@ namespace Aggregates.Internal
                 bufferSize: _maxDelayed,
                 autoAck: false).ConfigureAwait(false);
             Live = true;
+            Logger.Write(LogLevel.Info,
+                () => $"Connected to subscription group [{_group}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
         }
 
         public void Acknowledge(ResolvedEvent[] events)

@@ -89,6 +89,7 @@ namespace Aggregates.Internal
         {
             Task.Run(Connect, _token);
         }
+        
 
         public void Dispose()
         {
@@ -130,6 +131,9 @@ namespace Aggregates.Internal
                 QueuedEvents.Decrement(Id);
                 _waitingEvents.TryDequeue(out e);
             }
+            if (reason == SubscriptionDropReason.UserInitiated) return;
+
+            // Task.Run(Connect, _token);
         }
         public async Task Connect()
         {
@@ -141,6 +145,9 @@ namespace Aggregates.Internal
                 subscriptionDropped: SubscriptionDropped,
                 bufferSize: _readsize * _readsize,
                 autoAck: false).ConfigureAwait(false);
+           
+            Logger.Write(LogLevel.Info,
+                () => $"Connected to subscription group [{_group}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
             Live = true;
         }
 

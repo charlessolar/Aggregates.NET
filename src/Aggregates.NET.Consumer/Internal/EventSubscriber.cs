@@ -219,8 +219,9 @@ when({{
 
                     var clientCancelSource = CancellationTokenSource.CreateLinkedTokenSource(_cancelation.Token);
 
-                    client.Disconnected += (object s, ClientConnectionEventArgs args) =>
+                    client.Closed += (object s, ClientClosedEventArgs args) =>
                     {
+                        Logger.Info($"Eventstore disconnected - shutting down client subscription");
                         clientCancelSource.Cancel();
                     };
 
@@ -270,6 +271,7 @@ when({{
 
             return Task.CompletedTask;
         }
+       
 
         private static void Threaded(object state)
         {

@@ -36,7 +36,8 @@ namespace Aggregates.Internal
 
         private bool _disposed;
 
-        public CatchupClient(Action<string, int, ISnapshot> onSnapshot, IEventStoreConnection client, string stream, CancellationToken token, JsonSerializerSettings settings, Compression compress)
+        public CatchupClient(Action<string, int, ISnapshot> onSnapshot, IEventStoreConnection client, string stream,
+            CancellationToken token, JsonSerializerSettings settings, Compression compress)
         {
             _onSnapshot = onSnapshot;
             _client = client;
@@ -104,13 +105,15 @@ namespace Aggregates.Internal
         {
             Live = false;
             Logger.Write(LogLevel.Info, () => $"Disconnected from subscription.  Reason: {reason} Exception: {ex}");
-            
+
+            if (reason == SubscriptionDropReason.UserInitiated) return;
+
+            // Task.Run(Connect, _token);
         }
         public async Task Connect()
         {
             Logger.Write(LogLevel.Info,
-                () =>
-                        $"Connecting to snapshot stream [{_stream}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
+                () => $"Connecting to snapshot stream [{_stream}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
 
             // Subscribe to the end
             var lastEvent =
@@ -122,11 +125,18 @@ namespace Aggregates.Internal
             if (lastEvent.Status == SliceReadStatus.Success)
                 startingNumber = lastEvent.Events[0].OriginalEventNumber;
 
+            // ReadStreamEventsBackward is async, which means at this point we'll be processing on the client's OperationQueue
+            // put a delay here so the queue can get back to work, SubscribeToStreamFrom is sync meaning if we jump
+            // right into it the OperationsQueue will deadlock
+            await Task.Delay(10).ConfigureAwait(false);
             _subscription = _client.SubscribeToStreamFrom(_stream,
                 startingNumber,
                 settings,
                 eventAppeared: EventAppeared,
                 subscriptionDropped: SubscriptionDropped);
+
+            Logger.Write(LogLevel.Info,
+                () => $"Connected to snapshot stream [{_stream}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
             Live = true;
         }
 
