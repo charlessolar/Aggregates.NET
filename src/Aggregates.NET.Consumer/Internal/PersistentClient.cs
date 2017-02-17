@@ -104,8 +104,7 @@ namespace Aggregates.Internal
             _token.ThrowIfCancellationRequested();
 
             Logger.Write(LogLevel.Debug,
-                () =>
-                        $"Event appeared {e.Event.EventId} type {e.Event.EventType} stream [{e.Event.EventStreamId}] number {e.Event.EventNumber} projection event number {e.OriginalEventNumber}");
+                () => $"Event appeared {e.Event.EventId} type {e.Event.EventType} stream [{e.Event.EventStreamId}] number {e.Event.EventNumber} projection event number {e.OriginalEventNumber}");
             Queued.Increment(Id);
             QueuedEvents.Increment(Id);
             _waitingEvents.Enqueue(e);

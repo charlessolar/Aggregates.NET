@@ -156,10 +156,10 @@ namespace Aggregates.Internal
                         // Failed to write to ES - put object back in memcache
                         MemCache.AddOrUpdate(expired,
                             (key) =>
-                                    new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
+                                    new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, fromCache.Item2, overLimit),
                             (key, existing) =>
                             {
-                                lock(existing.Item2) existing.Item3.AddRange(fromCache.Item3);
+                                lock(existing.Item2) existing.Item3.AddRange(overLimit);
                                 return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, existing.Item2, existing.Item3);
                             }
                         );
@@ -255,15 +255,14 @@ namespace Aggregates.Internal
                             catch (Exception e)
                             {
                                 Logger.Write(LogLevel.Warn,
-                                    () =>
-                                            $"Failed to write to channel [{expired.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
+                                    () => $"Failed to write to channel [{expired.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
                                 // Failed to write to ES - put object back in memcache
                                 MemCache.AddOrUpdate(expired,
                                     (key) =>
-                                            new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
+                                            new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, fromCache.Item2, overLimit),
                                     (key, existing) =>
                                     {
-                                        lock(existing.Item2) existing.Item3.AddRange(fromCache.Item3);
+                                        lock(existing.Item2) existing.Item3.AddRange(overLimit);
                                         return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, existing.Item2, existing.Item3);
                                     }
                                 );
@@ -494,9 +493,9 @@ namespace Aggregates.Internal
                 {
                     discovered = fromCache.Item3.GetRange(0, Math.Min(max ?? int.MaxValue, fromCache.Item3.Count)).ToList();
                     if (max.HasValue)
-                        fromCache?.Item3.RemoveRange(0, Math.Min(max.Value, fromCache.Item3.Count));
+                        fromCache.Item3.RemoveRange(0, Math.Min(max.Value, fromCache.Item3.Count));
                     else
-                        fromCache?.Item3.Clear();
+                        fromCache.Item3.Clear();
                 }
             }
             
