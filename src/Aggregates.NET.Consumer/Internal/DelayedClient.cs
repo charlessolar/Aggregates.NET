@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
+using EventStore.ClientAPI.Exceptions;
 using Metrics;
 using NServiceBus.Logging;
 
@@ -21,7 +22,7 @@ namespace Aggregates.Internal
         private static readonly Metrics.Counter Processed = Metric.Counter("Delayed Clients Processed", Unit.Events, tags: "debug");
         private static readonly Metrics.Counter Acknowledged = Metric.Counter("Delayed Clients Acknowledged", Unit.Events, tags: "debug");
         private static readonly Metrics.Timer Idle = Metric.Timer("Delayed Clients Idle", Unit.None, tags: "debug");
-        
+
         private readonly IEventStoreConnection _client;
         private readonly string _stream;
         private readonly string _group;
@@ -57,7 +58,7 @@ namespace Aggregates.Internal
 
             _acknowledger = Timer.Repeat(state =>
             {
-                var info = (DelayedClient) state;
+                var info = (DelayedClient)state;
 
                 ResolvedEvent[] toAck = Interlocked.Exchange(ref _toAck, new List<ResolvedEvent>()).ToArray();
 
@@ -134,15 +135,25 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Info,
                 () => $"Connecting to subscription group [{_group}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
             // Todo: play with buffer size?
-            _subscription = await _client.ConnectToPersistentSubscriptionAsync(_stream, _group,
+
+            while (!Live)
+            {
+                await Task.Delay(500, _token).ConfigureAwait(false);
+
+                try
+                {
+                    _subscription = await _client.ConnectToPersistentSubscriptionAsync(_stream, _group,
                 eventAppeared: EventAppeared,
                 subscriptionDropped: SubscriptionDropped,
                 // Let us accept maxDelayed number of unacknowledged events
                 bufferSize: _maxDelayed,
                 autoAck: false).ConfigureAwait(false);
-            Live = true;
-            Logger.Write(LogLevel.Info,
-                () => $"Connected to subscription group [{_group}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
+                    Live = true;
+                    Logger.Write(LogLevel.Info,
+                        () => $"Connected to subscription group [{_group}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
+                }
+                catch (OperationTimedOutException) { }
+            }
         }
 
         public void Acknowledge(ResolvedEvent[] events)
@@ -157,12 +168,12 @@ namespace Aggregates.Internal
 
         public ResolvedEvent[] Flush()
         {
-            if (!Live) return new ResolvedEvent[] {};
-            
+            if (!Live) return new ResolvedEvent[] { };
+
             var waiting = Interlocked.Exchange(ref _waitingEvents, new ConcurrentBag<ResolvedEvent>());
 
             Queued.Decrement(Id, waiting.Count);
-            QueuedEvents.Decrement(Id,waiting.Count);
+            QueuedEvents.Decrement(Id, waiting.Count);
             _idleContext = Idle.NewContext(Id);
 
             return waiting.ToArray();

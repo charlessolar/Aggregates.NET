@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using EventStore.ClientAPI;
 using Metrics;
 using Aggregates.Extensions;
+using EventStore.ClientAPI.Exceptions;
 using NServiceBus.Logging;
 using Timer = System.Threading.Timer;
 
@@ -66,8 +67,8 @@ namespace Aggregates.Internal
 
                 if (!info.Live)
                     return Task.CompletedTask;
-                    //throw new InvalidOperationException(
-                    //    "Subscription was stopped while events were waiting to be ACKed");
+                //throw new InvalidOperationException(
+                //    "Subscription was stopped while events were waiting to be ACKed");
 
                 Acknowledged.Increment(Id, toAck.Length);
                 Logger.Write(LogLevel.Debug, () => $"Acknowledging {toAck.Length} events to {Id}");
@@ -89,7 +90,7 @@ namespace Aggregates.Internal
         {
             Task.Run(Connect, _token);
         }
-        
+
 
         public void Dispose()
         {
@@ -121,7 +122,7 @@ namespace Aggregates.Internal
             //    throw new InvalidOperationException(
             //        $"Eventstore subscription dropped and we need to ACK {_toAck.Count} more events");
 
-            
+
             // Need to clear ReadyEvents of events delivered but not processed before disconnect
             ResolvedEvent e;
             while (!_waitingEvents.IsEmpty)
@@ -139,15 +140,25 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Info,
                 () => $"Connecting to subscription group [{_group}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
             // Todo: play with buffer size?
-            _subscription = await _client.ConnectToPersistentSubscriptionAsync(_stream, _group,
-                eventAppeared: EventAppeared,
-                subscriptionDropped: SubscriptionDropped,
-                bufferSize: _readsize * _readsize,
-                autoAck: false).ConfigureAwait(false);
-           
-            Logger.Write(LogLevel.Info,
-                () => $"Connected to subscription group [{_group}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
-            Live = true;
+
+            while (!Live)
+            {
+                await Task.Delay(500, _token).ConfigureAwait(false);
+
+                try
+                {
+                    _subscription = await _client.ConnectToPersistentSubscriptionAsync(_stream, _group,
+                        eventAppeared: EventAppeared,
+                        subscriptionDropped: SubscriptionDropped,
+                        bufferSize: _readsize * _readsize,
+                        autoAck: false).ConfigureAwait(false);
+
+                    Logger.Write(LogLevel.Info,
+                        () => $"Connected to subscription group [{_group}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
+                    Live = true;
+                }
+                catch (OperationTimedOutException) { }
+            }
         }
 
         public void Acknowledge(ResolvedEvent @event)

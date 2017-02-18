@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
 using EventStore.ClientAPI;
+using EventStore.ClientAPI.Exceptions;
 using Metrics;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
@@ -110,15 +111,17 @@ namespace Aggregates.Internal
 
             // Task.Run(Connect, _token);
         }
+
         public async Task Connect()
         {
             Logger.Write(LogLevel.Info,
-                () => $"Connecting to snapshot stream [{_stream}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
+                () =>
+                        $"Connecting to snapshot stream [{_stream}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
 
             // Subscribe to the end
             var lastEvent =
                 await _client.ReadStreamEventsBackwardAsync(_stream, StreamPosition.End, 1, true).ConfigureAwait(false);
-            
+
             var settings = new CatchUpSubscriptionSettings(100, 5, Logger.IsDebugEnabled, true);
 
             var startingNumber = 0;
@@ -128,16 +131,24 @@ namespace Aggregates.Internal
             // ReadStreamEventsBackward is async, which means at this point we'll be processing on the client's OperationQueue
             // put a delay here so the queue can get back to work, SubscribeToStreamFrom is sync meaning if we jump
             // right into it the OperationsQueue will deadlock
-            await Task.Delay(10).ConfigureAwait(false);
-            _subscription = _client.SubscribeToStreamFrom(_stream,
-                startingNumber,
-                settings,
-                eventAppeared: EventAppeared,
-                subscriptionDropped: SubscriptionDropped);
+            while (!Live)
+            {
+                await Task.Delay(500, _token).ConfigureAwait(false);
 
-            Logger.Write(LogLevel.Info,
-                () => $"Connected to snapshot stream [{_stream}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
-            Live = true;
+                try
+                {
+                    _subscription = _client.SubscribeToStreamFrom(_stream,
+                        startingNumber,
+                        settings,
+                        eventAppeared: EventAppeared,
+                        subscriptionDropped: SubscriptionDropped);
+                    Logger.Write(LogLevel.Info,
+                        () =>
+                                $"Connected to snapshot stream [{_stream}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
+                    Live = true;
+                }
+                catch (OperationTimedOutException){}
+            }
         }
 
         public Task<IWritableEvent> Retreive(string stream)
