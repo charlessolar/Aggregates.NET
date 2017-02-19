@@ -59,7 +59,7 @@ namespace Aggregates.Internal
                         lock (SlowLock) SlowCommandTypes.Add(messageTypeIdentifier);
                 }
                 else
-                    Logger.Write(LogLevel.Debug,
+                    Logger.Write(LogLevel.Info,
                         () => $"Processing message {context.MessageId} {messageTypeIdentifier} took {elapsed} ms");
 
             }

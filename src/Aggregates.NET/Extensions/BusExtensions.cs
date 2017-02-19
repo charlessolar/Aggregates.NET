@@ -10,7 +10,7 @@ namespace Aggregates.Extensions
 {
     public static class BusExtensions
     {
-        private static readonly ILog Logger = LogManager.GetLogger("Bus");
+        private static readonly ILog Logger = LogManager.GetLogger("Command");
 
         public static void CommandResponse(this IMessage msg)
         {
@@ -64,6 +64,7 @@ namespace Aggregates.Extensions
             }
             catch (TaskCanceledException)
             {
+                Logger.Warn($"Command {command.GetType().FullName} timed out");
                 return false;
             }
         }
@@ -82,6 +83,7 @@ namespace Aggregates.Extensions
             }
             catch (TaskCanceledException)
             {
+                Logger.Warn($"Command {command.GetType().FullName} timed out");
                 return false;
             }
         }

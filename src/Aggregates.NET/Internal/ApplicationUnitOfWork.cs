@@ -38,6 +38,8 @@ namespace Aggregates.Internal
         {
             MessagesConcurrent.Increment();
 
+            Logger.Write(LogLevel.Info,
+                () => $"Starting UOW for message {context.MessageId} type {context.Message.MessageType.FullName}");
             var uows = new Stack<IApplicationUnitOfWork>();
             try
             {
@@ -59,7 +61,7 @@ namespace Aggregates.Internal
 
                             var savedBag =
                                 await _persistence.Remove(context.MessageId, uow.GetType()).ConfigureAwait(false);
-
+                            
                             uow.Bag = savedBag ?? new ContextBag();
                             Logger.Write(LogLevel.Debug, () => $"Running UOW.Begin for message {context.MessageId} on {uow.GetType().FullName}");
                             await uow.Begin().ConfigureAwait(false);

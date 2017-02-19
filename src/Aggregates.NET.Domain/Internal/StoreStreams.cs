@@ -76,7 +76,7 @@ namespace Aggregates.Internal
 
             while (await CheckFrozen<T>(bucket, streamId).ConfigureAwait(false))
             {
-                Logger.Write(LogLevel.Debug, () => $"Stream [{streamName}] is frozen - waiting");
+                Logger.Write(LogLevel.Info, () => $"Stream [{streamName}] is frozen - waiting");
                 Thread.Sleep(100);
             }
             Logger.Write(LogLevel.Debug, () => $"Stream [{streamName}] not in cache - reading from store");
@@ -150,14 +150,14 @@ namespace Aggregates.Internal
         public async Task Freeze<T>(string bucket, string streamId) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
-            Logger.Write(LogLevel.Debug, () => $"Freezing stream [{streamName}]");
+            Logger.Write(LogLevel.Info, () => $"Freezing stream [{streamName}]");
             try
             {
                 await _store.WriteMetadata(streamName, frozen: true, owner: Defaults.Instance).ConfigureAwait(false);
             }
             catch (VersionException)
             {
-                Logger.Write(LogLevel.Debug, () => $"Freeze: stream [{streamName}] someone froze before us");
+                Logger.Write(LogLevel.Info, () => $"Freeze: stream [{streamName}] someone froze before us");
                 throw new FrozenException();
             }
         }
@@ -165,7 +165,7 @@ namespace Aggregates.Internal
         public async Task Unfreeze<T>(string bucket, string streamId) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
-            Logger.Write(LogLevel.Debug, () => $"Unfreezing stream [{streamName}]");
+            Logger.Write(LogLevel.Info, () => $"Unfreezing stream [{streamName}]");
 
             try
             {
@@ -173,7 +173,7 @@ namespace Aggregates.Internal
             }
             catch (VersionException)
             {
-                Logger.Write(LogLevel.Debug, () => $"Unfreeze: stream [{streamName}] is not frozen");
+                Logger.Write(LogLevel.Info, () => $"Unfreeze: stream [{streamName}] is not frozen");
             }
 
         }

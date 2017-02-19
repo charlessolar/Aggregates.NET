@@ -196,7 +196,7 @@ namespace Aggregates.Internal
             var allRepos =
                 _repositories.Values.Concat(_entityRepositories.Values).Concat(_pocoRepositories.Values).ToArray();
 
-            Logger.Write(LogLevel.Debug, () =>
+            Logger.Write(LogLevel.Info, () =>
                     $"Starting prepare for commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories");
             using (PrepareTime.NewContext())
             {
@@ -225,8 +225,8 @@ namespace Aggregates.Internal
 
                 if(ctx.Elapsed > TimeSpan.FromSeconds(1))
                     SlowLogger.Write(LogLevel.Warn, () => $"Commit id {CommitId} took {ctx.Elapsed.TotalSeconds} seconds!");
+                Logger.Write(LogLevel.Info, () => $"Commit id {CommitId} took {ctx.Elapsed.TotalSeconds} seconds");
             }
-            Logger.Write(LogLevel.Debug, () => $"Commit id {CommitId} complete");
 
         }
 

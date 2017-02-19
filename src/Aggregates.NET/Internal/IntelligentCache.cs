@@ -33,7 +33,7 @@ namespace Aggregates.Internal
             if (_stage % 120 == 0)
             {
                 _stage = 0;
-                Logger.Write(LogLevel.Debug, () => $"Clearing old cache attempt counters");
+                Logger.Write(LogLevel.Info, () => $"Clearing old cache attempt counters");
 
                 lock (Lock)
                 {
@@ -44,7 +44,7 @@ namespace Aggregates.Internal
 
             if (_stage % 60 == 0)
             {
-                Logger.Write(LogLevel.Debug, () => $"Clearing {Expires2.Count} 5m cached keys");
+                Logger.Write(LogLevel.Info, () => $"Clearing {Expires2.Count} 5m cached keys");
                 lock (Lock)
                 {
                     foreach (var stream in Expires2)
@@ -54,7 +54,7 @@ namespace Aggregates.Internal
             }
             if (_stage % 12 == 0)
             {
-                Logger.Write(LogLevel.Debug, () => $"Clearing {Expires1.Count} 1m cached keys");
+                Logger.Write(LogLevel.Info, () => $"Clearing {Expires1.Count} 1m cached keys");
                 lock (Lock)
                 {
                     foreach (var stream in Expires1)
@@ -65,7 +65,7 @@ namespace Aggregates.Internal
 
             if (_stage % 2 == 0)
             {
-                Logger.Write(LogLevel.Debug, () => $"Clearing {Expires0.Count} 10s cached keys");
+                Logger.Write(LogLevel.Info, () => $"Clearing {Expires0.Count} 10s cached keys");
                 lock (Lock)
                 {
                     foreach (var stream in Expires0)

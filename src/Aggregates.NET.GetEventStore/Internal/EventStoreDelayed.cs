@@ -97,7 +97,7 @@ namespace Aggregates.Internal
                     if (!MemCache.TryRemove(expired, out fromCache))
                         return;
 
-                    Logger.Write(LogLevel.Debug,
+                    Logger.Write(LogLevel.Info,
                         () => $"Flushing expired channel {expired.Item1} key {expired.Item2} with {fromCache.Item3.Count} objects");
 
                     // Just take 500 from the end of the channel to prevent trying to write 20,000 items in 1 go
@@ -225,7 +225,7 @@ namespace Aggregates.Internal
                                 );
                             }
 
-                            Logger.Write(LogLevel.Debug,
+                            Logger.Write(LogLevel.Info,
                                 () => $"Flushing too large channel {expired.Item1} key {expired.Item2} with {overLimit.Count} objects");
                             var translatedEvents = overLimit.Select(x => new WritableEvent
                             {
@@ -307,12 +307,12 @@ namespace Aggregates.Internal
 
         public async Task End(Exception ex = null)
         {
-            Logger.Write(LogLevel.Debug, () => $"Saving {_inFlightChannel.Count()} {(ex == null ? "ACKs" : "NACKs")}");
+            Logger.Write(LogLevel.Info, () => $"Saving {_inFlightChannel.Count()} {(ex == null ? "ACKs" : "NACKs")}");
             await _inFlightChannel.ToList().SelectAsync(x => ex == null ? Ack(x.Key) : NAck(x.Key)).ConfigureAwait(false);
 
             if (ex != null)
             {
-                Logger.Write(LogLevel.Debug, () => $"Putting {_inFlightMemCache.Count()} in flight channels back into memcache");
+                Logger.Write(LogLevel.Info, () => $"Putting {_inFlightMemCache.Count()} in flight channels back into memcache");
                 foreach (var inflight in _inFlightMemCache)
                 {
                     MemCache.AddOrUpdate(inflight.Key,
@@ -331,7 +331,7 @@ namespace Aggregates.Internal
 
             if (ex == null)
             {
-                Logger.Write(LogLevel.Debug, () => $"Putting {_uncommitted.Count()} delayed streams into mem cache");
+                Logger.Write(LogLevel.Info, () => $"Putting {_uncommitted.Count()} delayed streams into mem cache");
 
                 _inFlightMemCache.Clear();
 
@@ -478,7 +478,7 @@ namespace Aggregates.Internal
         {
             var specificKey = new Tuple<string, string>(channel, key);
 
-            Logger.Write(LogLevel.Debug, () => $"Pulling delayed channel [{channel}] key [{key}]");
+            Logger.Write(LogLevel.Info, () => $"Pulling delayed channel [{channel}] key [{key}]");
 
             Tuple<DateTime, object, List<object>> fromCache;
 
@@ -517,7 +517,7 @@ namespace Aggregates.Internal
             MemCacheSize.Decrement(discovered.Count);
             Interlocked.Add(ref _memCacheTotalSize, -discovered.Count);
 
-            Logger.Write(LogLevel.Debug, () => $"Pulled {discovered.Count} from delayed channel [{channel}] key [{key}]");
+            Logger.Write(LogLevel.Info, () => $"Pulled {discovered.Count} from delayed channel [{channel}] key [{key}]");
             return Task.FromResult<IEnumerable<object>>(discovered);
         }
 
@@ -532,7 +532,7 @@ namespace Aggregates.Internal
                 _inFlightChannel.Remove(channel);
             }
 
-            Logger.Write(LogLevel.Debug, () => $"Acking channel [{channel}] position {info.Position} at {info.At.ToUnixTime()}");
+            Logger.Write(LogLevel.Info, () => $"Acking channel [{channel}] position {info.Position} at {info.At.ToUnixTime()}");
 
             var streamName = _streamGen(typeof(EventStoreDelayed), StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);
 
@@ -558,7 +558,7 @@ namespace Aggregates.Internal
                 if (!_inFlightChannel.ContainsKey(channel))
                     return;
             }
-            Logger.Write(LogLevel.Debug, () => $"NAcking channel [{channel}]");
+            Logger.Write(LogLevel.Info, () => $"NAcking channel [{channel}]");
 
             // Remove the freeze so someone else can run the delayed
             var streamName = _streamGen(typeof(EventStoreDelayed), StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, channel);

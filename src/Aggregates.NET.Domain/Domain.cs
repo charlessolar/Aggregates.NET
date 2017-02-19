@@ -106,7 +106,7 @@ namespace Aggregates
 
             protected override async Task OnStart(IMessageSession session)
             {
-                Logger.Write(LogLevel.Debug, "Starting domain");
+                Logger.Write(LogLevel.Info, "Starting domain");
                 await session.Publish<DomainAlive>(x =>
                 {
                     x.Endpoint = _settings.InstanceSpecificQueue();
@@ -121,7 +121,7 @@ namespace Aggregates
             }
             protected override async Task OnStop(IMessageSession session)
             {
-                Logger.Write(LogLevel.Debug, "Stopping domain");
+                Logger.Write(LogLevel.Info, "Stopping domain");
                 await session.Publish<DomainDead>(x =>
                 {
                     x.Endpoint = _settings.InstanceSpecificQueue();

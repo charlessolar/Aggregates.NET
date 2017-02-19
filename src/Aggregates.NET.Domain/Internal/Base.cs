@@ -135,7 +135,7 @@ namespace Aggregates.Internal
             var route = Resolver.Resolve(this, @event.GetType());
             if (route == null)
             {
-                Logger.Write(LogLevel.Debug, () => $"Failed to route event {@event.GetType().FullName} on type {typeof(TThis).FullName}");
+                Logger.Write(LogLevel.Info, () => $"Failed to route event {@event.GetType().FullName} on type {typeof(TThis).FullName}");
                 return;
             }
 

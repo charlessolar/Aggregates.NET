@@ -181,7 +181,7 @@ namespace Aggregates.Internal
 
                     var delayed = events.Select(x => x.Event.Data.Deserialize<DelayedMessage>(param.JsonSettings)).ToArray();
 
-                    Logger.Write(LogLevel.Debug, () => $"Processing {delayed.Count()} bulk events");
+                    Logger.Write(LogLevel.Info, () => $"Processing {delayed.Count()} bulk events");
 
                     var transportTransaction = new TransportTransaction();
                     var contextBag = new ContextBag();
@@ -238,6 +238,7 @@ namespace Aggregates.Internal
                             }
                             if(ctx.Elapsed > TimeSpan.FromSeconds(5))
                                 SlowLogger.Warn($"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
+                            Logger.Write(LogLevel.Info, () => $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds");
                         }
                     }
                     Logger.Write(LogLevel.Debug,

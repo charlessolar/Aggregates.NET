@@ -115,8 +115,7 @@ namespace Aggregates.Internal
         public async Task Connect()
         {
             Logger.Write(LogLevel.Info,
-                () =>
-                        $"Connecting to snapshot stream [{_stream}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
+                () => $"Connecting to snapshot stream [{_stream}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
 
             // Subscribe to the end
             var lastEvent =
@@ -143,8 +142,7 @@ namespace Aggregates.Internal
                         eventAppeared: EventAppeared,
                         subscriptionDropped: SubscriptionDropped);
                     Logger.Write(LogLevel.Info,
-                        () =>
-                                $"Connected to snapshot stream [{_stream}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
+                        () => $"Connected to snapshot stream [{_stream}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
                     Live = true;
                 }
                 catch (OperationTimedOutException){}

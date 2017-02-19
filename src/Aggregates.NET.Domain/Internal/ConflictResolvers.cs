@@ -116,7 +116,7 @@ namespace Aggregates.Internal
                     await
                         _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1)
                             .ConfigureAwait(false);
-                Logger.Write(LogLevel.Debug, () => $"Stream is {latestEvents.Count()} events behind store");
+                Logger.Write(LogLevel.Info, () => $"Stream is {latestEvents.Count()} events behind store");
 
                 var writableEvents = latestEvents as IWritableEvent[] ?? latestEvents.ToArray();
                 stream.Concat(writableEvents);
@@ -141,8 +141,7 @@ namespace Aggregates.Internal
                     ((ISnapshotting) entity).ShouldTakeSnapshot())
                 {
                     Logger.Write(LogLevel.Debug,
-                        () =>
-                                $"Taking snapshot of {typeof(T).FullName} id [{entity.StreamId}] version {stream.StreamVersion}");
+                        () => $"Taking snapshot of {typeof(T).FullName} id [{entity.StreamId}] version {stream.StreamVersion}");
                     var memento = ((ISnapshotting) entity).TakeSnapshot();
                     stream.AddSnapshot(memento);
                 }
@@ -191,7 +190,7 @@ namespace Aggregates.Internal
                 return;
 
             var stream = entity.Stream;
-            Logger.Write(LogLevel.Debug, () => $"Starting weak conflict resolve for stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
+            Logger.Write(LogLevel.Info, () => $"Starting weak conflict resolve for stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
             try
             {
                 try
@@ -200,7 +199,7 @@ namespace Aggregates.Internal
                 }
                 catch (VersionException)
                 {
-                    Logger.Write(LogLevel.Debug, () => $"Stopping weak conflict resolve - someone else is processing");
+                    Logger.Write(LogLevel.Info, () => $"Stopping weak conflict resolve - someone else is processing");
                     return;
                 }
                 uncommitted = (await _delay.Pull(streamName, max: _maxPulledDelayed).ConfigureAwait(false)).Cast<IWritableEvent>();
@@ -215,7 +214,7 @@ namespace Aggregates.Internal
                 var latestEvents =
                     await _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1)
                             .ConfigureAwait(false);
-                Logger.Write(LogLevel.Debug, () => $"Stream [{stream.StreamId}] bucket [{stream.Bucket}] is {latestEvents.Count()} events behind store");
+                Logger.Write(LogLevel.Info, () => $"Stream [{stream.StreamId}] bucket [{stream.Bucket}] is {latestEvents.Count()} events behind store");
 
                 var writableEvents = latestEvents as IWritableEvent[] ?? latestEvents.ToArray();
                 stream.Concat(writableEvents);
@@ -234,7 +233,7 @@ namespace Aggregates.Internal
                     throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
                 }
 
-                Logger.Write(LogLevel.Debug, () => "Successfully merged conflicted events");
+                Logger.Write(LogLevel.Info, () => "Successfully merged conflicted events");
 
                 if (stream.StreamVersion != stream.CommitVersion && entity is ISnapshotting &&
                     ((ISnapshotting) entity).ShouldTakeSnapshot())

@@ -70,7 +70,7 @@ namespace Aggregates.Internal
                         "Subscription was stopped while events were waiting to be ACKed");
 
                 Acknowledged.Increment(Id, toAck.Length);
-                Logger.Write(LogLevel.Debug, () => $"Acknowledging {toAck.Length} events to {Id}");
+                Logger.Write(LogLevel.Info, () => $"Acknowledging {toAck.Length} events to {Id}");
 
                 var page = 0;
                 while (page < toAck.Length)

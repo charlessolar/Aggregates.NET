@@ -100,8 +100,7 @@ namespace Aggregates.Internal
                             (tracked as ISnapshotting).ShouldTakeSnapshot())
                         {
                             Logger.Write(LogLevel.Debug,
-                                () =>
-                                        $"Taking snapshot of [{tracked.GetType().FullName}] id [{tracked.StreamId}] version {tracked.Version}");
+                                () => $"Taking snapshot of [{tracked.GetType().FullName}] id [{tracked.StreamId}] version {tracked.Version}");
                             var memento = (tracked as ISnapshotting).TakeSnapshot();
                             stream.AddSnapshot(memento);
                         }
@@ -125,7 +124,7 @@ namespace Aggregates.Internal
 
                             try
                             {
-                                Logger.Write(LogLevel.Debug,
+                                Logger.Write(LogLevel.Info,
                                     () => $"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} stream version {stream.StreamVersion} commit verison {stream.CommitVersion} has version conflicts with store - Message: {e.Message} Store: {e.InnerException?.Message}");
 
 
@@ -154,7 +153,7 @@ namespace Aggregates.Internal
                                     }
                                 }
 
-                                Logger.WriteFormat(LogLevel.Debug,
+                                Logger.WriteFormat(LogLevel.Info,
                                     "Stream [{0}] entity {1} version {2} had version conflicts with store - successfully resolved",
                                     tracked.StreamId, tracked.GetType().FullName, stream.StreamVersion);
                                 ConflictsResolved.Mark();

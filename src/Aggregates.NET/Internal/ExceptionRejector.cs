@@ -40,7 +40,7 @@ namespace Aggregates.Internal
                 RetryRegistry.TryRemove(messageId, out retries);
                 context.Extensions.Set(Defaults.Retries, retries);
                 if (retries > 0)
-                    Logger.WriteFormat(LogLevel.Debug,
+                    Logger.WriteFormat(LogLevel.Info,
                         $"Retrying message {context.MessageId} for the {retries}/{_retries} time");
 
                 await next().ConfigureAwait(false);
