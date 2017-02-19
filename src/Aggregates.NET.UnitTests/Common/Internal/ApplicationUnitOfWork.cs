@@ -49,6 +49,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             var next = new Moq.Mock<Func<Task>>();
             var builder = new Moq.Mock<IBuilder>();
             context.Setup(x => x.MessageId).Returns("1");
+            context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
@@ -66,6 +67,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             var uow = new Moq.Mock<IApplicationUnitOfWork>();
             builder.Setup(x => x.BuildAll<IApplicationUnitOfWork>()).Returns(new IApplicationUnitOfWork[] {uow.Object});
             context.Setup(x => x.MessageId).Returns("1");
+            context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
@@ -86,6 +88,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             var uow = new Moq.Mock<IApplicationUnitOfWork>();
             builder.Setup(x => x.BuildAll<IApplicationUnitOfWork>()).Returns(new IApplicationUnitOfWork[] { uow.Object });
             context.Setup(x => x.MessageId).Returns("1");
+            context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
@@ -185,6 +188,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             var uow2 = new Moq.Mock<ILastApplicationUnitOfWork>();
             builder.Setup(x => x.BuildAll<IApplicationUnitOfWork>()).Returns(new IApplicationUnitOfWork[] { uow.Object, uow2.Object, uow.Object, uow.Object });
             context.Setup(x => x.MessageId).Returns("1");
+            context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
