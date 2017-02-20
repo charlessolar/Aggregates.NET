@@ -45,7 +45,7 @@ namespace Aggregates.Internal
                     RecentlyInvoked.Remove(e.Key);
             }
             return Task.CompletedTask;
-        }, TimeSpan.FromSeconds(5), "recently invoked eviction");
+        }, TimeSpan.FromSeconds(30), "recently invoked eviction");
 
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
         private static readonly object Lock = new Object();

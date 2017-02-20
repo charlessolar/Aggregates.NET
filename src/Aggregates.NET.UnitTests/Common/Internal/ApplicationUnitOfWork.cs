@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
+using NServiceBus;
 using NServiceBus.Extensibility;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
@@ -53,6 +54,8 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+            context.Setup(x => x.MessageHeaders)
+                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
 
             await _uow.Invoke(context.Object, next.Object);
             next.Verify(x => x(), Moq.Times.Once);
@@ -71,9 +74,10 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+            context.Setup(x => x.MessageHeaders)
+                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
 
             await _uow.Invoke(context.Object, next.Object);
-            next.Verify(x => x(), Moq.Times.Once);
             next.Verify(x => x(), Moq.Times.Once);
             uow.Verify(x => x.Begin(), Moq.Times.Once);
             uow.Verify(x => x.End(null), Moq.Times.Once);
@@ -92,6 +96,8 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+            context.Setup(x => x.MessageHeaders)
+                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
             _persistence.Setup(x => x.Clear("1")).Returns(Task.CompletedTask);
 
             await _uow.Invoke(context.Object, next.Object);
@@ -115,6 +121,8 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+            context.Setup(x => x.MessageHeaders)
+                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
             uow.Setup(x => x.End(null)).Throws(new Exception("test"));
             uow.Setup(x => x.Bag).Returns(bag);
 
@@ -141,6 +149,8 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+            context.Setup(x => x.MessageHeaders)
+                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
             _persistence.Setup(x => x.Remove("1", uow.GetType())).Returns(Task.FromResult(bag));
 
             await _uow.Invoke(context.Object, next.Object);
@@ -169,6 +179,8 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+            context.Setup(x => x.MessageHeaders)
+                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
 
             await _uow.Invoke(context.Object, next.Object);
             next.Verify(x => x(), Moq.Times.Once);
@@ -192,6 +204,8 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+            context.Setup(x => x.MessageHeaders)
+                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
             var ordering = new List<bool>();
             uow.Setup(x => x.End(null)).Returns(Task.CompletedTask).Callback(() => ordering.Add(false));
             uow2.Setup(x => x.End(null)).Returns(Task.CompletedTask).Callback(() => ordering.Add(true));
@@ -215,6 +229,8 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+            context.Setup(x => x.MessageHeaders)
+                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
             uow.Setup(x => x.End(null)).Throws(new Exception());
 
             Assert.ThrowsAsync<Exception>(() => _uow.Invoke(context.Object, next.Object));
@@ -238,6 +254,8 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+            context.Setup(x => x.MessageHeaders)
+                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
 
 
             await _uow.Invoke(context.Object, next.Object);
@@ -259,6 +277,8 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+            context.Setup(x => x.MessageHeaders)
+                .Returns(new Dictionary<string, string> {[Headers.MessageIntent] = MessageIntentEnum.Send.ToString()});
             uow.Setup(x => x.End(null)).Throws(new Exception());
             uow2.Setup(x => x.End(Moq.It.IsAny<Exception>())).Throws(new Exception());
 
@@ -282,6 +302,8 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+            context.Setup(x => x.MessageHeaders)
+                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
             uow.Setup(x => x.End(null)).Throws(new Exception());
             uow2.Setup(x => x.End(Moq.It.IsAny<Exception>())).Throws(new Exception());
             uow2.Setup(x => x.Bag).Returns(bag);
@@ -290,6 +312,29 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             next.Verify(x => x(), Moq.Times.Once);
             _persistence.Verify(x => x.Save("1", uow2.Object.GetType(), bag), Moq.Times.Once);
             return Task.CompletedTask;
+        }
+
+        [Test]
+        public async Task no_uow_if_not_send()
+        {
+            var bag = new ContextBag();
+            var context = new Moq.Mock<IIncomingLogicalMessageContext>();
+            var next = new Moq.Mock<Func<Task>>();
+            var builder = new Moq.Mock<IBuilder>();
+            var uow = new Moq.Mock<IApplicationUnitOfWork>();
+            builder.Setup(x => x.BuildAll<IApplicationUnitOfWork>()).Returns(new IApplicationUnitOfWork[] { uow.Object });
+            context.Setup(x => x.MessageId).Returns("1");
+            context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
+            context.Setup(x => x.Extensions).Returns(bag);
+            context.Setup(x => x.Builder).Returns(builder.Object);
+            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+            context.Setup(x => x.MessageHeaders)
+                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Reply.ToString() });
+
+            await _uow.Invoke(context.Object, next.Object);
+            next.Verify(x => x(), Moq.Times.Once);
+            uow.Verify(x => x.Begin(), Moq.Times.Never);
+            uow.Verify(x => x.End(null), Moq.Times.Never);
         }
     }
 }

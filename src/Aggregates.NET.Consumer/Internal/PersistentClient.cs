@@ -81,7 +81,7 @@ namespace Aggregates.Internal
                     page += 2000;
                 }
                 return Task.CompletedTask;
-            }, this, TimeSpan.FromSeconds(5), token, "event acknowledger");
+            }, this, TimeSpan.FromSeconds(30), token, "event acknowledger");
 
             _client.Connected += _client_Connected;
         }
@@ -150,7 +150,7 @@ namespace Aggregates.Internal
                     _subscription = await _client.ConnectToPersistentSubscriptionAsync(_stream, _group,
                         eventAppeared: EventAppeared,
                         subscriptionDropped: SubscriptionDropped,
-                        bufferSize: _readsize * _readsize,
+                        bufferSize: _readsize * 5,
                         autoAck: false).ConfigureAwait(false);
 
                     Logger.Write(LogLevel.Info,

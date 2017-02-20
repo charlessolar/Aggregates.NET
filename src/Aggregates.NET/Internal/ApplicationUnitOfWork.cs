@@ -38,7 +38,15 @@ namespace Aggregates.Internal
         {
             MessagesConcurrent.Increment();
 
-            Logger.Write(LogLevel.Info,
+            // Only SEND messages deserve a UnitOfWork
+            if (context.MessageHeaders[Headers.MessageIntent] != MessageIntentEnum.Send.ToString())
+            {
+                await next().ConfigureAwait(false);
+                return;
+            }
+
+
+                Logger.Write(LogLevel.Info,
                 () => $"Starting UOW for message {context.MessageId} type {context.Message.MessageType.FullName}");
             var uows = new Stack<IApplicationUnitOfWork>();
             try

@@ -53,8 +53,7 @@ namespace Aggregates.Internal
 
         private bool _disposed;
 
-        public DelayedSubscriber( IMessageMapper mapper,
-             IEventStoreConnection[] connections, int maxDelayed)
+        public DelayedSubscriber( IMessageMapper mapper, IEventStoreConnection[] connections, int maxDelayed)
         {
             _clients = connections;
             _maxDelayed = maxDelayed;

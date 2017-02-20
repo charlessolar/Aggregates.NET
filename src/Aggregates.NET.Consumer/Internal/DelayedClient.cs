@@ -80,7 +80,7 @@ namespace Aggregates.Internal
                     page += 2000;
                 }
                 return Task.CompletedTask;
-            }, this, TimeSpan.FromSeconds(5), token, "delayed event acknowledger");
+            }, this, TimeSpan.FromSeconds(30), token, "delayed event acknowledger");
 
             _client.Connected += _client_Connected;
         }
