@@ -72,20 +72,23 @@ namespace Aggregates.Internal
             });
 
             var messageHandler = context.MessageHandler;
-
-
             var channelKey = $"{messageHandler.HandlerType.FullName}:{msgType.FullName}";
 
             bool contains = false;
             lock (Lock) contains = IsNotDelayed.Contains(channelKey);
-            
+
+            var contextChannelKey = "";
             // Special case for when we are bulk processing messages from DelayedSubscriber, simply process it and return dont check for more bulk
-            if (channel == null || contains || (context.Headers.ContainsKey(Defaults.ChannelKey) && context.Headers[Defaults.ChannelKey] == channelKey))
+            if (channel == null || contains || (context.Extensions.TryGet(Defaults.ChannelKey, out contextChannelKey) && contextChannelKey == channelKey))
             {
                 Logger.Write(LogLevel.Debug, () => $"Invoking handle for message {msgType.FullName} on handler {messageHandler.HandlerType.FullName}");
                 await messageHandler.Invoke(context.MessageBeingHandled, context).ConfigureAwait(false);
                 return;
             }
+            // If we are bulk processing and the above check fails it means the current message handler shouldn't be called
+            if (!string.IsNullOrEmpty(contextChannelKey))
+                return;
+
             if (IsDelayed.ContainsKey(channelKey))
             {
                 DelayedAttribute delayed;
@@ -215,6 +218,7 @@ namespace Aggregates.Internal
                 }
                 if(ctx.Elapsed > TimeSpan.FromSeconds(5))
                     SlowLogger.Write(LogLevel.Warn, () => $"Bulk invoking {count} times on channel key [{channelKey}] specific key [{specificKey}] took {ctx.Elapsed.TotalSeconds} seconds!");
+                Logger.Write(LogLevel.Info, () => $"Bulk invoking {count} times on channel key [{channelKey}] specific key [{specificKey}] took {ctx.Elapsed.TotalMilliseconds} ms!");
             }
             Logger.Write(LogLevel.Info, () => $"Finished invoke handle {count} times channel key [{channelKey}] specific key [{specificKey}]");
         }

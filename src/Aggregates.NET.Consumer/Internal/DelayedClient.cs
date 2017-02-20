@@ -60,20 +60,19 @@ namespace Aggregates.Internal
             {
                 var info = (DelayedClient)state;
 
-                ResolvedEvent[] toAck = Interlocked.Exchange(ref _toAck, new List<ResolvedEvent>()).ToArray();
+                var toAck = Interlocked.Exchange(ref _toAck, new List<ResolvedEvent>());
 
                 if (!toAck.Any())
                     return Task.CompletedTask;
 
                 if (!info.Live)
-                    throw new InvalidOperationException(
-                        "Subscription was stopped while events were waiting to be ACKed");
+                    return Task.CompletedTask;
 
-                Acknowledged.Increment(Id, toAck.Length);
-                Logger.Write(LogLevel.Info, () => $"Acknowledging {toAck.Length} events to {Id}");
+                Acknowledged.Increment(Id, toAck.Count);
+                Logger.Write(LogLevel.Info, () => $"Acknowledging {toAck.Count} events to {Id}");
 
                 var page = 0;
-                while (page < toAck.Length)
+                while (page < toAck.Count)
                 {
                     var working = toAck.Skip(page).Take(2000);
                     info._subscription.Acknowledge(working);
@@ -143,11 +142,11 @@ namespace Aggregates.Internal
                 try
                 {
                     _subscription = await _client.ConnectToPersistentSubscriptionAsync(_stream, _group,
-                eventAppeared: EventAppeared,
-                subscriptionDropped: SubscriptionDropped,
-                // Let us accept maxDelayed number of unacknowledged events
-                bufferSize: _maxDelayed,
-                autoAck: false).ConfigureAwait(false);
+                        eventAppeared: EventAppeared,
+                        subscriptionDropped: SubscriptionDropped,
+                        // Let us accept maxDelayed number of unacknowledged events
+                        bufferSize: _maxDelayed,
+                        autoAck: false).ConfigureAwait(false);
                     Live = true;
                     Logger.Write(LogLevel.Info,
                         () => $"Connected to subscription group [{_group}] on client {_client.Settings.GossipSeeds[0].EndPoint.Address}");
@@ -158,9 +157,6 @@ namespace Aggregates.Internal
 
         public void Acknowledge(ResolvedEvent[] events)
         {
-            if (!Live)
-                throw new InvalidOperationException("Cannot ACK an event, subscription is dead");
-
             Processed.Increment(Id);
             _idleContext.Dispose();
             _toAck.AddRange(events);

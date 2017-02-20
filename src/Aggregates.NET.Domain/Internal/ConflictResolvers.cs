@@ -176,6 +176,8 @@ namespace Aggregates.Internal
 
         public async Task Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
+            // Todo fix delayed channel impl - currently doesn't do Age from store anymore
+            throw new NotImplementedException("See todo - needs fix");
             // Store conflicting events in memory
             // After 100 or so pile up pull the latest stream and attempt to write them again
 

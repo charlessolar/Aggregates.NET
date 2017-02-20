@@ -25,6 +25,7 @@ using NServiceBus.Unicast.Messages;
 
 namespace Aggregates.Internal
 {
+    class BulkMessage : IMessage { }
     class DelayedSubscriber : IEventSubscriber
     {
         private static readonly ILog Logger = LogManager.GetLogger("DelaySubscriber");
@@ -63,6 +64,7 @@ namespace Aggregates.Internal
                 Binder = new EventSerializationBinder(mapper),
                 ContractResolver = new EventContractResolver(mapper)
             };
+
         }
 
 
@@ -155,6 +157,8 @@ namespace Aggregates.Internal
         private static void Threaded(object state)
         {
             var param = (ThreadParam)state;
+            // A fake message that will travel through the pipeline in order to bulk process messages from the context bag
+            var bulkMarker = new BulkMessage().Serialize(param.JsonSettings).AsByteArray();
 
             param.Clients.SelectAsync(x => x.Connect()).Wait();
 
@@ -185,11 +189,13 @@ namespace Aggregates.Internal
                     var transportTransaction = new TransportTransaction();
                     var contextBag = new ContextBag();
                     // Hack to get all the delayed messages to bulk invoker without NSB deserializing and processing each one
-                    contextBag.Set(Defaults.BulkHeader, delayed.AsEnumerable());
+                    contextBag.Set(Defaults.BulkHeader, delayed);
 
+                    // Need to supply EnclosedMessageTypes to trick NSB pipeline into processing our fake message
                     var messageId = Guid.NewGuid().ToString();
                     var headers = new Dictionary<string, string>()
                     {
+                        [Headers.EnclosedMessageTypes] = typeof(BulkMessage).AssemblyQualifiedName,
                         [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
                         [Headers.MessageId] = messageId,
                         [Defaults.BulkHeader] = delayed.Count().ToString(),
@@ -212,7 +218,7 @@ namespace Aggregates.Internal
                                     // Don't re-use the event id for the message id
                                     var messageContext = new NServiceBus.Transport.MessageContext(messageId,
                                         headers,
-                                        new byte[0], transportTransaction, tokenSource,
+                                        bulkMarker, transportTransaction, tokenSource,
                                         contextBag);
                                     Bus.OnMessage(messageContext).Wait(param.Token);
                                     processed = true;
@@ -237,7 +243,7 @@ namespace Aggregates.Internal
                             }
                             if(ctx.Elapsed > TimeSpan.FromSeconds(5))
                                 SlowLogger.Warn($"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
-                            Logger.Write(LogLevel.Info, () => $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds");
+                            Logger.Write(LogLevel.Info, () => $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalMilliseconds} ms");
                         }
                     }
                     Logger.Write(LogLevel.Debug,

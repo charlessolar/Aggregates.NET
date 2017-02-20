@@ -82,6 +82,7 @@ namespace Aggregates.Internal
 
                 if (ctx.Elapsed > TimeSpan.FromSeconds(1))
                     SlowLogger.Write(LogLevel.Warn, () => $"Reading {events.Count} events of total size {events.Sum(x => x.Event.Data.Length)} from stream [{stream}] took {ctx.Elapsed.TotalSeconds} seconds!");
+                Logger.Write(LogLevel.Info, () => $"Reading {events.Count} events of total size {events.Sum(x => x.Event.Data.Length)} from stream [{stream}] took {ctx.Elapsed.TotalMilliseconds} ms");
             }
             Logger.Write(LogLevel.Debug, () => $"Finished reading {events.Count} events from stream [{stream}]");
 
@@ -176,6 +177,7 @@ namespace Aggregates.Internal
 
                     if (ctx.Elapsed > TimeSpan.FromSeconds(1))
                         SlowLogger.Write(LogLevel.Warn, () => $"Reading {events.Count} events of total size {events.Sum(x => x.Event.Data.Length)} from stream [{stream}] took {ctx.Elapsed.TotalSeconds} seconds!");
+                    Logger.Write(LogLevel.Info, () => $"Reading {events.Count} events of total size {events.Sum(x => x.Event.Data.Length)} from stream [{stream}] took {ctx.Elapsed.TotalMilliseconds} ms!");
                 }
                 Logger.Write(LogLevel.Debug, () => $"Finished reading {events.Count} events backward from stream [{stream}]");
 
@@ -359,7 +361,7 @@ namespace Aggregates.Internal
                 WrittenEventsSize.Update(events.Sum(x => x.Data.Length));
                 if (ctx.Elapsed > TimeSpan.FromSeconds(1))
                     SlowLogger.Write(LogLevel.Warn, () => $"Writing {events.Count()} events of total size {events.Sum(x => x.Data.Length)} to stream [{stream}] version {expectedVersion} took {ctx.Elapsed.TotalSeconds} seconds!");
-                Logger.Write(LogLevel.Info, () => $"Writing {events.Count()} events of total size {events.Sum(x => x.Data.Length)} to stream [{stream}] version {expectedVersion} took {ctx.Elapsed.TotalSeconds} seconds!");
+                Logger.Write(LogLevel.Info, () => $"Writing {events.Count()} events of total size {events.Sum(x => x.Data.Length)} to stream [{stream}] version {expectedVersion} took {ctx.Elapsed.TotalMilliseconds} ms");
             }
             return nextVersion;
         }

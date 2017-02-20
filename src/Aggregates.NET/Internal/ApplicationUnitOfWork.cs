@@ -79,20 +79,24 @@ namespace Aggregates.Internal
 
                     using (ProcessTimer.NewContext())
                     {
+                        DelayedMessage[] delayed;
                         // Special case for delayed messages read from delayed stream
-                        if (context.Headers.ContainsKey(Defaults.BulkHeader))
+                        if (context.Headers.ContainsKey(Defaults.BulkHeader) && context.Extensions.TryGet(Defaults.BulkHeader, out delayed))
                         {
-                            DelayedMessage[] delayed;
-                            if (!context.Extensions.TryGet(Defaults.BulkHeader, out delayed))
-                                await next().ConfigureAwait(false);
 
                             foreach (var x in delayed)
                             {
-                                // Todo: should we overwrite the headers for the message with the delayed ones?
-                                // dont really see the point yet
-                                context.Headers[Defaults.ChannelKey] = x.ChannelKey;
+                                // Replace all headers with the original headers to preserve CorrId etc.
+                                context.Headers.Clear();
+                                foreach (var header in x.Headers)
+                                    context.Headers[header.Key] = header.Value;
+
+                                context.Headers["Delayed Channel"] = x.ChannelKey;
+
+                                context.Extensions.Set(Defaults.ChannelKey, x.ChannelKey);
+
                                 context.UpdateMessageInstance(x.Message);
-                                await next().ConfigureAwait(false);
+                                await next().ConfigureAwait(true);
                             }
 
                         }

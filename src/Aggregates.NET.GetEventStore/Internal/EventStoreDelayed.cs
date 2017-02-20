@@ -66,6 +66,7 @@ namespace Aggregates.Internal
 
         private readonly IStoreEvents _store;
         private readonly StreamIdGenerator _streamGen;
+        private readonly string _endpoint;
 
         private readonly object _lock = new object();
         private Dictionary<Tuple<string, string>, List<object>> _inFlightMemCache;
@@ -175,6 +176,7 @@ namespace Aggregates.Internal
 
                 if (ctx.Elapsed > TimeSpan.FromSeconds(10))
                     SlowLogger.Warn($"Flushing {totalFlushed} expired delayed objects took {ctx.Elapsed.TotalSeconds} seconds!");
+                Logger.Write(LogLevel.Info, () => $"Flushing {totalFlushed} expired delayed objects took {ctx.Elapsed.TotalMilliseconds} ms");
                 FlushedSize.Update(totalFlushed);
             }
 
@@ -300,6 +302,7 @@ namespace Aggregates.Internal
         {
             _store = store;
             _streamGen = streamGen;
+            _endpoint = endpoint;
 
             if (_flusher == null)
             {
@@ -344,51 +347,37 @@ namespace Aggregates.Internal
 
                 _inFlightMemCache.Clear();
 
-                // Anything with a specific key goes into memcache
-                await _uncommitted.WhileAsync(x => !string.IsNullOrEmpty(x.Key.Item2), kv =>
+                await _uncommitted.WhileAsync(async kv =>
                 {
-                    MemCache.AddOrUpdate(kv.Key,
-                        (key) =>
-                                new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, new object(), kv.Value),
-                        (key, existing) =>
+                    // Anything without specific key gets committed to ES right away
+                    if (string.IsNullOrEmpty(kv.Key.Item2))
+                    {
+                        var translatedEvents = kv.Value.Select(x => new WritableEvent
                         {
-                            lock (existing.Item2) existing.Item3.AddRange(kv.Value);
-                            return new Tuple<DateTime, object, List<object>>(existing.Item1, existing.Item2, existing.Item3);
+                            Descriptor = new EventDescriptor
+                            {
+                                EntityType = "DELAY",
+                                StreamType = StreamTypes.Delayed,
+                                Bucket = Assembly.GetEntryAssembly().FullName,
+                                StreamId = kv.Key.Item1,
+                                Timestamp = DateTime.UtcNow,
+                                Headers = new Dictionary<string, string>()
+                            },
+                            Event = x,
+                        });
+                        try
+                        {
+                            var streamName = _streamGen(typeof(EventStoreDelayed),
+                                $"{_endpoint}.{StreamTypes.Delayed}",
+                                Assembly.GetEntryAssembly().FullName, kv.Key.Item1);
+                            await _store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
+                            return;
                         }
-                    );
-                    MemCacheSize.Increment(kv.Value.Count);
-                    Interlocked.Add(ref _memCacheTotalSize, kv.Value.Count);
-
-                    return Task.CompletedTask;
-                }).ConfigureAwait(false);
-
-
-                // Anything without specific key gets committed to ES right away
-                await _uncommitted.WhileAsync(x => string.IsNullOrEmpty(x.Key.Item2), async kv =>
-                {
-                    var translatedEvents = kv.Value.Select(x => new WritableEvent
-                    {
-                        Descriptor = new EventDescriptor
+                        catch (Exception e)
                         {
-                            EntityType = "DELAY",
-                            StreamType = StreamTypes.Delayed,
-                            Bucket = Assembly.GetEntryAssembly().FullName,
-                            StreamId = kv.Key.Item1,
-                            Timestamp = DateTime.UtcNow,
-                            Headers = new Dictionary<string, string>()
-                        },
-                        Event = x,
-                    });
-                    try
-                    {
-                        var streamName = _streamGen(typeof(EventStoreDelayed), StreamTypes.Delayed, Assembly.GetEntryAssembly().FullName, kv.Key.Item1);
-                        await _store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
-                        return;
-                    }
-                    catch (Exception e)
-                    {
-                        Logger.Write(LogLevel.Warn,
-                            () => $"Failed to write to channel [{kv.Key.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
+                            Logger.Write(LogLevel.Warn,
+                                () => $"Failed to write to channel [{kv.Key.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
+                        }
                     }
 
 

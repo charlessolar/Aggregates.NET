@@ -121,14 +121,12 @@
     <Compile Include="Internal\WritableEvent.cs" />
     <Compile Include="IApplicationUnitOfWork.cs" />
     <Compile Include="Messages\Accept.cs" />
-    <Compile Include="Messages\Claim.cs" />
     <Compile Include="Messages\EndpointAlive.cs" />
     <Compile Include="Messages\EndpointDead.cs" />
     <Compile Include="Messages\DomainAlive.cs" />
     <Compile Include="Messages\DomainDead.cs" />
     <Compile Include="Messages\Error.cs" />
     <Compile Include="Messages\Reject.cs" />
-    <Compile Include="Messages\Surrender.cs" />
     <Compile Include="Specifications\AdHocSpecification.cs" />
     <Compile Include="Specifications\AndSpecification.cs" />
     <Compile Include="Specifications\Expressions\Combining\ExpressionVisitor.cs" />

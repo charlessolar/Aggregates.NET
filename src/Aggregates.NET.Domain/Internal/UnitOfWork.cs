@@ -225,7 +225,7 @@ namespace Aggregates.Internal
 
                 if(ctx.Elapsed > TimeSpan.FromSeconds(1))
                     SlowLogger.Write(LogLevel.Warn, () => $"Commit id {CommitId} took {ctx.Elapsed.TotalSeconds} seconds!");
-                Logger.Write(LogLevel.Info, () => $"Commit id {CommitId} took {ctx.Elapsed.TotalSeconds} seconds");
+                Logger.Write(LogLevel.Info, () => $"Commit id {CommitId} took {ctx.Elapsed.TotalMilliseconds} ms");
             }
 
         }
