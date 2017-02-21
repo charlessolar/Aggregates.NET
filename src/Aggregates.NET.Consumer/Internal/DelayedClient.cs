@@ -30,7 +30,8 @@ namespace Aggregates.Internal
         private readonly CancellationToken _token;
         private readonly Task _acknowledger;
 
-        private ConcurrentBag<ResolvedEvent> _waitingEvents;
+        private object _lock;
+        private List<ResolvedEvent> _waitingEvents;
 
         // Todo: Change to List<Guid> when/if PR 1143 is published
         private List<ResolvedEvent> _toAck;
@@ -52,7 +53,8 @@ namespace Aggregates.Internal
             _maxDelayed = maxDelayed;
             _token = token;
             _toAck = new List<ResolvedEvent>();
-            _waitingEvents = new ConcurrentBag<ResolvedEvent>();
+            _lock = new object();
+            _waitingEvents = new List<ResolvedEvent>();
 
 
 
@@ -104,7 +106,7 @@ namespace Aggregates.Internal
                 () => $"Delayed event appeared {e.Event.EventId} type {e.Event.EventType} stream [{e.Event.EventStreamId}] number {e.Event.EventNumber} projection event number {e.OriginalEventNumber}");
             Queued.Increment(Id);
             QueuedEvents.Increment(Id);
-            _waitingEvents.Add(e);
+            lock(_lock) _waitingEvents.Add(e);
         }
 
         private void SubscriptionDropped(EventStorePersistentSubscriptionBase sub, SubscriptionDropReason reason, Exception ex)
@@ -121,7 +123,7 @@ namespace Aggregates.Internal
             // Need to clear ReadyEvents of events delivered but not processed before disconnect
             Queued.Decrement(Id, _waitingEvents.Count);
             QueuedEvents.Decrement(Id, _waitingEvents.Count);
-            Interlocked.Exchange(ref _waitingEvents, new ConcurrentBag<ResolvedEvent>());
+            lock (_lock) _waitingEvents.Clear();
 
             if (reason == SubscriptionDropReason.UserInitiated) return;
 
@@ -173,13 +175,19 @@ namespace Aggregates.Internal
         {
             if (!Live) return new ResolvedEvent[] { };
 
-            var waiting = Interlocked.Exchange(ref _waitingEvents, new ConcurrentBag<ResolvedEvent>());
-
-            Queued.Decrement(Id, waiting.Count);
-            QueuedEvents.Decrement(Id, waiting.Count);
+            List<ResolvedEvent> discovered;
+            lock (_lock)
+            {
+                discovered =
+                    _waitingEvents.GetRange(0, Math.Min(100, _waitingEvents.Count)).ToList();
+                _waitingEvents.RemoveRange(0, Math.Min(100, _waitingEvents.Count));
+            }
+            
+            Queued.Decrement(Id, discovered.Count);
+            QueuedEvents.Decrement(Id, discovered.Count);
             _idleContext = Idle.NewContext(Id);
 
-            return waiting.ToArray();
+            return discovered.ToArray();
         }
 
     }
