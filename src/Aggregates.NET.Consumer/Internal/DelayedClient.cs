@@ -94,7 +94,6 @@ namespace Aggregates.Internal
             if (_disposed) return;
             _disposed = true;
             _subscription.Stop(TimeSpan.FromSeconds(30));
-            _acknowledger.Dispose();
         }
 
         private void EventAppeared(EventStorePersistentSubscriptionBase sub, ResolvedEvent e)

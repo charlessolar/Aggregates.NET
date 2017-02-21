@@ -57,8 +57,8 @@ namespace Aggregates.Internal
 
         private static Task _flusher;
 
-        //                                                Channel  key          Last Pull   Lock    Stored Objects
-        private static readonly ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, object, List<object>>> MemCache = new ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, object, List<object>>>();
+        //                                                Channel  key          Last Pull   Lock          Stored Objects
+        private static readonly ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, SemaphoreSlim, List<object>>> MemCache = new ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, SemaphoreSlim, List<object>>>();
         private static int _memCacheTotalSize = 0;
         private static int _tooLarge = 0;
 
@@ -89,7 +89,7 @@ namespace Aggregates.Internal
 
                 await expiredSpecificChannels.SelectAsync(async (expired) =>
                 {
-                    Tuple<DateTime, object, List<object>> fromCache;
+                    Tuple<DateTime, SemaphoreSlim, List<object>> fromCache;
                     if (!MemCache.TryRemove(expired, out fromCache))
                         return;
 
@@ -112,11 +112,14 @@ namespace Aggregates.Internal
                         // Put rest back in cache
                         MemCache.AddOrUpdate(expired,
                             (key) =>
-                                    new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
+                                    new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
                             (key, existing) =>
                             {
-                                lock (existing.Item2) existing.Item3.AddRange(fromCache.Item3);
-                                return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, existing.Item2, existing.Item3);
+                                existing.Item2.Wait();
+                                existing.Item3.AddRange(fromCache.Item3);
+                                existing.Item2.Release();
+
+                                return new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, existing.Item2, existing.Item3);
                             }
                         );
                     }
@@ -138,19 +141,28 @@ namespace Aggregates.Internal
                     {
                         // Take lock on list lock so no new objects can be added while we flush
                         // prevents the consumer from adding items to cache faster than we can possibly flush
-                        Monitor.Enter(fromCache.Item2);
+                        await fromCache.Item2.WaitAsync().ConfigureAwait(false);
+                        try
+                        {
 
-                        // Stream name to contain the channel, specific key, and the instance id
-                        // it doesn't matter whats in the streamname, the category projection will queue it for execution anyway
-                        // and a lot of writers to a single stream makes eventstore slow
-                        var streamName = flushState.StreamGen(typeof(EventStoreDelayed),
-                            $"{flushState.Endpoint}.{StreamTypes.Delayed}", Assembly.GetEntryAssembly().FullName,
-                            $"{expired.Item1}.{expired.Item2}.{Defaults.Instance}");
-                        await flushState.Store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
-                        Flushes.Mark(expired.Item1);
-                        MemCacheSize.Decrement(overLimit.Count);
-                        Interlocked.Add(ref totalFlushed, overLimit.Count);
-                        Interlocked.Add(ref _memCacheTotalSize, -overLimit.Count);
+                            // Stream name to contain the channel, specific key, and the instance id
+                            // it doesn't matter whats in the streamname, the category projection will queue it for execution anyway
+                            // and a lot of writers to a single stream makes eventstore slow
+                            var streamName = flushState.StreamGen(typeof(EventStoreDelayed),
+                                $"{flushState.Endpoint}.{StreamTypes.Delayed}", Assembly.GetEntryAssembly().FullName,
+                                $"{expired.Item1}.{expired.Item2}.{Defaults.Instance}");
+                            // Configure await true because we need to comeback to the same thread to release the mutex lock otherwise
+                            // Exception: Object synchronization method was called from an unsynchronized block of code.
+                            await flushState.Store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
+                            Flushes.Mark(expired.Item1);
+                            MemCacheSize.Decrement(overLimit.Count);
+                            Interlocked.Add(ref totalFlushed, overLimit.Count);
+                            Interlocked.Add(ref _memCacheTotalSize, -overLimit.Count);
+                        }
+                        finally
+                        {
+                            fromCache.Item2.Release();
+                        }
                     }
                     catch (Exception e)
                     {
@@ -159,20 +171,19 @@ namespace Aggregates.Internal
                         // Failed to write to ES - put object back in memcache
                         MemCache.AddOrUpdate(expired,
                             (key) =>
-                                new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, fromCache.Item2,
+                                new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, fromCache.Item2,
                                     overLimit),
                             (key, existing) =>
                             {
-                                lock (existing.Item2) existing.Item3.AddRange(overLimit);
-                                return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, existing.Item2,
+                                existing.Item2.WaitAsync();
+                                existing.Item3.AddRange(overLimit);
+                                existing.Item2.Release();
+
+                                return new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, existing.Item2,
                                     existing.Item3);
                             }
                         );
 
-                    }
-                    finally
-                    {
-                        Monitor.Exit(fromCache.Item2);
                     }
                 }).ConfigureAwait(false);
 
@@ -202,7 +213,7 @@ namespace Aggregates.Internal
 
                     await toFlush.SelectAsync(async (expired) =>
                     {
-                        Tuple<DateTime, object, List<object>> fromCache;
+                        Tuple<DateTime, SemaphoreSlim, List<object>> fromCache;
                         if (!MemCache.TryRemove(expired, out fromCache))
                             return;
 
@@ -229,12 +240,15 @@ namespace Aggregates.Internal
                             // Put rest back in cache
                             MemCache.AddOrUpdate(expired,
                             (key) =>
-                                new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, fromCache.Item2,
+                                new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, fromCache.Item2,
                                     fromCache.Item3),
                             (key, existing) =>
                             {
-                                lock (existing.Item2) existing.Item3.AddRange(fromCache.Item3);
-                                return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, existing.Item2,
+                                existing.Item2.Wait();
+                                existing.Item3.AddRange(fromCache.Item3);
+                                existing.Item2.Release();
+
+                                return new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, existing.Item2,
                                     existing.Item3);
                             }
                         );
@@ -259,17 +273,27 @@ namespace Aggregates.Internal
                         {
                             // Take lock on list lock so no new objects can be added while we flush
                             // prevents the consumer from adding items to cache faster than we can possibly flush
-                            Monitor.Enter(fromCache.Item2);
-                            var streamName = flushState.StreamGen(typeof(EventStoreDelayed),
-                                $"{flushState.Endpoint}.{StreamTypes.Delayed}",
-                                Assembly.GetEntryAssembly().FullName,
-                                $"{expired.Item1}.{expired.Item2}.{Defaults.Instance}");
-                            await flushState.Store.WriteEvents(streamName, translatedEvents, null)
-                                .ConfigureAwait(false);
-                            Flushes.Mark(expired.Item1);
-                            MemCacheSize.Decrement(overLimit.Count);
-                            Interlocked.Add(ref totalFlushed, overLimit.Count);
-                            Interlocked.Add(ref _memCacheTotalSize, -overLimit.Count);
+                            await fromCache.Item2.WaitAsync().ConfigureAwait(false);
+                            try
+                            {
+                                var streamName = flushState.StreamGen(typeof(EventStoreDelayed),
+                                    $"{flushState.Endpoint}.{StreamTypes.Delayed}",
+                                    Assembly.GetEntryAssembly().FullName,
+                                    $"{expired.Item1}.{expired.Item2}.{Defaults.Instance}");
+
+                                // Configure await true because we need to comeback to the same thread to release the mutex lock otherwise
+                                // Exception: Object synchronization method was called from an unsynchronized block of code.
+                                await flushState.Store.WriteEvents(streamName, translatedEvents, null)
+                                        .ConfigureAwait(false);
+                                Flushes.Mark(expired.Item1);
+                                MemCacheSize.Decrement(overLimit.Count);
+                                Interlocked.Add(ref totalFlushed, overLimit.Count);
+                                Interlocked.Add(ref _memCacheTotalSize, -overLimit.Count);
+                            }
+                            finally
+                            {
+                                fromCache.Item2.Release();
+                            }
                         }
                         catch (Exception e)
                         {
@@ -278,23 +302,22 @@ namespace Aggregates.Internal
                                         $"Failed to write to channel [{expired.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
                             // Failed to write to ES - put object back in memcache
                             MemCache.AddOrUpdate(expired,
-                            (key) =>
-                                new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, fromCache.Item2,
-                                    overLimit),
-                            (key, existing) =>
-                            {
-                                lock (existing.Item2) existing.Item3.AddRange(overLimit);
-                                return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow,
-                                    existing.Item2,
-                                    existing.Item3);
-                            }
-                        );
+                                (key) =>
+                                    new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, fromCache.Item2,
+                                        overLimit),
+                                (key, existing) =>
+                                {
+                                    existing.Item2.Wait();
+                                    existing.Item3.AddRange(overLimit);
+                                    existing.Item2.Release();
 
+                                    return new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow,
+                                        existing.Item2,
+                                        existing.Item3);
+                                }
+                            );
                         }
-                        finally
-                        {
-                            Monitor.Exit(fromCache.Item2);
-                        }
+
 
                     }).ConfigureAwait(false);
                     FlushedSize.Update(totalFlushed);
@@ -340,11 +363,14 @@ namespace Aggregates.Internal
                 {
                     MemCache.AddOrUpdate(inflight.Key,
                         (key) =>
-                                new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, new object(), inflight.Value),
+                                new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, new SemaphoreSlim(1), inflight.Value),
                         (key, existing) =>
                         {
-                            lock (existing.Item2) inflight.Value.AddRange(existing.Item3);
-                            return new Tuple<DateTime, object, List<object>>(existing.Item1, existing.Item2, inflight.Value);
+                            existing.Item2.Wait();
+                            inflight.Value.AddRange(existing.Item3);
+                            existing.Item2.Release();
+
+                            return new Tuple<DateTime, SemaphoreSlim, List<object>>(existing.Item1, existing.Item2, inflight.Value);
                         }
                     );
                     MemCacheSize.Increment(inflight.Value.Count);
@@ -395,11 +421,14 @@ namespace Aggregates.Internal
                     // Failed to write to ES or has specific key - put objects into memcache
                     MemCache.AddOrUpdate(kv.Key,
                         (key) =>
-                                new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, new object(), kv.Value),
+                                new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, new SemaphoreSlim(1), kv.Value),
                         (key, existing) =>
                         {
-                            lock (existing.Item2) existing.Item3.AddRange(kv.Value);
-                            return new Tuple<DateTime, object, List<object>>(existing.Item1, existing.Item2, existing.Item3);
+                            existing.Item2.Wait();
+                            existing.Item3.AddRange(kv.Value);
+                            existing.Item2.Release();
+
+                            return new Tuple<DateTime, SemaphoreSlim, List<object>>(existing.Item1, existing.Item2, existing.Item3);
                         }
                     );
                     MemCacheSize.Increment(kv.Value.Count);
@@ -420,7 +449,7 @@ namespace Aggregates.Internal
 
                 // Get age from memcache
                 var specificKey = new Tuple<string, string>(channel, key);
-                Tuple<DateTime, object, List<object>> temp;
+                Tuple<DateTime, SemaphoreSlim, List<object>> temp;
                 if (MemCache.TryGetValue(specificKey, out temp))
                     specificAge = DateTime.UtcNow - temp.Item1;
 
@@ -442,7 +471,7 @@ namespace Aggregates.Internal
             {
                 // Get size from memcache
                 var specificKey = new Tuple<string, string>(channel, key);
-                Tuple<DateTime, object, List<object>> temp;
+                Tuple<DateTime, SemaphoreSlim, List<object>> temp;
                 if (MemCache.TryGetValue(specificKey, out temp))
                     specificSize = temp.Item3.Count;
 
@@ -476,7 +505,7 @@ namespace Aggregates.Internal
 
             Logger.Write(LogLevel.Info, () => $"Pulling delayed channel [{channel}] key [{key}]");
 
-            Tuple<DateTime, object, List<object>> fromCache;
+            Tuple<DateTime, SemaphoreSlim, List<object>> fromCache;
 
             // Check memcache even if key == null because messages failing to save to ES are put in memcache
             if (!MemCache.TryRemove(specificKey, out fromCache))
@@ -503,11 +532,14 @@ namespace Aggregates.Internal
             {
                 MemCache.AddOrUpdate(specificKey,
                     (_) =>
-                            new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
+                            new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
                     (_, existing) =>
                     {
-                        lock (existing.Item2) fromCache.Item3.AddRange(existing.Item3);
-                        return new Tuple<DateTime, object, List<object>>(DateTime.UtcNow, existing.Item2, fromCache.Item3);
+                        fromCache.Item2.Wait();
+                        fromCache.Item3.AddRange(existing.Item3);
+                        fromCache.Item2.Release();
+
+                        return new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, existing.Item2, fromCache.Item3);
                     });
             }
             MemCacheSize.Decrement(discovered.Count);

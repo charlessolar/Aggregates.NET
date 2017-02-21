@@ -12,7 +12,7 @@ using NServiceBus.Logging;
 namespace Aggregates.Internal
 {
     // Only actually caches an item if the item is cached several times without evicting it
-    class IntelligentCache : ICache, IDisposable
+    class IntelligentCache : ICache
     {
         private static readonly ILog Logger = LogManager.GetLogger("IntelligentCache");
 
@@ -77,8 +77,7 @@ namespace Aggregates.Internal
             _stage++;
             return Task.CompletedTask;
         }, TimeSpan.FromSeconds(5), "intelligent cache eviction");
-
-        private bool _disposed;
+        
         
 
         public void Cache(string key, object cached, bool expires10S = false, bool expires1M = false, bool expires5M = false)
@@ -154,12 +153,6 @@ namespace Aggregates.Internal
 
             return cached;
         }
-
-        public void Dispose()
-        {
-            if (!_disposed)
-                CachableEviction.Dispose();
-            _disposed = true;
-        }
+        
     }
 }
