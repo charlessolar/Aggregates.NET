@@ -60,9 +60,7 @@ namespace Aggregates.Internal
         //                                                Channel  key          Last Pull   Lock    Stored Objects
         private static readonly ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, object, List<object>>> MemCache = new ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, object, List<object>>>();
         private static int _memCacheTotalSize = 0;
-
-        private static readonly ConcurrentDictionary<string, Tuple<DateTime, object>> AgeSizeCache = new ConcurrentDictionary<string, Tuple<DateTime, object>>();
-
+        private static int _tooLarge = 0;
 
         private readonly IStoreEvents _store;
         private readonly StreamIdGenerator _streamGen;
@@ -86,7 +84,7 @@ namespace Aggregates.Internal
                 // A list of channels who have expired or have more than 1/10 the max total cache size
                 var expiredSpecificChannels =
                     MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > flushState.Expiration || (x.Value.Item3.Count > (_memCacheTotalSize / 10)))
-                        .Select(x => x.Key).Take(10)
+                        .Select(x => x.Key).Take(MemCache.Keys.Count / 5)
                         .ToList();
 
                 await expiredSpecificChannels.SelectAsync(async (expired) =>
@@ -141,9 +139,13 @@ namespace Aggregates.Internal
                         // Take lock on list lock so no new objects can be added while we flush
                         // prevents the consumer from adding items to cache faster than we can possibly flush
                         Monitor.Enter(fromCache.Item2);
+
+                        // Stream name to contain the channel, specific key, and the instance id
+                        // it doesn't matter whats in the streamname, the category projection will queue it for execution anyway
+                        // and a lot of writers to a single stream makes eventstore slow
                         var streamName = flushState.StreamGen(typeof(EventStoreDelayed),
                             $"{flushState.Endpoint}.{StreamTypes.Delayed}", Assembly.GetEntryAssembly().FullName,
-                            expired.Item1);
+                            $"{expired.Item1}.{expired.Item2}.{Defaults.Instance}");
                         await flushState.Store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
                         Flushes.Mark(expired.Item1);
                         MemCacheSize.Decrement(overLimit.Count);
@@ -183,14 +185,20 @@ namespace Aggregates.Internal
             while (_memCacheTotalSize > flushState.MaxSize)
             {
                 Logger.Write(LogLevel.Info,
-                    () =>
-                            $"Flushing too large delayed channels - cache size: {_memCacheTotalSize} - total channels: {MemCache.Keys.Count}");
+                    () => $"Flushing too large delayed channels - cache size: {_memCacheTotalSize} - total channels: {MemCache.Keys.Count}");
+
+                if (_memCacheTotalSize > (flushState.MaxSize*1.5))
+                {
+                    Logger.Write(LogLevel.Warn,
+                        () => $"Delay cache has grown too large - pausing message processing while we flush!");
+                    Interlocked.CompareExchange(ref _tooLarge, 1, 0);
+                }
 
                 using (var ctx = FlushedTime.NewContext())
                 {
                     var totalFlushed = 0;
                     // Flush 500 off the oldest streams until total size is under limit or we've flushed all the streams
-                    var toFlush = MemCache.OrderBy(x => x.Value.Item1).Select(x => x.Key).Take(10).ToList();
+                    var toFlush = MemCache.OrderBy(x => x.Value.Item1).Select(x => x.Key).Take(MemCache.Keys.Count/5).ToList();
 
                     await toFlush.SelectAsync(async (expired) =>
                     {
@@ -233,8 +241,7 @@ namespace Aggregates.Internal
                         }
 
                         Logger.Write(LogLevel.Info,
-                            () =>
-                                    $"Flushing too large channel {expired.Item1} key {expired.Item2} with {overLimit.Count} objects");
+                            () => $"Flushing too large channel {expired.Item1} key {expired.Item2} with {overLimit.Count} objects");
                         var translatedEvents = overLimit.Select(x => new WritableEvent
                         {
                             Descriptor = new EventDescriptor
@@ -256,7 +263,7 @@ namespace Aggregates.Internal
                             var streamName = flushState.StreamGen(typeof(EventStoreDelayed),
                                 $"{flushState.Endpoint}.{StreamTypes.Delayed}",
                                 Assembly.GetEntryAssembly().FullName,
-                                expired.Item1);
+                                $"{expired.Item1}.{expired.Item2}.{Defaults.Instance}");
                             await flushState.Store.WriteEvents(streamName, translatedEvents, null)
                                 .ConfigureAwait(false);
                             Flushes.Mark(expired.Item1);
@@ -322,6 +329,10 @@ namespace Aggregates.Internal
 
         public async Task End(Exception ex = null)
         {
+            // If cache grows larger than 150% of max cache size, pause all processing until flush finished
+            while (Interlocked.CompareExchange(ref _tooLarge, 1, 1) == 1)
+                await Task.Delay(10).ConfigureAwait(false);
+
             if (ex != null)
             {
                 Logger.Write(LogLevel.Info, () => $"Putting {_inFlightMemCache.Count()} in flight channels back into memcache");

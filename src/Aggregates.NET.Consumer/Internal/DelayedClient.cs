@@ -162,6 +162,14 @@ namespace Aggregates.Internal
             _toAck.AddRange(events);
         }
 
+        public void Nack(ResolvedEvent[] events)
+        {
+            while (!Live)
+                Thread.Sleep(10);
+
+            _subscription.Fail(events, PersistentSubscriptionNakEventAction.Retry, "Failed to process");
+        }
+
         public ResolvedEvent[] Flush()
         {
             if (!Live) return new ResolvedEvent[] { };
