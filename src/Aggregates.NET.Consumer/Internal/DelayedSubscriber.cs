@@ -238,10 +238,13 @@ namespace Aggregates.Internal
                                 }
 
                                 if (ctx.Elapsed > TimeSpan.FromSeconds(5))
-                                    SlowLogger.Warn($"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
-                                Logger.Write(LogLevel.Info, () => $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalMilliseconds} ms");
-
-                                // Todo: use max retry setting
+                                    SlowLogger.Warn(
+                                        $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
+                                Logger.Write(LogLevel.Info,
+                                    () =>
+                                            $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalMilliseconds} ms");
+                            }
+                            // Todo: use max retry setting
                             } while (!success && retry < 10) ;
 
                             if (!success)
@@ -252,7 +255,7 @@ namespace Aggregates.Internal
                                 client.Nack(events);
                             }
 
-                        }
+                        
                     }
                 }
                 if (idleContext == null)
