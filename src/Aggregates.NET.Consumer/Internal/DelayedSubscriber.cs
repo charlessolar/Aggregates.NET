@@ -204,41 +204,54 @@ namespace Aggregates.Internal
                     // Run bulk process on this thread
                     using (var tokenSource = new CancellationTokenSource())
                     {
-                        using (var ctx = DelayedExecution.NewContext())
+                        var success = false;
+                        var retry = 0;
+                        do
                         {
-                            try
+                            using (var ctx = DelayedExecution.NewContext())
                             {
-                                // If canceled, this will throw the number of time immediate retry requires to send the message to the error queue
-                                param.Token.ThrowIfCancellationRequested();
+                                try
+                                {
+                                    // If canceled, this will throw the number of time immediate retry requires to send the message to the error queue
+                                    param.Token.ThrowIfCancellationRequested();
 
-                                // Don't re-use the event id for the message id
-                                var messageContext = new NServiceBus.Transport.MessageContext(messageId,
-                                    headers,
-                                    bulkMarker, transportTransaction, tokenSource,
-                                    contextBag);
-                                Bus.OnMessage(messageContext).Wait(param.Token);
+                                    // Don't re-use the event id for the message id
+                                    var messageContext = new NServiceBus.Transport.MessageContext(messageId,
+                                        headers,
+                                        bulkMarker, transportTransaction, tokenSource,
+                                        contextBag);
+                                    Bus.OnMessage(messageContext).Wait(param.Token);
 
-                                Logger.Write(LogLevel.Debug,
-                                    () => $"Scheduling acknowledge of {delayed.Count()} bulk events");
-                                DelayedHandled.Update(delayed.Count());
-                                client.Acknowledge(events);
-                            }
-                            catch (ObjectDisposedException)
+                                    Logger.Write(LogLevel.Debug,
+                                        () => $"Scheduling acknowledge of {delayed.Count()} bulk events");
+                                    DelayedHandled.Update(delayed.Count());
+                                    client.Acknowledge(events);
+                                    success = true;
+                                }
+                                catch (ObjectDisposedException)
+                                {
+                                    // NSB transport has been disconnected
+                                    break;
+                                }
+                                catch (Exception ex)
+                                {
+                                }
+
+                                if (ctx.Elapsed > TimeSpan.FromSeconds(5))
+                                    SlowLogger.Warn($"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
+                                Logger.Write(LogLevel.Info, () => $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalMilliseconds} ms");
+
+                                // Todo: use max retry setting
+                            } while (!success && retry < 10) ;
+
+                            if (!success)
                             {
-                                // NSB transport has been disconnected
-                                break;
-                            }
-                            catch (Exception ex)
-                            {
-                                // Dont run through NSB's event handler, it expects a single serialized message which
+                                // Dont run through NSB's error handler, it expects a single serialized message which
                                 // is not compatible here.  Just tell EventStore to retry it
                                 // Todo: ES will park messages that fail - develop something to monitor parked messages
                                 client.Nack(events);
                             }
 
-                            if (ctx.Elapsed > TimeSpan.FromSeconds(5))
-                                SlowLogger.Warn($"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
-                            Logger.Write(LogLevel.Info, () => $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalMilliseconds} ms");
                         }
                     }
                 }
