@@ -52,7 +52,7 @@ namespace Aggregates.Internal
 
                 if (retries < _retries || _retries == -1)
                 {
-                    Logger.WriteFormat(LogLevel.Warn,
+                    Logger.WriteFormat((retries > _retries / 2) ? LogLevel.Warn : LogLevel.Info,
                         $"Message {context.MessageId} has faulted! {retries}/{_retries} times\nException: {e.GetType().FullName} {e.Message}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}\nStack: {stackTrace}");
                     RetryRegistry.TryAdd(messageId, retries + 1);
                     throw;
@@ -66,7 +66,7 @@ namespace Aggregates.Internal
                 // At this point message is dead - should be moved to error queue, send message to client that their request was rejected due to error 
                 ErrorsMeter.Mark(e.GetType().FullName);
 
-                Logger.WriteFormat(LogLevel.Warn,
+                Logger.WriteFormat(LogLevel.Error,
                     $"Message {context.MessageId} has failed after {retries} attempts!\nException: {e.GetType().FullName} {e.Message}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}\nStack: {stackTrace}");
 
                 // Only need to reply if the client expects it

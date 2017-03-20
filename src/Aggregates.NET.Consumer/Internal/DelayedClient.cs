@@ -178,8 +178,7 @@ namespace Aggregates.Internal
             List<ResolvedEvent> discovered;
             lock (_lock)
             {
-                discovered =
-                    _waitingEvents.GetRange(0, Math.Min(100, _waitingEvents.Count)).ToList();
+                discovered = _waitingEvents.GetRange(0, Math.Min(100, _waitingEvents.Count));
                 _waitingEvents.RemoveRange(0, Math.Min(100, _waitingEvents.Count));
             }
             

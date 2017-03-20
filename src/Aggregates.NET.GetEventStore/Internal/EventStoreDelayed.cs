@@ -97,15 +97,13 @@ namespace Aggregates.Internal
                         () => $"Flushing expired channel {expired.Item1} key {expired.Item2} with {fromCache.Item3.Count} objects");
 
                     // Just take 500 from the end of the channel to prevent trying to write 20,000 items in 1 go
-                    List<object> overLimit;
-                    lock (fromCache.Item2)
-                    {
-                        overLimit =
+                    await fromCache.Item2.WaitAsync().ConfigureAwait(false);
+                        var overLimit =
                             fromCache.Item3.GetRange(Math.Max(0, fromCache.Item3.Count - flushState.ReadSize),
                                 Math.Min(fromCache.Item3.Count, flushState.ReadSize)).ToList();
                         fromCache.Item3.RemoveRange(Math.Max(0, fromCache.Item3.Count - flushState.ReadSize),
                             Math.Min(fromCache.Item3.Count, flushState.ReadSize));
-                    }
+                    fromCache.Item2.Release();
 
                     if (fromCache.Item3.Any())
                     {
@@ -176,11 +174,11 @@ namespace Aggregates.Internal
                             (key, existing) =>
                             {
                                 existing.Item2.WaitAsync();
-                                existing.Item3.AddRange(overLimit);
+                                overLimit.AddRange(existing.Item3);
                                 existing.Item2.Release();
 
                                 return new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, existing.Item2,
-                                    existing.Item3);
+                                    overLimit);
                             }
                         );
 
@@ -226,14 +224,12 @@ namespace Aggregates.Internal
                             start = fromCache.Item3.Count - (_memCacheTotalSize / 10);
                             toTake = (_memCacheTotalSize / 10);
                         }
-
-                        List<object> overLimit;
-                        lock (fromCache.Item2)
-                        {
+                        
+                        await fromCache.Item2.WaitAsync().ConfigureAwait(false);
                             // Take from the end of the channel
-                            overLimit = fromCache.Item3.GetRange(start, toTake).ToList();
+                            var overLimit = fromCache.Item3.GetRange(start, toTake).ToList();
                             fromCache.Item3.RemoveRange(start, toTake);
-                        }
+                        fromCache.Item2.Release();
 
                         if (fromCache.Item3.Any())
                         {
@@ -245,11 +241,11 @@ namespace Aggregates.Internal
                             (key, existing) =>
                             {
                                 existing.Item2.Wait();
-                                existing.Item3.AddRange(fromCache.Item3);
+                                fromCache.Item3.AddRange(existing.Item3);
                                 existing.Item2.Release();
 
                                 return new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, existing.Item2,
-                                    existing.Item3);
+                                    fromCache.Item3);
                             }
                         );
                         }
@@ -298,8 +294,7 @@ namespace Aggregates.Internal
                         catch (Exception e)
                         {
                             Logger.Write(LogLevel.Warn,
-                                () =>
-                                        $"Failed to write to channel [{expired.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
+                                () => $"Failed to write to channel [{expired.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
                             // Failed to write to ES - put object back in memcache
                             MemCache.AddOrUpdate(expired,
                                 (key) =>
@@ -308,12 +303,12 @@ namespace Aggregates.Internal
                                 (key, existing) =>
                                 {
                                     existing.Item2.Wait();
-                                    existing.Item3.AddRange(overLimit);
+                                    overLimit.AddRange(existing.Item3);
                                     existing.Item2.Release();
 
                                     return new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow,
                                         existing.Item2,
-                                        existing.Item3);
+                                        overLimit);
                                 }
                             );
                         }
@@ -386,6 +381,9 @@ namespace Aggregates.Internal
 
                 await _uncommitted.WhileAsync(async kv =>
                 {
+                    if (!kv.Value.Any())
+                        return;
+
                     // Anything without specific key gets committed to ES right away
                     if (string.IsNullOrEmpty(kv.Key.Item2))
                     {
@@ -514,14 +512,13 @@ namespace Aggregates.Internal
             List<object> discovered = new List<object>();
             if (fromCache != null)
             {
-                lock (fromCache.Item2)
-                {
+                fromCache.Item2.Wait();
                     discovered = fromCache.Item3.GetRange(0, Math.Min(max ?? int.MaxValue, fromCache.Item3.Count)).ToList();
                     if (max.HasValue)
                         fromCache.Item3.RemoveRange(0, Math.Min(max.Value, fromCache.Item3.Count));
                     else
                         fromCache.Item3.Clear();
-                }
+                fromCache.Item2.Release();
             }
 
             lock (_lock) _inFlightMemCache.Add(specificKey, discovered);
