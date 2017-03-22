@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Metrics;
 using NServiceBus.Extensibility;
 using NServiceBus.Logging;
 

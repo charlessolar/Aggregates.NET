@@ -16,7 +16,6 @@ namespace Aggregates.Internal
     class DelayedClient : IDisposable
     {
         private static readonly ILog Logger = LogManager.GetLogger("DelayedClient");
-        private static readonly Counter QueuedEvents = Metric.Counter("Waiting Delayed Events", Unit.Events, tags: "debug");
 
         private static readonly Metrics.Counter Queued = Metric.Counter("Delayed Clients Queued", Unit.Events, tags: "debug");
         private static readonly Metrics.Counter Processed = Metric.Counter("Delayed Clients Processed", Unit.Events, tags: "debug");
@@ -105,7 +104,6 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug,
                 () => $"Delayed event appeared {e.Event.EventId} type {e.Event.EventType} stream [{e.Event.EventStreamId}] number {e.Event.EventNumber} projection event number {e.OriginalEventNumber}");
             Queued.Increment(Id);
-            QueuedEvents.Increment(Id);
             lock(_lock) _waitingEvents.Add(e);
         }
 
@@ -122,7 +120,6 @@ namespace Aggregates.Internal
 
             // Need to clear ReadyEvents of events delivered but not processed before disconnect
             Queued.Decrement(Id, _waitingEvents.Count);
-            QueuedEvents.Decrement(Id, _waitingEvents.Count);
             lock (_lock) _waitingEvents.Clear();
 
             if (reason == SubscriptionDropReason.UserInitiated) return;
@@ -183,7 +180,6 @@ namespace Aggregates.Internal
             }
             
             Queued.Decrement(Id, discovered.Count);
-            QueuedEvents.Decrement(Id, discovered.Count);
             _idleContext = Idle.NewContext(Id);
 
             return discovered.ToArray();

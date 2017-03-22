@@ -257,7 +257,9 @@ namespace Aggregates.Internal
 
                         
                     }
+                    contextBag.Remove(Defaults.BulkHeader);
                 }
+                
                 if (idleContext == null)
                     idleContext = threadIdle.NewContext();
                 // Cheap hack to not burn cpu incase there are no events
