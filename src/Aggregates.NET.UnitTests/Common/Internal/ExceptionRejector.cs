@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Aggregates.Contracts;
 using Aggregates.Messages;
 using NServiceBus;
 using NServiceBus.Extensibility;
@@ -19,7 +20,8 @@ namespace Aggregates.NET.UnitTests.Common.Internal
         [SetUp]
         public void Setup()
         {
-            _rejector = new Aggregates.Internal.ExceptionRejector(2);
+            var persistence = new Moq.Mock<IPersistence>();
+            _rejector = new Aggregates.Internal.ExceptionRejector(2, persistence.Object);
         }
 
         [Test]
