@@ -11,7 +11,6 @@ namespace Aggregates.Contracts
     public interface IPersistence
     {
         Task Save(string messageId, Type uowType, ContextBag bag);
-        Task<ContextBag> Remove(string messageId, Type uowType);
-        Task Clear(string messageId);
+        Task<List<Tuple<Type, ContextBag>>> Remove(string messageId);
     }
 }

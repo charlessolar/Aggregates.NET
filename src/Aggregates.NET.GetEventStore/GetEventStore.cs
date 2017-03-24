@@ -22,7 +22,7 @@ namespace Aggregates
         {
             Defaults(s =>
             {
-                s.Set("FlushInterval", TimeSpan.FromSeconds(10));
+                s.Set("FlushInterval", TimeSpan.FromSeconds(60));
             });
         }
 

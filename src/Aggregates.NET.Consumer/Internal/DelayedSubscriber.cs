@@ -208,6 +208,7 @@ namespace Aggregates.Internal
                         var retry = 0;
                         do
                         {
+                            retry++;
                             using (var ctx = DelayedExecution.NewContext())
                             {
                                 try
@@ -245,21 +246,20 @@ namespace Aggregates.Internal
                                             $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalMilliseconds} ms");
                             }
                             // Todo: use max retry setting
-                            } while (!success && retry < 10) ;
+                        } while (!success && retry < 10);
 
-                            if (!success)
-                            {
-                                // Dont run through NSB's error handler, it expects a single serialized message which
-                                // is not compatible here.  Just tell EventStore to retry it
-                                // Todo: ES will park messages that fail - develop something to monitor parked messages
-                                client.Nack(events);
-                            }
+                        if (!success)
+                        {
+                            // Dont run through NSB's error handler, it expects a single serialized message which
+                            // is not compatible here.  Just tell EventStore to retry it
+                            // Todo: ES will park messages that fail - develop something to monitor parked messages
+                            client.Nack(events);
+                        }
 
-                        
+
                     }
-                    contextBag.Remove(Defaults.BulkHeader);
                 }
-                
+
                 if (idleContext == null)
                     idleContext = threadIdle.NewContext();
                 // Cheap hack to not burn cpu incase there are no events

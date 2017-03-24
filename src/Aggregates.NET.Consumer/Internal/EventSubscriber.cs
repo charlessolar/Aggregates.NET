@@ -118,8 +118,8 @@ when({{
 {2}
 }});";
 
-                var appDefinition = string.Format(definition, StreamTypes.Domain, stream, functions);
-                var oobDefinition = string.Format(definition, StreamTypes.OOB, stream, functions);
+                var appDefinition = string.Format(definition, StreamTypes.Domain, stream, functions).Replace(Environment.NewLine, "\n");
+                var oobDefinition = string.Format(definition, StreamTypes.OOB, stream, functions).Replace(Environment.NewLine, "\n");
 
                 // Create a projection for domain events and one for OOB events, later we'll subscribe as PINNED to domain events
                 // and ROUNDROBIN for OOB events.  
@@ -128,11 +128,11 @@ when({{
                 try
                 {
                     var existing = await manager.GetQueryAsync($"{stream}.app.projection").ConfigureAwait(false);
-
+                    
                     if (existing != appDefinition)
                     {
                         Logger.Fatal(
-                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
+                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!\nExisting:\n{existing}\nDesired:\n{appDefinition}");
                         throw new EndpointVersionException(
                             $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
                     }

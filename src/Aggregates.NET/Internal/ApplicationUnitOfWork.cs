@@ -57,6 +57,8 @@ namespace Aggregates.Internal
                     using (BeginTimer.NewContext())
                     {
                         var listOfUows = context.Builder.BuildAll<IApplicationUnitOfWork>();
+                        var bags = await _persistence.Remove(context.MessageId).ConfigureAwait(false);
+
                         // Trick to put ILastApplicationUnitOfWork at the bottom of the stack to be uow.End'd last
                         foreach (var uow in listOfUows.Where(x => x is ILastApplicationUnitOfWork).Concat(listOfUows.Where(x => !(x is ILastApplicationUnitOfWork))))
                         {
@@ -67,8 +69,7 @@ namespace Aggregates.Internal
                                 retries = 0;
                             uow.Retries = retries;
 
-                            var savedBag =
-                                await _persistence.Remove(context.MessageId, uow.GetType()).ConfigureAwait(false);
+                            var savedBag = bags?.SingleOrDefault(x => x.Item1 == uow.GetType())?.Item2;
                             
                             uow.Bag = savedBag ?? new ContextBag();
                             Logger.Write(LogLevel.Debug, () => $"Running UOW.Begin for message {context.MessageId} on {uow.GetType().FullName}");
@@ -91,9 +92,9 @@ namespace Aggregates.Internal
                                 foreach (var header in x.Headers)
                                     context.Headers[header.Key] = header.Value;
 
-                                context.Headers["Delayed Channel"] = x.ChannelKey;
+                                context.Headers[Defaults.ChannelKey] = x.ChannelKey;
 
-                                context.Extensions.Set(Defaults.ChannelKey, x.ChannelKey);
+                                //context.Extensions.Set(Defaults.ChannelKey, x.ChannelKey);
 
                                 context.UpdateMessageInstance(x.Message);
                                 await next().ConfigureAwait(true);
@@ -121,8 +122,8 @@ namespace Aggregates.Internal
                             }
                         }
                     }
-                    // Only clear context bags once all UOWs complete successfully
-                    await _persistence.Clear(context.MessageId).ConfigureAwait(false);
+                    // Success, remove all bags
+                    await _persistence.Remove(context.MessageId).ConfigureAwait(false);
                 }
 
             }
@@ -147,6 +148,7 @@ namespace Aggregates.Internal
                         {
                             trailingExceptions.Add(endException);
                         }
+                        // If here one UOW threw an exception, we should save all the other context bags incase they did some work too
                         await _persistence.Save(context.MessageId, uow.GetType(), uow.Bag).ConfigureAwait(true);
                     }
                 }

@@ -60,8 +60,10 @@ namespace Aggregates.Internal
                     throw;
                 }
 
-                // Message has failed clear context bag persistence
-                await _persistence.Clear(context.MessageId).ConfigureAwait(false);
+                // Failure, remove all saved bags
+                // Todo: persist bags for a delayed retry since work might partially be done
+                await _persistence.Remove(context.MessageId).ConfigureAwait(false);
+
                 // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth
                 if (context.Message.GetMesssageIntent() != MessageIntentEnum.Send)
                     throw;
