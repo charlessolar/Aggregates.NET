@@ -44,13 +44,13 @@ namespace Aggregates.Internal
         }
 
 
-        public async Task<IEnumerable<IWritableEvent>> GetEvents(string stream, int? start = null, int? count = null)
+        public async Task<IEnumerable<IWritableEvent>> GetEvents(string stream, long? start = null, int? count = null)
         {
 
             var settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
-                Binder = new EventSerializationBinder(_mapper),
+                SerializationBinder = new EventSerializationBinder(_mapper),
                 ContractResolver = new EventContractResolver(_mapper)
             };
 
@@ -123,12 +123,12 @@ namespace Aggregates.Internal
         }
 
 
-        public async Task<IEnumerable<IWritableEvent>> GetEventsBackwards(string stream, int? start = null, int? count = null)
+        public async Task<IEnumerable<IWritableEvent>> GetEventsBackwards(string stream, long? start = null, int? count = null)
         {
             var settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
-                Binder = new EventSerializationBinder(_mapper),
+                SerializationBinder = new EventSerializationBinder(_mapper),
                 ContractResolver = new EventContractResolver(_mapper)
             };
 
@@ -218,7 +218,7 @@ namespace Aggregates.Internal
             return translatedEvents;
         }
 
-        public Task<int> WriteSnapshot(string stream, IWritableEvent snapshot,
+        public Task<long> WriteSnapshot(string stream, IWritableEvent snapshot,
             IDictionary<string, string> commitHeaders)
         {
             Logger.Write(LogLevel.Debug, () => $"Writing snapshot to stream id [{stream}]");
@@ -226,7 +226,7 @@ namespace Aggregates.Internal
             var settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
-                Binder = new EventSerializationBinder(_mapper),
+                SerializationBinder = new EventSerializationBinder(_mapper),
                 //ContractResolver = new EventContractResolver(_mapper)
             };
 
@@ -257,15 +257,15 @@ namespace Aggregates.Internal
             return DoWrite(stream, new[] { data });
         }
 
-        public Task<int> WriteEvents(string stream, IEnumerable<IWritableEvent> events,
-            IDictionary<string, string> commitHeaders, int? expectedVersion = null)
+        public Task<long> WriteEvents(string stream, IEnumerable<IWritableEvent> events,
+            IDictionary<string, string> commitHeaders, long? expectedVersion = null)
         {
             Logger.Write(LogLevel.Info, () => $"Writing {events.Count()} events to stream id [{stream}].  Expected version: {expectedVersion}");
 
             var settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
-                Binder = new EventSerializationBinder(_mapper),
+                SerializationBinder = new EventSerializationBinder(_mapper),
                 //ContractResolver = new EventContractResolver(_mapper)
             };
 
@@ -300,12 +300,12 @@ namespace Aggregates.Internal
             return DoWrite(stream, translatedEvents, expectedVersion);
         }
 
-        private async Task<int> DoWrite(string stream, IEnumerable<EventData> events, int? expectedVersion = null)
+        private async Task<long> DoWrite(string stream, IEnumerable<EventData> events, long? expectedVersion = null)
         {
 
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
 
-            int nextVersion;
+            long nextVersion;
             using (var ctx = WriteTime.NewContext())
             {
                 EventStoreTransaction transaction = null;
@@ -366,7 +366,7 @@ namespace Aggregates.Internal
             return nextVersion;
         }
 
-        public async Task WriteMetadata(string stream, int? maxCount = null, int? truncateBefore = null, TimeSpan? maxAge = null,
+        public async Task WriteMetadata(string stream, long? maxCount = null, long? truncateBefore = null, TimeSpan? maxAge = null,
             TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null, bool force = false, IDictionary<string, string> custom=null)
         {
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());

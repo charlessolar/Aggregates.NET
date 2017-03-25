@@ -7,7 +7,7 @@ namespace Aggregates.Contracts
     {
         string Bucket { get; }
         string StreamId { get; }
-        int Version { get; }
+        long Version { get; }
 
         IEventStream Stream { get; }
         void Hydrate(IEnumerable<IEvent> events);

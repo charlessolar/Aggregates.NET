@@ -35,7 +35,7 @@ namespace Aggregates.Internal
         private static readonly Counter StoredSnapshots = Metric.Counter("Snapshots Stored", Unit.Items, tags: "debug");
 
         private static readonly ConcurrentDictionary<string, ISnapshot> Snapshots = new ConcurrentDictionary<string, ISnapshot>();
-        private static readonly ConcurrentDictionary<string, int> TruncateBefore = new ConcurrentDictionary<string, int>();
+        private static readonly ConcurrentDictionary<string, long> TruncateBefore = new ConcurrentDictionary<string, long>();
 
         private static Task Truncate;
 
@@ -60,7 +60,7 @@ namespace Aggregates.Internal
             _settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
-                Binder = new EventSerializationBinder(mapper),
+                SerializationBinder = new EventSerializationBinder(mapper),
                 ContractResolver = new EventContractResolver(mapper)
             };
             if (Truncate == null)
@@ -73,7 +73,7 @@ namespace Aggregates.Internal
 
                     await truncates.SelectAsync(async x =>
                     {
-                        int tb;
+                        long tb;
                         if (!TruncateBefore.TryRemove(x, out tb))
                             return;
 
@@ -132,7 +132,7 @@ namespace Aggregates.Internal
             }
         }
 
-        private void onSnapshot(string stream, int position, ISnapshot snapshot)
+        private void onSnapshot(string stream, long position, ISnapshot snapshot)
         {
             Logger.Write(LogLevel.Debug, () => $"Got snapshot stream [{stream}] version {snapshot.Version}");
             Snapshots.AddOrUpdate(stream, (key) =>

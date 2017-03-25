@@ -12,8 +12,8 @@ namespace Aggregates.Contracts
         string StreamType { get; }
         string Bucket { get; }
         string StreamId { get; }
-        int StreamVersion { get; }
-        int CommitVersion { get; }
+        long StreamVersion { get; }
+        long CommitVersion { get; }
 
         /// <summary>
         /// Indicates whether the stream has been changed

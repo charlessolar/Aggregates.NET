@@ -12,8 +12,8 @@ namespace Aggregates.Contracts
 
         Task<IEventStream> GetStream<T>(string bucket, string streamId, ISnapshot snapshot = null) where T : class, IEventSource;
         Task<IEventStream> NewStream<T>(string bucket, string streamId) where T : class, IEventSource;
-        Task<IEnumerable<IWritableEvent>> GetEvents<T>(string bucket, string streamId, int? start = null, int? count = null) where T : class, IEventSource;
-        Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(string bucket, string streamId, int? start = null, int? count = null) where T : class, IEventSource;
+        Task<IEnumerable<IWritableEvent>> GetEvents<T>(string bucket, string streamId, long? start = null, int? count = null) where T : class, IEventSource;
+        Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(string bucket, string streamId, long? start = null, int? count = null) where T : class, IEventSource;
 
         Task WriteStream<T>(IEventStream stream, IDictionary<string, string> commitHeaders) where T : class, IEventSource;
         Task VerifyVersion<T>(IEventStream stream) where T : class, IEventSource;

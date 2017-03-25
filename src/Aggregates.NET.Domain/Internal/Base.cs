@@ -27,15 +27,15 @@ namespace Aggregates.Internal
         string IEventSource.Bucket => Bucket;
         string IEventSource.StreamId => StreamId;
 
-        int IEventSource.Version => Version;
+        long IEventSource.Version => Version;
 
         public IEventStream Stream => (this as INeedStream).Stream;
         public string Bucket => Stream.Bucket;
         public string StreamId => Stream.StreamId;
 
-        public int Version => Stream.StreamVersion;
+        public long Version => Stream.StreamVersion;
 
-        public int CommitVersion => Stream.CommitVersion;
+        public long CommitVersion => Stream.CommitVersion;
 
         IEventStream INeedStream.Stream { get; set; }
         

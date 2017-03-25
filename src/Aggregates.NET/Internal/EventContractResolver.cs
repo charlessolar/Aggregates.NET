@@ -9,7 +9,7 @@ namespace Aggregates.Internal
     {
         private readonly IMessageMapper _mapper;
 
-        public EventContractResolver(IMessageMapper mapper) : base(true)
+        public EventContractResolver(IMessageMapper mapper)
         {
             _mapper = mapper;
         }

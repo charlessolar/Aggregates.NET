@@ -7,7 +7,7 @@ namespace Aggregates.Internal
     {
         public string Bucket { get; set; }
         public string StreamId { get; set; }
-        public int Version { get; set; }
+        public long Version { get; set; }
         public object Payload { get; set; }
 
         public string EntityType { get; set; }

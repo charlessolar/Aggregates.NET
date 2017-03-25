@@ -14,7 +14,7 @@ namespace Aggregates.Internal
         public string StreamId { get; set; }
 
         public bool Compressed { get; set; }
-        public int Version { get; set; }
+        public long Version { get; set; }
         public DateTime Timestamp { get; set; }
 
         public IDictionary<string, string> Headers { get; set; }

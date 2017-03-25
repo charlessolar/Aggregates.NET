@@ -61,7 +61,7 @@ namespace Aggregates.Internal
             _settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
-                Binder = new EventSerializationBinder(mapper),
+                SerializationBinder = new EventSerializationBinder(mapper),
                 ContractResolver = new EventContractResolver(mapper)
             };
 

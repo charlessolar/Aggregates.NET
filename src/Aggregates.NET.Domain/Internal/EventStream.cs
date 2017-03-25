@@ -21,11 +21,11 @@ namespace Aggregates.Internal
 
         public string StreamId { get; }
 
-        public int StreamVersion => CommitVersion + Uncommitted.Count();
+        public long StreamVersion => CommitVersion + Uncommitted.Count();
         // +1 because Version is 0 indexed.  If we have a stream of 100 events with a snapshot at event 100 the snapshot version would be 100
         // When we read the stream we'll get 1 snapshot and 0 events making CommitVersion 99 if no +1
         // -1 because if you have a stream with 1 event CommitVersion should be 0
-        public int CommitVersion => (Snapshot?.Version + 1 ?? 0) + Committed.Count() - 1;
+        public long CommitVersion => (Snapshot?.Version + 1L ?? 0L) + Committed.Count() - 1L;
 
         public object CurrentMemento => _snapshot?.Payload;
         public ISnapshot Snapshot => _snapshot;

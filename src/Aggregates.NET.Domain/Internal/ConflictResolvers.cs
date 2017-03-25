@@ -214,7 +214,7 @@ namespace Aggregates.Internal
                     () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
 
                 var latestEvents =
-                    await _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1)
+                    await _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.CommitVersion + 1L)
                             .ConfigureAwait(false);
                 Logger.Write(LogLevel.Info, () => $"Stream [{stream.StreamId}] bucket [{stream.Bucket}] is {latestEvents.Count()} events behind store");
 

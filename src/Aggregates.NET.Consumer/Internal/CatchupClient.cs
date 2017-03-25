@@ -23,7 +23,7 @@ namespace Aggregates.Internal
 
         // Todo: config option for "most snapshots stored" and a LRU cache?
         private readonly SortedDictionary<string, IWritableEvent> _snapshots;
-        private readonly Action<string, int, ISnapshot> _onSnapshot;
+        private readonly Action<string, long, ISnapshot> _onSnapshot;
         private readonly IEventStoreConnection _client;
         private readonly string _stream;
         private readonly CancellationToken _token;
@@ -37,7 +37,7 @@ namespace Aggregates.Internal
 
         private bool _disposed;
 
-        public CatchupClient(Action<string, int, ISnapshot> onSnapshot, IEventStoreConnection client, string stream,
+        public CatchupClient(Action<string, long, ISnapshot> onSnapshot, IEventStoreConnection client, string stream,
             CancellationToken token, JsonSerializerSettings settings, Compression compress)
         {
             _onSnapshot = onSnapshot;
@@ -123,7 +123,7 @@ namespace Aggregates.Internal
 
             var settings = new CatchUpSubscriptionSettings(100, 5, Logger.IsDebugEnabled, true);
 
-            var startingNumber = 0;
+            var startingNumber = 0L;
             if (lastEvent.Status == SliceReadStatus.Success)
                 startingNumber = lastEvent.Events[0].OriginalEventNumber;
 

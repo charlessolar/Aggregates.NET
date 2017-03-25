@@ -81,7 +81,7 @@ namespace Aggregates.Internal
             }
             Logger.Write(LogLevel.Debug, () => $"Stream [{streamName}] not in cache - reading from store");
 
-            var events = await _store.GetEvents(streamName, start: snapshot?.Version + 1).ConfigureAwait(false);
+            var events = await _store.GetEvents(streamName, start: snapshot?.Version + 1L).ConfigureAwait(false);
 
             var eventstream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, events, snapshot);
             
@@ -98,12 +98,12 @@ namespace Aggregates.Internal
             return Task.FromResult(stream);
         }
 
-        public Task<IEnumerable<IWritableEvent>> GetEvents<T>(string bucket, string streamId, int? start = null, int? count = null) where T : class, IEventSource
+        public Task<IEnumerable<IWritableEvent>> GetEvents<T>(string bucket, string streamId, long? start = null, int? count = null) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
             return _store.GetEvents(streamName, start: start, count: count);
         }
-        public Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(string bucket, string streamId, int? start = null, int? count = null) where T : class, IEventSource
+        public Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(string bucket, string streamId, long? start = null, int? count = null) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
             return _store.GetEventsBackwards(streamName, start: start, count: count);

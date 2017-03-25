@@ -6,7 +6,7 @@ namespace Aggregates.Contracts
     {
         string Bucket { get; }
         string StreamId { get; }
-        int Version { get; }
+        long Version { get; }
 
         object Payload { get; }
 
