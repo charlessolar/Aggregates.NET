@@ -85,6 +85,7 @@ namespace Aggregates.Internal
                         if (context.Headers.ContainsKey(Defaults.BulkHeader) && context.Extensions.TryGet(Defaults.BulkHeader, out delayed))
                         {
 
+                            Logger.Write(LogLevel.Debug, () => $"Bulk processing {delayed.Count()} messages, id {context.MessageId}");
                             foreach (var x in delayed)
                             {
                                 // Replace all headers with the original headers to preserve CorrId etc.
