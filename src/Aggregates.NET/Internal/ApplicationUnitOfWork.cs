@@ -45,8 +45,7 @@ namespace Aggregates.Internal
                 return;
             }
 
-
-                Logger.Write(LogLevel.Info,
+            Logger.Write(LogLevel.Info,
                 () => $"Starting UOW for message {context.MessageId} type {context.Message.MessageType.FullName}");
             var uows = new Stack<IApplicationUnitOfWork>();
             try

@@ -59,7 +59,7 @@ namespace Aggregates
                 if (!settings.TryGet<IEventStoreConnection[]>("Shards", out connections))
                     connections = new[] { b.Build<IEventStoreConnection>() };
 
-                return new DelayedSubscriber(b.Build<IMessageMapper>(), connections, settings.Get<int>("MaxDelayed"));
+                return new DelayedSubscriber(b.Build<IMessageMapper>(), connections, settings.Get<int>("MaxDelayed"), settings.Get<int>("Retries"));
             }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register<MutateIncomingEventRegistration>();

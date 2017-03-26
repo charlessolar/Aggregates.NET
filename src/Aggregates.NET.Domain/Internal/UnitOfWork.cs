@@ -196,12 +196,19 @@ namespace Aggregates.Internal
             var allRepos =
                 _repositories.Values.Concat(_entityRepositories.Values).Concat(_pocoRepositories.Values).ToArray();
 
-            Logger.Write(LogLevel.Info, () =>
-                    $"Starting prepare for commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories");
-            using (PrepareTime.NewContext())
+
+            var changedStreams = _repositories.Sum(x => x.Value.ChangedStreams) + _entityRepositories.Sum(x => x.Value.ChangedStreams);
+
+            Logger.Write(LogLevel.Debug, () => $"Detected {changedStreams} changed streams in commit {CommitId}");
+            if (changedStreams > 1)
             {
-                // First check all streams read but not modified - if the store has a different version a VersionException will be thrown
-                await allRepos.SelectAsync(x => x.Prepare(CommitId)).ConfigureAwait(false);
+                Logger.Write(LogLevel.Info, () =>
+                        $"Starting prepare for commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories");
+                using (PrepareTime.NewContext())
+                {
+                    // First check all streams read but not modified - if the store has a different version a VersionException will be thrown
+                    await allRepos.SelectAsync(x => x.Prepare(CommitId)).ConfigureAwait(false);
+                }
             }
 
             // this log message can be expensive as the list is computed for a check
@@ -211,11 +218,9 @@ namespace Aggregates.Internal
                 var orderedRepos = _repositories.Select(x => new Tuple<int, IRepository>(x.Value.ChangedStreams, x.Value))
                                                 .Concat(_entityRepositories.Select(x => new Tuple<int, IRepository>(x.Value.ChangedStreams, x.Value)));
                 if (orderedRepos.Count(x => x.Item1 != 0) > 1)
-                    return
-                         $"Starting commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories. You changed {orderedRepos.Sum(x => x.Item1)} streams.  We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams";
+                    return $"Starting commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories. You changed {orderedRepos.Sum(x => x.Item1)} streams.  We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams";
 
-                return
-                        $"Starting commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories";
+                return $"Starting commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories";
             });
 
 

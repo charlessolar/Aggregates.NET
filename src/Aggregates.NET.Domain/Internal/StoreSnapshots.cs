@@ -43,6 +43,7 @@ namespace Aggregates.Internal
                     return snapshot;
                 }
             }
+            MissMeter.Mark();
 
             // Check store directly (this might be a new instance which hasn't caught up to snapshot stream yet
 
@@ -62,12 +63,10 @@ namespace Aggregates.Internal
                     Version = @event.Descriptor.Version,
                     Payload = @event.Event
                 };
-                HitMeter.Mark();
                 Logger.Write(LogLevel.Debug, () => $"Found snapshot [{streamName}] version {snapshot.Version} from store");
                 return snapshot;
             }
-
-            MissMeter.Mark();
+            
             Logger.Write(LogLevel.Debug, () => $"Snapshot not found for stream [{streamName}]");
             return null;
         }

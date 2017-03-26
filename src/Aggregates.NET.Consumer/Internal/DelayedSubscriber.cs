@@ -38,6 +38,7 @@ namespace Aggregates.Internal
         private class ThreadParam
         {
             public DelayedClient[] Clients { get; set; }
+            public int MaxRetry { get; set; }
             public CancellationToken Token { get; set; }
             public JsonSerializerSettings JsonSettings { get; set; }
         }
@@ -48,16 +49,18 @@ namespace Aggregates.Internal
         private bool _extraStats;
 
         private readonly int _maxDelayed;
+        private readonly int _maxRetry;
         private readonly JsonSerializerSettings _settings;
 
         private readonly IEventStoreConnection[] _clients;
 
         private bool _disposed;
 
-        public DelayedSubscriber(IMessageMapper mapper, IEventStoreConnection[] connections, int maxDelayed)
+        public DelayedSubscriber(IMessageMapper mapper, IEventStoreConnection[] connections, int maxDelayed, int maxRetry)
         {
             _clients = connections;
             _maxDelayed = maxDelayed;
+            _maxRetry = maxRetry;
             _settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
@@ -147,7 +150,7 @@ namespace Aggregates.Internal
                 }
                 _delayedThread = new Thread(Threaded)
                 { IsBackground = true, Name = $"Delayed Event Thread" };
-                _delayedThread.Start(new ThreadParam { Token = cancelToken, Clients = clients, JsonSettings = _settings });
+                _delayedThread.Start(new ThreadParam { Token = cancelToken, Clients = clients, JsonSettings = _settings, MaxRetry=_maxRetry });
 
             });
 
@@ -208,7 +211,6 @@ namespace Aggregates.Internal
                         var retry = 0;
                         do
                         {
-                            retry++;
                             using (var ctx = DelayedExecution.NewContext())
                             {
                                 try
@@ -234,7 +236,7 @@ namespace Aggregates.Internal
                                     // NSB transport has been disconnected
                                     break;
                                 }
-                                catch (Exception ex)
+                                catch
                                 {
                                 }
 
@@ -242,11 +244,9 @@ namespace Aggregates.Internal
                                     SlowLogger.Warn(
                                         $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
                                 Logger.Write(LogLevel.Info,
-                                    () =>
-                                            $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalMilliseconds} ms");
+                                    () => $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalMilliseconds} ms");
                             }
-                            // Todo: use max retry setting
-                        } while (!success && retry < 10);
+                        } while (!success && (retry++) < param.MaxRetry);
 
                         if (!success)
                         {
