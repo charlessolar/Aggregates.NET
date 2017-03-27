@@ -22,6 +22,7 @@ namespace Aggregates
         public static readonly string Retries = "Aggregates.NET.Retries";
         public static readonly string RequestResponse = "Aggregates.NET.Request";
         public static readonly string BulkHeader = "Aggregates.NET.Bulk";
+        public static readonly string DelayedId = "Aggregates.NET.DelayedMessageId";
         public static readonly string ChannelKey = "Aggregates.NET.ChannelKey";
 
         public static Guid Instance = Guid.NewGuid();

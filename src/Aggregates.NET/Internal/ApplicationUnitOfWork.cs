@@ -84,7 +84,8 @@ namespace Aggregates.Internal
                         if (context.Headers.ContainsKey(Defaults.BulkHeader) && context.Extensions.TryGet(Defaults.BulkHeader, out delayed))
                         {
 
-                            Logger.Write(LogLevel.Debug, () => $"Bulk processing {delayed.Count()} messages, id {context.MessageId}");
+                            Logger.Write(LogLevel.Debug, () => $"Bulk processing {delayed.Count()} messages, bulk id {context.MessageId}");
+                            var index = 1;
                             foreach (var x in delayed)
                             {
                                 // Replace all headers with the original headers to preserve CorrId etc.
@@ -92,12 +93,16 @@ namespace Aggregates.Internal
                                 foreach (var header in x.Headers)
                                     context.Headers[header.Key] = header.Value;
 
+                                context.Headers[Defaults.BulkHeader] = delayed.Count().ToString();
+                                context.Headers[Defaults.DelayedId] = x.MessageId;
                                 context.Headers[Defaults.ChannelKey] = x.ChannelKey;
+                                Logger.Write(LogLevel.Debug, () => $"Processing {index}/{delayed.Count()} message, bulk id {context.MessageId}.  MessageId: {x.MessageId} ChannelKey: {x.ChannelKey}");
 
                                 //context.Extensions.Set(Defaults.ChannelKey, x.ChannelKey);
 
                                 context.UpdateMessageInstance(x.Message);
                                 await next().ConfigureAwait(true);
+                                index++;
                             }
 
                         }
@@ -129,8 +134,7 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
-                Logger.Warn(
-                    $"Caught exception '{e.GetType().FullName}' while executing message {context.MessageId} {context.Message.MessageType.FullName}");
+                Logger.Warn($"Caught exception '{e.GetType().FullName}' while executing message {context.MessageId} {context.Message.MessageType.FullName}");
 
                 ErrorsMeter.Mark(context.Message.MessageType.FullName);
                 var trailingExceptions = new List<Exception>();

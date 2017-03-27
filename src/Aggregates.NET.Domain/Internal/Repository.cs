@@ -112,6 +112,9 @@ namespace Aggregates.Internal
                         }
                         catch (VersionException e)
                         {
+                            Logger.Write(LogLevel.Info,
+                                       () => $"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} stream version {stream.StreamVersion} commit verison {stream.CommitVersion} has version conflicts with store - Message: {e.Message} Store: {e.InnerException?.Message}");
+
                             Conflicts.Mark();
                             // If we expected no stream, no reason to try to resolve the conflict
                             if (stream.CommitVersion == -1)
@@ -124,10 +127,6 @@ namespace Aggregates.Internal
 
                             try
                             {
-                                Logger.Write(LogLevel.Info,
-                                    () => $"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} stream version {stream.StreamVersion} commit verison {stream.CommitVersion} has version conflicts with store - Message: {e.Message} Store: {e.InnerException?.Message}");
-
-
                                 using (ConflictResolutionTime.NewContext())
                                 {
                                     var uncommitted = stream.Uncommitted.ToList();

@@ -239,7 +239,7 @@ when({{
                     }
                     try
                     {
-                        settings.WithNamedConsumerStrategy(SystemConsumerStrategies.RoundRobin);
+                        settings.WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                         await
                             client.CreatePersistentSubscriptionAsync($"{stream}.{StreamTypes.OOB}", roundRobbinGroup, settings,
                                 client.Settings.DefaultUserCredentials).ConfigureAwait(false);
