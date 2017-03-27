@@ -104,7 +104,7 @@ namespace Aggregates.Internal
                 while (Bus.OnMessage == null || Bus.OnError == null)
                 {
                     Logger.Warn($"Could not find NSBs onMessage handler yet - if this persists there is a problem.");
-                    Thread.Sleep(1000);
+                    await Task.Delay(1000, cancelToken).ConfigureAwait(false);
                 }
 
 
@@ -160,8 +160,6 @@ namespace Aggregates.Internal
         private static void Threaded(object state)
         {
             var param = (ThreadParam)state;
-            // A fake message that will travel through the pipeline in order to bulk process messages from the context bag
-            var bulkMarker = new BulkMessage().Serialize(param.JsonSettings).AsByteArray();
 
             param.Clients.SelectAsync(x => x.Connect()).Wait();
 
@@ -185,11 +183,30 @@ namespace Aggregates.Internal
                     idleContext?.Dispose();
                     idleContext = null;
 
-                    var delayed = events.Select(x => x.Event.Data.Deserialize<DelayedMessage>(param.JsonSettings)).ToArray();
+                    // Group delayed events from by stream id and process in chunks
+                    // Same stream ids should modify the same models, processing this way reduces write collisions on commit
+                    events.GroupBy(x => x.Event.EventStreamId).SelectAsync(x => ProcessEvents(param, client, x.ToArray())).Wait(param.Token);
 
-                    Logger.Write(LogLevel.Info, () => $"Processing {delayed.Count()} bulk events");
+                }
 
-                    var transportTransaction = new TransportTransaction();
+                if (idleContext == null)
+                    idleContext = threadIdle.NewContext();
+                // Cheap hack to not burn cpu incase there are no events
+                if (noEvents) Thread.Sleep(50);
+            }
+
+
+        }
+
+        private static async Task ProcessEvents(ThreadParam param, DelayedClient client, ResolvedEvent[] events)
+        {
+            // A fake message that will travel through the pipeline in order to bulk process messages from the context bag
+            var bulkMarker = new BulkMessage().Serialize(param.JsonSettings).AsByteArray();
+
+            var delayed = events.Select(x => x.Event.Data.Deserialize<DelayedMessage>(param.JsonSettings)).ToArray();
+
+            Logger.Write(LogLevel.Info, () => $"Processing {delayed.Count()} bulk events on stream {events.First().Event.EventStreamId}");
+            var transportTransaction = new TransportTransaction();
                     var contextBag = new ContextBag();
                     // Hack to get all the delayed messages to bulk invoker without NSB deserializing and processing each one
                     contextBag.Set(Defaults.BulkHeader, delayed);
@@ -223,7 +240,7 @@ namespace Aggregates.Internal
                                         headers,
                                         bulkMarker, transportTransaction, tokenSource,
                                         contextBag);
-                                    Bus.OnMessage(messageContext).Wait(param.Token);
+                                    await Bus.OnMessage(messageContext).ConfigureAwait(false);//param.Token);
 
                                     Logger.Write(LogLevel.Debug,
                                         () => $"Scheduling acknowledge of {delayed.Count()} bulk events");
@@ -241,8 +258,7 @@ namespace Aggregates.Internal
                                 }
 
                                 if (ctx.Elapsed > TimeSpan.FromSeconds(5))
-                                    SlowLogger.Warn(
-                                        $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
+                                    SlowLogger.Warn($"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
                                 Logger.Write(LogLevel.Info,
                                     () => $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalMilliseconds} ms");
                             }
@@ -258,15 +274,6 @@ namespace Aggregates.Internal
 
 
                     }
-                }
-
-                if (idleContext == null)
-                    idleContext = threadIdle.NewContext();
-                // Cheap hack to not burn cpu incase there are no events
-                if (noEvents) Thread.Sleep(50);
-            }
-
-
         }
 
 

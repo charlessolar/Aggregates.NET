@@ -195,7 +195,7 @@ when({{
                 while (Bus.OnMessage == null || Bus.OnError == null)
                 {
                     Logger.Warn($"Could not find NSBs onMessage handler yet - if this persists there is a problem.");
-                    Thread.Sleep(1000);
+                    await Task.Delay(1000, cancelToken).ConfigureAwait(false);
                 }
 
 

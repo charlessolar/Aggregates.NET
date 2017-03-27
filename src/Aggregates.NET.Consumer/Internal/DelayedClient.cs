@@ -170,13 +170,16 @@ namespace Aggregates.Internal
 
         public ResolvedEvent[] Flush()
         {
-            if (!Live) return new ResolvedEvent[] { };
+            if (!Live || _waitingEvents.Count == 0) return new ResolvedEvent[] { };
+
+            var age = DateTime.UtcNow - _waitingEvents.First().Event.Created;
+            if(_waitingEvents.Count < 100 && age < TimeSpan.FromSeconds(30)) return new ResolvedEvent[] { };
 
             List<ResolvedEvent> discovered;
             lock (_lock)
             {
-                discovered = _waitingEvents.GetRange(0, Math.Min(100, _waitingEvents.Count));
-                _waitingEvents.RemoveRange(0, Math.Min(100, _waitingEvents.Count));
+                discovered = _waitingEvents.GetRange(0, Math.Min(500, _waitingEvents.Count));
+                _waitingEvents.RemoveRange(0, Math.Min(500, _waitingEvents.Count));
             }
             
             Queued.Decrement(Id, discovered.Count);
