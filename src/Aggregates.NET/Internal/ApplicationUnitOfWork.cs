@@ -26,12 +26,10 @@ namespace Aggregates.Internal
         private static readonly Counter MessagesConcurrent = Metric.Counter("Messages Concurrent", Unit.Items);
 
         private static readonly Meter ErrorsMeter = Metric.Meter("UOW Errors", Unit.Errors);
+        
 
-        private readonly IPersistence _persistence;
-
-        public ApplicationUnitOfWork(IPersistence persistence)
+        public ApplicationUnitOfWork()
         {
-            _persistence = persistence;
         }
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
@@ -48,6 +46,11 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Info,
                 () => $"Starting UOW for message {context.MessageId} type {context.Message.MessageType.FullName}");
             var uows = new Stack<IApplicationUnitOfWork>();
+
+            var bagId = $"contextbags.{context.MessageId}";
+            Dictionary<Type, ContextBag> savedBags = null; 
+            if(!context.Extensions.TryGet<Dictionary<Type, ContextBag>>(bagId, out savedBags))
+                savedBags = new Dictionary<Type, ContextBag>();
             try
             {
                 MessagesMeter.Mark();
@@ -56,8 +59,8 @@ namespace Aggregates.Internal
                     using (BeginTimer.NewContext())
                     {
                         var listOfUows = context.Builder.BuildAll<IApplicationUnitOfWork>();
-                        var bags = await _persistence.Remove(context.MessageId).ConfigureAwait(false);
 
+                        
                         // Trick to put ILastApplicationUnitOfWork at the bottom of the stack to be uow.End'd last
                         foreach (var uow in listOfUows.Where(x => x is ILastApplicationUnitOfWork).Concat(listOfUows.Where(x => !(x is ILastApplicationUnitOfWork))))
                         {
@@ -68,9 +71,10 @@ namespace Aggregates.Internal
                                 retries = 0;
                             uow.Retries = retries;
 
-                            var savedBag = bags?.SingleOrDefault(x => x.Item1 == uow.GetType())?.Item2;
-                            
-                            uow.Bag = savedBag ?? new ContextBag();
+                            if (savedBags.ContainsKey(uow.GetType()))
+                                uow.Bag = savedBags[uow.GetType()];
+                            else
+                                uow.Bag = new ContextBag();
                             Logger.Write(LogLevel.Debug, () => $"Running UOW.Begin for message {context.MessageId} on {uow.GetType().FullName}");
                             await uow.Begin().ConfigureAwait(false);
                             uows.Push(uow);
@@ -123,12 +127,10 @@ namespace Aggregates.Internal
                             }
                             finally
                             {
-                                await _persistence.Save(context.MessageId, uow.GetType(), uow.Bag).ConfigureAwait(true);
+                                savedBags[uow.GetType()] = uow.Bag;
                             }
                         }
                     }
-                    // Success, remove all bags
-                    await _persistence.Remove(context.MessageId).ConfigureAwait(false);
                 }
 
             }
@@ -153,9 +155,12 @@ namespace Aggregates.Internal
                             trailingExceptions.Add(endException);
                         }
                         // If here one UOW threw an exception, we should save all the other context bags incase they did some work too
-                        await _persistence.Save(context.MessageId, uow.GetType(), uow.Bag).ConfigureAwait(true);
+                        savedBags[uow.GetType()] = uow.Bag;
                     }
                 }
+
+                // Save uow bags into context for retries
+                context.Extensions.Set(bagId, savedBags);
 
                 if (trailingExceptions.Any())
                 {

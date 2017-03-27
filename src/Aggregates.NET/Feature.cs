@@ -33,7 +33,6 @@ namespace Aggregates
             context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue()));
 
             context.Container.ConfigureComponent<IntelligentCache>(DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<MemoryPersistence>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<IDelayedChannel>(() => null, DependencyLifecycle.InstancePerCall);
 
             // Check that aggregates has been properly setup
@@ -42,7 +41,7 @@ namespace Aggregates
             
             var settings = context.Settings;
             context.Pipeline.Register(
-                b => new ExceptionRejector(settings.Get<int>("Retries"), b.Build<IPersistence>()),
+                b => new ExceptionRejector(settings.Get<int>("Retries")),
                 "Watches message faults, sends error replies to client when message moves to error queue"
                 );
             context.Pipeline.Register(

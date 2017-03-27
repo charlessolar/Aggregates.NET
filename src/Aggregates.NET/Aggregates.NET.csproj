@@ -77,7 +77,6 @@
     <Compile Include="Contracts\IEventDescriptor.cs" />
     <Compile Include="Contracts\IEventMutator.cs" />
     <Compile Include="Contracts\IMutating.cs" />
-    <Compile Include="Contracts\IPersistence.cs" />
     <Compile Include="Contracts\ISnapshot.cs" />
     <Compile Include="Contracts\ISnapshotReader.cs" />
     <Compile Include="Contracts\IStoreEvents.cs" />
@@ -110,7 +109,6 @@
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />
     <Compile Include="Internal\IntelligentCache.cs" />
-    <Compile Include="Internal\MemoryPersistence.cs" />
     <Compile Include="Internal\MutateOutgoingEvents.cs" />
     <Compile Include="Internal\MutateOutgoingCommands.cs" />
     <Compile Include="Internal\Mutating.cs" />

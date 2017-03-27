@@ -31,15 +31,13 @@ namespace Aggregates.NET.UnitTests.Common.Internal
                 return Task.CompletedTask;
             }
         }
-
-        private Moq.Mock<IPersistence> _persistence;
+        
         private Aggregates.Internal.ApplicationUnitOfWork _uow;
 
         [SetUp]
         public void Setup()
         {
-            _persistence = new Moq.Mock<IPersistence>();
-            _uow = new Aggregates.Internal.ApplicationUnitOfWork(_persistence.Object);
+            _uow = new Aggregates.Internal.ApplicationUnitOfWork();
         }
 
         [Test]
@@ -83,30 +81,6 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             uow.Verify(x => x.End(null), Moq.Times.Once);
         }
         [Test]
-        public async Task persistence_cleared()
-        {
-            var bag = new ContextBag();
-            var context = new Moq.Mock<IIncomingLogicalMessageContext>();
-            var next = new Moq.Mock<Func<Task>>();
-            var builder = new Moq.Mock<IBuilder>();
-            var uow = new Moq.Mock<IApplicationUnitOfWork>();
-            builder.Setup(x => x.BuildAll<IApplicationUnitOfWork>()).Returns(new IApplicationUnitOfWork[] { uow.Object });
-            context.Setup(x => x.MessageId).Returns("1");
-            context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
-            context.Setup(x => x.Extensions).Returns(bag);
-            context.Setup(x => x.Builder).Returns(builder.Object);
-            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
-            context.Setup(x => x.MessageHeaders)
-                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
-            _persistence.Setup(x => x.Remove("1")).Returns(Task.FromResult<List<Tuple<Type,ContextBag>>>(null));
-
-            await _uow.Invoke(context.Object, next.Object);
-
-            _persistence.Verify(x => x.Remove("1"), Moq.Times.Exactly(2));
-
-            next.Verify(x => x(), Moq.Times.Once);
-        }
-        [Test]
         public Task persistence_uow_bag_stored_on_fail()
         {
             var bag = new ContextBag();
@@ -128,16 +102,25 @@ namespace Aggregates.NET.UnitTests.Common.Internal
 
             Assert.ThrowsAsync<Exception>(() => _uow.Invoke(context.Object, next.Object));
 
-            _persistence.Verify(x => x.Save("1", uow.Object.GetType(), bag), Moq.Times.Once);
-
+            Dictionary<Type, ContextBag> holder;
+            Assert.True(bag.TryGet("contextbags.1", out holder));
+            
             next.Verify(x => x(), Moq.Times.Once);
             return Task.CompletedTask;
         }
         [Test]
         public async Task persistence_uow_retreive_bag()
         {
+            // Verifies that uows are supplied a bag from the contextbag if it exists
+
+            Dictionary<Type, ContextBag> holder = new Dictionary<Type, ContextBag>();
+
             var bag = new ContextBag();
             bag.Set("test", "test");
+            holder[typeof(FakeUnitOfWork)] = bag;
+
+            bag.Set("contextbags.1", holder);
+
             var context = new Moq.Mock<IIncomingLogicalMessageContext>();
             var next = new Moq.Mock<Func<Task>>();
             var builder = new Moq.Mock<IBuilder>();
@@ -150,7 +133,6 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             context.Setup(x => x.MessageHeaders)
                 .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
-            _persistence.Setup(x => x.Remove("1")).Returns(Task.FromResult(new List<Tuple<Type, ContextBag>> { new Tuple<Type,ContextBag>(typeof(FakeUnitOfWork), bag) }));
 
             await _uow.Invoke(context.Object, next.Object);
 
@@ -159,9 +141,6 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             string test;
             Assert.True(uow.Bag.TryGet<string>("test", out test));
             Assert.AreEqual("test", test);
-
-            _persistence.Verify(x => x.Save("1", uow.GetType(), bag), Moq.Times.Once);
-            _persistence.Verify(x => x.Remove("1"), Moq.Times.Exactly(2));
         }
         [Test]
         public async Task no_problem_multiple_units_of_work()
@@ -309,7 +288,10 @@ namespace Aggregates.NET.UnitTests.Common.Internal
 
             Assert.ThrowsAsync<AggregateException>(() => _uow.Invoke(context.Object, next.Object));
             next.Verify(x => x(), Moq.Times.Once);
-            _persistence.Verify(x => x.Save("1", uow2.Object.GetType(), bag), Moq.Times.Once);
+
+            Dictionary<Type, ContextBag> holder;
+            Assert.True(bag.TryGet("contextbags.1", out holder));
+            
             return Task.CompletedTask;
         }
 

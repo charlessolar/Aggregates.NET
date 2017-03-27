@@ -20,8 +20,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
         [SetUp]
         public void Setup()
         {
-            var persistence = new Moq.Mock<IPersistence>();
-            _rejector = new Aggregates.Internal.ExceptionRejector(2, persistence.Object);
+            _rejector = new Aggregates.Internal.ExceptionRejector(2);
         }
 
         [Test]

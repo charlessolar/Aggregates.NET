@@ -36,6 +36,9 @@ namespace Aggregates.Internal
     {
 
         private static readonly ILog Logger = LogManager.GetLogger("EventSubscriber");
+        private static readonly Metrics.Timer EventExecution = Metric.Timer("Event Execution", Unit.Items, tags: "debug");
+        private static readonly Counter EventCount = Metric.Counter("Event Messages", Unit.Items);
+        private static readonly Meter EventErrors = Metric.Meter("Event Failures", Unit.Items);
 
         private class ThreadParam
         {
@@ -360,35 +363,40 @@ when({{
 
                 while (!processed)
                 {
-                    try
+                    using (var ctx = EventExecution.NewContext())
                     {
-                        // If canceled, this will throw the number of time immediate retry requires to send the message to the error queue
-                        token.ThrowIfCancellationRequested();
+                        try
+                        {
+                            // If canceled, this will throw the number of time immediate retry requires to send the message to the error queue
+                            token.ThrowIfCancellationRequested();
 
-                        // Don't re-use the event id for the message id
-                        var messageContext = new MessageContext(messageId,
-                            headers,
-                            data ?? new byte[0], transportTransaction, tokenSource,
-                            contextBag);
-                        await Bus.OnMessage(messageContext).ConfigureAwait(false);
-                        processed = true;
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        // NSB transport has been disconnected
-                        break;
-                    }
-                    catch (Exception ex)
-                    {
-                        ++numberOfDeliveryAttempts;
-                        var errorContext = new ErrorContext(ex, headers,
-                            messageId,
-                            data ?? new byte[0], transportTransaction,
-                            numberOfDeliveryAttempts);
-                        if (await Bus.OnError(errorContext).ConfigureAwait(false) ==
-                            ErrorHandleResult.Handled)
+                            // Don't re-use the event id for the message id
+                            var messageContext = new MessageContext(messageId,
+                                headers,
+                                data ?? new byte[0], transportTransaction, tokenSource,
+                                contextBag);
+                            await Bus.OnMessage(messageContext).ConfigureAwait(false);
+                            EventCount.Increment();
+                            processed = true;
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            // NSB transport has been disconnected
                             break;
+                        }
+                        catch (Exception ex)
+                        {
+                            EventErrors.Mark($"{ex.GetType().Name} {ex.Message}");
+                            ++numberOfDeliveryAttempts;
+                            var errorContext = new ErrorContext(ex, headers,
+                                messageId,
+                                data ?? new byte[0], transportTransaction,
+                                numberOfDeliveryAttempts);
+                            if (await Bus.OnError(errorContext).ConfigureAwait(false) ==
+                                ErrorHandleResult.Handled)
+                                break;
 
+                        }
                     }
                 }
             }

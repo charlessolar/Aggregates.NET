@@ -33,6 +33,8 @@ namespace Aggregates.Internal
 
         private static readonly Metrics.Timer DelayedExecution = Metric.Timer("Delayed Execution", Unit.Items, tags: "debug");
         private static readonly Histogram DelayedHandled = Metric.Histogram("Delayed Handled", Unit.Items, tags: "debug");
+        private static readonly Counter DelayedCount = Metric.Counter("Delayed Messages", Unit.Items);
+        private static readonly Meter DelayedErrors = Metric.Meter("Delayed Failures", Unit.Items);
 
 
         private class ThreadParam
@@ -207,6 +209,9 @@ namespace Aggregates.Internal
 
             Logger.Write(LogLevel.Info, () => $"Processing {delayed.Count()} bulk events on stream {events.First().Event.EventStreamId}");
 
+            var contextBag = new ContextBag();
+            // Hack to get all the delayed messages to bulk invoker without NSB deserializing and processing each one
+            contextBag.Set(Defaults.BulkHeader, delayed);
 
             // Run bulk process on this thread
             using (var tokenSource = new CancellationTokenSource())
@@ -216,9 +221,6 @@ namespace Aggregates.Internal
                 do
                 {
                     var transportTransaction = new TransportTransaction();
-                    var contextBag = new ContextBag();
-                    // Hack to get all the delayed messages to bulk invoker without NSB deserializing and processing each one
-                    contextBag.Set(Defaults.BulkHeader, delayed);
 
                     // Need to supply EnclosedMessageTypes to trick NSB pipeline into processing our fake message
                     var messageId = Guid.NewGuid().ToString();
@@ -247,6 +249,7 @@ namespace Aggregates.Internal
                             Logger.Write(LogLevel.Debug,
                                 () => $"Scheduling acknowledge of {delayed.Count()} bulk events");
                             DelayedHandled.Update(delayed.Count());
+                            DelayedCount.Increment(delayed.Count());
                             client.Acknowledge(events);
                             success = true;
                         }
@@ -255,8 +258,9 @@ namespace Aggregates.Internal
                             // NSB transport has been disconnected
                             break;
                         }
-                        catch
+                        catch(Exception e)
                         {
+                            DelayedErrors.Mark($"{e.GetType().Name} {e.Message}");
                         }
 
                         if (ctx.Elapsed > TimeSpan.FromSeconds(5))

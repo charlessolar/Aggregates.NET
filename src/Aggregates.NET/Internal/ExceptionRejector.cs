@@ -24,12 +24,10 @@ namespace Aggregates.Internal
 
         private static readonly Meter ErrorsMeter = Metric.Meter("Message Faults", Unit.Errors);
         private readonly int _retries;
-        private readonly IPersistence _persistence;
 
-        public ExceptionRejector(int retries, IPersistence persistence)
+        public ExceptionRejector(int retries)
         {
             _retries = retries;
-            _persistence = persistence;
         }
 
         public override async Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)
@@ -59,11 +57,7 @@ namespace Aggregates.Internal
                     RetryRegistry.TryAdd(messageId, retries + 1);
                     throw;
                 }
-
-                // Failure, remove all saved bags
-                // Todo: persist bags for a delayed retry since work might partially be done
-                await _persistence.Remove(context.MessageId).ConfigureAwait(false);
-
+                
                 // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth
                 if (context.Message.GetMesssageIntent() != MessageIntentEnum.Send)
                     throw;
