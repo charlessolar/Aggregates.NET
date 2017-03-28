@@ -115,11 +115,12 @@ namespace Aggregates.Internal
                     .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readsize)
                     .WithLiveBufferSizeOf(_readsize * _readsize)
-                    .WithMessageTimeoutOf(TimeSpan.FromMilliseconds(int.MaxValue))
+                    //.WithMessageTimeoutOf(TimeSpan.FromMilliseconds(int.MaxValue))
+                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(1))
                     .CheckPointAfter(TimeSpan.FromSeconds(30))
                     .MaximumCheckPointCountOf(_readsize * _readsize)
                     .ResolveLinkTos()
-                    .WithNamedConsumerStrategy(SystemConsumerStrategies.RoundRobin);
+                    .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                 if (_extraStats)
                     settings.WithExtraStatistics();
 
@@ -166,6 +167,7 @@ namespace Aggregates.Internal
             param.Clients.SelectAsync(x => x.Connect()).Wait();
 
             var threadIdle = Metric.Timer("Delayed Events Idle", Unit.None, tags: "debug");
+            var tasks = new Task[param.Clients.Count()];
 
             TimerContext? idleContext = threadIdle.NewContext();
             while (true)
@@ -175,9 +177,14 @@ namespace Aggregates.Internal
                 var noEvents = true;
                 for (var i = 0; i < param.Clients.Count(); i++)
                 {
+                    // Check if current task is complete
+                    if (tasks[i] != null && !tasks[i].IsCompleted)
+                        continue;
+
                     var client = param.Clients.ElementAt(i);
                     var events = client.Flush();
 
+                    DelayedHandled.Update(events.Count());
                     if (!events.Any())
                         continue;
 
@@ -185,9 +192,22 @@ namespace Aggregates.Internal
                     idleContext?.Dispose();
                     idleContext = null;
 
-                    // Group delayed events from by stream id and process in chunks
-                    // Same stream ids should modify the same models, processing this way reduces write collisions on commit
-                    events.GroupBy(x => x.Event.EventStreamId).SelectAsync(x => ProcessEvents(param, client, x.ToArray())).Wait(param.Token);
+                    tasks[i] = Task.Run(async () =>
+                    {
+                        using (var ctx = DelayedExecution.NewContext())
+                        {
+                            // Group delayed events from by stream id and process in chunks
+                            // Same stream ids should modify the same models, processing this way reduces write collisions on commit
+                            await events.GroupBy(x => x.Event.EventStreamId)
+                                .SelectAsync(x => ProcessEvents(param, client, x.ToArray())).ConfigureAwait(false);
+
+                            if (ctx.Elapsed > TimeSpan.FromSeconds(5))
+                                SlowLogger.Warn($"Processing {events.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
+                            Logger.Write(LogLevel.Info,
+                                () => $"Processing {events.Count()} bulked events took {ctx.Elapsed.TotalMilliseconds} ms");
+
+                        }
+                    }, param.Token);
 
                 }
 
@@ -232,42 +252,35 @@ namespace Aggregates.Internal
                         [Defaults.BulkHeader] = delayed.Count().ToString(),
                     };
 
-                    using (var ctx = DelayedExecution.NewContext())
+                    try
                     {
-                        try
-                        {
-                            // If canceled, this will throw the number of time immediate retry requires to send the message to the error queue
-                            param.Token.ThrowIfCancellationRequested();
+                        // If canceled, this will throw the number of time immediate retry requires to send the message to the error queue
+                        param.Token.ThrowIfCancellationRequested();
 
-                            // Don't re-use the event id for the message id
-                            var messageContext = new NServiceBus.Transport.MessageContext(messageId,
-                                headers,
-                                bulkMarker, transportTransaction, tokenSource,
-                                contextBag);
-                            await Bus.OnMessage(messageContext).ConfigureAwait(false);//param.Token);
+                        // Don't re-use the event id for the message id
+                        var messageContext = new NServiceBus.Transport.MessageContext(messageId,
+                            headers,
+                            bulkMarker, transportTransaction, tokenSource,
+                            contextBag);
+                        await Bus.OnMessage(messageContext).ConfigureAwait(false);//param.Token);
 
-                            Logger.Write(LogLevel.Debug,
-                                () => $"Scheduling acknowledge of {delayed.Count()} bulk events");
-                            DelayedHandled.Update(delayed.Count());
-                            DelayedCount.Increment(delayed.Count());
-                            client.Acknowledge(events);
-                            success = true;
-                        }
-                        catch (ObjectDisposedException)
-                        {
-                            // NSB transport has been disconnected
-                            break;
-                        }
-                        catch(Exception e)
-                        {
-                            DelayedErrors.Mark($"{e.GetType().Name} {e.Message}");
-                        }
-
-                        if (ctx.Elapsed > TimeSpan.FromSeconds(5))
-                            SlowLogger.Warn($"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
-                        Logger.Write(LogLevel.Info,
-                            () => $"Processing {delayed.Count()} bulked events took {ctx.Elapsed.TotalMilliseconds} ms");
+                        Logger.Write(LogLevel.Debug,
+                            () => $"Scheduling acknowledge of {delayed.Count()} bulk events");
+                        DelayedCount.Increment(delayed.Count());
+                        client.Acknowledge(events);
+                        success = true;
                     }
+                    catch (ObjectDisposedException)
+                    {
+                        // NSB transport has been disconnected
+                        break;
+                    }
+                    catch (Exception e)
+                    {
+                        DelayedErrors.Mark($"{e.GetType().Name} {e.Message}");
+                    }
+
+
                     retry++;
                 } while (!success && retry <= param.MaxRetry);
 

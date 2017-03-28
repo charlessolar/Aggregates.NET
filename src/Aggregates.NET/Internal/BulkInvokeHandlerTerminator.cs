@@ -29,10 +29,10 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger("BulkInvokeHandlerTerminator");
         private static readonly ILog SlowLogger = LogManager.GetLogger("Slow Alarm");
 
-        private static readonly Meter Invokes = Metric.Meter("Bulk Invokes", Unit.Items);
-        private static readonly Meter InvokesDelayed = Metric.Meter("Delayed Invokes", Unit.Items, tags: "debug");
-        private static readonly Histogram InvokeSize = Metric.Histogram("Bulk Invoke Size", Unit.Items, tags: "debug");
-        private static readonly Metrics.Timer InvokeTime = Metric.Timer("Bulk Invoke Time", Unit.None, tags: "debug");
+        private static readonly Meter Invokes = Metric.Meter("Bulk Messages", Unit.Items);
+        private static readonly Meter InvokesDelayed = Metric.Meter("Delayed Messages", Unit.Items, tags: "debug");
+        private static readonly Histogram InvokeSize = Metric.Histogram("Bulk Messages Size", Unit.Items, tags: "debug");
+        private static readonly Metrics.Timer InvokeTime = Metric.Timer("Bulk Messages Time", Unit.None, tags: "debug");
 
         internal static readonly Dictionary<string, DateTime> RecentlyInvoked = new Dictionary<string, DateTime>();
         private static readonly object RecentLock = new object();
