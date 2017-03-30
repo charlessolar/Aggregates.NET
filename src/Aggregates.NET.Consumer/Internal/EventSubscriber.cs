@@ -38,6 +38,7 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger("EventSubscriber");
         private static readonly Metrics.Timer EventExecution = Metric.Timer("Event Execution", Unit.Items, tags: "debug");
         private static readonly Counter EventCount = Metric.Counter("Event Messages", Unit.Items);
+        private static readonly Meter Events = Metric.Meter("Events", Unit.Items);
         private static readonly Meter EventErrors = Metric.Meter("Event Failures", Unit.Items);
 
         private class ThreadParam
@@ -314,6 +315,8 @@ when({{
 
                     idleContext?.Dispose();
                     idleContext = null;
+
+                    Events.Mark(e.OriginalStreamId);
 
                     tasks[i] = Task.Run(async () =>
                     {

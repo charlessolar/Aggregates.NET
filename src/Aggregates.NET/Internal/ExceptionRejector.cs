@@ -59,7 +59,7 @@ namespace Aggregates.Internal
                 }
                 
                 // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth
-                if (context.Message.GetMesssageIntent() != MessageIntentEnum.Send)
+                if (context.Message.GetMesssageIntent() != MessageIntentEnum.Send && context.Message.GetMesssageIntent() != MessageIntentEnum.Publish)
                     throw;
 
                 // At this point message is dead - should be moved to error queue, send message to client that their request was rejected due to error 

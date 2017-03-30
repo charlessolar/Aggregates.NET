@@ -37,7 +37,7 @@ namespace Aggregates.Internal
             MessagesConcurrent.Increment();
 
             // Only SEND messages deserve a UnitOfWork
-            if (context.MessageHeaders[Headers.MessageIntent] != MessageIntentEnum.Send.ToString())
+            if (context.MessageHeaders[Headers.MessageIntent] != MessageIntentEnum.Send.ToString() && context.MessageHeaders[Headers.MessageIntent] != MessageIntentEnum.Publish.ToString())
             {
                 await next().ConfigureAwait(false);
                 return;

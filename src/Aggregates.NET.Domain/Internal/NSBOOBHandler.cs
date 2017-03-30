@@ -40,13 +40,15 @@ namespace Aggregates.Internal
                 options.SetHeader("Timestamp", @event.Descriptor.Timestamp.ToString(CultureInfo.InvariantCulture));
                 options.SetHeader("Version", @event.Descriptor.Version.ToString());
 
+                options.SetHeader("Bucket", bucket);
+                options.SetHeader("StreamId", streamId);
+
 
                 foreach (var header in @event.Descriptor.Headers)
-                {
                     options.SetHeader(header.Key, header.Value);
-                }
+            
 
-                await _endpoint.Publish(@event, options).ConfigureAwait(false);
+                await _endpoint.Publish(@event.Event, options).ConfigureAwait(false);
             }).ConfigureAwait(false);
             
         }
