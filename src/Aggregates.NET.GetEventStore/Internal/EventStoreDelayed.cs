@@ -84,7 +84,7 @@ namespace Aggregates.Internal
                 // A list of channels who have expired or have more than 1/10 the max total cache size
                 var expiredSpecificChannels =
                     MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > flushState.Expiration || (x.Value.Item3.Count > (_memCacheTotalSize / 10)))
-                        .Select(x => x.Key).Take(MemCache.Keys.Count / 5)
+                        .Select(x => x.Key).Take(Math.Max(1,MemCache.Keys.Count / 5))
                         .ToList();
 
                 await expiredSpecificChannels.SelectAsync(async (expired) =>
@@ -196,8 +196,7 @@ namespace Aggregates.Internal
                 try
                 {
                     Logger.Write(LogLevel.Info,
-                        () =>
-                                $"Flushing too large delayed channels - cache size: {_memCacheTotalSize} - total channels: {MemCache.Keys.Count}");
+                        () => $"Flushing too large delayed channels - cache size: {_memCacheTotalSize} - total channels: {MemCache.Keys.Count}");
 
                     if (_memCacheTotalSize > (flushState.MaxSize*1.5))
                     {
@@ -211,7 +210,7 @@ namespace Aggregates.Internal
                         var totalFlushed = 0;
                         // Flush 500 off the oldest streams until total size is under limit or we've flushed all the streams
                         var toFlush =
-                            MemCache.OrderBy(x => x.Value.Item1).Select(x => x.Key).Take(MemCache.Keys.Count/5).ToList();
+                            MemCache.OrderBy(x => x.Value.Item1).Select(x => x.Key).Take(Math.Max(1,MemCache.Keys.Count/5)).ToList();
 
                         await toFlush.SelectAsync(async (expired) =>
                         {
@@ -472,11 +471,10 @@ namespace Aggregates.Internal
 
             }
             DelayedAge.Update(Convert.ToInt64(specificAge.TotalSeconds));
-            if (specificAge > TimeSpan.FromMinutes(30))
+            if (specificAge > TimeSpan.FromMinutes(5))
                 SlowLogger.Write(LogLevel.Warn, () => $"Delayed channel [{channel}] specific [{key}] is {specificAge.TotalMinutes} minutes old!");
 
             return Task.FromResult<TimeSpan?>(specificAge);
-
         }
 
         public Task<int> Size(string channel, string key = null)
