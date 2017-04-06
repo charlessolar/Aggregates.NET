@@ -43,7 +43,7 @@ namespace Aggregates.Internal
                 return;
             }
 
-            Logger.Write(LogLevel.Info,
+            Logger.Write(LogLevel.Debug,
                 () => $"Starting UOW for message {context.MessageId} type {context.Message.MessageType.FullName}");
             var uows = new Stack<IApplicationUnitOfWork>();
 
@@ -136,7 +136,7 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
-                Logger.Warn($"Caught exception '{e.GetType().FullName}' while executing message {context.MessageId} {context.Message.MessageType.FullName}");
+                Logger.Warn($"Caught exception '{e.GetType().FullName}' while executing message {context.MessageId} {context.Message.MessageType.FullName}", e);
 
                 ErrorsMeter.Mark(context.Message.MessageType.FullName);
                 var trailingExceptions = new List<Exception>();

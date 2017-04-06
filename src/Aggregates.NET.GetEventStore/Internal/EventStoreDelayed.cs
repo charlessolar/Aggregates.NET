@@ -182,6 +182,7 @@ namespace Aggregates.Internal
                             }
                         );
 
+                        throw;
                     }
                 }).ConfigureAwait(false);
 
@@ -256,8 +257,7 @@ namespace Aggregates.Internal
                             }
 
                             Logger.Write(LogLevel.Info,
-                                () =>
-                                        $"Flushing too large channel {expired.Item1} key {expired.Item2} with {overLimit.Count} objects");
+                                () => $"Flushing too large channel {expired.Item1} key {expired.Item2} with {overLimit.Count} objects");
                             var translatedEvents = overLimit.Select(x => new WritableEvent
                             {
                                 Descriptor = new EventDescriptor
@@ -330,7 +330,7 @@ namespace Aggregates.Internal
                 {
                     var stackTrace = string.Join("\n", (e.StackTrace?.Split('\n').Take(10) ?? new string[] { }).AsEnumerable());
                     Logger.Write(LogLevel.Error,
-                        () => $"Caught exception: {e.GetType().Name} {e.Message} while flushing cache messages\nStack: {stackTrace}");
+                        () => $"Caught exception: {e.GetType().Name}: {e.Message} while flushing cache messages\nStack: {stackTrace}");
                 }
                 finally
                 {
@@ -371,7 +371,7 @@ namespace Aggregates.Internal
 
             if (ex != null)
             {
-                Logger.Write(LogLevel.Info, () => $"Putting {_inFlightMemCache.Count()} in flight channels back into memcache");
+                Logger.Write(LogLevel.Debug, () => $"Putting {_inFlightMemCache.Count()} in flight channels back into memcache");
                 foreach (var inflight in _inFlightMemCache)
                 {
                     MemCache.AddOrUpdate(inflight.Key,
@@ -393,7 +393,7 @@ namespace Aggregates.Internal
 
             if (ex == null)
             {
-                Logger.Write(LogLevel.Info, () => $"Putting {_uncommitted.Count()} delayed streams into mem cache");
+                Logger.Write(LogLevel.Debug, () => $"Putting {_uncommitted.Count()} delayed streams into mem cache");
 
                 _inFlightMemCache.Clear();
 
