@@ -84,7 +84,7 @@ namespace Aggregates.Internal
                 // A list of channels who have expired or have more than 1/10 the max total cache size
                 var expiredSpecificChannels =
                     MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > flushState.Expiration || (x.Value.Item3.Count > (_memCacheTotalSize / 10)))
-                        .Select(x => x.Key).Take(Math.Max(1,MemCache.Keys.Count / 5))
+                        .Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5))
                         .ToList();
 
                 await expiredSpecificChannels.SelectAsync(async (expired) =>
@@ -98,11 +98,11 @@ namespace Aggregates.Internal
 
                     // Just take 500 from the end of the channel to prevent trying to write 20,000 items in 1 go
                     await fromCache.Item2.WaitAsync().ConfigureAwait(true);
-                        var overLimit =
-                            fromCache.Item3.GetRange(Math.Max(0, fromCache.Item3.Count - flushState.ReadSize),
-                                Math.Min(fromCache.Item3.Count, flushState.ReadSize)).ToList();
-                        fromCache.Item3.RemoveRange(Math.Max(0, fromCache.Item3.Count - flushState.ReadSize),
-                            Math.Min(fromCache.Item3.Count, flushState.ReadSize));
+                    var overLimit =
+                        fromCache.Item3.GetRange(Math.Max(0, fromCache.Item3.Count - flushState.ReadSize),
+                            Math.Min(fromCache.Item3.Count, flushState.ReadSize)).ToList();
+                    fromCache.Item3.RemoveRange(Math.Max(0, fromCache.Item3.Count - flushState.ReadSize),
+                        Math.Min(fromCache.Item3.Count, flushState.ReadSize));
                     fromCache.Item2.Release();
 
                     if (fromCache.Item3.Any())
@@ -181,8 +181,7 @@ namespace Aggregates.Internal
                                     overLimit);
                             }
                         );
-
-                        throw;
+                        
                     }
                 }).ConfigureAwait(false);
 
@@ -192,14 +191,14 @@ namespace Aggregates.Internal
                 FlushedSize.Update(totalFlushed);
             }
 
-            while (_memCacheTotalSize > flushState.MaxSize)
+            try
             {
-                try
+                while (_memCacheTotalSize > flushState.MaxSize)
                 {
                     Logger.Write(LogLevel.Info,
                         () => $"Flushing too large delayed channels - cache size: {_memCacheTotalSize} - total channels: {MemCache.Keys.Count}");
 
-                    if (_memCacheTotalSize > (flushState.MaxSize*1.5))
+                    if (_memCacheTotalSize > (flushState.MaxSize * 1.5))
                     {
                         Logger.Write(LogLevel.Warn,
                             () => $"Delay cache has grown too large - pausing message processing while we flush!");
@@ -211,7 +210,7 @@ namespace Aggregates.Internal
                         var totalFlushed = 0;
                         // Flush 500 off the oldest streams until total size is under limit or we've flushed all the streams
                         var toFlush =
-                            MemCache.OrderBy(x => x.Value.Item1).Select(x => x.Key).Take(Math.Max(1,MemCache.Keys.Count/5)).ToList();
+                            MemCache.OrderBy(x => x.Value.Item1).Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5)).ToList();
 
                         await toFlush.SelectAsync(async (expired) =>
                         {
@@ -223,10 +222,10 @@ namespace Aggregates.Internal
                             var toTake = Math.Min(fromCache.Item3.Count, flushState.ReadSize);
 
                             // Special case if a channel is so large it begins to dominate the whole cache
-                            if (fromCache.Item3.Count > (_memCacheTotalSize/3))
+                            if (fromCache.Item3.Count > (_memCacheTotalSize / 3))
                             {
-                                start = fromCache.Item3.Count - (_memCacheTotalSize/10);
-                                toTake = (_memCacheTotalSize/10);
+                                start = fromCache.Item3.Count - (_memCacheTotalSize / 10);
+                                toTake = (_memCacheTotalSize / 10);
                             }
 
                             await fromCache.Item2.WaitAsync().ConfigureAwait(true);
@@ -326,16 +325,16 @@ namespace Aggregates.Internal
                         FlushedSize.Update(totalFlushed);
                     }
                 }
-                catch (Exception e)
-                {
-                    var stackTrace = string.Join("\n", (e.StackTrace?.Split('\n').Take(10) ?? new string[] { }).AsEnumerable());
-                    Logger.Write(LogLevel.Error,
-                        () => $"Caught exception: {e.GetType().Name}: {e.Message} while flushing cache messages\nStack: {stackTrace}");
-                }
-                finally
-                {
-                    Interlocked.CompareExchange(ref _tooLarge, 0, 1);
-                }
+            }
+            catch (Exception e)
+            {
+                var stackTrace = string.Join("\n", (e.StackTrace?.Split('\n').Take(10) ?? new string[] { }).AsEnumerable());
+                Logger.Write(LogLevel.Error,
+                    () => $"Caught exception: {e.GetType().Name}: {e.Message} while flushing cache messages\nStack: {stackTrace}");
+            }
+            finally
+            {
+                Interlocked.CompareExchange(ref _tooLarge, 0, 1);
             }
 
 
@@ -432,8 +431,7 @@ namespace Aggregates.Internal
                                 () => $"Failed to write to channel [{kv.Key.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
                         }
                     }
-
-
+                    
                     // Failed to write to ES or has specific key - put objects into memcache
                     MemCache.AddOrUpdate(kv.Key,
                         (key) =>
@@ -501,6 +499,11 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Appending delayed object to channel [{channel}] key [{key}]");
 
+            if (queued == null)
+            {
+                Logger.Write(LogLevel.Warn, () => $"Adding NULL queued object! Stack: {Environment.StackTrace}");
+                return Task.CompletedTask;
+            }
 
             var specificKey = new Tuple<string, string>(channel, key);
             lock (_lock)
@@ -530,11 +533,11 @@ namespace Aggregates.Internal
             if (fromCache != null)
             {
                 fromCache.Item2.Wait();
-                    discovered = fromCache.Item3.GetRange(0, Math.Min(max ?? int.MaxValue, fromCache.Item3.Count)).ToList();
-                    if (max.HasValue)
-                        fromCache.Item3.RemoveRange(0, Math.Min(max.Value, fromCache.Item3.Count));
-                    else
-                        fromCache.Item3.Clear();
+                discovered = fromCache.Item3.GetRange(0, Math.Min(max ?? int.MaxValue, fromCache.Item3.Count)).ToList();
+                if (max.HasValue)
+                    fromCache.Item3.RemoveRange(0, Math.Min(max.Value, fromCache.Item3.Count));
+                else
+                    fromCache.Item3.Clear();
                 fromCache.Item2.Release();
             }
 
@@ -562,7 +565,7 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Info, () => $"Pulled {discovered.Count} from delayed channel [{channel}] key [{key}]");
             return Task.FromResult<IEnumerable<object>>(discovered);
         }
-        
+
 
     }
 }
