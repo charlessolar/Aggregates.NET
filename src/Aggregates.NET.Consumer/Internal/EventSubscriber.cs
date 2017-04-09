@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
@@ -121,7 +122,7 @@ fromCategory('{0}').
 when({{
 {2}
 }});";
-
+                
                 var appDefinition = string.Format(definition, StreamTypes.Domain, stream, functions).Replace(Environment.NewLine, "\n");
                 var oobDefinition = string.Format(definition, StreamTypes.OOB, stream, functions).Replace(Environment.NewLine, "\n");
 
@@ -132,8 +133,12 @@ when({{
                 try
                 {
                     var existing = await manager.GetQueryAsync($"{stream}.app.projection").ConfigureAwait(false);
-                    
-                    if (existing != appDefinition)
+
+                    var fixedExisting = Regex.Replace(existing, @"\s+", String.Empty);
+                    var fixedDefinition = Regex.Replace(appDefinition, @"\s+", String.Empty);
+
+
+                    if (!string.Equals(fixedExisting, fixedDefinition, StringComparison.OrdinalIgnoreCase))
                     {
                         Logger.Fatal(
                             $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!\nExisting:\n{existing}\nDesired:\n{appDefinition}");
@@ -159,7 +164,10 @@ when({{
                 {
                     var existing = await manager.GetQueryAsync($"{stream}.oob.projection").ConfigureAwait(false);
 
-                    if (existing != oobDefinition)
+                    var fixedExisting = Regex.Replace(existing, @"\s+", String.Empty);
+                    var fixedDefinition = Regex.Replace(oobDefinition, @"\s+", String.Empty);
+
+                    if (!string.Equals(fixedExisting, fixedDefinition, StringComparison.OrdinalIgnoreCase))
                     {
                         Logger.Fatal(
                             $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
