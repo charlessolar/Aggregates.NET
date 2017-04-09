@@ -101,7 +101,7 @@ namespace Aggregates.Internal
                 await manager.EnableAsync("$by_category", client.Settings.DefaultUserCredentials).ConfigureAwait(false);
 
                 var discoveredEvents =
-                    _registry.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).ToList();
+                    _registry.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).OrderBy(x => x.FullName).ToList();
 
                 // Dont use - we dont need category projection projecting our projection
                 var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}".Replace("-","");
@@ -170,7 +170,7 @@ when({{
                     if (!string.Equals(fixedExisting, fixedDefinition, StringComparison.OrdinalIgnoreCase))
                     {
                         Logger.Fatal(
-                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
+                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!\nExisting:\n{existing}\nDesired:\n{appDefinition}");
                         throw new EndpointVersionException(
                             $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
                     }
