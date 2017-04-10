@@ -59,7 +59,6 @@ namespace Aggregates.Internal
 
         //                                                Channel  key          Last Pull   Lock          Stored Objects
         private static readonly ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, SemaphoreSlim, List<object>>> MemCache = new ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, SemaphoreSlim, List<object>>>();
-        private static int _memCacheTotalSize = 0;
         private static int _tooLarge = 0;
 
         private readonly IStoreEvents _store;
@@ -76,14 +75,15 @@ namespace Aggregates.Internal
             if (all)
                 Logger.Write(LogLevel.Info, () => $"App shutting down, flushing ALL mem cached channels");
 
-            Logger.Write(LogLevel.Info, () => $"Flushing expired delayed channels - cache size: {_memCacheTotalSize} - total channels: {MemCache.Keys.Count}");
+            var memCacheTotalSize = MemCache.Values.Sum(x => x.Item3.Count);
+            Logger.Write(LogLevel.Info, () => $"Flushing expired delayed channels - cache size: {memCacheTotalSize} - total channels: {MemCache.Keys.Count}");
             using (var ctx = FlushedTime.NewContext())
             {
                 var totalFlushed = 0;
 
                 // A list of channels who have expired or have more than 1/10 the max total cache size
                 var expiredSpecificChannels =
-                    MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > flushState.Expiration || (x.Value.Item3.Count > (_memCacheTotalSize / 10)))
+                    MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > flushState.Expiration || (x.Value.Item3.Count > (flushState.MaxSize / 10)))
                         .Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5))
                         .ToList();
 
@@ -155,7 +155,6 @@ namespace Aggregates.Internal
                             Flushes.Mark(expired.Item1);
                             MemCacheSize.Decrement(overLimit.Count);
                             Interlocked.Add(ref totalFlushed, overLimit.Count);
-                            Interlocked.Add(ref _memCacheTotalSize, -overLimit.Count);
                         }
                         finally
                         {
@@ -193,12 +192,14 @@ namespace Aggregates.Internal
 
             try
             {
-                while (_memCacheTotalSize > flushState.MaxSize)
+                var limit = 10;
+                while (memCacheTotalSize > flushState.MaxSize && limit > 0)
                 {
+                    limit--;
                     Logger.Write(LogLevel.Info,
-                        () => $"Flushing too large delayed channels - cache size: {_memCacheTotalSize} - total channels: {MemCache.Keys.Count}");
+                        () => $"Flushing too large delayed channels - cache size: {memCacheTotalSize} - total channels: {MemCache.Keys.Count}");
 
-                    if (_memCacheTotalSize > (flushState.MaxSize * 1.5))
+                    if (memCacheTotalSize > (flushState.MaxSize * 1.5))
                     {
                         Logger.Write(LogLevel.Warn,
                             () => $"Delay cache has grown too large - pausing message processing while we flush!");
@@ -220,14 +221,7 @@ namespace Aggregates.Internal
 
                             var start = Math.Max(0, fromCache.Item3.Count - flushState.ReadSize);
                             var toTake = Math.Min(fromCache.Item3.Count, flushState.ReadSize);
-
-                            // Special case if a channel is so large it begins to dominate the whole cache
-                            if (fromCache.Item3.Count > (_memCacheTotalSize / 3))
-                            {
-                                start = fromCache.Item3.Count - (_memCacheTotalSize / 10);
-                                toTake = (_memCacheTotalSize / 10);
-                            }
-
+                            
                             await fromCache.Item2.WaitAsync().ConfigureAwait(true);
                             // Take from the end of the channel
                             var overLimit = fromCache.Item3.GetRange(start, toTake).ToList();
@@ -289,7 +283,6 @@ namespace Aggregates.Internal
                                     Flushes.Mark(expired.Item1);
                                     MemCacheSize.Decrement(overLimit.Count);
                                     Interlocked.Add(ref totalFlushed, overLimit.Count);
-                                    Interlocked.Add(ref _memCacheTotalSize, -overLimit.Count);
                                 }
                                 finally
                                 {
@@ -336,7 +329,7 @@ namespace Aggregates.Internal
             {
                 Interlocked.CompareExchange(ref _tooLarge, 0, 1);
             }
-
+            
 
         }
 
@@ -386,7 +379,6 @@ namespace Aggregates.Internal
                         }
                     );
                     MemCacheSize.Increment(inflight.Value.Count);
-                    Interlocked.Add(ref _memCacheTotalSize, inflight.Value.Count);
                 }
             }
 
@@ -446,7 +438,6 @@ namespace Aggregates.Internal
                         }
                     );
                     MemCacheSize.Increment(kv.Value.Count);
-                    Interlocked.Add(ref _memCacheTotalSize, kv.Value.Count);
 
                 }).ConfigureAwait(false);
             }
@@ -560,7 +551,6 @@ namespace Aggregates.Internal
                     });
             }
             MemCacheSize.Decrement(discovered.Count);
-            Interlocked.Add(ref _memCacheTotalSize, -discovered.Count);
 
             Logger.Write(LogLevel.Info, () => $"Pulled {discovered.Count} from delayed channel [{channel}] key [{key}]");
             return Task.FromResult<IEnumerable<object>>(discovered);
