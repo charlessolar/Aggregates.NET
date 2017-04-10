@@ -135,7 +135,7 @@ namespace Aggregates.Internal
                 {
                     if (RecentlyInvoked.ContainsKey($"{channelKey}.{specificKey}"))
                     {
-                        Logger.Write(LogLevel.Info, () => $"Channel [{channel}] specific [{specificKey}] was checked by this instance recently - leaving it alone");
+                        Logger.Write(LogLevel.Debug, () => $"Channel [{channelKey}] specific [{specificKey}] was checked by this instance recently - leaving it alone");
                         return;
                     }
                     RecentlyInvoked.Add($"{channelKey}.{specificKey}", DateTime.UtcNow.AddSeconds(10));

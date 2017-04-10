@@ -195,7 +195,6 @@ namespace Aggregates.Internal
                 var limit = 10;
                 while (memCacheTotalSize > flushState.MaxSize && limit > 0)
                 {
-                    limit--;
                     Logger.Write(LogLevel.Info,
                         () => $"Flushing too large delayed channels - cache size: {memCacheTotalSize} - total channels: {MemCache.Keys.Count}");
 
@@ -291,6 +290,7 @@ namespace Aggregates.Internal
                             }
                             catch (Exception e)
                             {
+                                limit--;
                                 Logger.Write(LogLevel.Warn,
                                     () => $"Failed to write to channel [{expired.Item1}].  Exception: {e.GetType().Name}: {e.Message}");
                                 // Failed to write to ES - put object back in memcache
@@ -316,6 +316,8 @@ namespace Aggregates.Internal
 
                         }).ConfigureAwait(false);
                         FlushedSize.Update(totalFlushed);
+
+                        memCacheTotalSize = MemCache.Values.Sum(x => x.Item3.Count);
                     }
                 }
             }
