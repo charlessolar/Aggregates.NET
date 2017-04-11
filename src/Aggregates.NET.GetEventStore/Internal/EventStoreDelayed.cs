@@ -132,6 +132,12 @@ namespace Aggregates.Internal
                             StreamId = expired.Item1,
                             Timestamp = DateTime.UtcNow,
                             Headers = new Dictionary<string, string>()
+                            {
+                                ["Expired"]= "true",
+                                ["FlushTime"] = DateTime.UtcNow.ToString("s"),
+                                ["Instance"] = Defaults.Instance.ToString(),
+                                ["Machine"] = Environment.MachineName,
+                            }
                         },
                         Event = x,
                     });
@@ -148,7 +154,7 @@ namespace Aggregates.Internal
                             // and a lot of writers to a single stream makes eventstore slow
                             var streamName = flushState.StreamGen(typeof(EventStoreDelayed),
                                 $"{flushState.Endpoint}.{StreamTypes.Delayed}", Assembly.GetEntryAssembly().FullName,
-                                $"{expired.Item1}.{expired.Item2}.{Defaults.Instance}");
+                                $"{expired.Item1}.{expired.Item2}");
                             // Configure await true because we need to comeback to the same thread to release the mutex lock otherwise
                             // Exception: Object synchronization method was called from an unsynchronized block of code.
                             await flushState.Store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(true);
@@ -260,6 +266,12 @@ namespace Aggregates.Internal
                                     StreamId = expired.Item1,
                                     Timestamp = DateTime.UtcNow,
                                     Headers = new Dictionary<string, string>()
+                                    {
+                                        ["Expired"]="false",
+                                        ["FlushTime"] = DateTime.UtcNow.ToString("s"),
+                                        ["Instance"] = Defaults.Instance.ToString(),
+                                        ["Machine"] = Environment.MachineName,
+                                    }
                                 },
                                 Event = x,
                             });
@@ -273,7 +285,7 @@ namespace Aggregates.Internal
                                     var streamName = flushState.StreamGen(typeof(EventStoreDelayed),
                                         $"{flushState.Endpoint}.{StreamTypes.Delayed}",
                                         Assembly.GetEntryAssembly().FullName,
-                                        $"{expired.Item1}.{expired.Item2}.{Defaults.Instance}");
+                                        $"{expired.Item1}.{expired.Item2}");
 
                                     // Configure await true because we need to comeback to the same thread to release the mutex lock otherwise
                                     // Exception: Object synchronization method was called from an unsynchronized block of code.
