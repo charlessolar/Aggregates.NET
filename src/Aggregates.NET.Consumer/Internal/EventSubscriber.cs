@@ -38,8 +38,8 @@ namespace Aggregates.Internal
 
         private static readonly ILog Logger = LogManager.GetLogger("EventSubscriber");
         private static readonly Metrics.Timer EventExecution = Metric.Timer("Event Execution", Unit.Items, tags: "debug");
-        private static readonly Counter EventCount = Metric.Counter("Event Messages", Unit.Items);
-        private static readonly Meter Events = Metric.Meter("Events", Unit.Items);
+        private static readonly Counter EventCount = Metric.Counter("Event Messages", Unit.Items, tags: "debug");
+        private static readonly Meter Events = Metric.Meter("Events", Unit.Items, tags: "debug");
         private static readonly Meter EventErrors = Metric.Meter("Event Failures", Unit.Items);
 
         private class ThreadParam
@@ -216,8 +216,9 @@ when({{
                     .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readsize)
                     .WithLiveBufferSizeOf(_readsize * _readsize)
+                    .DontTimeoutMessages()
                     //.WithMessageTimeoutOf(TimeSpan.FromMilliseconds(int.MaxValue))
-                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(1))
+                    //.WithMessageTimeoutOf(TimeSpan.FromMinutes(1))
                     .CheckPointAfter(TimeSpan.FromSeconds(5))
                     .MaximumCheckPointCountOf(_readsize * _readsize)
                     .ResolveLinkTos();

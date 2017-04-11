@@ -17,7 +17,7 @@ namespace Aggregates.Internal
     class PersistentClient : IDisposable
     {
         private static readonly ILog Logger = LogManager.GetLogger("PersistentClient");
-        private static readonly Counter QueuedEvents = Metric.Counter("Queued Events", Unit.Events);
+        private static readonly Counter QueuedEvents = Metric.Counter("Queued Events", Unit.Events, tags: "debug");
 
         private static readonly Metrics.Counter Queued = Metric.Counter("Subscription Clients Queued", Unit.Events, tags: "debug");
         private static readonly Metrics.Counter Processed = Metric.Counter("Subscription Clients Processed", Unit.Events, tags: "debug");
@@ -33,8 +33,8 @@ namespace Aggregates.Internal
         private readonly Task _acknowledger;
         private readonly ConcurrentQueue<ResolvedEvent> _waitingEvents;
 
-        // Todo: Change to List<Guid> when/if PR 1143 is published
-        private List<ResolvedEvent> _toAck;
+        private readonly object _ackLock;
+        private readonly List<Guid> _toAck;
 
         private EventStorePersistentSubscriptionBase _subscription;
         private TimerContext _idleContext;
@@ -52,7 +52,8 @@ namespace Aggregates.Internal
             _index = index;
             _readsize = readsize;
             _token = token;
-            _toAck = new List<ResolvedEvent>();
+            _ackLock = new object();
+            _toAck = new List<Guid>();
             _waitingEvents = new ConcurrentQueue<ResolvedEvent>();
 
 
@@ -60,7 +61,12 @@ namespace Aggregates.Internal
             {
                 var info = (PersistentClient)state;
 
-                ResolvedEvent[] toAck = Interlocked.Exchange(ref _toAck, new List<ResolvedEvent>()).ToArray();
+                Guid[] toAck;
+                lock (_ackLock)
+                {
+                    toAck = _toAck.ToArray();
+                    _toAck.Clear();
+                }
 
                 if (!toAck.Any())
                     return Task.CompletedTask;
@@ -167,7 +173,7 @@ namespace Aggregates.Internal
 
             Processed.Increment(Id);
             _idleContext.Dispose();
-            _toAck.Add(@event);
+            lock(_ackLock) _toAck.Add(@event.OriginalEvent.EventId);
         }
 
         public bool TryDequeue(out ResolvedEvent e)

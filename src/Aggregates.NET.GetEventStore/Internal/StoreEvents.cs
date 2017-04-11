@@ -21,10 +21,10 @@ namespace Aggregates.Internal
     class StoreEvents : IStoreEvents
     {
         private static readonly Meter FrozenExceptions = Metric.Meter("Frozen Exceptions", Unit.Items, tags: "debug");
-        private static readonly Histogram WrittenEvents = Metric.Histogram("EventStore Written", Unit.Events);
-        private static readonly Histogram ReadEvents = Metric.Histogram("EventStore Read", Unit.Events);
-        private static readonly Histogram WrittenEventsSize = Metric.Histogram("EventStore Written Size", Unit.Bytes);
-        private static readonly Histogram ReadEventsSize = Metric.Histogram("EventStore Read Size", Unit.Bytes);
+        private static readonly Histogram WrittenEvents = Metric.Histogram("EventStore Written", Unit.Events, tags: "debug");
+        private static readonly Histogram ReadEvents = Metric.Histogram("EventStore Read", Unit.Events, tags: "debug");
+        private static readonly Histogram WrittenEventsSize = Metric.Histogram("EventStore Written Size", Unit.Bytes, tags: "debug");
+        private static readonly Histogram ReadEventsSize = Metric.Histogram("EventStore Read Size", Unit.Bytes, tags: "debug");
         private static readonly Metrics.Timer ReadTime = Metric.Timer("EventStore Read Time", Unit.Items);
         private static readonly Metrics.Timer WriteTime = Metric.Timer("EventStore Write Time", Unit.Items);
 

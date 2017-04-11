@@ -29,7 +29,7 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger("BulkInvokeHandlerTerminator");
         private static readonly ILog SlowLogger = LogManager.GetLogger("Slow Alarm");
 
-        private static readonly Meter Invokes = Metric.Meter("Bulk Messages", Unit.Items);
+        private static readonly Meter Invokes = Metric.Meter("Bulk Message Invokes", Unit.Items, tags: "debug");
         private static readonly Meter InvokesDelayed = Metric.Meter("Delayed Messages", Unit.Items, tags: "debug");
         private static readonly Histogram InvokeSize = Metric.Histogram("Bulk Messages Size", Unit.Items, tags: "debug");
         private static readonly Metrics.Timer InvokeTime = Metric.Timer("Bulk Messages Time", Unit.None, tags: "debug");

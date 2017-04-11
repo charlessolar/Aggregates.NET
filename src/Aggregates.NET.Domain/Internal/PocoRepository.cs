@@ -57,8 +57,8 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger("PocoRepository");
         private readonly IStorePocos _store;
 
-        private static readonly Histogram WrittenEvents = Metric.Histogram("Written Pocos", Unit.Events);
-        private static readonly Meter WriteErrors = Metric.Meter("Poco Write Errors", Unit.Errors);
+        private static readonly Histogram WrittenEvents = Metric.Histogram("Written Pocos", Unit.Events, tags: "debug");
+        private static readonly Meter WriteErrors = Metric.Meter("Poco Write Errors", Unit.Errors, tags: "debug");
 
         protected readonly IDictionary<Tuple<string, string>, T> Tracked = new Dictionary<Tuple<string, string>, T>();
 

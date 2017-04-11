@@ -33,7 +33,7 @@ namespace Aggregates.Internal
 
         private static readonly Metrics.Timer DelayedExecution = Metric.Timer("Delayed Execution", Unit.Items, tags: "debug");
         private static readonly Histogram DelayedHandled = Metric.Histogram("Delayed Handled", Unit.Items, tags: "debug");
-        private static readonly Counter DelayedCount = Metric.Counter("Delayed Messages", Unit.Items);
+        private static readonly Counter DelayedCount = Metric.Counter("Delayed Messages", Unit.Items, tags: "debug");
         private static readonly Meter DelayedErrors = Metric.Meter("Delayed Failures", Unit.Items);
 
 
@@ -115,8 +115,9 @@ namespace Aggregates.Internal
                     .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readsize)
                     .WithLiveBufferSizeOf(_readsize * _readsize)
+                    .DontTimeoutMessages()
                     //.WithMessageTimeoutOf(TimeSpan.FromMilliseconds(int.MaxValue))
-                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(1))
+                    //.WithMessageTimeoutOf(TimeSpan.FromMinutes(1))
                     .CheckPointAfter(TimeSpan.FromSeconds(30))
                     .MaximumCheckPointCountOf(_readsize * _readsize)
                     .ResolveLinkTos()
@@ -227,7 +228,7 @@ namespace Aggregates.Internal
 
             var delayed = events.Select(x => x.Event.Data.Deserialize<DelayedMessage>(param.JsonSettings)).ToArray();
 
-            Logger.Write(LogLevel.Info, () => $"Processing {delayed.Count()} bulk events on stream {events.First().Event.EventStreamId}");
+            Logger.Write(LogLevel.Info, () => $"Processing {delayed.Count()} bulk events from stream {events.First().Event.EventStreamId}");
 
             var contextBag = new ContextBag();
             // Hack to get all the delayed messages to bulk invoker without NSB deserializing and processing each one
@@ -278,19 +279,17 @@ namespace Aggregates.Internal
                     catch (Exception e)
                     {
                         DelayedErrors.Mark($"{e.GetType().Name} {e.Message}");
+
+                        if (retry > param.MaxRetry)
+                            Logger.Warn( $"So far, we've received {retry} errors while running {delayed.Count()} bulk events from stream {events.First().Event.EventStreamId}", e);
+                        
                     }
 
 
                     retry++;
-                } while (!success && retry <= param.MaxRetry);
-
-                if (!success)
-                {
-                    // Dont run through NSB's error handler, it expects a single serialized message which
-                    // is not compatible here.  Just tell EventStore to retry it
-                    // Todo: ES will park messages that fail - develop something to monitor parked messages
-                    client.Nack(events);
-                }
+                    // Keep retrying forever but print warn messages once MaxRetry exceeded
+                } while (!success );
+                
 
 
             }

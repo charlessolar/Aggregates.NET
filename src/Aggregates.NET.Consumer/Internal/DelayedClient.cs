@@ -29,11 +29,11 @@ namespace Aggregates.Internal
         private readonly CancellationToken _token;
         private readonly Task _acknowledger;
 
-        private object _lock;
-        private List<ResolvedEvent> _waitingEvents;
+        private readonly object _lock;
+        private readonly List<ResolvedEvent> _waitingEvents;
 
-        // Todo: Change to List<Guid> when/if PR 1143 is published
-        private List<ResolvedEvent> _toAck;
+        private readonly object _ackLock;
+        private readonly List<Guid> _toAck;
 
         private EventStorePersistentSubscriptionBase _subscription;
         private TimerContext _idleContext;
@@ -51,7 +51,8 @@ namespace Aggregates.Internal
             _group = group;
             _maxDelayed = maxDelayed;
             _token = token;
-            _toAck = new List<ResolvedEvent>();
+            _ackLock = new object();
+            _toAck = new List<Guid>();
             _lock = new object();
             _waitingEvents = new List<ResolvedEvent>();
 
@@ -61,7 +62,12 @@ namespace Aggregates.Internal
             {
                 var info = (DelayedClient)state;
 
-                var toAck = Interlocked.Exchange(ref _toAck, new List<ResolvedEvent>());
+                Guid[] toAck;
+                lock (_ackLock)
+                {
+                    toAck = _toAck.ToArray();
+                    _toAck.Clear();
+                }
 
                 if (!toAck.Any())
                     return Task.CompletedTask;
@@ -69,11 +75,11 @@ namespace Aggregates.Internal
                 if (!info.Live)
                     return Task.CompletedTask;
 
-                Acknowledged.Increment(Id, toAck.Count);
-                Logger.Write(LogLevel.Info, () => $"Acknowledging {toAck.Count} events to {Id}");
+                Acknowledged.Increment(Id, toAck.Length);
+                Logger.Write(LogLevel.Info, () => $"Acknowledging {toAck.Length} events to {Id}");
 
                 var page = 0;
-                while (page < toAck.Count)
+                while (page < toAck.Length)
                 {
                     var working = toAck.Skip(page).Take(2000);
                     info._subscription.Acknowledge(working);
@@ -157,7 +163,7 @@ namespace Aggregates.Internal
         {
             Processed.Increment(Id);
             _idleContext.Dispose();
-            _toAck.AddRange(events);
+            lock(_ackLock) _toAck.AddRange(events.Select(x => x.OriginalEvent.EventId));
         }
 
         public void Nack(ResolvedEvent[] events)
