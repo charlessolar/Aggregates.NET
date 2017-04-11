@@ -38,7 +38,8 @@ namespace Aggregates.Internal
         private class FlushState
         {
             public IStoreEvents Store { get; set; }
-            public TimeSpan Expiration { get; set; }
+            public TimeSpan Interval { get; set; }
+            public TimeSpan Expire { get; set; }
             public StreamIdGenerator StreamGen { get; set; }
             public string Endpoint { get; set; }
             public int MaxSize { get; set; }
@@ -83,7 +84,7 @@ namespace Aggregates.Internal
 
                 // A list of channels who have expired or have more than 1/10 the max total cache size
                 var expiredSpecificChannels =
-                    MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > flushState.Expiration || (x.Value.Item3.Count > (flushState.MaxSize / 10)))
+                    MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > flushState.Expire || (x.Value.Item3.Count > (flushState.MaxSize / 10)))
                         .Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5))
                         .ToList();
 
@@ -347,7 +348,7 @@ namespace Aggregates.Internal
 
         }
 
-        public EventStoreDelayed(IStoreEvents store, string endpoint, int maxSize, int readSize, TimeSpan flushInterval, StreamIdGenerator streamGen)
+        public EventStoreDelayed(IStoreEvents store, string endpoint, int maxSize, int readSize, TimeSpan flushInterval, TimeSpan delayedExpiration, StreamIdGenerator streamGen)
         {
             _store = store;
             _streamGen = streamGen;
@@ -357,8 +358,8 @@ namespace Aggregates.Internal
             {
                 // Add a process exit event handler to flush cached delayed events before exiting the app
                 // Not perfect in the case of a fatal app error - but something
-                AppDomain.CurrentDomain.ProcessExit += (sender, e) => Flush(new FlushState { Store = store, StreamGen = streamGen, Endpoint = endpoint, MaxSize = maxSize, ReadSize = readSize, Expiration = flushInterval }, all: true).Wait();
-                _flusher = Timer.Repeat((s) => Flush(s), new FlushState { Store = store, StreamGen = streamGen, Endpoint = endpoint, MaxSize = maxSize, ReadSize = readSize, Expiration = flushInterval }, flushInterval, "delayed flusher");
+                AppDomain.CurrentDomain.ProcessExit += (sender, e) => Flush(new FlushState { Store = store, StreamGen = streamGen, Endpoint = endpoint, MaxSize = maxSize, ReadSize = readSize, Interval = flushInterval, Expire=delayedExpiration }, all: true).Wait();
+                _flusher = Timer.Repeat((s) => Flush(s), new FlushState { Store = store, StreamGen = streamGen, Endpoint = endpoint, MaxSize = maxSize, ReadSize = readSize, Interval = flushInterval, Expire=delayedExpiration }, flushInterval, "delayed flusher");
             }
         }
 

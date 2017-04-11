@@ -23,6 +23,7 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.Set("FlushInterval", TimeSpan.FromSeconds(60));
+                s.Set("DelayedExpiration", TimeSpan.FromMinutes(5));
             });
         }
 
@@ -31,7 +32,15 @@ namespace Aggregates
             var settings = context.Settings;
             
             context.Container.ConfigureComponent(b =>
-                new EventStoreDelayed(b.Build<IStoreEvents>(), settings.EndpointName(), settings.Get<int>("MaxDelayed"), settings.Get<int>("ReadSize"), settings.Get<TimeSpan>("FlushInterval"), settings.Get<StreamIdGenerator>("StreamGenerator")),
+                new EventStoreDelayed(
+                    b.Build<IStoreEvents>(), 
+                    settings.EndpointName(), 
+                    settings.Get<int>("MaxDelayed"), 
+                    settings.Get<int>("ReadSize"), 
+                    settings.Get<TimeSpan>("FlushInterval"),
+                    settings.Get<TimeSpan>("DelayedExpiration"), 
+                    settings.Get<StreamIdGenerator>("StreamGenerator")
+                    ),
                 DependencyLifecycle.InstancePerUnitOfWork);
 
 
