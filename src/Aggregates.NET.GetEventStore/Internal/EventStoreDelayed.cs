@@ -56,7 +56,7 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogManager.GetLogger("EventStoreDelayed");
         private static readonly ILog SlowLogger = LogManager.GetLogger("Slow Alarm");
 
-        private static Task _flusher;
+        private static int _flushing;
 
         //                                                Channel  key          Last Pull   Lock          Stored Objects
         private static readonly ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, SemaphoreSlim, List<object>>> MemCache = new ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, SemaphoreSlim, List<object>>>();
@@ -354,13 +354,12 @@ namespace Aggregates.Internal
             _streamGen = streamGen;
             _endpoint = endpoint;
 
-            if (_flusher == null)
-            {
-                // Add a process exit event handler to flush cached delayed events before exiting the app
-                // Not perfect in the case of a fatal app error - but something
-                AppDomain.CurrentDomain.ProcessExit += (sender, e) => Flush(new FlushState { Store = store, StreamGen = streamGen, Endpoint = endpoint, MaxSize = maxSize, ReadSize = readSize, Interval = flushInterval, Expire=delayedExpiration }, all: true).Wait();
-                _flusher = Timer.Repeat((s) => Flush(s), new FlushState { Store = store, StreamGen = streamGen, Endpoint = endpoint, MaxSize = maxSize, ReadSize = readSize, Interval = flushInterval, Expire=delayedExpiration }, flushInterval, "delayed flusher");
-            }
+            if (Interlocked.CompareExchange(ref _flushing, 1, 0) == 1) return;
+
+            // Add a process exit event handler to flush cached delayed events before exiting the app
+            // Not perfect in the case of a fatal app error - but something
+            AppDomain.CurrentDomain.ProcessExit += (sender, e) => Flush(new FlushState { Store = store, StreamGen = streamGen, Endpoint = endpoint, MaxSize = maxSize, ReadSize = readSize, Interval = flushInterval, Expire = delayedExpiration }, all: true).Wait();
+            Timer.Repeat((s) => Flush(s), new FlushState { Store = store, StreamGen = streamGen, Endpoint = endpoint, MaxSize = maxSize, ReadSize = readSize, Interval = flushInterval, Expire = delayedExpiration }, flushInterval, "delayed flusher");
         }
 
         public Task Begin()

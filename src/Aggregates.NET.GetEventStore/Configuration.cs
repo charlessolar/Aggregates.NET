@@ -12,7 +12,7 @@ namespace Aggregates
         /// If you don't want to write every delayed event to ES each UOW set this
         /// * Should be set lowish - depending on your load
         /// </summary>
-        public static void DelayedFlushInterval(this ExposeSettings settings, TimeSpan? interval)
+        public static void DelayedFlushInterval(this ExposeSettings settings, TimeSpan interval)
         {
             settings.GetSettings().Set("FlushInterval", interval);
         }
@@ -20,7 +20,7 @@ namespace Aggregates
         /// Delayed message expiration
         /// When messages are delayed for bulk processing, only let them sit for this amount of time before flushing to eventstore for someone else to process
         /// </summary>
-        public static void DelayedExpiration(this ExposeSettings settings, TimeSpan? expiration)
+        public static void DelayedExpiration(this ExposeSettings settings, TimeSpan expiration)
         {
             settings.GetSettings().Set("DelayedExpiration", expiration);
         }
