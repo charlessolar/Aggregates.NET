@@ -52,7 +52,7 @@ namespace Aggregates.Internal
         private readonly IList<IWritableEvent> _outofband;
         private ISnapshot _pendingShot;
 
-        public EventStream(IBuilder builder, IStoreStreams store, string streamType, string bucket, string streamId, IEnumerable<Id> parents, IEnumerable<IWritableEvent> events, ISnapshot snapshot)
+        public EventStream(IBuilder builder, IStoreStreams store, string streamType, string bucket, Id streamId, IEnumerable<Id> parents, IEnumerable<IWritableEvent> events, ISnapshot snapshot)
         {
             _store = store;
             _snapshots = builder?.Build<IStoreSnapshots>();

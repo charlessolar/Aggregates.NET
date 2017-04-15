@@ -12,7 +12,7 @@ namespace Aggregates.Extensions
         {
             var parents = parent.Stream.Parents.ToList();
             parents.Add(parent.Id);
-            return parents.Aggregate((cur, next) => $"{cur}/{next}");
+            return parents.BuildParentsString();
         }
 
         public static IEnumerable<Id> BuildParents(this IBase parent)

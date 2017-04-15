@@ -12,7 +12,7 @@ namespace Aggregates.Extensions
         {
             if (parents == null || !parents.Any())
                 return "";
-            return parents.Aggregate((cur, next) => $"{cur}/{next}");
+            return parents.Aggregate<Id, string>("", (cur, next) => $"{cur}/{next}");
         }
     }
 }
