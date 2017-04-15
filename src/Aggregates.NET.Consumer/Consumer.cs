@@ -63,6 +63,11 @@ namespace Aggregates
             }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register<MutateIncomingEventRegistration>();
+
+            // bulk invoke only possible with consumer feature because it uses the eventstore as a sink when overloaded
+            context.Pipeline.Replace("InvokeHandlers", (b) =>
+                new BulkInvokeHandlerTerminator(b.Build<IMessageMapper>()),
+                "Replaces default invoke handlers with one that supports our custom delayed invoker");
         }
     }
     internal class EventStoreRunner : FeatureStartupTask, IDisposable

@@ -23,18 +23,34 @@ namespace Aggregates
                 s.SetDefault("MaxConflictResolves", 3);
                 s.SetDefault("UseNsbForOob", false);
             });
-            DependsOn<Aggregates.ConsumerFeature>();
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
-            context.RegisterStartupTask(builder => new DomainStart(builder.Build<ISnapshotReader>(), context.Settings));
-
             var settings = context.Settings;
+
+
+            var consumerFeature = Type.GetType("Aggregates.ConsumerFeature", false);
+            if (consumerFeature != null && context.Settings.IsFeatureEnabled(consumerFeature))
+            {
+                context.RegisterStartupTask(
+                    builder => new DomainStart(builder.Build<ISnapshotReader>(), context.Settings));
+
+                context.Container.ConfigureComponent(b =>
+                        new StoreSnapshots(b.Build<IStoreEvents>(), b.Build<ISnapshotReader>(),
+                            settings.Get<StreamIdGenerator>("StreamGenerator")),
+                    DependencyLifecycle.InstancePerCall);
+            }
+            else
+            {
+
+                context.Container.ConfigureComponent(b =>
+                        new StoreSnapshots(b.Build<IStoreEvents>(),
+                            settings.Get<StreamIdGenerator>("StreamGenerator")),
+                    DependencyLifecycle.InstancePerCall);
+            }
+
             context.Container.ConfigureComponent(b => 
                 new StoreStreams(b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
-                DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent(b =>
-                new StoreSnapshots(b.Build<IStoreEvents>(), b.Build<ISnapshotReader>(), settings.Get<StreamIdGenerator>("StreamGenerator")),
                 DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent(b =>
                 new StorePocos(b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),

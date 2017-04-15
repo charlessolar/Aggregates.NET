@@ -28,11 +28,17 @@ namespace Aggregates.Internal
             _snapshots = snapshots;
             _streamGen = streamGen;
         }
+        public StoreSnapshots(IStoreEvents store, StreamIdGenerator streamGen)
+        {
+            _store = store;
+            _streamGen = streamGen;
+        }
 
         public async Task<ISnapshot> GetSnapshot<T>(string bucket, Id streamId, IEnumerable<Id> parents) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), StreamTypes.Snapshot, bucket, streamId, parents);
             Logger.Write(LogLevel.Debug, () => $"Getting snapshot for stream [{streamName}]");
+            if(_snapshots != null)
             {
                 var snapshot = await _snapshots.Retreive(streamName).ConfigureAwait(false);
                 if (snapshot != null)

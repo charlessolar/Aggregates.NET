@@ -103,6 +103,12 @@ namespace Aggregates.Internal
                 var discoveredEvents =
                     _registry.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).OrderBy(x => x.FullName).ToList();
 
+                if (!discoveredEvents.Any())
+                {
+                    Logger.Warn($"Event consuming is enabled but we did not detect and IEvent handlers");
+                    return;
+                }
+
                 // Dont use - we dont need category projection projecting our projection
                 var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}".Replace("-","");
 

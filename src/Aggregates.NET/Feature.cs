@@ -52,9 +52,7 @@ namespace Aggregates
                 behavior: typeof(MutateOutgoingEvents),
                 description: "runs command mutators on outgoing events"
                 );
-            context.Pipeline.Replace("InvokeHandlers", (b) => 
-                new BulkInvokeHandlerTerminator(b.Build<IMessageMapper>()),
-                "Replaces default invoke handlers with one that supports our custom delayed invoker");
+
 
             if(context.Settings.Get<bool>("SlowAlerts"))
                 context.Pipeline.Register(

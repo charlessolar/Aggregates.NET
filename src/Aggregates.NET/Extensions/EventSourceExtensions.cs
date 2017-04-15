@@ -10,7 +10,7 @@ namespace Aggregates.Extensions
     {
         public static string BuildParentsString(this IEnumerable<Id> parents)
         {
-            if (parents == null)
+            if (parents == null || !parents.Any())
                 return "";
             return parents.Aggregate((cur, next) => $"{cur}/{next}");
         }
