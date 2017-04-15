@@ -10,12 +10,13 @@ using Shared;
 
 namespace Domain
 {
-    [Delayed(typeof(SayHelloALot), Count: 1000)]
+    [Delayed(typeof(SayHelloALot), count: 1000)]
     class Handler : 
+        IHandleMessages<UserSignIn>,
         IHandleMessages<SayHello>, 
         IHandleMessages<SayHelloALot>,
-        IHandleMessages<Start>,
-        IHandleMessages<End>
+        IHandleMessages<StartHello>,
+        IHandleMessages<EndHello>
     {
         private static int Processed = 0;
 
@@ -26,31 +27,32 @@ namespace Domain
             _uow = uow;    
         }
 
+        public async Task Handle(UserSignIn command, IMessageHandlerContext ctx)
+        {
+
+            var user = await _uow.For<User>().New(command.User);
+            user.Create();
+        }
+
         public async Task Handle(SayHello command, IMessageHandlerContext ctx)
         {
             Processed++;
-            var user = await _uow.For<User>().TryGet(command.User);
-            if (user == null)
-            {
-                user = await _uow.For<User>().New(command.User);
-                user.Create();
-            }
+            var user = await _uow.For<User>().Get(command.User);
             user.SayHello(command.Message);
         }
         public async Task Handle(SayHelloALot command, IMessageHandlerContext ctx)
         {
             Processed++;
-            var user = await _uow.For<User>().TryGet(command.User);
-            if (user == null)
-            {
-                user = await _uow.For<User>().New(command.User);
-                user.Create();
-            }
+            var user = await _uow.For<User>().Get(command.User);
             user.SayHelloALot(command.Message);
         }
 
-        public async Task Handle(Start command, IMessageHandlerContext ctx)
+        public async Task Handle(StartHello command, IMessageHandlerContext ctx)
         {
+            var user = await _uow.For<User>().Get(command.User);
+
+            user.StartHello(command.Timestamp);
+
             var a = await _uow.Poco<Time>().TryGet("time");
             if (a == null)
             {
@@ -58,8 +60,12 @@ namespace Domain
             }
             a.Start = DateTime.UtcNow;
         }
-        public async Task Handle(End command, IMessageHandlerContext ctx)
+        public async Task Handle(EndHello command, IMessageHandlerContext ctx)
         {
+            var user = await _uow.For<User>().Get(command.User);
+
+            user.EndHello(command.Timestamp);
+
             var a = await _uow.Poco<Time>().Get("time");
 
             var time = DateTime.UtcNow - a.Start.Value;

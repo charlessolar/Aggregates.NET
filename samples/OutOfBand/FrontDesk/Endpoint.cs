@@ -193,10 +193,10 @@ namespace World
                     .SetGossipTimeout(TimeSpan.FromMinutes(5))
                     .Build();
 
-                client = EventStoreConnection.Create(settings, clusterSettings, "World");
+                client = EventStoreConnection.Create(settings, clusterSettings, "Trade");
             }
             else
-                client = EventStoreConnection.Create(settings, endpoints.First(), "World");
+                client = EventStoreConnection.Create(settings, endpoints.First(), "Trade");
 
 
             client.ConnectAsync().Wait();

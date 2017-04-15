@@ -7,7 +7,8 @@ using NServiceBus;
 
 namespace Shared
 {
-    public class Start : ICommand
+    public interface NewUser : IEvent
     {
+        string User { get; set; }
     }
 }

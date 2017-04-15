@@ -120,6 +120,7 @@ namespace World
             config.Pipeline.Remove("LogErrorOnInvalidLicense");
             config.EnableFeature<Aggregates.Feature>();
             config.EnableFeature<Aggregates.ConsumerFeature>();
+            config.EnableFeature<Aggregates.GetEventStore>();
             config.Recoverability().ConfigureForAggregates();
             //config.EnableFeature<RoutedFeature>();
             config.DisableFeature<Sagas>();

@@ -10,5 +10,7 @@ namespace Shared
     public interface Event : IEvent
     {
         Guid Guid { get; set; }
+        string User { get; set; }
+        string Message { get; set; }
     }
 }

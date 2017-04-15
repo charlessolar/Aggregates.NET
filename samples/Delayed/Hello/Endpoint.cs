@@ -77,6 +77,9 @@ namespace Hello
             var user = "test";
             Console.WriteLine("Please enter a username:");
             user = Console.ReadLine();
+
+            bus.Send(new UserSignIn {User = user});
+
             Console.WriteLine($"Hello user {user}!  Use 'exit' to stop");
             do
             {
@@ -87,18 +90,18 @@ namespace Hello
                 else
                 {
                     Console.WriteLine("-- Sending it 1000 times");
-                    bus.Send(new Start());
+                    bus.Send(new StartHello {User=user, Timestamp=DateTime.UtcNow});
                     for (var i = 0; i < 1000; i++)
                         bus.Send(new SayHello { User = user, Message = message });
-                    bus.Send(new End());
+                    bus.Send(new EndHello { User = user, Timestamp = DateTime.UtcNow});
 
                     Thread.Sleep(10000);
 
                     Console.WriteLine("-- Bulk sending it 1000 times");
-                    bus.Send(new Start());
+                    bus.Send(new StartHello { User = user, Timestamp = DateTime.UtcNow });
                     for (var i = 0; i < 1000; i++)
                         bus.Send(new SayHelloALot { User = user, Message = message });
-                    bus.Send(new End());
+                    bus.Send(new EndHello { User = user, Timestamp = DateTime.UtcNow });
                 }
 
             } while (running);
@@ -117,6 +120,7 @@ namespace Hello
 
             Logger.Info("Initializing Service Bus");
 
+            config.LicensePath("C:/license.xml");
             config.EnableInstallers();
             config.LimitMessageProcessingConcurrencyTo(10);
             config.UseTransport<RabbitMQTransport>()

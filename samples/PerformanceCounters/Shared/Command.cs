@@ -10,5 +10,7 @@ namespace Shared
     public class Command : ICommand
     {
         public Guid Guid { get; set; }
+        public string User { get; set; }
+        public string Message { get; set; }
     }
 }

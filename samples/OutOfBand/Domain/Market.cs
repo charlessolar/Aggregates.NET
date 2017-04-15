@@ -9,7 +9,7 @@ using Shared;
 
 namespace Domain
 {
-    class Market : Aggregates.Aggregate<Market, string>
+    class Market : Aggregates.Aggregate<Market>
     {
         private Wall Wall;
 

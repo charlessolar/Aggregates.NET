@@ -7,7 +7,7 @@ using Shared;
 
 namespace Domain
 {
-    class User : Aggregates.Aggregate<User, String>
+    class User : Aggregates.Aggregate<User>
     {
         private User()
         {
@@ -37,6 +37,23 @@ namespace Domain
                 x.Message = Message;
             });
         }
-        
+
+        public void StartHello(DateTime Timestamp)
+        {
+            Apply<StartedHello>(x =>
+            {
+                x.User = this.Id;
+                x.Timestamp = Timestamp;
+            });
+        }
+
+        public void EndHello(DateTime Timestamp)
+        {
+            Apply<EndedHello>(x =>
+            {
+                x.User = this.Id;
+                x.Timestamp = Timestamp;
+            });
+        }
     }
 }

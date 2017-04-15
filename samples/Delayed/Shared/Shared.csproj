@@ -30,8 +30,11 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Aggregates.NET">
+      <HintPath>..\..\..\src\Aggregates.NET\bin\Debug\Aggregates.NET.dll</HintPath>
+    </Reference>
     <Reference Include="NServiceBus.Core, Version=6.0.0.0, Culture=neutral, PublicKeyToken=9fc386479f8a226c, processorArchitecture=MSIL">
-      <HintPath>..\packages\NServiceBus.6.0.0\lib\net452\NServiceBus.Core.dll</HintPath>
+      <HintPath>..\packages\NServiceBus.6.2.1\lib\net452\NServiceBus.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
@@ -44,15 +47,18 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="End.cs" />
+    <Compile Include="EndedHello.cs" />
+    <Compile Include="EndHello.cs" />
     <Compile Include="NewUser.cs" />
     <Compile Include="SaidHello.cs" />
     <Compile Include="SaidHelloALot.cs" />
     <Compile Include="SayHello.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SayHelloALot.cs" />
-    <Compile Include="Start.cs" />
+    <Compile Include="StartedHello.cs" />
+    <Compile Include="StartHello.cs" />
     <Compile Include="Time.cs" />
+    <Compile Include="UserSignIn.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

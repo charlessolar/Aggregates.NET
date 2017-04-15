@@ -53,7 +53,7 @@ namespace Hello
             //EventStore.Common.Log.LogManager.SetLogFactory((name) => new EmbeddedLogger(name));
 
             // Give event store time to start
-            Thread.Sleep(TimeSpan.FromSeconds(30));
+            Thread.Sleep(TimeSpan.FromSeconds(10));
 
             var rabbit = ConfigureRabbit();
 

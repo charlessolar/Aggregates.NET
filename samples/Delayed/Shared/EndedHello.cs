@@ -7,7 +7,9 @@ using NServiceBus;
 
 namespace Shared
 {
-    public class End : ICommand
+    public interface EndedHello : IEvent
     {
+        string User { get; set; }
+        DateTime Timestamp { get; set; }
     }
 }

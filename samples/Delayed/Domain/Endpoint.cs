@@ -102,6 +102,7 @@ namespace Domain
 
             Logger.Info("Initializing Service Bus");
 
+            config.LicensePath("C:/license.xml");
             config.EnableInstallers();
             config.LimitMessageProcessingConcurrencyTo(1);
             config.UseTransport<RabbitMQTransport>()
@@ -130,8 +131,9 @@ namespace Domain
             config.MaxConflictResolves(2);
             config.EnableFeature<Aggregates.Feature>();
             config.EnableFeature<Aggregates.Domain>();
+            config.EnableFeature<Aggregates.ConsumerFeature>();
             config.EnableFeature<Aggregates.GetEventStore>();
-            config.Recoverability().ConfigureForAggregates(5, 3);
+            config.Recoverability().ConfigureForAggregates(5);
             //config.EnableFeature<RoutedFeature>();
             config.DisableFeature<Sagas>();
 
