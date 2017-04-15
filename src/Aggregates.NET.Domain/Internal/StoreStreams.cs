@@ -95,6 +95,7 @@ namespace Aggregates.Internal
 
         public Task<IEventStream> NewStream<T>(string bucket, Id streamId, IEnumerable<Id> parents = null) where T : class, IEventSource
         {
+            parents = parents ?? new Id[] { };
             Logger.Write(LogLevel.Debug, () => $"Creating new stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
             IEventStream stream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, parents, null, null);
 

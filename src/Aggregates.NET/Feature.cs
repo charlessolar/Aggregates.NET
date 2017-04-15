@@ -25,7 +25,7 @@ namespace Aggregates
                 s.SetDefault("SlowAlertThreshold", 1000);
                 s.SetDefault("SlowAlerts", false);
                 s.SetDefault("MaxDelayed", 10000);
-                s.SetDefault("StreamGenerator", new StreamIdGenerator((type, streamType, bucket, stream, parents) => $"{streamType}-{bucket}-{parents.BuildParentsString()}-{type.FullName.Replace(".", "")}-{stream}"));
+                s.SetDefault("StreamGenerator", new StreamIdGenerator((type, streamType, bucket, stream, parents) => $"{streamType}-{bucket}-[{parents.BuildParentsString()}]-{type.FullName.Replace(".", "")}-{stream}"));
             });
         }
         protected override void Setup(FeatureConfigurationContext context)

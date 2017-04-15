@@ -20,37 +20,38 @@ namespace Aggregates.Internal
 
         public async Task Publish<T>(string bucket, Id streamId, IEnumerable<Id> parents, IEnumerable<IWritableEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
-            var options = new PublishOptions();
 
-            foreach (var header in commitHeaders)
+            var parentStr = parents.BuildParentsString();
+            await events.WhenAllAsync(@event =>
             {
-                if (header.Key == Headers.OriginatingHostId)
+                var options = new PublishOptions();
+
+                foreach (var header in commitHeaders)
                 {
-                    //is added by bus in v5
-                    continue;
+                    if (header.Key == Headers.OriginatingHostId)
+                    {
+                        //is added by bus in v5
+                        continue;
+                    }
+                    options.SetHeader(header.Key, header.Value);
                 }
-                options.SetHeader(header.Key, header.Value);
-            }
-
-            await events.WhenAllAsync(async @event =>
-            {
 
                 options.SetHeader("EventId", @event.EventId.ToString());
                 options.SetHeader("EntityType", @event.Descriptor.EntityType);
-                options.SetHeader("Timestamp", @event.Descriptor.Timestamp.ToString(CultureInfo.InvariantCulture));
+                options.SetHeader("Timestamp", @event.Descriptor.Timestamp.ToString("s"));
                 options.SetHeader("Version", @event.Descriptor.Version.ToString());
 
                 options.SetHeader("Bucket", bucket);
                 options.SetHeader("StreamId", streamId);
-                options.SetHeader("Parents", parents.BuildParentsString());
+                options.SetHeader("Parents", parentStr);
 
                 foreach (var header in @event.Descriptor.Headers)
                     options.SetHeader(header.Key, header.Value);
-            
 
-                await _endpoint.Publish(@event.Event, options).ConfigureAwait(false);
+
+                return _endpoint.Publish(@event.Event, options);
             }).ConfigureAwait(false);
-            
+
         }
         public Task<IEnumerable<IWritableEvent>> Retrieve<T>(string bucket, Id streamId, IEnumerable<Id> parents, int? skip = null, int? take = null, bool ascending = true) where T : class, IEventSource
         {

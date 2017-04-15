@@ -83,7 +83,7 @@ namespace Aggregates.Internal
 
             await Tracked
                 .ToArray()
-                .SelectAsync(async tracked =>
+                .WhenAllAsync(async tracked =>
             {
                 var headers = new Dictionary<string, string>(commitHeaders);
 

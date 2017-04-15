@@ -165,7 +165,7 @@ namespace Aggregates.Internal
         {
             var param = (ThreadParam)state;
 
-            param.Clients.SelectAsync(x => x.Connect()).Wait();
+            param.Clients.WhenAllAsync(x => x.Connect()).Wait();
 
             var threadIdle = Metric.Timer("Delayed Events Idle", Unit.None, tags: "debug");
             var tasks = new Task[param.Clients.Count()];
@@ -200,7 +200,7 @@ namespace Aggregates.Internal
                             // Group delayed events from by stream id and process in chunks
                             // Same stream ids should modify the same models, processing this way reduces write collisions on commit
                             await events.GroupBy(x => x.Event.EventStreamId)
-                                .SelectAsync(x => ProcessEvents(param, client, x.ToArray())).ConfigureAwait(false);
+                                .WhenAllAsync(x => ProcessEvents(param, client, x.ToArray())).ConfigureAwait(false);
 
                             if (ctx.Elapsed > TimeSpan.FromSeconds(5))
                                 SlowLogger.Warn($"Processing {events.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");

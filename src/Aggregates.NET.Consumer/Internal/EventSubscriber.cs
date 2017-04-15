@@ -308,7 +308,7 @@ when({{
         {
             var param = (ThreadParam)state;
 
-            param.Clients.SelectAsync(x => x.Connect()).Wait();
+            param.Clients.WhenAllAsync(x => x.Connect()).Wait();
 
             var threadIdle = Metric.Timer("Process Events Idle", Unit.None, tags: "debug");
             var tasks = new Task[param.Clients.Count()];

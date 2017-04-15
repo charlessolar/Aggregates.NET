@@ -71,7 +71,7 @@ namespace Aggregates.Internal
 
                     var truncates = TruncateBefore.Keys.ToList();
 
-                    await truncates.SelectAsync(async x =>
+                    await truncates.WhenAllAsync(async x =>
                     {
                         long tb;
                         if (!TruncateBefore.TryRemove(x, out tb))

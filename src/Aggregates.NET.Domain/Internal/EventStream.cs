@@ -61,7 +61,7 @@ namespace Aggregates.Internal
             StreamType = streamType;
             Bucket = bucket;
             StreamId = streamId;
-            Parents = parents;
+            Parents = parents.ToList();
             _committed = events?.ToList() ?? new List<IWritableEvent>();
             _snapshot = snapshot;
 
@@ -208,33 +208,26 @@ namespace Aggregates.Internal
                 await _store.WriteStream<T>(this, commitHeaders).ConfigureAwait(false);
             }
 
-            var tasks = new Task[]
+            if (_pendingShot != null)
             {
-                Task.Run(() =>
-                {
-                    if (!_outofband.Any()) return Task.CompletedTask;
+                Logger.Write(LogLevel.Debug,
+                    () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing snapshot");
+                await _snapshots.WriteSnapshots<T>(Bucket, StreamId, Parents, _pendingShot, commitHeaders).ConfigureAwait(false);
+            }
 
-                    if (_oobHandler == null)
-                        Logger.Write(LogLevel.Warn,
-                            () => $"OOB events were used on stream [{StreamId}] but no publishers have been defined!");
-                    else
-                    {
-                        Logger.Write(LogLevel.Debug,
-                            () => $"Event stream [{StreamId}] in bucket [{Bucket}] publishing {_outofband.Count} out of band events to {_oobHandler.GetType().Name}");
-                        return _oobHandler.Publish<T>(Bucket, StreamId, Parents, _outofband, commitHeaders);
-                    }
-                    return Task.CompletedTask;
-                }),
-                Task.Run(() =>
+            if (_outofband.Any())
+            {
+                if (_oobHandler == null)
+                    Logger.Write(LogLevel.Warn,
+                        () => $"OOB events were used on stream [{StreamId}] but no publishers have been defined!");
+                else
                 {
-                    if (_pendingShot == null) return Task.CompletedTask;
-
                     Logger.Write(LogLevel.Debug,
-                        () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing snapshot");
-                    return _snapshots.WriteSnapshots<T>(Bucket, StreamId, Parents, _pendingShot, commitHeaders);
-                })
-            };
-            await Task.WhenAll(tasks).ConfigureAwait(false);
+                        () => $"Event stream [{StreamId}] in bucket [{Bucket}] publishing {_outofband.Count} out of band events to {_oobHandler.GetType().Name}");
+                    await _oobHandler.Publish<T>(Bucket, StreamId, Parents, _outofband, commitHeaders).ConfigureAwait(false);
+                }
+
+            }
             Flush(true);
         }
 

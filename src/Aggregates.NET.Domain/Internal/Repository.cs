@@ -111,7 +111,7 @@ namespace Aggregates.Internal
             return
                 Tracked.Values
                     .ToArray()
-                    .SelectAsync(async (x) =>
+                    .WhenAllAsync(async (x) =>
                     {
                         try
                         {
@@ -134,7 +134,7 @@ namespace Aggregates.Internal
                 await Tracked.Values
                     .Where(x => x.Stream.Dirty)
                     .ToArray()
-                    .SelectAsync(async (tracked) =>
+                    .WhenAllAsync(async (tracked) =>
                     {
                         var headers = new Dictionary<string, string>(commitHeaders);
 

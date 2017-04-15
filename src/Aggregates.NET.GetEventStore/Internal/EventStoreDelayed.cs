@@ -88,7 +88,7 @@ namespace Aggregates.Internal
                         .Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5))
                         .ToList();
 
-                await expiredSpecificChannels.SelectAsync(async (expired) =>
+                await expiredSpecificChannels.WhenAllAsync(async (expired) =>
                 {
                     Tuple<DateTime, SemaphoreSlim, List<object>> fromCache;
                     if (!MemCache.TryRemove(expired, out fromCache))
@@ -219,7 +219,7 @@ namespace Aggregates.Internal
                         var toFlush =
                             MemCache.OrderBy(x => x.Value.Item1).Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5)).ToList();
 
-                        await toFlush.SelectAsync(async (expired) =>
+                        await toFlush.WhenAllAsync(async (expired) =>
                         {
                             Tuple<DateTime, SemaphoreSlim, List<object>> fromCache;
                             if (!MemCache.TryRemove(expired, out fromCache))

@@ -88,13 +88,13 @@ namespace Aggregates
         protected override async Task OnStart(IMessageSession session)
         {
             Logger.Write(LogLevel.Info, "Starting event consumer");
-            await _subscribers.SelectAsync(x => x.Setup(
+            await _subscribers.WhenAllAsync(x => x.Setup(
                     _settings.EndpointName(),
                     _settings.Get<int>("ReadSize"),
                     _settings.Get<bool>("ExtraStats"))
             ).ConfigureAwait(false);
 
-            await _subscribers.SelectAsync(x => x.Subscribe(_cancellationTokenSource.Token)).ConfigureAwait(false);
+            await _subscribers.WhenAllAsync(x => x.Subscribe(_cancellationTokenSource.Token)).ConfigureAwait(false);
         }
 
         protected override Task OnStop(IMessageSession session)

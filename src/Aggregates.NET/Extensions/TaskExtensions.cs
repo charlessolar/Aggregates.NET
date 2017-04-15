@@ -34,10 +34,6 @@ namespace Aggregates.Extensions
         {
             return Task.WhenAll(values.Select(asyncSelector));
         }
-        public static Task SelectAsync<TSource>(this IEnumerable<TSource> values, Func<TSource, Task> asyncSelector)
-        {
-            return Task.WhenAll(values.Select(asyncSelector));
-        }
         public static async Task WhenAllSync<T>(this IEnumerable<T> values, Func<T, Task> asyncAction)
         {
             foreach (var val in values)
