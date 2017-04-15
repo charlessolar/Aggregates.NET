@@ -131,15 +131,6 @@ namespace Aggregates.Internal
                     return;
                 }
 
-                lock (RecentLock)
-                {
-                    if (RecentlyInvoked.ContainsKey($"{channelKey}.{specificKey}"))
-                    {
-                        Logger.Write(LogLevel.Debug, () => $"Channel [{channelKey}] specific [{specificKey}] was checked by this instance recently - leaving it alone");
-                        return;
-                    }
-                    RecentlyInvoked.Add($"{channelKey}.{specificKey}", DateTime.UtcNow.AddSeconds(10));
-                }
 
 
                 int? size = null;
@@ -158,6 +149,15 @@ namespace Aggregates.Internal
                     return;
                 }
 
+                lock (RecentLock)
+                {
+                    if (RecentlyInvoked.ContainsKey($"{channelKey}.{specificKey}"))
+                    {
+                        Logger.Write(LogLevel.Debug, () => $"Channel [{channelKey}] specific [{specificKey}] was checked by this instance recently - leaving it alone");
+                        return;
+                    }
+                    RecentlyInvoked.Add($"{channelKey}.{specificKey}", DateTime.UtcNow.AddSeconds(10));
+                }
                 context.Extensions.Set<bool>("BulkInvoked", true);
 
                 Logger.Write(LogLevel.Info, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing channel [{channelKey}] specific [{specificKey}]");

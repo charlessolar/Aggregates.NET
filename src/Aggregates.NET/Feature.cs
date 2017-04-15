@@ -24,7 +24,7 @@ namespace Aggregates
                 s.SetDefault("Compress", Compression.Snapshots);
                 s.SetDefault("SlowAlertThreshold", 1000);
                 s.SetDefault("SlowAlerts", false);
-                s.SetDefault("MaxDelayed", 1000);
+                s.SetDefault("MaxDelayed", 10000);
                 s.SetDefault("StreamGenerator", new StreamIdGenerator((type, streamType, bucket, stream, parents) => $"{streamType}-{bucket}-{parents.BuildParentsString()}-{type.FullName.Replace(".", "")}-{stream}"));
             });
         }

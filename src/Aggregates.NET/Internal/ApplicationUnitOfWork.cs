@@ -27,11 +27,6 @@ namespace Aggregates.Internal
 
         private static readonly Meter ErrorsMeter = Metric.Meter("UOW Errors", Unit.Errors);
         
-
-        public ApplicationUnitOfWork()
-        {
-        }
-
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
             MessagesConcurrent.Increment();

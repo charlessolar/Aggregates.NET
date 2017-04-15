@@ -178,6 +178,7 @@ namespace Aggregates.Internal
         {
             if (!Live || _waitingEvents.Count == 0) return new ResolvedEvent[] { };
 
+            // Wait to flush delayed events until a semi-large number have built up
             var age = DateTime.UtcNow - _waitingEvents.First().Event.Created;
             if(_waitingEvents.Count < 100 && age < TimeSpan.FromSeconds(30)) return new ResolvedEvent[] { };
 

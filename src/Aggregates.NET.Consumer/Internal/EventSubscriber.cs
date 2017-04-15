@@ -98,7 +98,18 @@ namespace Aggregates.Internal
                     new IPEndPoint(client.Settings.GossipSeeds[0].EndPoint.Address,
                         client.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
 
-                await manager.EnableAsync("$by_category", client.Settings.DefaultUserCredentials).ConfigureAwait(false);
+                try
+                {
+                    await
+                        manager.EnableAsync("$by_category", client.Settings.DefaultUserCredentials)
+                            .ConfigureAwait(false);
+                }
+                catch
+                {
+                    Logger.Error($"Failed to connect to eventstore instance: {client.Settings.GossipSeeds[0].EndPoint}");
+                    throw new ArgumentException(
+                        $"Failed to connect to eventstore instance: {client.Settings.GossipSeeds[0].EndPoint}");
+                }
 
                 var discoveredEvents =
                     _registry.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).OrderBy(x => x.FullName).ToList();

@@ -28,6 +28,7 @@ namespace Aggregates
                 s.SetDefault("ParallelEvents", 4);
             });
             DependsOn<Aggregates.Feature>();
+            DependsOn<Aggregates.GetEventStore>();
         }
         protected override void Setup(FeatureConfigurationContext context)
         {

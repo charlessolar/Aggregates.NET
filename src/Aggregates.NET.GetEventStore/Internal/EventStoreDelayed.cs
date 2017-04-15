@@ -84,7 +84,7 @@ namespace Aggregates.Internal
 
                 // A list of channels who have expired or have more than 1/10 the max total cache size
                 var expiredSpecificChannels =
-                    MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > flushState.Expire || (x.Value.Item3.Count > (flushState.MaxSize / 10)))
+                    MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > flushState.Expire || (x.Value.Item3.Count > (flushState.MaxSize / 5)))
                         .Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5))
                         .ToList();
 
@@ -492,7 +492,8 @@ namespace Aggregates.Internal
                 Tuple<DateTime, SemaphoreSlim, List<object>> temp;
                 if (MemCache.TryGetValue(specificKey, out temp))
                     specificSize = temp.Item3.Count;
-
+                if (_uncommitted.ContainsKey(specificKey))
+                    specificSize += _uncommitted[specificKey].Count;
             }
             if (specificSize > 5000)
                 SlowLogger.Write(LogLevel.Warn, () => $"Delayed channel [{channel}] specific [{key}] size is {specificSize}!");
@@ -545,6 +546,9 @@ namespace Aggregates.Internal
                     fromCache.Item3.Clear();
                 fromCache.Item2.Release();
             }
+            List<object> fromUncommitted;
+            if (_uncommitted.TryGetValue(specificKey, out fromUncommitted))
+                discovered.AddRange(fromUncommitted);
 
             lock (_lock) _inFlightMemCache.Add(specificKey, discovered);
 
