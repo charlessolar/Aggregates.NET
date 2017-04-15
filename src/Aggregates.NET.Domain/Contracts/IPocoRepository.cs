@@ -4,15 +4,15 @@ namespace Aggregates.Contracts
 {
     public interface IPocoRepository<T> : IRepository where T : class, new()
     {
-        Task<T> Get<TId>(TId id);
-        Task<T> Get<TId>(string bucketId, TId id);
-        Task<T> TryGet<TId>(TId id);
-        Task<T> TryGet<TId>(string bucketId, TId id);
+        Task<T> Get(Id id);
+        Task<T> Get(string bucketId, Id id);
+        Task<T> TryGet(Id id);
+        Task<T> TryGet(string bucketId, Id id);
 
-        Task<T> New<TId>(string bucketId, TId id);
-        Task<T> New<TId>(TId id);
+        Task<T> New(string bucketId, Id id);
+        Task<T> New(Id id);
     }
-    public interface IPocoRepository<TBase, TBaseId, T> : IRepository where TBase : IBase<TBaseId> where T : class, new()
+    public interface IPocoRepository<TParent, T> : IRepository where TParent : IBase where T : class, new()
     {
     }
 }

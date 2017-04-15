@@ -13,7 +13,8 @@ namespace Aggregates.Contracts
         string EntityType { get; }
         string StreamType { get; }
         string Bucket { get; }
-        string StreamId { get; }
+        Id StreamId { get; }
+        IEnumerable<Id> Parents { get; }
 
         long Version { get; }
         DateTime Timestamp { get; }

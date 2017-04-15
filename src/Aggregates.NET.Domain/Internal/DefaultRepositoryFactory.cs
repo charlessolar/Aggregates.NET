@@ -17,14 +17,14 @@ namespace Aggregates.Internal
 
             return (IRepository<T>)Activator.CreateInstance(repoType, builder);
         }
-        public IEntityRepository<TParent, TParentId, T> ForEntity<TParent, TParentId, T>(TParent parent, IBuilder builder) where T : class, IEntity where TParent : class, IBase<TParentId>
+        public IRepository<TParent, T> ForEntity<TParent, T>(TParent parent, IBuilder builder) where T : class, IEntity where TParent : class, IBase
         {
             // Is it possible to have an entity type with multiple different types of parents?  Nope
             Type repoType;
             if (!RepoCache.TryGetValue(typeof(T), out repoType))
-                repoType = RepoCache[typeof(T)] = typeof(EntityRepository<,,>).MakeGenericType(typeof(TParent), typeof(TParentId), typeof(T));
+                repoType = RepoCache[typeof(T)] = typeof(Repository<,>).MakeGenericType(typeof(TParent), typeof(T));
 
-            return (IEntityRepository<TParent, TParentId, T>)Activator.CreateInstance(repoType, parent, builder);
+            return (IRepository<TParent, T>)Activator.CreateInstance(repoType, parent, builder);
             
         }
         public IPocoRepository<T> ForPoco<T>(IBuilder builder) where T : class, new()
@@ -35,13 +35,13 @@ namespace Aggregates.Internal
 
             return (IPocoRepository<T>)Activator.CreateInstance(repoType, builder);
         }
-        public IPocoRepository<TParent, TParentId, T> ForPoco<TParent, TParentId, T>(TParent parent, IBuilder builder) where T : class, new() where TParent : class, IBase<TParentId>
+        public IPocoRepository<TParent, T> ForPoco<TParent, T>(TParent parent, IBuilder builder) where T : class, new() where TParent : class, IBase
         {
             Type repoType;
             if (!RepoCache.TryGetValue(typeof(T), out repoType))
-                repoType = RepoCache[typeof(T)] = typeof(PocoRepository<,,>).MakeGenericType(typeof(TParent), typeof(TParentId), typeof(T));
+                repoType = RepoCache[typeof(T)] = typeof(PocoRepository<,>).MakeGenericType(typeof(TParent), typeof(T));
 
-            return (IPocoRepository<TParent, TParentId, T>)Activator.CreateInstance(repoType, parent, builder);
+            return (IPocoRepository<TParent, T>)Activator.CreateInstance(repoType, parent, builder);
         }
     }
 }

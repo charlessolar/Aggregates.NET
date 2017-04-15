@@ -61,7 +61,6 @@
     <Compile Include="Configuration.cs" />
     <Compile Include="Contracts\IAggregate.cs" />
     <Compile Include="Contracts\IEntity.cs" />
-    <Compile Include="Contracts\IEntityRepository.cs" />
     <Compile Include="Contracts\IEventPublisher.cs" />
     <Compile Include="Contracts\IEventSource.cs" />
     <Compile Include="Contracts\IEventStream.cs" />
@@ -70,6 +69,7 @@
     <Compile Include="Contracts\IPocoRepository.cs" />
     <Compile Include="Exceptions\ConflictResolutionFailedException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
+    <Compile Include="Extensions\EventSourceExtensions.cs" />
     <Compile Include="Internal\EventStream.cs" />
     <Compile Include="Internal\StorePocos.cs" />
     <Compile Include="Internal\StoreSnapshots.cs" />
@@ -109,7 +109,6 @@
     <Compile Include="Exceptions\StorageException.cs" />
     <Compile Include="Internal\DefaultRepositoryFactory.cs" />
     <Compile Include="Internal\DefaultRouteResolver.cs" />
-    <Compile Include="Internal\EntityRepository.cs" />
     <Compile Include="Internal\CommandAcceptor.cs" />
     <Compile Include="Internal\Repository.cs" />
     <Compile Include="Internal\UnitOfWork.cs" />

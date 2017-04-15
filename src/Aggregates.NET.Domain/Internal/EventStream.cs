@@ -19,7 +19,9 @@ namespace Aggregates.Internal
         public string StreamType { get; }
         public string Bucket { get; }
 
-        public string StreamId { get; }
+        public Id StreamId { get; }
+
+        public IEnumerable<Id> Parents { get; private set; }
 
         public long StreamVersion => CommitVersion + Uncommitted.Count();
         // +1 because Version is 0 indexed.  If we have a stream of 100 events with a snapshot at event 100 the snapshot version would be 100
@@ -50,7 +52,7 @@ namespace Aggregates.Internal
         private readonly IList<IWritableEvent> _outofband;
         private ISnapshot _pendingShot;
 
-        public EventStream(IBuilder builder, IStoreStreams store, string streamType, string bucket, string streamId, IEnumerable<IWritableEvent> events, ISnapshot snapshot)
+        public EventStream(IBuilder builder, IStoreStreams store, string streamType, string bucket, string streamId, IEnumerable<Id> parents, IEnumerable<IWritableEvent> events, ISnapshot snapshot)
         {
             _store = store;
             _snapshots = builder?.Build<IStoreSnapshots>();
@@ -59,6 +61,7 @@ namespace Aggregates.Internal
             StreamType = streamType;
             Bucket = bucket;
             StreamId = streamId;
+            Parents = parents;
             _committed = events?.ToList() ?? new List<IWritableEvent>();
             _snapshot = snapshot;
 
@@ -78,8 +81,10 @@ namespace Aggregates.Internal
             _snapshots = builder.Build<IStoreSnapshots>();
             _oobHandler = builder.Build<IOobHandler>();
             _builder = builder;
+            StreamType = clone.StreamType;
             Bucket = clone.Bucket;
             StreamId = clone.StreamId;
+            Parents = clone.Parents.ToList();
             _snapshot = snapshot;
             _committed = clone.Committed.ToList();
             _uncommitted = new List<IWritableEvent>();
@@ -109,7 +114,7 @@ namespace Aggregates.Internal
             if (@event != null)
                 committed.Add(@event);
 
-            return new EventStream<T>(null, null, StreamType, Bucket, StreamId, committed, _snapshot);
+            return new EventStream<T>(null, null, StreamType, Bucket, StreamId, Parents, committed, _snapshot);
         }
 
         void IEventStream.Concat(IEnumerable<IWritableEvent> events)
@@ -119,11 +124,11 @@ namespace Aggregates.Internal
 
         public Task<IEnumerable<IWritableEvent>> AllEvents(bool? backwards)
         {
-            return backwards == true ? _store.GetEventsBackwards<T>(Bucket, StreamId) : _store.GetEvents<T>(Bucket, StreamId);
+            return backwards == true ? _store.GetEventsBackwards<T>(Bucket, StreamId, Parents) : _store.GetEvents<T>(Bucket, StreamId, Parents);
         }
         public Task<IEnumerable<IWritableEvent>> OobEvents(bool? backwards)
         {
-            return _oobHandler.Retrieve<T>(Bucket, StreamId, ascending: !(backwards ?? false));
+            return _oobHandler.Retrieve<T>(Bucket, StreamId, Parents, ascending: !(backwards ?? false));
         }
 
         private IWritableEvent MakeWritableEvent(IEvent @event, IDictionary<string, string> headers, bool version = true)
@@ -216,7 +221,7 @@ namespace Aggregates.Internal
                     {
                         Logger.Write(LogLevel.Debug,
                             () => $"Event stream [{StreamId}] in bucket [{Bucket}] publishing {_outofband.Count} out of band events to {_oobHandler.GetType().Name}");
-                        return _oobHandler.Publish<T>(Bucket, StreamId, _outofband, commitHeaders);
+                        return _oobHandler.Publish<T>(Bucket, StreamId, Parents, _outofband, commitHeaders);
                     }
                     return Task.CompletedTask;
                 }),
@@ -226,7 +231,7 @@ namespace Aggregates.Internal
 
                     Logger.Write(LogLevel.Debug,
                         () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing snapshot");
-                    return _snapshots.WriteSnapshots<T>(Bucket, StreamId, _pendingShot, commitHeaders);
+                    return _snapshots.WriteSnapshots<T>(Bucket, StreamId, Parents, _pendingShot, commitHeaders);
                 })
             };
             await Task.WhenAll(tasks).ConfigureAwait(false);

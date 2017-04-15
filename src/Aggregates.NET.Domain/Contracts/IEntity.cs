@@ -4,8 +4,8 @@
     {
     }
     
-    public interface IEntity<TId, TParent, TParentId> : IEntity where TParent : class, IBase<TParentId>
+    public interface IEntity<TParent> : IEntity where TParent : class, IBase
     {
-        TParent Parent { get; set; }
+        new TParent Parent { get; set; }
     }
 }

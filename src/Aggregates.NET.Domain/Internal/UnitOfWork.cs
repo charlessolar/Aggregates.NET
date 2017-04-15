@@ -44,8 +44,7 @@ namespace Aggregates.Internal
         private readonly IMessageMapper _mapper;
 
         private bool _disposed;
-        private readonly IDictionary<Type, IRepository> _repositories;
-        private readonly IDictionary<string, IEntityRepository> _entityRepositories;
+        private readonly IDictionary<string, IRepository> _repositories;
         private readonly IDictionary<string, IRepository> _pocoRepositories;
         
         public IBuilder Builder { get; set; }
@@ -60,8 +59,7 @@ namespace Aggregates.Internal
         {
             _repoFactory = repoFactory;
             _mapper = mapper;
-            _repositories = new Dictionary<Type, IRepository>();
-            _entityRepositories = new Dictionary<string, IEntityRepository>();
+            _repositories = new Dictionary<string, IRepository>();
             _pocoRepositories = new Dictionary<string, IRepository>();
             CurrentHeaders = new Dictionary<string, string>();
         }
@@ -69,7 +67,6 @@ namespace Aggregates.Internal
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         public virtual void Dispose(bool disposing)
@@ -83,13 +80,7 @@ namespace Aggregates.Internal
             }
 
             _repositories.Clear();
-
-            foreach (var repo in _entityRepositories.Values)
-            {
-                repo.Dispose();
-            }
-
-            _entityRepositories.Clear();
+            
 
             foreach (var repo in _pocoRepositories.Values)
             {
@@ -104,23 +95,23 @@ namespace Aggregates.Internal
         public IRepository<T> For<T>() where T : class, IAggregate
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving repository for type {typeof(T)}");
-            var type = typeof(T);
+            var key = typeof(T).FullName;
 
             IRepository repository;
-            if (_repositories.TryGetValue(type, out repository)) return (IRepository<T>)repository;
+            if (_repositories.TryGetValue(key, out repository)) return (IRepository<T>)repository;
 
-            return (IRepository<T>)(_repositories[type] = _repoFactory.ForAggregate<T>(Builder));
+            return (IRepository<T>)(_repositories[key] = _repoFactory.ForAggregate<T>(Builder));
         }
-        public IEntityRepository<TParent, TParentId, TEntity> For<TParent, TParentId, TEntity>(TParent parent) where TEntity : class, IEntity where TParent : class, IBase<TParentId>
+        public IRepository<TParent, TEntity> For<TParent, TEntity>(TParent parent) where TEntity : class, IEntity where TParent : class, IBase
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving entity repository for type {typeof(TEntity)}");
-            var key = $"{parent.StreamId}:{typeof(TEntity).FullName}";
+            var key = $"{parent.BuildParentsString()}:{typeof(TEntity).FullName}";
 
-            IEntityRepository repository;
-            if (_entityRepositories.TryGetValue(key, out repository))
-                return (IEntityRepository<TParent, TParentId, TEntity>)repository;
+            IRepository repository;
+            if (_repositories.TryGetValue(key, out repository))
+                return (IRepository<TParent, TEntity>)repository;
 
-            return (IEntityRepository<TParent, TParentId, TEntity>)(_entityRepositories[key] = _repoFactory.ForEntity<TParent, TParentId, TEntity>(parent, Builder));
+            return (IRepository<TParent, TEntity>)(_repositories[key] = _repoFactory.ForEntity<TParent, TEntity>(parent, Builder));
         }
         public IPocoRepository<T> Poco<T>() where T : class, new()
         {
@@ -132,16 +123,16 @@ namespace Aggregates.Internal
 
             return (IPocoRepository<T>)(_pocoRepositories[key] = _repoFactory.ForPoco<T>(Builder));
         }
-        public IPocoRepository<TParent, TParentId, T> Poco<TParent, TParentId, T>(TParent parent) where T : class, new() where TParent : class, IBase<TParentId>
+        public IPocoRepository<TParent, T> Poco<TParent, T>(TParent parent) where T : class, new() where TParent : class, IBase
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving child poco repository for type {typeof(T)}");
-            var key = $"{parent.StreamId}:{typeof(T).FullName}";
+            var key = $"{parent.BuildParentsString()}:{typeof(T).FullName}";
 
             IRepository repository;
             if (_pocoRepositories.TryGetValue(key, out repository))
-                return (IPocoRepository<TParent, TParentId, T>)repository;
+                return (IPocoRepository<TParent, T>)repository;
 
-            return (IPocoRepository<TParent, TParentId, T>)(_pocoRepositories[key] = _repoFactory.ForPoco<TParent, TParentId, T>(parent, Builder));
+            return (IPocoRepository<TParent, T>)(_pocoRepositories[key] = _repoFactory.ForPoco<TParent, T>(parent, Builder));
         }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
@@ -194,16 +185,16 @@ namespace Aggregates.Internal
             };
 
             var allRepos =
-                _repositories.Values.Concat(_entityRepositories.Values).Concat(_pocoRepositories.Values).ToArray();
+                _repositories.Values.Concat(_repositories.Values).Concat(_pocoRepositories.Values).ToArray();
 
 
-            var changedStreams = _repositories.Sum(x => x.Value.ChangedStreams) + _entityRepositories.Sum(x => x.Value.ChangedStreams);
+            var changedStreams = _repositories.Sum(x => x.Value.ChangedStreams) + _repositories.Sum(x => x.Value.ChangedStreams);
 
             Logger.Write(LogLevel.Debug, () => $"Detected {changedStreams} changed streams in commit {CommitId}");
             if (changedStreams > 1)
             {
                 Logger.Write(LogLevel.Info, () =>
-                        $"Starting prepare for commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories");
+                        $"Starting prepare for commit id {CommitId} with {_repositories.Count + _repositories.Count + _pocoRepositories.Count} tracked repositories");
                 using (PrepareTime.NewContext())
                 {
                     // First check all streams read but not modified - if the store has a different version a VersionException will be thrown
@@ -216,11 +207,11 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () =>
             {
                 var orderedRepos = _repositories.Select(x => new Tuple<int, IRepository>(x.Value.ChangedStreams, x.Value))
-                                                .Concat(_entityRepositories.Select(x => new Tuple<int, IRepository>(x.Value.ChangedStreams, x.Value)));
+                                                .Concat(_repositories.Select(x => new Tuple<int, IRepository>(x.Value.ChangedStreams, x.Value)));
                 if (orderedRepos.Count(x => x.Item1 != 0) > 1)
-                    return $"Starting commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories. You changed {orderedRepos.Sum(x => x.Item1)} streams.  We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams";
+                    return $"Starting commit id {CommitId} with {_repositories.Count + _repositories.Count + _pocoRepositories.Count} tracked repositories. You changed {orderedRepos.Sum(x => x.Item1)} streams.  We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams";
 
-                return $"Starting commit id {CommitId} with {_repositories.Count + _entityRepositories.Count + _pocoRepositories.Count} tracked repositories";
+                return $"Starting commit id {CommitId} with {_repositories.Count + _repositories.Count + _pocoRepositories.Count} tracked repositories";
             });
 
 

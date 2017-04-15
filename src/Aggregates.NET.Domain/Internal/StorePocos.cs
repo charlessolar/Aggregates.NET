@@ -34,17 +34,17 @@ namespace Aggregates.Internal
             _streamGen = streamGen;
         }
 
-        public Task Evict<T>(string bucket, string streamId) where T : class
+        public Task Evict<T>(string bucket, Id streamId, IEnumerable<Id> parents) where T : class
         {
-            var streamName = _streamGen(typeof(T), StreamTypes.Poco, bucket, streamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Poco, bucket, streamId, parents);
             _cache.Evict(streamName);
             return Task.CompletedTask;
         }
 
 
-        public async Task<T> Get<T>(string bucket, string stream) where T : class
+        public async Task<T> Get<T>(string bucket, Id streamId, IEnumerable<Id> parents) where T : class
         {
-            var streamName = _streamGen(typeof(T), StreamTypes.Poco, bucket, stream);
+            var streamName = _streamGen(typeof(T), StreamTypes.Poco, bucket, streamId, parents);
             Logger.Write(LogLevel.Debug, () => $"Getting stream [{streamName}]");
 
             if (_shouldCache)
@@ -53,7 +53,7 @@ namespace Aggregates.Internal
                 if (cached != null)
                 {
                     HitMeter.Mark();
-                    Logger.Write(LogLevel.Debug, () => $"Found poco [{stream}] bucket [{bucket}] in cache");
+                    Logger.Write(LogLevel.Debug, () => $"Found poco [{streamId}] bucket [{bucket}] in cache");
                     // An easy way to make a deep copy
                     return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(cached));
                 }
@@ -71,9 +71,9 @@ namespace Aggregates.Internal
                 _cache.Cache(streamName, @event.Event);
             return @event.Event as T;
         }
-        public async Task Write<T>(T poco, string bucket, string stream, IDictionary<string, string> commitHeaders)
+        public async Task Write<T>(T poco, string bucket, Id streamId, IEnumerable<Id> parents, IDictionary<string, string> commitHeaders)
         {
-            var streamName = _streamGen(typeof(T), StreamTypes.Poco, bucket, stream);
+            var streamName = _streamGen(typeof(T), StreamTypes.Poco, bucket, streamId, parents);
             Logger.Write(LogLevel.Debug, () => $"Writing poco to stream id [{streamName}]");
 
             var descriptor = new EventDescriptor
@@ -81,7 +81,8 @@ namespace Aggregates.Internal
                 EntityType = typeof(T).AssemblyQualifiedName,
                 StreamType = StreamTypes.Poco,
                 Bucket = bucket,
-                StreamId = stream,
+                StreamId = streamId,
+                Parents=parents,
                 Timestamp = DateTime.UtcNow,
                 Version = -1,
                 Headers = new Dictionary<string, string>(),

@@ -39,11 +39,12 @@ namespace Aggregates.Internal
             _streamGen = streamGen;
         }
 
-        public Task Evict<T>(string bucket, string streamId) where T : class, IEventSource
+        public Task Evict<T>(string bucket, Id streamId, IEnumerable<Id> parents = null) where T : class, IEventSource
         {
             if (!_shouldCache) return Task.CompletedTask;
 
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
+            parents = parents ?? new Id[] {};
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
             _cache.Evict(streamName);
             return Task.CompletedTask;
         }
@@ -51,14 +52,15 @@ namespace Aggregates.Internal
         {
             if (!_shouldCache) return Task.CompletedTask;
 
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
             _cache.Cache(streamName, stream.Clone());
             return Task.CompletedTask;
         }
 
-        public async Task<IEventStream> GetStream<T>(string bucket, string streamId, ISnapshot snapshot = null) where T : class, IEventSource
+        public async Task<IEventStream> GetStream<T>(string bucket, Id streamId, IEnumerable<Id> parents = null, ISnapshot snapshot = null) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
+            parents = parents ?? new Id[] { };
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
 
             Logger.Write(LogLevel.Debug, () => $"Retreiving stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
 
@@ -74,7 +76,7 @@ namespace Aggregates.Internal
                 MissMeter.Mark();
             }
 
-            while (await CheckFrozen<T>(bucket, streamId).ConfigureAwait(false))
+            while (await CheckFrozen<T>(bucket, streamId, parents).ConfigureAwait(false))
             {
                 Logger.Write(LogLevel.Info, () => $"Stream [{streamName}] is frozen - waiting");
                 Thread.Sleep(100);
@@ -83,7 +85,7 @@ namespace Aggregates.Internal
 
             var events = await _store.GetEvents(streamName, start: snapshot?.Version + 1L).ConfigureAwait(false);
 
-            var eventstream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, events, snapshot);
+            var eventstream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, parents, events, snapshot);
             
             await Cache<T>(eventstream).ConfigureAwait(false);
 
@@ -91,30 +93,33 @@ namespace Aggregates.Internal
             return eventstream;
         }
 
-        public Task<IEventStream> NewStream<T>(string bucket, string streamId) where T : class, IEventSource
+        public Task<IEventStream> NewStream<T>(string bucket, Id streamId, IEnumerable<Id> parents = null) where T : class, IEventSource
         {
             Logger.Write(LogLevel.Debug, () => $"Creating new stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
-            IEventStream stream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, null, null);
+            IEventStream stream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, parents, null, null);
+
             return Task.FromResult(stream);
         }
 
-        public Task<IEnumerable<IWritableEvent>> GetEvents<T>(string bucket, string streamId, long? start = null, int? count = null) where T : class, IEventSource
+        public Task<IEnumerable<IWritableEvent>> GetEvents<T>(string bucket, Id streamId, IEnumerable<Id> parents = null, long? start = null, int? count = null) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
+            parents = parents ?? new Id[] { };
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
             return _store.GetEvents(streamName, start: start, count: count);
         }
-        public Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(string bucket, string streamId, long? start = null, int? count = null) where T : class, IEventSource
+        public Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(string bucket, Id streamId, IEnumerable<Id> parents = null, long? start = null, int? count = null) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
+            parents = parents ?? new Id[] { };
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
             return _store.GetEventsBackwards(streamName, start: start, count: count);
         }
 
 
         public async Task WriteStream<T>(IEventStream stream, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
 
-            if (await CheckFrozen<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false))
+            if (await CheckFrozen<T>(stream.Bucket, stream.StreamId, stream.Parents).ConfigureAwait(false))
                 throw new FrozenException();
 
             Saved.Mark();
@@ -128,7 +133,7 @@ namespace Aggregates.Internal
             if (stream.CommitVersion == -1) return;
             Logger.Write(LogLevel.Debug, () => $"Stream [{stream.StreamId}] in bucket [{stream.Bucket}] for type {typeof(T).FullName} verifying stream version {stream.CommitVersion}");
 
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
 
             var last = await _store.GetEventsBackwards(streamName, count: 1).ConfigureAwait(false);
             if (!last.Any())
@@ -147,9 +152,10 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Verified version of stream [{stream.StreamId}] in bucket [{stream.Bucket}] for type {typeof(T).FullName}");
         }
 
-        public async Task Freeze<T>(string bucket, string streamId) where T : class, IEventSource
+        public async Task Freeze<T>(string bucket, Id streamId, IEnumerable<Id> parents = null) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
+            parents = parents ?? new Id[] { };
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
             Logger.Write(LogLevel.Info, () => $"Freezing stream [{streamName}]");
             try
             {
@@ -162,9 +168,10 @@ namespace Aggregates.Internal
             }
         }
 
-        public async Task Unfreeze<T>(string bucket, string streamId) where T : class, IEventSource
+        public async Task Unfreeze<T>(string bucket, Id streamId, IEnumerable<Id> parents = null) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
+            parents = parents ?? new Id[] { };
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
             Logger.Write(LogLevel.Info, () => $"Unfreezing stream [{streamName}]");
 
             try
@@ -177,9 +184,10 @@ namespace Aggregates.Internal
             }
 
         }
-        private Task<bool> CheckFrozen<T>(string bucket, string streamId) where T : class, IEventSource
+        private Task<bool> CheckFrozen<T>(string bucket, Id streamId, IEnumerable<Id> parents = null) where T : class, IEventSource
         {
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId);
+            parents = parents ?? new Id[] { };
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
             return _store.IsFrozen(streamName);
         }
 

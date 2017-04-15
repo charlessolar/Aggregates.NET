@@ -17,16 +17,62 @@ using AggregateException = Aggregates.Exceptions.AggregateException;
 
 namespace Aggregates.Internal
 {
-    // Todo: The hoops we jump through to support <TId> can be simplified by just using an Id class with implicit converters from string, int, guid, etc.
+    class Repository<TParent, T> : Repository<T> where TParent : class, IBase where T : class, IEventSource
+    {
+        private static readonly ILog Logger = LogManager.GetLogger("Repository");
+
+        private readonly TParent _parent;
+
+        public Repository(TParent parent, IBuilder builder) : base(builder)
+        {
+            _parent = parent;
+        }
+
+        public override async Task<T> TryGet(Id id)
+        {
+            if (id == null) return null;
+            try
+            {
+                return await Get(id).ConfigureAwait(false);
+            }
+            catch (NotFoundException) { }
+            return null;
+
+        }
+        public override async Task<T> Get(Id id)
+        {
+            var cacheId = $"{_parent.Stream.Bucket}.{_parent.BuildParentsString()}.{id}";
+            T root;
+            if (!Tracked.TryGetValue(cacheId, out root))
+                Tracked[cacheId] = root = await GetUntracked(_parent.Stream.Bucket, id, _parent.BuildParents()).ConfigureAwait(false);
+
+            (root as IEntity<TParent>).Parent = _parent;
+
+            return root;
+        }
+
+        public override async Task<T> New(Id id)
+        {
+            Logger.Write(LogLevel.Debug, () => $"Creating new stream id [{id}] in bucket [{_parent.Stream.Bucket}] for type {typeof(T).FullName} in store");
+            var stream = await _store.NewStream<T>(_parent.Stream.Bucket, id, _parent.BuildParents()).ConfigureAwait(false);
+            var root = Newup(stream, _builder);
+
+            (root as IEntity<TParent>).Parent = _parent;
+
+            var cacheId = $"{_parent.Stream.Bucket}.{_parent.BuildParentsString()}.{id}";
+            Tracked[cacheId] = root;
+            return root;
+        }
+    }
 
     class Repository<T> : IRepository<T> where T : class, IEventSource
     {
         private static OptimisticConcurrencyAttribute _conflictResolution;
 
         private static readonly ILog Logger = LogManager.GetLogger("Repository");
-        private readonly IStoreStreams _store;
+        protected readonly IStoreStreams _store;
+        protected readonly IBuilder _builder;
         private readonly IStoreSnapshots _snapstore;
-        private readonly IBuilder _builder;
         private readonly ReadOnlySettings _settings;
 
         private static readonly Meter Conflicts = Metric.Meter("Conflicts", Unit.Items, tags: "debug");
@@ -73,7 +119,7 @@ namespace Aggregates.Internal
                         }
                         catch (VersionException)
                         {
-                            await _store.Evict<T>(x.Stream.Bucket, x.Stream.StreamId).ConfigureAwait(false);
+                            await _store.Evict<T>(x.Stream.Bucket, x.Stream.StreamId, x.Stream.Parents).ConfigureAwait(false);
                             throw;
                         }
                     });
@@ -100,29 +146,29 @@ namespace Aggregates.Internal
                             (tracked as ISnapshotting).ShouldTakeSnapshot())
                         {
                             Logger.Write(LogLevel.Debug,
-                                () => $"Taking snapshot of [{tracked.GetType().FullName}] id [{tracked.StreamId}] version {tracked.Version}");
+                                () => $"Taking snapshot of [{tracked.GetType().FullName}] id [{tracked.Id}] version {tracked.Version}");
                             var memento = (tracked as ISnapshotting).TakeSnapshot();
                             stream.AddSnapshot(memento);
                         }
 
                         try
                         {
-                            await _store.Evict<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
+                            await _store.Evict<T>(stream.Bucket, stream.StreamId, stream.Parents).ConfigureAwait(false);
                             await stream.Commit(commitId, headers).ConfigureAwait(false);
                         }
                         catch (VersionException e)
                         {
                             Logger.Write(LogLevel.Info,
-                                       () => $"Stream [{tracked.StreamId}] entity {tracked.GetType().FullName} stream version {stream.StreamVersion} commit verison {stream.CommitVersion} has version conflicts with store - Message: {e.Message} Store: {e.InnerException?.Message}");
+                                       () => $"Stream [{tracked.Id}] entity {tracked.GetType().FullName} stream version {stream.StreamVersion} commit verison {stream.CommitVersion} has version conflicts with store - Message: {e.Message} Store: {e.InnerException?.Message}");
 
                             Conflicts.Mark();
                             // If we expected no stream, no reason to try to resolve the conflict
                             if (stream.CommitVersion == -1)
                             {
                                 Logger.Warn(
-                                    $"New stream [{tracked.StreamId}] entity {tracked.GetType().FullName} already exists in store");
+                                    $"New stream [{tracked.Id}] entity {tracked.GetType().FullName} already exists in store");
                                 throw new ConflictResolutionFailedException(
-                                    $"New stream [{tracked.StreamId}] entity {tracked.GetType().FullName} already exists in store");
+                                    $"New stream [{tracked.Id}] entity {tracked.GetType().FullName} already exists in store");
                             }
 
                             try
@@ -154,7 +200,7 @@ namespace Aggregates.Internal
 
                                 Logger.WriteFormat(LogLevel.Info,
                                     "Stream [{0}] entity {1} version {2} had version conflicts with store - successfully resolved",
-                                    tracked.StreamId, tracked.GetType().FullName, stream.StreamVersion);
+                                    tracked.Id, tracked.GetType().FullName, stream.StreamVersion);
                                 ConflictsResolved.Mark();
                             }
                             catch (AbandonConflictException abandon)
@@ -162,9 +208,9 @@ namespace Aggregates.Internal
                                 ConflictsUnresolved.Mark();
                                 Logger.WriteFormat(LogLevel.Error,
                                     "Stream [{0}] entity {1} has version conflicts with store - abandoning resolution",
-                                    tracked.StreamId, tracked.GetType().FullName);
+                                    tracked.Id, tracked.GetType().FullName);
                                 throw new ConflictResolutionFailedException(
-                                    $"Aborted conflict resolution for stream [{tracked.StreamId}] entity {tracked.GetType().FullName}",
+                                    $"Aborted conflict resolution for stream [{tracked.Id}] entity {tracked.GetType().FullName}",
                                     abandon);
                             }
                             catch (Exception ex)
@@ -172,9 +218,9 @@ namespace Aggregates.Internal
                                 ConflictsUnresolved.Mark();
                                 Logger.WriteFormat(LogLevel.Error,
                                     "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve due to: {3}: {2}",
-                                    tracked.StreamId, tracked.GetType().FullName, ex.Message, ex.GetType().Name);
+                                    tracked.Id, tracked.GetType().FullName, ex.Message, ex.GetType().Name);
                                 throw new ConflictResolutionFailedException(
-                                    $"Failed to resolve conflict for stream [{tracked.StreamId}] entity {tracked.GetType().FullName} due to exception",
+                                    $"Failed to resolve conflict for stream [{tracked.Id}] entity {tracked.GetType().FullName} due to exception",
                                     ex);
                             }
 
@@ -209,7 +255,6 @@ namespace Aggregates.Internal
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         protected virtual void Dispose(bool disposing)
@@ -222,14 +267,14 @@ namespace Aggregates.Internal
             _disposed = true;
         }
 
-        public virtual Task<T> TryGet<TId>(TId id)
+        public virtual Task<T> TryGet(Id id)
         {
             return TryGet(Defaults.Bucket, id);
         }
-        public async Task<T> TryGet<TId>(string bucket, TId id)
+        public async Task<T> TryGet(string bucket, Id id)
         {
             if (id == null) return null;
-            if (typeof(TId) == typeof(string) && string.IsNullOrEmpty(id as string)) return null;
+
             try
             {
                 return await Get(bucket, id).ConfigureAwait(false);
@@ -238,18 +283,12 @@ namespace Aggregates.Internal
             return null;
         }
 
-        public virtual Task<T> Get<TId>(TId id)
+        public virtual Task<T> Get(Id id)
         {
             return Get(Defaults.Bucket, id);
         }
 
-        public async Task<T> Get<TId>(string bucket, TId id)
-        {
-            var root = await Get(bucket, id.ToString()).ConfigureAwait(false);
-            (root as IEventSource<TId>).Id = id;
-            return root;
-        }
-        public async Task<T> Get(string bucket, string id)
+        public async Task<T> Get(string bucket, Id id)
         {
             var cacheId = $"{bucket}.{id}";
             T root;
@@ -258,22 +297,24 @@ namespace Aggregates.Internal
 
             return root;
         }
-        private async Task<T> GetUntracked(string bucket, string streamId)
+        protected async Task<T> GetUntracked(string bucket, Id streamId, IEnumerable<Id> parents = null)
         {
-            Logger.Write(LogLevel.Debug, () => $"Retreiving aggregate id [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} in store");
+            parents = parents ?? new Id[] { };
+
+            Logger.Write(LogLevel.Debug, () => $"Retreiving entity id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName} in store");
             ISnapshot snapshot = null;
             if (typeof(ISnapshotting).IsAssignableFrom(typeof(T)))
             {
-                snapshot = await _snapstore.GetSnapshot<T>(bucket, streamId).ConfigureAwait(false);
+                snapshot = await _snapstore.GetSnapshot<T>(bucket, streamId, parents).ConfigureAwait(false);
                 Logger.Write(LogLevel.Debug, () =>
                 {
                     if (snapshot != null)
-                        return $"Retreived snapshot for aggregate id [{streamId}] version {snapshot.Version}";
-                    return $"No snapshot found for aggregate id [{streamId}]";
+                        return $"Retreived snapshot for entity id [{streamId}] bucket [{bucket}] version {snapshot.Version}";
+                    return $"No snapshot found for entity id [{streamId}] bucket [{bucket}]";
                 });
             }
-            
-            var stream = await _store.GetStream<T>(bucket, streamId, snapshot).ConfigureAwait(false);
+
+            var stream = await _store.GetStream<T>(bucket, streamId, parents, snapshot).ConfigureAwait(false);
 
             return await GetUntracked(stream).ConfigureAwait(false);
         }
@@ -291,25 +332,18 @@ namespace Aggregates.Internal
             return Task.FromResult(root);
         }
 
-        public virtual Task<T> New<TId>(TId id)
+        public virtual Task<T> New(Id id)
         {
             return New(Defaults.Bucket, id);
         }
 
-        public async Task<T> New<TId>(string bucket, TId id)
+        public async Task<T> New(string bucket, Id id)
         {
-            var root = await New(bucket, id.ToString()).ConfigureAwait(false);
-            (root as IEventSource<TId>).Id = id;
-
-            return root;
-        }
-        public async Task<T> New(string bucket, string streamId)
-        {
-            Logger.Write(LogLevel.Debug, () => $"Creating new stream id [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName} in store");
-            var stream = await _store.NewStream<T>(bucket, streamId).ConfigureAwait(false);
+            Logger.Write(LogLevel.Debug, () => $"Creating new stream id [{id}] in bucket [{bucket}] for type {typeof(T).FullName} in store");
+            var stream = await _store.NewStream<T>(bucket, id).ConfigureAwait(false);
             var root = Newup(stream, _builder);
 
-            var cacheId = $"{bucket}.{streamId}";
+            var cacheId = $"{bucket}.{id}";
             Tracked[cacheId] = root;
             return root;
         }

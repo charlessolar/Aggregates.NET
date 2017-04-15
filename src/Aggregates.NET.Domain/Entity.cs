@@ -5,16 +5,17 @@ namespace Aggregates
 {
 
 
-    public abstract class Entity<TThis, TId, TParent, TParentId> : Base<TThis, TId>, IEntity<TId, TParent, TParentId> where TParent : Base<TParent, TParentId>  where TThis : Entity<TThis, TId, TParent, TParentId>
+    public abstract class Entity<TThis, TParent> : Base<TThis>, IEntity<TParent> where TParent : Base<TParent>  where TThis : Entity<TThis, TParent>
     {
-        TParent IEntity<TId, TParent, TParentId>.Parent { get; set; }
+        IEventSource IEventSource.Parent => Parent;
 
-        public TParent Parent => (this as IEntity<TId, TParent, TParentId>).Parent;
+        TParent IEntity<TParent>.Parent { get; set; }
+
+        public TParent Parent => (this as IEntity<TParent>).Parent;
     }
+    
 
-    public abstract class Entity<TThis, TId, TParent> : Entity<TThis, TId, TParent, TId> where TParent : Base<TParent, TId> where TThis : Entity<TThis, TId, TParent, TId> { }
-
-    public abstract class EntityWithMemento<TThis, TId, TParent, TParentId, TMemento> : Entity<TThis, TId, TParent, TParentId>, ISnapshotting where TMemento : class, IMemento<TId> where TParent : Base<TParent, TParentId> where TThis : EntityWithMemento<TThis, TId, TParent, TParentId, TMemento>
+    public abstract class EntityWithMemento<TThis, TParent, TMemento> : Entity<TThis, TParent>, ISnapshotting where TMemento : class, IMemento where TParent : Base<TParent> where TThis : EntityWithMemento<TThis, TParent, TMemento>
     {
         ISnapshot ISnapshotting.Snapshot => Stream.Snapshot;
 
@@ -42,5 +43,5 @@ namespace Aggregates
         protected abstract bool ShouldTakeSnapshot();
 
     }
-    public abstract class EntityWithMememto<TThis, TId, TParent, TMemento> : EntityWithMemento<TThis, TId, TParent, TId, TMemento> where TMemento : class, IMemento<TId> where TParent : Base<TParent, TId> where TThis : EntityWithMemento<TThis, TId, TParent, TId, TMemento> { }
+    
 }

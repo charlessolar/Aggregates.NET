@@ -12,7 +12,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    class PocoRepository<TParent, TParentId, T> : PocoRepository<T>, IPocoRepository<TParent, TParentId, T> where TParent : class, IBase<TParentId> where T : class, new()
+    class PocoRepository<TParent, T> : PocoRepository<T>, IPocoRepository<TParent, T> where TParent : class, IBase where T : class, new()
     {
         private static readonly ILog Logger = LogManager.GetLogger("PocoRepository");
 
@@ -22,10 +22,10 @@ namespace Aggregates.Internal
         { 
             _parent = parent;
         }
-        public override Task<T> TryGet<TId>(TId id)
+        public override Task<T> TryGet(Id id)
         {
             if (id == null) return null;
-            if (typeof(TId) == typeof(string) && string.IsNullOrEmpty(id as string)) return null;
+
             try
             {
                 return Get(id);
@@ -34,20 +34,20 @@ namespace Aggregates.Internal
             return null;
         }
 
-        public override async Task<T> Get<TId>(TId id)
+        public override async Task<T> Get(Id id)
         {
-            Logger.Write(LogLevel.Debug, () => $"Retreiving entity id [{id}] from parent {_parent.StreamId} [{typeof(TParent).FullName}] in store");
-            var streamId = $"{_parent.StreamId}.{id}";
-
-            var entity = await Get(_parent.Bucket, streamId).ConfigureAwait(false);
+            Logger.Write(LogLevel.Debug, () => $"Retreiving entity id [{id}] from parent {_parent.Id} [{typeof(TParent).FullName}] in store");
+            var streamId = $"{_parent.BuildParentsString()}.{id}";
+            
+            var entity = await Get(_parent.Stream.Bucket, streamId, _parent.BuildParents()).ConfigureAwait(false);
             return entity;
         }
 
-        public override async Task<T> New<TId>(TId id)
+        public override async Task<T> New(Id id)
         {
-            var streamId = $"{_parent.StreamId}.{id}";
+            var streamId = $"{_parent.BuildParentsString()}.{id}";
 
-            var entity = await New(_parent.Bucket, streamId).ConfigureAwait(false);
+            var entity = await New(_parent.Stream.Bucket, streamId, _parent.BuildParents()).ConfigureAwait(false);
             return entity;
         }
     }
@@ -60,7 +60,7 @@ namespace Aggregates.Internal
         private static readonly Histogram WrittenEvents = Metric.Histogram("Written Pocos", Unit.Events, tags: "debug");
         private static readonly Meter WriteErrors = Metric.Meter("Poco Write Errors", Unit.Errors, tags: "debug");
 
-        protected readonly IDictionary<Tuple<string, string>, T> Tracked = new Dictionary<Tuple<string, string>, T>();
+        protected readonly IDictionary<Tuple<string, Id, IEnumerable<Id>>, T> Tracked = new Dictionary<Tuple<string, Id, IEnumerable<Id>>, T>();
 
         private bool _disposed;
 
@@ -95,7 +95,7 @@ namespace Aggregates.Internal
                 {
                     try
                     {
-                        await _store.Write(tracked.Value, tracked.Key.Item1, tracked.Key.Item2, headers).ConfigureAwait(false);
+                        await _store.Write(tracked.Value, tracked.Key.Item1, tracked.Key.Item2, tracked.Key.Item3, headers).ConfigureAwait(false);
                         success = true;
                     }
                     catch (PersistenceException e)
@@ -124,7 +124,6 @@ namespace Aggregates.Internal
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         protected virtual void Dispose(bool disposing)
@@ -137,7 +136,7 @@ namespace Aggregates.Internal
             _disposed = true;
         }
 
-        public virtual Task<T> TryGet<TId>(TId id)
+        public virtual Task<T> TryGet(Id id)
         {
             try
             {
@@ -146,7 +145,7 @@ namespace Aggregates.Internal
             catch (NotFoundException) { }
             return null;
         }
-        public Task<T> TryGet<TId>(string bucket, TId id)
+        public Task<T> TryGet(string bucket, Id id)
         {
             try
             {
@@ -156,43 +155,41 @@ namespace Aggregates.Internal
             return null;
         }
 
-        public virtual Task<T> Get<TId>(TId id)
+        public virtual Task<T> Get(Id id)
         {
             return Get(Defaults.Bucket, id);
         }
 
-        public async Task<T> Get<TId>(string bucket, TId id)
+        public Task<T> Get(string bucket, Id id)
+        {
+            return Get(bucket, id, null);
+        }
+        protected async Task<T> Get(string bucket, Id id, IEnumerable<Id> parents)
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving aggregate id [{id}] from bucket [{bucket}] in store");
-            var root = await Get(bucket, id.ToString()).ConfigureAwait(false);
-
-            return root;
-        }
-        public async Task<T> Get(string bucket, string id)
-        {
-            var cacheId = new Tuple<string, string>(bucket, id);
+            var cacheId = new Tuple<string, Id, IEnumerable<Id>>(bucket, id, parents);
             T root;
             if (!Tracked.TryGetValue(cacheId, out root))
-                Tracked[cacheId] = root = await _store.Get<T>(bucket, id).ConfigureAwait(false);
+                Tracked[cacheId] = root = await _store.Get<T>(bucket, id, parents).ConfigureAwait(false);
 
             return root;
         }
         
-        public virtual Task<T> New<TId>(TId id)
+        public virtual Task<T> New(Id id)
         {
             return New(Defaults.Bucket, id);
         }
-
-        public async Task<T> New<TId>(string bucket, TId id)
+        
+        public Task<T> New(string bucket, Id id)
         {
-            var root = await New(bucket, id.ToString()).ConfigureAwait(false);
-            
-            return root;
+            return New(bucket, id, null);
         }
-        public Task<T> New(string bucket, string streamId)
+
+        protected Task<T> New(string bucket, Id id, IEnumerable<Id> parents)
         {
+
             T root;
-            var cacheId = new Tuple<string, string>(bucket, streamId);
+            var cacheId = new Tuple<string, Id, IEnumerable<Id>>(bucket, id, parents);
             Tracked[cacheId] = root = new T();
 
             return Task.FromResult(root);

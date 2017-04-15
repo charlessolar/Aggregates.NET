@@ -81,6 +81,7 @@
     <Compile Include="Contracts\ISnapshotReader.cs" />
     <Compile Include="Contracts\IStoreEvents.cs" />
     <Compile Include="Exceptions\EndpointVersionException.cs" />
+    <Compile Include="Extensions\EventSourceExtensions.cs" />
     <Compile Include="ICache.cs" />
     <Compile Include="Contracts\IWritableEvent.cs" />
     <Compile Include="Defaults.cs" />
@@ -103,6 +104,7 @@
     <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="Extensions\TaskExtensions.cs" />
     <Compile Include="Feature.cs" />
+    <Compile Include="Id.cs" />
     <Compile Include="Internal\BulkInvokeHandlerTerminator.cs" />
     <Compile Include="Internal\ApplicationUnitOfWork.cs" />
     <Compile Include="Internal\ExceptionRejector.cs" />

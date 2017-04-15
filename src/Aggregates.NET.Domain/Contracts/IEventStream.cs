@@ -9,9 +9,12 @@ namespace Aggregates.Contracts
     {
         object CurrentMemento { get; }
         ISnapshot Snapshot { get; }
-        string StreamType { get; }
+
+        Id StreamId { get; }
         string Bucket { get; }
-        string StreamId { get; }
+        string StreamType { get; }
+        IEnumerable<Id> Parents { get; }
+
         long StreamVersion { get; }
         long CommitVersion { get; }
 

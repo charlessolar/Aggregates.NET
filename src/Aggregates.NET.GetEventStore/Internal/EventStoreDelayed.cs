@@ -155,7 +155,7 @@ namespace Aggregates.Internal
                             // and a lot of writers to a single stream makes eventstore slow
                             var streamName = flushState.StreamGen(typeof(EventStoreDelayed),
                                 $"{flushState.Endpoint}.{StreamTypes.Delayed}", Assembly.GetEntryAssembly().FullName,
-                                $"{expired.Item1}.{expired.Item2}");
+                                $"{expired.Item1}.{expired.Item2}", new Id[] {});
                             // Configure await true because we need to comeback to the same thread to release the mutex lock otherwise
                             // Exception: Object synchronization method was called from an unsynchronized block of code.
                             await flushState.Store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(true);
@@ -286,7 +286,7 @@ namespace Aggregates.Internal
                                     var streamName = flushState.StreamGen(typeof(EventStoreDelayed),
                                         $"{flushState.Endpoint}.{StreamTypes.Delayed}",
                                         Assembly.GetEntryAssembly().FullName,
-                                        $"{expired.Item1}.{expired.Item2}");
+                                        $"{expired.Item1}.{expired.Item2}", new Id[] { });
 
                                     // Configure await true because we need to comeback to the same thread to release the mutex lock otherwise
                                     // Exception: Object synchronization method was called from an unsynchronized block of code.
@@ -427,7 +427,7 @@ namespace Aggregates.Internal
                         {
                             var streamName = _streamGen(typeof(EventStoreDelayed),
                                 $"{_endpoint}.{StreamTypes.Delayed}",
-                                Assembly.GetEntryAssembly().FullName, kv.Key.Item1);
+                                Assembly.GetEntryAssembly().FullName, kv.Key.Item1, new Id[] { });
                             await _store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
                             return;
                         }

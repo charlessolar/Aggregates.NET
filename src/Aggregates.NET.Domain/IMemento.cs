@@ -1,7 +1,7 @@
 ﻿namespace Aggregates
 {
-    public interface IMemento<out TId>
+    public interface IMemento
     {
-        TId EntityId { get; }
+        Id EntityId { get; }
     }
 }

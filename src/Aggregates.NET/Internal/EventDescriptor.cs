@@ -9,9 +9,11 @@ namespace Aggregates.Internal
         public Guid EventId { get; set; }
 
         public string EntityType { get; set; }
+
         public string StreamType { get; set; }
         public string Bucket { get; set; }
-        public string StreamId { get; set; }
+        public Id StreamId { get; set; }
+        public IEnumerable<Id> Parents { get; set; }
 
         public bool Compressed { get; set; }
         public long Version { get; set; }

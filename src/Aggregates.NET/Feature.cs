@@ -24,8 +24,8 @@ namespace Aggregates
                 s.SetDefault("Compress", Compression.Snapshots);
                 s.SetDefault("SlowAlertThreshold", 1000);
                 s.SetDefault("SlowAlerts", false);
-                s.SetDefault("StreamGenerator", new StreamIdGenerator((type, streamType, bucket, stream) => $"{streamType}-{bucket}-{type.FullName.Replace(".", "")}-{stream}"));
                 s.SetDefault("MaxDelayed", 1000);
+                s.SetDefault("StreamGenerator", new StreamIdGenerator((type, streamType, bucket, stream, parents) => $"{streamType}-{bucket}-{parents.BuildParentsString()}-{type.FullName.Replace(".", "")}-{stream}"));
             });
         }
         protected override void Setup(FeatureConfigurationContext context)

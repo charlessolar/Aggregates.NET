@@ -4,11 +4,12 @@ using NServiceBus.Logging;
 
 namespace Aggregates
 {
-    public abstract class Aggregate<TThis, TId> : Base<TThis, TId>, IAggregate<TId> where TThis : Aggregate<TThis, TId>
+    public abstract class Aggregate<TThis> : Base<TThis>, IAggregate where TThis : Aggregate<TThis>
     {
+        IEventSource IEventSource.Parent => null;
     }
 
-    public abstract class AggregateWithMemento<TThis, TId, TMemento> : Aggregate<TThis, TId>, ISnapshotting where TMemento : class, IMemento<TId> where TThis : AggregateWithMemento<TThis, TId, TMemento>
+    public abstract class AggregateWithMemento<TThis, TMemento> : Aggregate<TThis>, ISnapshotting where TMemento : class, IMemento where TThis : AggregateWithMemento<TThis, TMemento>
     {
         ISnapshot ISnapshotting.Snapshot => Stream.Snapshot;
 

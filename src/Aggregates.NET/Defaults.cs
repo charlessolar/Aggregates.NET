@@ -14,7 +14,7 @@ namespace Aggregates
         public static string OOB = "OOB";
     }
 
-    public delegate string StreamIdGenerator(Type entityType, string streamType, string bucket, string id);
+    public delegate string StreamIdGenerator(Type entityType, string streamType, string bucket, Id id, IEnumerable<Id> parents);
 
     public static class Defaults
     {

@@ -20,28 +20,21 @@ namespace Aggregates.Contracts
         /// <summary>
         /// Attempts to get aggregate from store, if stream does not exist it throws
         /// </summary>
-        /// <typeparam name="TId"></typeparam>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        Task<T> Get<TId>(TId id);
-        Task<T> Get<TId>(string bucketId, TId id);
+        Task<T> Get(Id id);
+        Task<T> Get(string bucketId, Id id);
         /// <summary>
         /// Attempts to retreive aggregate from store, if stream does not exist it does not throw
         /// </summary>
-        /// <typeparam name="TId"></typeparam>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        Task<T> TryGet<TId>(TId id);
-        Task<T> TryGet<TId>(string bucketId, TId id);
+        Task<T> TryGet(Id id);
+        Task<T> TryGet(string bucketId, Id id);
 
         /// <summary>
         /// Initiates a new event stream
         /// </summary>
-        /// <typeparam name="TId"></typeparam>
-        /// <param name="bucketId"></param>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        Task<T> New<TId>(string bucketId, TId id);
-        Task<T> New<TId>(TId id);
+        Task<T> New(string bucketId, Id id);
+        Task<T> New(Id id);
+    }
+    public interface IRepository<TParent, T> : IRepository<T> where TParent : IBase where T : class, IEventSource
+    {
     }
 }
