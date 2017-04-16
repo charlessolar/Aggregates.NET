@@ -5,7 +5,7 @@ namespace Aggregates.Contracts
 {
     public interface IOobHandler
     {
-        Task Publish<T>(string bucket, Id streamId, IEnumerable<Id> parents, IEnumerable<IWritableEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource;
-        Task<IEnumerable<IWritableEvent>> Retrieve<T>(string bucket, Id streamId, IEnumerable<Id> parents, int? skip = null, int? take = null, bool ascending = true) where T : class, IEventSource;
+        Task Publish<T>(string bucket, Id streamId, IEnumerable<Id> parents, IEnumerable<IFullEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource;
+        Task<IEnumerable<IFullEvent>> Retrieve<T>(string bucket, Id streamId, IEnumerable<Id> parents, int? skip = null, int? take = null, bool ascending = true) where T : class, IEventSource;
     }
 }

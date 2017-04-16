@@ -22,7 +22,7 @@ namespace Aggregates.Internal
         private static readonly Counter Snapshots = Metric.Counter("Snapshots Seen", Unit.Items, tags: "debug");
 
         // Todo: config option for "most snapshots stored" and a LRU cache?
-        private readonly SortedDictionary<string, IWritableEvent> _snapshots;
+        private readonly SortedDictionary<string, IFullEvent> _snapshots;
         private readonly Action<string, long, ISnapshot> _onSnapshot;
         private readonly IEventStoreConnection _client;
         private readonly string _stream;
@@ -46,7 +46,7 @@ namespace Aggregates.Internal
             _token = token;
             _settings = settings;
             _compress = compress;
-            _snapshots = new SortedDictionary<string, IWritableEvent>();
+            _snapshots = new SortedDictionary<string, IFullEvent>();
 
             _client.Connected += _client_Connected;
         }
@@ -149,9 +149,9 @@ namespace Aggregates.Internal
             }
         }
 
-        public Task<IWritableEvent> Retreive(string stream)
+        public Task<IFullEvent> Retreive(string stream)
         {
-            IWritableEvent snapshot;
+            IFullEvent snapshot;
             if (!_snapshots.TryGetValue(stream, out snapshot))
                 snapshot = null;
             return Task.FromResult(snapshot);

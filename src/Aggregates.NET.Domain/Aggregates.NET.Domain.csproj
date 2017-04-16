@@ -76,7 +76,7 @@
     <Compile Include="Exceptions\AbandonConflictException.cs" />
     <Compile Include="Exceptions\DiscardEventException.cs" />
     <Compile Include="Exceptions\NoRouteException.cs" />
-    <Compile Include="Extensions\StreamExtensions.cs" />
+    <Compile Include="Extensions\EntityExtensions.cs" />
     <Compile Include="IComputed.cs" />
     <Compile Include="IHandleComputed.cs" />
     <Compile Include="IEntity.cs" />

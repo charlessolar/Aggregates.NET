@@ -32,11 +32,11 @@ namespace Aggregates.Internal
         public object CurrentMemento => _snapshot?.Payload;
         public ISnapshot Snapshot => _snapshot;
 
-        public IEnumerable<IWritableEvent> Committed => _committed;
+        public IEnumerable<IFullEvent> Committed => _committed;
 
-        public IEnumerable<IWritableEvent> Uncommitted => _uncommitted;
+        public IEnumerable<IFullEvent> Uncommitted => _uncommitted;
 
-        public IEnumerable<IWritableEvent> OobUncommitted => _outofband;
+        public IEnumerable<IFullEvent> OobUncommitted => _outofband;
 
         public bool Dirty => Uncommitted.Any() || OobUncommitted.Any() || _pendingShot != null;
         public int TotalUncommitted => Uncommitted.Count() + OobUncommitted.Count() + (_pendingShot != null ? 1 : 0);
@@ -47,12 +47,12 @@ namespace Aggregates.Internal
         private readonly IOobHandler _oobHandler;
         private readonly IBuilder _builder;
         private readonly ISnapshot _snapshot;
-        private IEnumerable<IWritableEvent> _committed;
-        private readonly IList<IWritableEvent> _uncommitted;
-        private readonly IList<IWritableEvent> _outofband;
+        private IEnumerable<IFullEvent> _committed;
+        private readonly IList<IFullEvent> _uncommitted;
+        private readonly IList<IFullEvent> _outofband;
         private ISnapshot _pendingShot;
 
-        public EventStream(IBuilder builder, IStoreStreams store, string streamType, string bucket, Id streamId, IEnumerable<Id> parents, IEnumerable<IWritableEvent> events, ISnapshot snapshot)
+        public EventStream(IBuilder builder, IStoreStreams store, string streamType, string bucket, Id streamId, IEnumerable<Id> parents, IEnumerable<IFullEvent> events, ISnapshot snapshot)
         {
             _store = store;
             _snapshots = builder?.Build<IStoreSnapshots>();
@@ -62,11 +62,11 @@ namespace Aggregates.Internal
             Bucket = bucket;
             StreamId = streamId;
             Parents = parents.ToList();
-            _committed = events?.ToList() ?? new List<IWritableEvent>();
+            _committed = events?.ToList() ?? new List<IFullEvent>();
             _snapshot = snapshot;
 
-            _uncommitted = new List<IWritableEvent>();
-            _outofband = new List<IWritableEvent>();
+            _uncommitted = new List<IFullEvent>();
+            _outofband = new List<IFullEvent>();
             _pendingShot = null;
 
             // Todo: this is a hack
@@ -87,8 +87,8 @@ namespace Aggregates.Internal
             Parents = clone.Parents.ToList();
             _snapshot = snapshot;
             _committed = clone.Committed.ToList();
-            _uncommitted = new List<IWritableEvent>();
-            _outofband = new List<IWritableEvent>();
+            _uncommitted = new List<IFullEvent>();
+            _outofband = new List<IFullEvent>();
             _pendingShot = null; ;
 
             // Todo: this is a hack
@@ -108,7 +108,7 @@ namespace Aggregates.Internal
         /// </summary>
         /// <param name="event"></param>
         /// <returns></returns>
-        public IEventStream Clone(IWritableEvent @event = null)
+        public IEventStream Clone(IFullEvent @event = null)
         {
             var committed = Committed.ToList();
             if (@event != null)
@@ -117,21 +117,21 @@ namespace Aggregates.Internal
             return new EventStream<T>(null, null, StreamType, Bucket, StreamId, Parents, committed, _snapshot);
         }
 
-        void IEventStream.Concat(IEnumerable<IWritableEvent> events)
+        void IEventStream.Concat(IEnumerable<IFullEvent> events)
         {
             _committed = _committed.Concat(events);
         }
 
-        public Task<IEnumerable<IWritableEvent>> AllEvents(bool? backwards)
+        public Task<IEnumerable<IFullEvent>> AllEvents(bool? backwards)
         {
             return backwards == true ? _store.GetEventsBackwards<T>(Bucket, StreamId, Parents) : _store.GetEvents<T>(Bucket, StreamId, Parents);
         }
-        public Task<IEnumerable<IWritableEvent>> OobEvents(bool? backwards)
+        public Task<IEnumerable<IFullEvent>> OobEvents(bool? backwards)
         {
             return _oobHandler.Retrieve<T>(Bucket, StreamId, Parents, ascending: !(backwards ?? false));
         }
 
-        private IWritableEvent MakeWritableEvent(IEvent @event, IDictionary<string, string> headers, bool version = true)
+        private IFullEvent MakeWritableEvent(IEvent @event, IDictionary<string, string> headers, bool version = true)
         {
             var writable = new WritableEvent
             {

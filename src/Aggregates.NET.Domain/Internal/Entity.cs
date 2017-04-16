@@ -56,6 +56,14 @@ namespace Aggregates.Internal
             return uow.Poco<TThis, T>(this as TThis);
         }
 
+        public Task<IEnumerable<IFullEvent>> Events(long? start = null, long? end = null)
+        {
+            return Stream.Events(start, end);
+        }
+        public Task<IEnumerable<IFullEvent>> OobEvents(long? start = null, long? end = null)
+        {
+            return Stream.OobEvents(start, end);
+        }
 
         public override int GetHashCode()
         {

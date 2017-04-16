@@ -59,7 +59,7 @@ namespace Aggregates.Internal
             _streamGen = streamGen;
         }
 
-        public async Task Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
+        public async Task Resolve<T>(T entity, IEnumerable<IFullEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var sourced = (IEventSourced)entity;
 
@@ -83,7 +83,7 @@ namespace Aggregates.Internal
     {
         internal static readonly ILog Logger = LogManager.GetLogger("DiscardConflictResolver");
 
-        public Task Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
+        public Task Resolve<T>(T entity, IEnumerable<IFullEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var sourced = (IEventSourced)entity;
             var stream = sourced.Stream;
@@ -106,7 +106,7 @@ namespace Aggregates.Internal
             _store = eventstore;
         }
 
-        public async Task Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
+        public async Task Resolve<T>(T entity, IEnumerable<IFullEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var sourced = (IEventSourced)entity;
 
@@ -123,7 +123,7 @@ namespace Aggregates.Internal
                             .ConfigureAwait(false);
                 Logger.Write(LogLevel.Info, () => $"Stream is {latestEvents.Count()} events behind store");
 
-                var writableEvents = latestEvents as IWritableEvent[] ?? latestEvents.ToArray();
+                var writableEvents = latestEvents as IFullEvent[] ?? latestEvents.ToArray();
                 stream.Concat(writableEvents);
                 sourced.Hydrate(writableEvents.Select(x => x.Event as IEvent));
 
@@ -167,7 +167,7 @@ namespace Aggregates.Internal
         public Id StreamId { get; set; }
         public IEnumerable<Tuple<string, Id>> Parents { get; set; }
 
-        public IEnumerable<IWritableEvent> Events { get; set; }
+        public IEnumerable<IFullEvent> Events { get; set; }
     }
     /// <summary>
     /// Save conflicts for later processing, can only be used if the stream can never fail to merge
@@ -283,7 +283,7 @@ namespace Aggregates.Internal
             return results;
         }
 
-        public async Task Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
+        public async Task Resolve<T>(T entity, IEnumerable<IFullEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var sourced = (IEventSourced)entity;
             // Store conflicting events in memory
@@ -322,7 +322,7 @@ namespace Aggregates.Internal
                     return;
                 }
                 uncommitted =
-                    (await _delay.Pull(streamName, max: _maxPulledDelayed).ConfigureAwait(false)).Cast<IWritableEvent>();
+                    (await _delay.Pull(streamName, max: _maxPulledDelayed).ConfigureAwait(false)).Cast<IFullEvent>();
 
                 // If someone else pulled while we were waiting
                 if (!uncommitted.Any())
@@ -337,7 +337,7 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Info,
                     () => $"Stream [{stream.StreamId}] bucket [{stream.Bucket}] is {latestEvents.Count()} events behind store");
 
-                var writableEvents = latestEvents as IWritableEvent[] ?? latestEvents.ToArray();
+                var writableEvents = latestEvents as IFullEvent[] ?? latestEvents.ToArray();
                 stream.Concat(writableEvents);
                 sourced.Hydrate(writableEvents.Select(x => x.Event as IEvent));
 

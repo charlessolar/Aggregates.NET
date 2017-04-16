@@ -3,7 +3,7 @@ using NServiceBus;
 
 namespace Aggregates.Contracts
 {
-    public interface IWritableEvent
+    public interface IFullEvent
     {
         Guid? EventId { get; }
         object Event { get; }

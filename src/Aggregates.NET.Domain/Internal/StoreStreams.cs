@@ -102,13 +102,13 @@ namespace Aggregates.Internal
             return Task.FromResult(stream);
         }
 
-        public Task<IEnumerable<IWritableEvent>> GetEvents<T>(string bucket, Id streamId, IEnumerable<Id> parents = null, long? start = null, int? count = null) where T : class, IEventSource
+        public Task<IEnumerable<IFullEvent>> GetEvents<T>(string bucket, Id streamId, IEnumerable<Id> parents = null, long? start = null, int? count = null) where T : class, IEventSource
         {
             parents = parents ?? new Id[] { };
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
             return _store.GetEvents(streamName, start: start, count: count);
         }
-        public Task<IEnumerable<IWritableEvent>> GetEventsBackwards<T>(string bucket, Id streamId, IEnumerable<Id> parents = null, long? start = null, int? count = null) where T : class, IEventSource
+        public Task<IEnumerable<IFullEvent>> GetEventsBackwards<T>(string bucket, Id streamId, IEnumerable<Id> parents = null, long? start = null, int? count = null) where T : class, IEventSource
         {
             parents = parents ?? new Id[] { };
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);

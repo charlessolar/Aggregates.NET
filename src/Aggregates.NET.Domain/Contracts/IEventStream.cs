@@ -30,33 +30,34 @@ namespace Aggregates.Contracts
         /// <summary>
         /// All events read from the store
         /// </summary>
-        IEnumerable<IWritableEvent> Committed { get; }
+        IEnumerable<IFullEvent> Committed { get; }
         /// <summary>
         /// Events raised but not committed 
         /// </summary>
-        IEnumerable<IWritableEvent> Uncommitted { get; }
+        IEnumerable<IFullEvent> Uncommitted { get; }
         /// <summary>
         /// OOB events raised but not committed 
         /// </summary>
-        IEnumerable<IWritableEvent> OobUncommitted { get; }
+        IEnumerable<IFullEvent> OobUncommitted { get; }
 
         /// <summary>
-        /// Gets all events for the stream from the store regardless of current snapshot 
+        /// Retrieves a slice of the event stream 
         /// </summary>
-        Task<IEnumerable<IWritableEvent>> AllEvents(bool? backwards);
+        Task<IEnumerable<IFullEvent>> Events(long? start = null, long? end = null);
+
         /// <summary>
-        /// Gets all OOB events for the stream from the store
+        /// Retreives a slice of the oob event stream
         /// </summary>
-        Task<IEnumerable<IWritableEvent>> OobEvents(bool? backwards);
+        Task<IEnumerable<IFullEvent>> OobEvents(long? start = null, long? end = null);
 
         void Add(IEvent @event, IDictionary<string, string> headers);
         void AddOutOfBand(IEvent @event, IDictionary<string, string> headers);
         void AddSnapshot(object memento);
-        void Concat(IEnumerable<IWritableEvent> events);
+        void Concat(IEnumerable<IFullEvent> events);
         Task Commit(Guid commitId, IDictionary<string, string> commitHeaders);
         Task VerifyVersion(Guid commitId);
 
-        IEventStream Clone(IWritableEvent @event = null);
+        IEventStream Clone(IFullEvent @event = null);
         void Flush(bool committed);
     }
 }

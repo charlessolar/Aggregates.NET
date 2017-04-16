@@ -17,16 +17,16 @@ namespace Aggregates.Internal
         }
 
 
-        public async Task Publish<T>(string bucket, Id streamId, IEnumerable<Id> parents, IEnumerable<IWritableEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource
+        public async Task Publish<T>(string bucket, Id streamId, IEnumerable<Id> parents, IEnumerable<IFullEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), StreamTypes.OOB, bucket, streamId, parents);
-            var writableEvents = events as IWritableEvent[] ?? events.ToArray();
+            var writableEvents = events as IFullEvent[] ?? events.ToArray();
             if(await _store.WriteEvents(streamName, writableEvents, commitHeaders).ConfigureAwait(false) == (writableEvents.Count() - 1))
                 // New stream - write metadata
                 await _store.WriteMetadata(streamName, maxCount: 200000).ConfigureAwait(false);
             
         }
-        public Task<IEnumerable<IWritableEvent>> Retrieve<T>(string bucket, Id streamId, IEnumerable<Id> parents, int? skip = null, int? take = null, bool ascending = true) where T : class, IEventSource
+        public Task<IEnumerable<IFullEvent>> Retrieve<T>(string bucket, Id streamId, IEnumerable<Id> parents, int? skip = null, int? take = null, bool ascending = true) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), StreamTypes.OOB, bucket, streamId, parents);
             return !ascending ? _store.GetEventsBackwards(streamName) : _store.GetEvents(streamName);

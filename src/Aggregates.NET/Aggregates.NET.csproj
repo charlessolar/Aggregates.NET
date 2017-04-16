@@ -83,7 +83,7 @@
     <Compile Include="Exceptions\EndpointVersionException.cs" />
     <Compile Include="Extensions\EventSourceExtensions.cs" />
     <Compile Include="ICache.cs" />
-    <Compile Include="Contracts\IWritableEvent.cs" />
+    <Compile Include="Contracts\IFullEvent.cs" />
     <Compile Include="Defaults.cs" />
     <Compile Include="Enumeration.cs" />
     <Compile Include="Exceptions\AggregateException.cs" />

@@ -44,7 +44,7 @@ namespace Aggregates.Internal
         }
 
 
-        public async Task<IEnumerable<IWritableEvent>> GetEvents(string stream, long? start = null, int? count = null)
+        public async Task<IEnumerable<IFullEvent>> GetEvents(string stream, long? start = null, int? count = null)
         {
 
             var settings = new JsonSerializerSettings
@@ -123,7 +123,7 @@ namespace Aggregates.Internal
         }
 
 
-        public async Task<IEnumerable<IWritableEvent>> GetEventsBackwards(string stream, long? start = null, int? count = null)
+        public async Task<IEnumerable<IFullEvent>> GetEventsBackwards(string stream, long? start = null, int? count = null)
         {
             var settings = new JsonSerializerSettings
             {
@@ -218,7 +218,7 @@ namespace Aggregates.Internal
             return translatedEvents;
         }
 
-        public Task<long> WriteSnapshot(string stream, IWritableEvent snapshot,
+        public Task<long> WriteSnapshot(string stream, IFullEvent snapshot,
             IDictionary<string, string> commitHeaders)
         {
             Logger.Write(LogLevel.Debug, () => $"Writing snapshot to stream id [{stream}]");
@@ -257,7 +257,7 @@ namespace Aggregates.Internal
             return DoWrite(stream, new[] { data });
         }
 
-        public Task<long> WriteEvents(string stream, IEnumerable<IWritableEvent> events,
+        public Task<long> WriteEvents(string stream, IEnumerable<IFullEvent> events,
             IDictionary<string, string> commitHeaders, long? expectedVersion = null)
         {
             Logger.Write(LogLevel.Info, () => $"Writing {events.Count()} events to stream id [{stream}].  Expected version: {expectedVersion}");

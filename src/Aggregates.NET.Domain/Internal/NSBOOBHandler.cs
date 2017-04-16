@@ -18,7 +18,7 @@ namespace Aggregates.Internal
         }
 
 
-        public async Task Publish<T>(string bucket, Id streamId, IEnumerable<Id> parents, IEnumerable<IWritableEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource
+        public async Task Publish<T>(string bucket, Id streamId, IEnumerable<Id> parents, IEnumerable<IFullEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
 
             var parentStr = parents.BuildParentsString();
@@ -53,7 +53,7 @@ namespace Aggregates.Internal
             }).ConfigureAwait(false);
 
         }
-        public Task<IEnumerable<IWritableEvent>> Retrieve<T>(string bucket, Id streamId, IEnumerable<Id> parents, int? skip = null, int? take = null, bool ascending = true) where T : class, IEventSource
+        public Task<IEnumerable<IFullEvent>> Retrieve<T>(string bucket, Id streamId, IEnumerable<Id> parents, int? skip = null, int? take = null, bool ascending = true) where T : class, IEventSource
         {
             throw new NotImplementedException("NSB OOB handler does not support retrieving OOB events");
         }
