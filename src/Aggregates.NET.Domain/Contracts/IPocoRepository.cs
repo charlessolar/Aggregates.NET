@@ -12,7 +12,7 @@ namespace Aggregates.Contracts
         Task<T> New(string bucketId, Id id);
         Task<T> New(Id id);
     }
-    public interface IPocoRepository<TParent, T> where TParent : IEventSource where T : class, new()
+    public interface IPocoRepository<TParent, T> : IPocoRepository<T> where TParent : IEventSource where T : class, new()
     {
     }
 }
