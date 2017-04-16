@@ -59,9 +59,6 @@
     <Compile Include="Attributes\OptimisticConcurrencyAttribute.cs" />
     <Compile Include="ConcurrencyConflict.cs" />
     <Compile Include="Configuration.cs" />
-    <Compile Include="Contracts\IAggregate.cs" />
-    <Compile Include="Contracts\IEntity.cs" />
-    <Compile Include="Contracts\IEventPublisher.cs" />
     <Compile Include="Contracts\IEventSource.cs" />
     <Compile Include="Contracts\IEventStream.cs" />
     <Compile Include="Contracts\IHaveEntities.cs" />
@@ -82,8 +79,8 @@
     <Compile Include="Extensions\StreamExtensions.cs" />
     <Compile Include="IComputed.cs" />
     <Compile Include="IHandleComputed.cs" />
-    <Compile Include="IBase.cs" />
-    <Compile Include="Internal\Base.cs" />
+    <Compile Include="IEntity.cs" />
+    <Compile Include="Internal\Entity.cs" />
     <Compile Include="Internal\DefaultOOBHandler.cs" />
     <Compile Include="Internal\ConflictResolvers.cs" />
     <Compile Include="Internal\MutateIncomingCommands.cs" />

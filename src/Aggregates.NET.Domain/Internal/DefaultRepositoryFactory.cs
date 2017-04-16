@@ -9,7 +9,7 @@ namespace Aggregates.Internal
     {
         private static readonly IDictionary<Type, Type> RepoCache = new Dictionary<Type, Type>();
 
-        public IRepository<T> ForAggregate<T>(IBuilder builder) where T : class, IAggregate
+        public IRepository<T> ForAggregate<T>(IBuilder builder) where T : Aggregate<T>
         {
             Type repoType;
             if (!RepoCache.TryGetValue(typeof(T), out repoType))
@@ -17,7 +17,7 @@ namespace Aggregates.Internal
 
             return (IRepository<T>)Activator.CreateInstance(repoType, builder);
         }
-        public IRepository<TParent, T> ForEntity<TParent, T>(TParent parent, IBuilder builder) where T : class, IEntity where TParent : class, IBase
+        public IRepository<TParent, T> ForEntity<TParent, T>(TParent parent, IBuilder builder) where T : Entity<T, TParent> where TParent : Entity<TParent>
         {
             // Is it possible to have an entity type with multiple different types of parents?  Nope
             Type repoType;
@@ -35,7 +35,7 @@ namespace Aggregates.Internal
 
             return (IPocoRepository<T>)Activator.CreateInstance(repoType, builder);
         }
-        public IPocoRepository<TParent, T> ForPoco<TParent, T>(TParent parent, IBuilder builder) where T : class, new() where TParent : class, IBase
+        public IPocoRepository<TParent, T> ForPoco<TParent, T>(TParent parent, IBuilder builder) where T : class, new() where TParent : Entity<TParent>
         {
             Type repoType;
             if (!RepoCache.TryGetValue(typeof(T), out repoType))

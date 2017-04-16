@@ -5,17 +5,17 @@ namespace Aggregates
 {
 
 
-    public abstract class Entity<TThis, TParent> : Base<TThis>, IEntity<TParent> where TParent : Base<TParent>  where TThis : Entity<TThis, TParent>
+    public abstract class Entity<TThis, TParent> : Entity<TThis>, IEntity<TParent> where TParent : Entity<TParent>  where TThis : Entity<TThis, TParent>
     {
         IEventSource IEventSource.Parent => Parent;
 
-        TParent IEntity<TParent>.Parent { get; set; }
+        TParent IEntity<TParent>.Parent => Parent;
 
-        public TParent Parent => (this as IEntity<TParent>).Parent;
+        public TParent Parent { get; internal set; }
     }
     
 
-    public abstract class EntityWithMemento<TThis, TParent, TMemento> : Entity<TThis, TParent>, ISnapshotting where TMemento : class, IMemento where TParent : Base<TParent> where TThis : EntityWithMemento<TThis, TParent, TMemento>
+    public abstract class EntityWithMemento<TThis, TParent, TMemento> : Entity<TThis, TParent>, ISnapshotting where TMemento : class, IMemento where TParent : Entity<TParent> where TThis : EntityWithMemento<TThis, TParent, TMemento>
     {
         ISnapshot ISnapshotting.Snapshot => Stream.Snapshot;
 

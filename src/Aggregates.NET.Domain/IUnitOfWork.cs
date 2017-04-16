@@ -2,16 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
+using Aggregates.Internal;
 using NServiceBus.ObjectBuilder;
 
 namespace Aggregates
 {
     public interface IUnitOfWork : IEventMutator, ICommandMutator, IDisposable
     {
-        IRepository<T> For<T>() where T : class, IAggregate;
-        IRepository<TParent, TEntity> For<TParent, TEntity>(TParent parent) where TEntity : class, IEntity where TParent : class, IBase;
+        IRepository<T> For<T>() where T : Aggregate<T>;
+        IRepository<TParent, TEntity> For<TParent, TEntity>(TParent parent) where TEntity : Entity<TEntity, TParent> where TParent : Entity<TParent>;
         IPocoRepository<T> Poco<T>() where T : class, new();
-        IPocoRepository<TParent, T> Poco<TParent, T>(TParent parent) where T : class, new() where TParent : class, IBase;
+        IPocoRepository<TParent, T> Poco<TParent, T>(TParent parent) where T : class, new() where TParent : Entity<TParent>;
 
 
         Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>;

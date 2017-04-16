@@ -17,7 +17,7 @@ using AggregateException = Aggregates.Exceptions.AggregateException;
 
 namespace Aggregates.Internal
 {
-    class Repository<TParent, T> : Repository<T>, IRepository<TParent,T> where TParent : class, IBase where T : class, IEventSource
+    class Repository<TParent, T> : Repository<T>, IRepository<TParent, T> where TParent : Entity<TParent> where T : Entity<T, TParent>
     {
         private static readonly ILog Logger = LogManager.GetLogger("Repository");
 
@@ -46,26 +46,28 @@ namespace Aggregates.Internal
             if (!Tracked.TryGetValue(cacheId, out root))
                 Tracked[cacheId] = root = await GetUntracked(_parent.Stream.Bucket, id, _parent.BuildParents()).ConfigureAwait(false);
 
-            (root as IEntity<TParent>).Parent = _parent;
+            root.Parent = _parent;
 
-            return root;
+            return (T)root;
         }
 
         public override async Task<T> New(Id id)
         {
-            Logger.Write(LogLevel.Debug, () => $"Creating new stream id [{id}] in bucket [{_parent.Stream.Bucket}] for type {typeof(T).FullName} in store");
-            var stream = await _store.NewStream<T>(_parent.Stream.Bucket, id, _parent.BuildParents()).ConfigureAwait(false);
+            var parent = (IEventSourced)_parent;
+
+            Logger.Write(LogLevel.Debug, () => $"Creating new stream id [{id}] in bucket [{parent.Stream.Bucket}] for type {typeof(T).FullName} in store");
+            var stream = await _store.NewStream<T>(parent.Stream.Bucket, id, parent.BuildParents()).ConfigureAwait(false);
             var root = Newup(stream, _builder);
 
-            (root as IEntity<TParent>).Parent = _parent;
+            root.Parent = _parent;
 
-            var cacheId = $"{_parent.Stream.Bucket}.{_parent.BuildParentsString()}.{id}";
+            var cacheId = $"{parent.Stream.Bucket}.{parent.BuildParentsString()}.{id}";
             Tracked[cacheId] = root;
             return root;
         }
     }
 
-    class Repository<T> : IRepository<T> where T : class, IEventSource
+    class Repository<T> : IRepository<T> where T : Entity<T>
     {
         private static OptimisticConcurrencyAttribute _conflictResolution;
 
@@ -321,7 +323,7 @@ namespace Aggregates.Internal
         private Task<T> GetUntracked(IEventStream stream)
         {
             // Call the 'private' constructor
-            var root = Newup(stream, _builder);
+            var root = (IEventSourced)Newup(stream, _builder);
 
             if (stream.CurrentMemento != null)
                 (root as ISnapshotting)?.RestoreSnapshot(stream.CurrentMemento);
@@ -329,7 +331,7 @@ namespace Aggregates.Internal
             root.Hydrate(stream.Committed.Select(e => e.Event as IEvent));
 
             Logger.Write(LogLevel.Debug, () => $"Hydrated aggregate id [{stream.StreamId}] in bucket [{stream.Bucket}] for type {typeof(T).FullName} to version {stream.CommitVersion}");
-            return Task.FromResult(root);
+            return Task.FromResult((T)root);
         }
 
         public virtual Task<T> New(Id id)

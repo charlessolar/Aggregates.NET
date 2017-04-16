@@ -12,7 +12,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    class PocoRepository<TParent, T> : PocoRepository<T>, IPocoRepository<TParent, T> where TParent : class, IBase where T : class, new()
+    class PocoRepository<TParent, T> : PocoRepository<T>, IPocoRepository<TParent, T> where TParent : Entity<TParent> where T : class, new()
     {
         private static readonly ILog Logger = LogManager.GetLogger("PocoRepository");
 
@@ -36,18 +36,22 @@ namespace Aggregates.Internal
 
         public override async Task<T> Get(Id id)
         {
+            var parent = (IEventSourced)_parent;
+
             Logger.Write(LogLevel.Debug, () => $"Retreiving entity id [{id}] from parent {_parent.Id} [{typeof(TParent).FullName}] in store");
-            var streamId = $"{_parent.BuildParentsString()}.{id}";
+            var streamId = $"{parent.BuildParentsString()}.{id}";
             
-            var entity = await Get(_parent.Stream.Bucket, streamId, _parent.BuildParents()).ConfigureAwait(false);
+            var entity = await Get(parent.Stream.Bucket, streamId, parent.BuildParents()).ConfigureAwait(false);
             return entity;
         }
 
         public override async Task<T> New(Id id)
         {
-            var streamId = $"{_parent.BuildParentsString()}.{id}";
+            var parent = (IEventSourced)_parent;
 
-            var entity = await New(_parent.Stream.Bucket, streamId, _parent.BuildParents()).ConfigureAwait(false);
+            var streamId = $"{parent.BuildParentsString()}.{id}";
+
+            var entity = await New(parent.Stream.Bucket, streamId, parent.BuildParents()).ConfigureAwait(false);
             return entity;
         }
     }

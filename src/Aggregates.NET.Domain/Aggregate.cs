@@ -4,9 +4,8 @@ using NServiceBus.Logging;
 
 namespace Aggregates
 {
-    public abstract class Aggregate<TThis> : Base<TThis>, IAggregate where TThis : Aggregate<TThis>
+    public abstract class Aggregate<TThis> : Entity<TThis> where TThis : Aggregate<TThis>
     {
-        IEventSource IEventSource.Parent => null;
     }
 
     public abstract class AggregateWithMemento<TThis, TMemento> : Aggregate<TThis>, ISnapshotting where TMemento : class, IMemento where TThis : AggregateWithMemento<TThis, TMemento>

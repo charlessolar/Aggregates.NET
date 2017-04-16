@@ -12,7 +12,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    public abstract class Base<TThis> : IBase, IHaveEntities<TThis>, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver where TThis : Base<TThis>
+    public abstract class Entity<TThis> : IEntity, IEventSourced, IHaveEntities<TThis>, INeedBuilder, INeedStream, INeedEventFactory, INeedRouteResolver where TThis : Entity<TThis>
     {
         internal static readonly ILog Logger = LogManager.GetLogger(typeof(TThis).Name);
 
@@ -44,7 +44,7 @@ namespace Aggregates.Internal
         IBuilder INeedBuilder.Builder { get; set; }
 
 
-        public IRepository<TThis, TEntity> For<TEntity>() where TEntity : class, IEntity
+        public IRepository<TThis, TEntity> For<TEntity>() where TEntity : Entity<TEntity, TThis>
         {
             // Get current UOW
             var uow = Builder.Build<IUnitOfWork>();
@@ -63,13 +63,13 @@ namespace Aggregates.Internal
             return Id.GetHashCode();
         }
 
-        void IEventSource.Hydrate(IEnumerable<IEvent> events)
+        void IEventSourced.Hydrate(IEnumerable<IEvent> events)
         {
             Logger.Write(LogLevel.Debug, () => $"Hydrating {events.Count()} events to entity {GetType().FullName} stream [{Id}] bucket [{Bucket}]");
             foreach (var @event in events)
                 RouteFor(@event);
         }
-        void IEventSource.Conflict(IEvent @event, IDictionary<string, string> metadata)
+        void IEventSourced.Conflict(IEvent @event, IDictionary<string, string> metadata)
         {
             try
             {
@@ -84,11 +84,11 @@ namespace Aggregates.Internal
 
         }
 
-        void IEventSource.Apply(IEvent @event, IDictionary<string, string> metadata)
+        void IEventSourced.Apply(IEvent @event, IDictionary<string, string> metadata)
         {
             Apply(@event, metadata);
         }
-        void IEventSource.Raise(IEvent @event, IDictionary<string, string> metadata)
+        void IEventSourced.Raise(IEvent @event, IDictionary<string, string> metadata)
         {
             Raise(@event, metadata);
         }

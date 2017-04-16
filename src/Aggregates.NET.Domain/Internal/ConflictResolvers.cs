@@ -61,12 +61,14 @@ namespace Aggregates.Internal
 
         public async Task Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
-            var stream = entity.Stream;
+            var sourced = (IEventSourced)entity;
+
+            var stream = sourced.Stream;
             Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
 
             foreach (var u in uncommitted)
             {
-                entity.Apply(u.Event as IEvent, metadata: new Dictionary<string, string> { { "ConflictResolution", ConcurrencyConflict.Ignore.ToString() } });
+                sourced.Apply(u.Event as IEvent, metadata: new Dictionary<string, string> { { "ConflictResolution", ConcurrencyConflict.Ignore.ToString() } });
             }
 
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
@@ -83,7 +85,8 @@ namespace Aggregates.Internal
 
         public Task Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
-            var stream = entity.Stream;
+            var sourced = (IEventSourced)entity;
+            var stream = sourced.Stream;
             Logger.Write(LogLevel.Info, () => $"Discarding {uncommitted.Count()} conflicting uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
 
             return Task.CompletedTask;
@@ -105,7 +108,9 @@ namespace Aggregates.Internal
 
         public async Task Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
-            var stream = entity.Stream;
+            var sourced = (IEventSourced)entity;
+
+            var stream = sourced.Stream;
             Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
 
             try
@@ -120,14 +125,14 @@ namespace Aggregates.Internal
 
                 var writableEvents = latestEvents as IWritableEvent[] ?? latestEvents.ToArray();
                 stream.Concat(writableEvents);
-                entity.Hydrate(writableEvents.Select(x => x.Event as IEvent));
+                sourced.Hydrate(writableEvents.Select(x => x.Event as IEvent));
 
 
                 Logger.Write(LogLevel.Debug, () => "Merging conflicted events");
                 try
                 {
                     foreach (var u in uncommitted)
-                        entity.Conflict(u.Event as IEvent, metadata: new Dictionary<string, string> { { "ConflictResolution", ConcurrencyConflict.ResolveStrongly.ToString() } });
+                        sourced.Conflict(u.Event as IEvent, metadata: new Dictionary<string, string> { { "ConflictResolution", ConcurrencyConflict.ResolveStrongly.ToString() } });
                 }
                 catch (NoRouteException e)
                 {
@@ -189,7 +194,7 @@ namespace Aggregates.Internal
             _maxPulledDelayed = maxPulledDelayed;
         }
 
-        private Task<IBase> GetBase(string bucket, string type, Id id, IBase parent = null)
+        private Task<IEventSourced> GetBase(string bucket, string type, Id id, IEventSourced parent = null)
         {
             var entityType = Type.GetType(type, false, true);
             if (entityType == null)
@@ -206,7 +211,7 @@ namespace Aggregates.Internal
                 var repo = method.Invoke(_uow, new object[] { });
 
                 method = typeof(IRepository<,>).GetMethod("Get");
-                return (Task<IBase>)method.Invoke(repo, new object[] { bucket, id });
+                return (Task<IEventSourced>)method.Invoke(repo, new object[] { bucket, id });
             }
             else
             {
@@ -215,14 +220,14 @@ namespace Aggregates.Internal
                 var repo = method.Invoke(_uow, new object[] { parent });
 
                 method = typeof(IRepository<,>).GetMethod("Get");
-                return (Task<IBase>)method.Invoke(repo, new object[] { bucket, id });
+                return (Task<IEventSourced>)method.Invoke(repo, new object[] { bucket, id });
             }
         }
 
         public async Task Handle(ConflictingEvents conflicts, IMessageHandlerContext ctx)
         {
             // Hydrate the entity, include all his parents
-            IBase parentBase = null;
+            IEventSourced parentBase = null;
             foreach (var parent in conflicts.Parents)
                 parentBase = await GetBase(conflicts.Bucket, parent.Item1, parent.Item2, parentBase).ConfigureAwait(false);
 
@@ -278,17 +283,17 @@ namespace Aggregates.Internal
             return results;
         }
 
-        public async Task Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId,
-            IDictionary<string, string> commitHeaders) where T : class, IEventSource
+        public async Task Resolve<T>(T entity, IEnumerable<IWritableEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
+            var sourced = (IEventSourced)entity;
             // Store conflicting events in memory
             // After 100 or so pile up pull the latest stream and attempt to write them again
 
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, entity.Stream.Bucket, entity.Stream.StreamId, entity.Stream.Parents);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, sourced.Stream.Bucket, sourced.Stream.StreamId, sourced.Stream.Parents);
             var package = new ConflictingEvents
             {
-                Bucket = entity.Stream.Bucket,
-                StreamId = entity.Stream.StreamId,
+                Bucket = sourced.Stream.Bucket,
+                StreamId = sourced.Stream.StreamId,
                 EntityType = typeof(T).AssemblyQualifiedName,
                 Parents = BuildParentList(entity),
                 Events = uncommitted
@@ -302,7 +307,7 @@ namespace Aggregates.Internal
             if (!age.HasValue || age < TimeSpan.FromSeconds(30))
                 return;
 
-            var stream = entity.Stream;
+            var stream = sourced.Stream;
             Logger.Write(LogLevel.Info,
                 () => $"Starting weak conflict resolve for stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
             try
@@ -334,14 +339,14 @@ namespace Aggregates.Internal
 
                 var writableEvents = latestEvents as IWritableEvent[] ?? latestEvents.ToArray();
                 stream.Concat(writableEvents);
-                entity.Hydrate(writableEvents.Select(x => x.Event as IEvent));
+                sourced.Hydrate(writableEvents.Select(x => x.Event as IEvent));
 
 
                 Logger.Write(LogLevel.Debug, () => $"Merging {uncommitted.Count()} conflicted events");
                 try
                 {
                     foreach (var u in uncommitted)
-                        entity.Conflict(u.Event as IEvent,
+                        sourced.Conflict(u.Event as IEvent,
                             metadata:
                             new Dictionary<string, string>
                             {
