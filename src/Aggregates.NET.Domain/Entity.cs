@@ -8,9 +8,7 @@ namespace Aggregates
     public abstract class Entity<TThis, TParent> : Entity<TThis>, IEntity<TParent> where TParent : Entity<TParent>  where TThis : Entity<TThis, TParent>
     {
         IEventSource IEventSource.Parent => Parent;
-
-        TParent IEntity<TParent>.Parent => Parent;
-
+        
         public TParent Parent { get; internal set; }
     }
     

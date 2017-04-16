@@ -22,6 +22,7 @@ namespace Aggregates.Internal
 
         private IRouteResolver Resolver => (this as INeedRouteResolver).Resolver;
 
+        internal IEventStream Stream => (this as INeedStream).Stream;
 
         Id IEventSource.Id => Id;
         long IEventSource.Version => Version;
@@ -29,15 +30,13 @@ namespace Aggregates.Internal
 
         public Id Id => Stream.StreamId;
         public string Bucket => Stream.Bucket;
-
         public long Version => Stream.StreamVersion;
-
         public long CommitVersion => Stream.CommitVersion;
 
-        public IEventStream Stream => (this as INeedStream).Stream;
 
         IEventStream INeedStream.Stream { get; set; }
-        
+        IEventStream IEventSourced.Stream => (this as INeedStream).Stream;
+
         IMessageCreator INeedEventFactory.EventFactory { get; set; }
 
         IRouteResolver INeedRouteResolver.Resolver { get; set; }
