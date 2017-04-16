@@ -23,5 +23,14 @@ namespace Aggregates.Extensions
             return events.Where(x => x.Event is T).Select(x => x.Event).Cast<T>();
         }
 
+        public static Task<IEnumerable<T>> Cast<T>(this Task<IEnumerable<IFullEvent>> events) where T : IEvent
+        {
+            return events.ContinueWith(x => x.Result.Cast<T>());
+        }
+        public static Task<IEnumerable<T>> CastFilter<T>(this Task<IEnumerable<IFullEvent>> events) where T : IEvent
+        {
+            return events.ContinueWith(x => x.Result.CastFilter<T>());
+        }
+
     }
 }

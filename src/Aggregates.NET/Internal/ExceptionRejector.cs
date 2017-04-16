@@ -38,6 +38,7 @@ namespace Aggregates.Internal
             try
             {
                 RetryRegistry.TryRemove(messageId, out retries);
+                context.Message.Headers[Defaults.Retries] = retries.ToString();
                 context.Extensions.Set(Defaults.Retries, retries);
                 if (retries > 0)
                     Logger.WriteFormat(LogLevel.Info,

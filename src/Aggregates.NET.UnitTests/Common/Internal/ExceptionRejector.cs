@@ -30,6 +30,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             var context = new Moq.Mock<IIncomingPhysicalMessageContext>();
             var next = new Moq.Mock<Func<Task>>();
             context.Setup(x => x.MessageId).Returns("1");
+            context.Setup(x => x.Message).Returns(new IncomingMessage("1", new Dictionary<string, string>(), new byte[] { }));
             context.Setup(x => x.Extensions).Returns(bag);
 
             await _rejector.Invoke(context.Object, next.Object);

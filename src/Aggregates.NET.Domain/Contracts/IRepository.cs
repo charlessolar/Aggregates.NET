@@ -5,7 +5,7 @@ using Aggregates.Internal;
 
 namespace Aggregates.Contracts
 {
-    public interface IRepository : IDisposable
+    interface IRepository : IDisposable
     {
         int TotalUncommitted { get; }
         int ChangedStreams { get; }
@@ -16,7 +16,7 @@ namespace Aggregates.Contracts
         Task Commit(Guid commitId, IDictionary<string, string> commitHeaders);
     }
 
-    public interface IRepository<T> : IRepository where T : Entity<T>
+    public interface IRepository<T> where T : Entity<T>
     {
         /// <summary>
         /// Attempts to get aggregate from store, if stream does not exist it throws

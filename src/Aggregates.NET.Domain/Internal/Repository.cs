@@ -67,7 +67,7 @@ namespace Aggregates.Internal
         }
     }
 
-    class Repository<T> : IRepository<T> where T : Entity<T>
+    class Repository<T> : IRepository<T>, IRepository where T : Entity<T>
     {
         private static OptimisticConcurrencyAttribute _conflictResolution;
 

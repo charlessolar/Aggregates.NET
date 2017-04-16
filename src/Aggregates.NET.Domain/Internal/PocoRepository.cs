@@ -56,7 +56,7 @@ namespace Aggregates.Internal
         }
     }
 
-    class PocoRepository<T> : IPocoRepository<T> where T : class, new()
+    class PocoRepository<T> : IPocoRepository<T>, IRepository where T : class, new()
     {
         private static readonly ILog Logger = LogManager.GetLogger("PocoRepository");
         private readonly IStorePocos _store;

@@ -2,7 +2,7 @@
 
 namespace Aggregates.Contracts
 {
-    public interface IPocoRepository<T> : IRepository where T : class, new()
+    public interface IPocoRepository<T> where T : class, new()
     {
         Task<T> Get(Id id);
         Task<T> Get(string bucketId, Id id);
@@ -12,7 +12,7 @@ namespace Aggregates.Contracts
         Task<T> New(string bucketId, Id id);
         Task<T> New(Id id);
     }
-    public interface IPocoRepository<TParent, T> : IRepository where TParent : IEventSource where T : class, new()
+    public interface IPocoRepository<TParent, T> where TParent : IEventSource where T : class, new()
     {
     }
 }

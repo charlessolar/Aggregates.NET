@@ -100,7 +100,7 @@ namespace Aggregates.Internal
             IRepository repository;
             if (_repositories.TryGetValue(key, out repository)) return (IRepository<T>)repository;
 
-            return (IRepository<T>)(_repositories[key] = _repoFactory.ForAggregate<T>(Builder));
+            return (IRepository<T>)(_repositories[key] = (IRepository)_repoFactory.ForAggregate<T>(Builder));
         }
         public IRepository<TParent, TEntity> For<TParent, TEntity>(TParent parent) where TEntity : Entity<TEntity, TParent> where TParent : Entity<TParent>
         {
@@ -111,7 +111,7 @@ namespace Aggregates.Internal
             if (_repositories.TryGetValue(key, out repository))
                 return (IRepository<TParent, TEntity>)repository;
 
-            return (IRepository<TParent, TEntity>)(_repositories[key] = _repoFactory.ForEntity<TParent, TEntity>(parent, Builder));
+            return (IRepository<TParent, TEntity>)(_repositories[key] = (IRepository)_repoFactory.ForEntity<TParent, TEntity>(parent, Builder));
         }
         public IPocoRepository<T> Poco<T>() where T : class, new()
         {
@@ -121,7 +121,7 @@ namespace Aggregates.Internal
             IRepository repository;
             if (_pocoRepositories.TryGetValue(key, out repository)) return (IPocoRepository<T>)repository;
 
-            return (IPocoRepository<T>)(_pocoRepositories[key] = _repoFactory.ForPoco<T>(Builder));
+            return (IPocoRepository<T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<T>(Builder));
         }
         public IPocoRepository<TParent, T> Poco<TParent, T>(TParent parent) where T : class, new() where TParent : Entity<TParent>
         {
@@ -132,7 +132,7 @@ namespace Aggregates.Internal
             if (_pocoRepositories.TryGetValue(key, out repository))
                 return (IPocoRepository<TParent, T>)repository;
 
-            return (IPocoRepository<TParent, T>)(_pocoRepositories[key] = _repoFactory.ForPoco<TParent, T>(parent, Builder));
+            return (IPocoRepository<TParent, T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<TParent, T>(parent, Builder));
         }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
@@ -244,6 +244,7 @@ namespace Aggregates.Internal
                 var workHeader = $"{PrefixHeader}.{header}";
                 CurrentHeaders[workHeader] = defaultHeader;
             }
+            CurrentHeaders[$"{PrefixHeader}.OriginatingType"] = command.GetType().FullName;
 
             // Copy any application headers the user might have included
             var userHeaders = command.Headers.Keys.Where(h =>
@@ -256,7 +257,7 @@ namespace Aggregates.Internal
                             !h.Equals(Defaults.Retries, StringComparison.InvariantCultureIgnoreCase));
 
             foreach (var header in userHeaders)
-                CurrentHeaders[header] = command.Headers[header];
+                CurrentHeaders[$"{PrefixHeader}.{header}"] = command.Headers[header];
             CurrentHeaders[Defaults.InstanceHeader] = Defaults.Instance.ToString();
 
 
