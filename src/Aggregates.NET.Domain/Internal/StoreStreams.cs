@@ -114,6 +114,7 @@ namespace Aggregates.Internal
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
             return _store.GetEventsBackwards(streamName, start: start, count: count);
         }
+        
 
 
         public async Task WriteStream<T>(IEventStream stream, IDictionary<string, string> commitHeaders) where T : class, IEventSource

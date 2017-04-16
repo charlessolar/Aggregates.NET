@@ -103,6 +103,9 @@ namespace Aggregates.Internal
             }
         }
 
+        public Task<long> Size => Task.FromResult(CommitVersion);
+        public Task<long> OobSize => _oobHandler.Size<T>(Bucket, StreamId, Parents);
+
         /// <summary>
         /// Clones the stream for caching, add an event to the new clone stream optionally
         /// </summary>
@@ -121,14 +124,15 @@ namespace Aggregates.Internal
         {
             _committed = _committed.Concat(events);
         }
-
-        public Task<IEnumerable<IFullEvent>> AllEvents(bool? backwards)
+        
+        public Task<IEnumerable<IFullEvent>> Events(long? start = null, int? count = null)
         {
-            return backwards == true ? _store.GetEventsBackwards<T>(Bucket, StreamId, Parents) : _store.GetEvents<T>(Bucket, StreamId, Parents);
+            return _store.GetEvents<T>(Bucket, StreamId, Parents, start, count);
         }
-        public Task<IEnumerable<IFullEvent>> OobEvents(bool? backwards)
+        
+        public Task<IEnumerable<IFullEvent>> OobEvents(long? start = null, int? count = null)
         {
-            return _oobHandler.Retrieve<T>(Bucket, StreamId, Parents, ascending: !(backwards ?? false));
+            return _oobHandler.Retrieve<T>(Bucket, StreamId, Parents, start, count);
         }
 
         private IFullEvent MakeWritableEvent(IEvent @event, IDictionary<string, string> headers, bool version = true)
@@ -194,6 +198,7 @@ namespace Aggregates.Internal
         {
             return _store.VerifyVersion<T>(this);
         }
+
 
         public async Task Commit(Guid commitId, IDictionary<string, string> commitHeaders)
         {

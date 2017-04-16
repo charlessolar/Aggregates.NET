@@ -18,6 +18,9 @@ namespace Aggregates.Contracts
         long StreamVersion { get; }
         long CommitVersion { get; }
 
+        Task<long> Size { get; }
+        Task<long> OobSize { get; }
+
         /// <summary>
         /// Indicates whether the stream has been changed
         /// </summary>
@@ -43,12 +46,12 @@ namespace Aggregates.Contracts
         /// <summary>
         /// Retrieves a slice of the event stream 
         /// </summary>
-        Task<IEnumerable<IFullEvent>> Events(long? start = null, long? end = null);
+        Task<IEnumerable<IFullEvent>> Events(long? start = null, int? count = null);
 
         /// <summary>
         /// Retreives a slice of the oob event stream
         /// </summary>
-        Task<IEnumerable<IFullEvent>> OobEvents(long? start = null, long? end = null);
+        Task<IEnumerable<IFullEvent>> OobEvents(long? start = null, int? count = null);
 
         void Add(IEvent @event, IDictionary<string, string> headers);
         void AddOutOfBand(IEvent @event, IDictionary<string, string> headers);

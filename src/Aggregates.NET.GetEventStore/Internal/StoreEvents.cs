@@ -257,6 +257,16 @@ namespace Aggregates.Internal
             return DoWrite(stream, new[] { data });
         }
 
+        public async Task<long> Size(string stream)
+        {
+            Logger.Write(LogLevel.Debug, () => $"Getting the size of stream {stream}");
+
+            var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
+            
+            var result = await _clients[bucket].ReadStreamEventsBackwardAsync(stream, StreamPosition.End, 1, false).ConfigureAwait(false);
+            return result.Status == SliceReadStatus.Success ? result.NextEventNumber : 0;
+        }
+
         public Task<long> WriteEvents(string stream, IEnumerable<IFullEvent> events,
             IDictionary<string, string> commitHeaders, long? expectedVersion = null)
         {
@@ -273,7 +283,7 @@ namespace Aggregates.Internal
             {
                 var descriptor = e.Descriptor;
                 descriptor.EventId = e.EventId ?? Guid.NewGuid();
-                descriptor.CommitHeaders = commitHeaders ?? new Dictionary<string,string>();
+                descriptor.CommitHeaders = commitHeaders ?? new Dictionary<string, string>();
 
                 var mappedType = e.Event.GetType();
                 if (!mappedType.IsInterface)
@@ -367,7 +377,7 @@ namespace Aggregates.Internal
         }
 
         public async Task WriteMetadata(string stream, long? maxCount = null, long? truncateBefore = null, TimeSpan? maxAge = null,
-            TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null, bool force = false, IDictionary<string, string> custom=null)
+            TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null, bool force = false, IDictionary<string, string> custom = null)
         {
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
             Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream [{stream}] [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl}, {nameof(frozen)}: {frozen} ]");
@@ -461,7 +471,7 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Getting metadata '{key}' from stream [{stream}]");
 
             var existing = await _clients[bucket].GetStreamMetadataAsync(stream).ConfigureAwait(false);
-            
+
             if ((existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false))
             {
                 FrozenExceptions.Mark();

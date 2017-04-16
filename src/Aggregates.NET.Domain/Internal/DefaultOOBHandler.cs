@@ -26,10 +26,16 @@ namespace Aggregates.Internal
                 await _store.WriteMetadata(streamName, maxCount: 200000).ConfigureAwait(false);
             
         }
-        public Task<IEnumerable<IFullEvent>> Retrieve<T>(string bucket, Id streamId, IEnumerable<Id> parents, int? skip = null, int? take = null, bool ascending = true) where T : class, IEventSource
+        public Task<IEnumerable<IFullEvent>> Retrieve<T>(string bucket, Id streamId, IEnumerable<Id> parents, long? skip = null, int? take = null, bool ascending = true) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), StreamTypes.OOB, bucket, streamId, parents);
             return !ascending ? _store.GetEventsBackwards(streamName) : _store.GetEvents(streamName);
+        }
+
+        public Task<long> Size<T>(string bucket, Id streamId, IEnumerable<Id> parents) where T : class, IEventSource
+        {
+            var streamName = _streamGen(typeof(T), StreamTypes.OOB, bucket, streamId, parents);
+            return _store.Size(streamName);
         }
     }
 }

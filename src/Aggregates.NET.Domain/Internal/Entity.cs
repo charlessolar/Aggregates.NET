@@ -33,6 +33,9 @@ namespace Aggregates.Internal
         public long Version => Stream.StreamVersion;
         public long CommitVersion => Stream.CommitVersion;
 
+        public Task<long> EventCount => Stream.Size;
+        public Task<long> OobCount => Stream.OobSize;
+
 
         IEventStream INeedStream.Stream { get; set; }
         IEventStream IEventSourced.Stream => (this as INeedStream).Stream;
@@ -56,14 +59,15 @@ namespace Aggregates.Internal
             return uow.Poco<TThis, T>(this as TThis);
         }
 
-        public Task<IEnumerable<IFullEvent>> Events(long? start = null, long? end = null)
+        public Task<IEnumerable<IFullEvent>> Events(long? start = null, int? count = null)
         {
-            return Stream.Events(start, end);
+            return Stream.Events(start, count);
         }
-        public Task<IEnumerable<IFullEvent>> OobEvents(long? start = null, long? end = null)
+        public Task<IEnumerable<IFullEvent>> OobEvents(long? start = null, int? count = null)
         {
-            return Stream.OobEvents(start, end);
+            return Stream.OobEvents(start, count);
         }
+
 
         public override int GetHashCode()
         {

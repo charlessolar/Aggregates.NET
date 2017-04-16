@@ -15,6 +15,7 @@ namespace Aggregates.Contracts
         /// </summary>
         Task<long> WriteEvents(string stream, IEnumerable<IFullEvent> events, IDictionary<string, string> commitHeaders, long? expectedVersion = null);
 
+        Task<long> Size(string stream);
         Task<long> WriteSnapshot(string stream, IFullEvent snapshot, IDictionary<string, string> commitheaders);
         Task WriteMetadata(string stream, long? maxCount = null, long? truncateBefore = null, TimeSpan? maxAge = null, TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null, bool force = false, IDictionary<string, string> custom = null);
         Task<string> GetMetadata(string stream, string key);
