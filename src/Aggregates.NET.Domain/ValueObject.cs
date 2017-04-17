@@ -5,11 +5,11 @@ using System.Reflection;
 
 namespace Aggregates
 {
-    public class SingleValueObject<T> : IEquatable<T>
+    public class Immutable<T> : IEquatable<T>
     {
         public readonly T Value;
 
-        public SingleValueObject(T value = default(T))
+        public Immutable(T value = default(T))
         {
             Value = value;
         }
@@ -28,9 +28,9 @@ namespace Aggregates
 
         public bool Equals(T other)
         {
-            return Equals(new SingleValueObject<T>(other));
+            return Equals(new Immutable<T>(other));
         }
-        public virtual bool Equals(SingleValueObject<T> other)
+        public virtual bool Equals(Immutable<T> other)
         {
             return HasValue && Value.Equals(other.Value);
         }
@@ -47,29 +47,39 @@ namespace Aggregates
             return Value.ToString();
         }
 
-
-        public static implicit operator T(SingleValueObject<T> x)
+        
+        public static implicit operator Immutable<T>(T x)
         {
-            return x.Value;
+            return new Immutable<T>(x);
         }
-        public static implicit operator SingleValueObject<T>(T x)
+        public static bool operator ==(Immutable<T> x, Immutable<T> y)
         {
-            return new SingleValueObject<T>(x);
-        }
-        public static bool operator ==(SingleValueObject<T> x, SingleValueObject<T> y)
-        {
+            if (x == null)
+                return y == null;
             return x.Equals(y);
         }
-        public static bool operator ==(SingleValueObject<T> x, T y)
+        public static bool operator ==(Immutable<T> x, T y)
         {
-            return x.Equals(new SingleValueObject<T>(y));
+            if (x == null)
+                return y == null;
+            return x.Equals(new Immutable<T>(y));
+        }
+        public static bool operator ==(T x, Immutable<T> y)
+        {
+            if (y == null)
+                return x == null;
+            return y.Equals(new Immutable<T>(x));
         }
 
-        public static bool operator !=(SingleValueObject<T> x, SingleValueObject<T> y)
+        public static bool operator !=(Immutable<T> x, Immutable<T> y)
         {
             return !(x == y);
         }
-        public static bool operator !=(SingleValueObject<T> x, T y)
+        public static bool operator !=(Immutable<T> x, T y)
+        {
+            return !(x == y);
+        }
+        public static bool operator !=(T x, Immutable<T> y)
         {
             return !(x == y);
         }

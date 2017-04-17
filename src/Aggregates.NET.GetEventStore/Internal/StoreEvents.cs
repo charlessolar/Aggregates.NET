@@ -194,7 +194,7 @@ namespace Aggregates.Internal
             {
                 var metadata = e.Event.Metadata;
                 var data = e.Event.Data;
-
+                
                 var descriptor = metadata.Deserialize(settings);
 
                 if (descriptor.Compressed)

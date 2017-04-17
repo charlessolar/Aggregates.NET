@@ -27,7 +27,6 @@ namespace Aggregates.Internal
         private readonly IEventStoreConnection _client;
         private readonly string _stream;
         private readonly string _group;
-        private readonly int _index;
         private readonly int _readsize;
         private readonly CancellationToken _token;
         private readonly Task _acknowledger;
@@ -40,16 +39,15 @@ namespace Aggregates.Internal
         private TimerContext _idleContext;
 
         public bool Live { get; private set; }
-        public string Id => $"{_client.Settings.GossipSeeds[0].EndPoint.Address}.{_stream.Substring(_stream.LastIndexOf(".") + 1)}.{_index}";
+        public string Id => $"{_client.Settings.GossipSeeds[0].EndPoint.Address}.{_stream.Substring(_stream.LastIndexOf(".") + 1)}";
 
         private bool _disposed;
 
-        public PersistentClient(IEventStoreConnection client, string stream, string group, int readsize, int index, CancellationToken token)
+        public PersistentClient(IEventStoreConnection client, string stream, string group, int readsize, CancellationToken token)
         {
             _client = client;
             _stream = stream;
             _group = group;
-            _index = index;
             _readsize = readsize;
             _token = token;
             _ackLock = new object();

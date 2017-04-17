@@ -44,7 +44,8 @@ namespace Aggregates.Internal
 
         private class ThreadParam
         {
-            public PersistentClient[] Clients { get; set; }
+            public IEnumerable<Dictionary<string, PersistentClient>> Clients { get; set; }
+            public int Concurrency { get; set; }
             public CancellationToken Token { get; set; }
             public MessageMetadataRegistry MessageMeta { get; set; }
             public JsonSerializerSettings JsonSettings { get; set; }
@@ -121,7 +122,7 @@ namespace Aggregates.Internal
                 }
 
                 // Dont use - we dont need category projection projecting our projection
-                var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}".Replace("-","");
+                var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}".Replace("-", "");
 
                 // Link all events we are subscribing to to a stream
                 var functions =
@@ -139,9 +140,11 @@ fromCategory('{0}').
 when({{
 {2}
 }});";
-                
+
+                // Todo: replace with `fromCategories([])` when available
                 var appDefinition = string.Format(definition, StreamTypes.Domain, stream, functions).Replace(Environment.NewLine, "\n");
                 var oobDefinition = string.Format(definition, StreamTypes.OOB, stream, functions).Replace(Environment.NewLine, "\n");
+                var pocoDefinition = string.Format(definition, StreamTypes.Poco, stream, functions).Replace(Environment.NewLine, "\n");
 
                 // Create a projection for domain events and one for OOB events, later we'll subscribe as PINNED to domain events
                 // and ROUNDROBIN for OOB events.  
@@ -206,14 +209,45 @@ when({{
                     {
                     }
                 }
+                try
+                {
+                    var existing = await manager.GetQueryAsync($"{stream}.poco.projection").ConfigureAwait(false);
+
+                    var fixedExisting = Regex.Replace(existing, @"\s+", String.Empty);
+                    var fixedDefinition = Regex.Replace(pocoDefinition, @"\s+", String.Empty);
+
+
+                    if (!string.Equals(fixedExisting, fixedDefinition, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Logger.Fatal(
+                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!\nExisting:\n{existing}\nDesired:\n{pocoDefinition}");
+                        throw new EndpointVersionException(
+                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
+                    }
+                }
+                catch (ProjectionCommandFailedException)
+                {
+                    try
+                    {
+                        // Projection doesn't exist 
+                        await
+                            manager.CreateContinuousAsync($"{stream}.poco.projection", pocoDefinition, false,
+                                    client.Settings.DefaultUserCredentials)
+                                .ConfigureAwait(false);
+                    }
+                    catch (ProjectionCommandFailedException)
+                    {
+                    }
+                }
             }
         }
 
         public Task Subscribe(CancellationToken cancelToken)
         {
             var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
-            var roundRobbinGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.ROUND";
-            var pinnedGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.PINNED";
+            var appGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.{StreamTypes.Domain}";
+            var oobGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.{StreamTypes.OOB}";
+            var pocoGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.{StreamTypes.Poco}";
 
             _cancelation = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
 
@@ -242,7 +276,7 @@ when({{
                 if (_extraStats)
                     settings.WithExtraStatistics();
 
-                var clients = new PersistentClient[_clients.Count() * _concurrency * 2];
+                var clients = new List<Dictionary<string, PersistentClient>>();// new PersistentClient[_clients.Count()];
 
                 for (var i = 0; i < _clients.Count(); i++)
                 {
@@ -260,9 +294,9 @@ when({{
                     {
                         settings.WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                         await
-                            client.CreatePersistentSubscriptionAsync($"{stream}.{StreamTypes.Domain}", pinnedGroup, settings,
+                            client.CreatePersistentSubscriptionAsync($"{stream}.{StreamTypes.Domain}", appGroup, settings,
                                 client.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                        Logger.Info($"Created PINNED persistent subscription to stream [{stream}]");
+                        Logger.Info($"Created PINNED persistent subscription to stream [{stream}.{StreamTypes.Domain}]");
 
                     }
                     catch (InvalidOperationException)
@@ -272,46 +306,61 @@ when({{
                     {
                         settings.WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                         await
-                            client.CreatePersistentSubscriptionAsync($"{stream}.{StreamTypes.OOB}", roundRobbinGroup, settings,
+                            client.CreatePersistentSubscriptionAsync($"{stream}.{StreamTypes.OOB}", oobGroup, settings,
                                 client.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                        Logger.Info($"Created ROUND ROBIN persistent subscription to stream [{stream}]");
+                        Logger.Info($"Created ROUND ROBIN persistent subscription to stream [{stream}.{StreamTypes.OOB}]");
+
+                    }
+                    catch (InvalidOperationException)
+                    {
+                    }
+                    try
+                    {
+                        settings.WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
+                        await
+                            client.CreatePersistentSubscriptionAsync($"{stream}.{StreamTypes.Poco}", pocoGroup, settings,
+                                client.Settings.DefaultUserCredentials).ConfigureAwait(false);
+                        Logger.Info($"Created ROUND ROBIN persistent subscription to stream [{stream}.{StreamTypes.Poco}]");
 
                     }
                     catch (InvalidOperationException)
                     {
                     }
 
-                    for (var j = 0; j < _concurrency; j += 1)
+                    clients.Add(new Dictionary<string, PersistentClient>()
                     {
-                        // If multiple clients lay out clients array like so:  (assuming 2 clients with 4 concurrency)
-                        //
-                        //  ij
-                        //  00 00 01 01 02 02 03 03
-                        //  10 10 11 11 12 12 13 13
-                        //
-                        clients[2 * ((i * _concurrency) + j)] = new PersistentClient(client, $"{stream}.{StreamTypes.Domain}", pinnedGroup, _readsize, j, clientCancelSource.Token);
-                        clients[2 * ((i * _concurrency) + j) + 1] = new PersistentClient(client, $"{stream}.{StreamTypes.OOB}", roundRobbinGroup, _readsize, j, clientCancelSource.Token);
-                    }
+                        [StreamTypes.Domain] = new PersistentClient(client, $"{stream}.{StreamTypes.Domain}", appGroup, _readsize, clientCancelSource.Token),
+                        [StreamTypes.OOB] = new PersistentClient(client, $"{stream}.{StreamTypes.OOB}", oobGroup, _readsize, clientCancelSource.Token),
+                        [StreamTypes.Poco] = new PersistentClient(client, $"{stream}.{StreamTypes.Poco}", pocoGroup, _readsize, clientCancelSource.Token),
+                    });
+
                 }
 
                 _pinnedThread = new Thread(Threaded)
                 { IsBackground = true, Name = $"Main Event Thread" };
-                _pinnedThread.Start(new ThreadParam { Token = cancelToken, Clients = clients, MessageMeta = _messageMeta, JsonSettings = _settings });
+                _pinnedThread.Start(new ThreadParam { Token = cancelToken, Clients = clients, MessageMeta = _messageMeta, JsonSettings = _settings, Concurrency = _concurrency });
 
             });
 
             return Task.CompletedTask;
         }
-       
+
 
         private static void Threaded(object state)
         {
             var param = (ThreadParam)state;
 
-            param.Clients.WhenAllAsync(x => x.Connect()).Wait();
+            param.Clients.SelectMany(x => x.Values).WhenAllAsync(x => x.Connect()).Wait();
 
             var threadIdle = Metric.Timer("Process Events Idle", Unit.None, tags: "debug");
-            var tasks = new Task[param.Clients.Count()];
+
+
+            var tasks = param.Clients.Select(x => new Dictionary<string, Task[]>()
+            {
+                [StreamTypes.Domain] = new Task[param.Concurrency],
+                [StreamTypes.OOB] = new Task[param.Concurrency],
+                [StreamTypes.Poco] = new Task[param.Concurrency],
+            }).ToArray();
 
             TimerContext? idleContext = threadIdle.NewContext();
             while (true)
@@ -321,37 +370,42 @@ when({{
                 var noEvents = true;
                 for (var i = 0; i < param.Clients.Count(); i++)
                 {
-                    // Check if current task is complete
-                    if (tasks[i] != null && !tasks[i].IsCompleted)
-                        continue;
-
-                    // Ready for a new event
                     var client = param.Clients.ElementAt(i);
-                    
-                    ResolvedEvent e;
-                    if (!client.TryDequeue(out e))
-                        continue;
 
-                    var @event = e.Event;
-
-                    Logger.Write(LogLevel.Debug,
-                        () => $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
-
-                    noEvents = false;
-
-                    idleContext?.Dispose();
-                    idleContext = null;
-
-                    Events.Mark(e.OriginalStreamId);
-
-                    tasks[i] = Task.Run(async () =>
+                    // Check each persistent subscription for an event
+                    foreach (var streamType in new[] { StreamTypes.Domain, StreamTypes.OOB, StreamTypes.Poco })
                     {
-                        await ProcessEvent(param.MessageMeta, param.JsonSettings, @event, param.Token).ConfigureAwait(false);
+                        var free = tasks[i][streamType].FirstIndex(x => x == null || x.IsCompleted);
+                        if (free == -1)
+                            continue;
 
-                        Logger.Write(LogLevel.Debug,
-                            () => $"Scheduling acknowledge event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
-                        client.Acknowledge(e);
-                    }, param.Token);
+                        ResolvedEvent e;
+                        if (client[streamType].TryDequeue(out e))
+                        {
+
+                            var @event = e.Event;
+
+                            Logger.Write(LogLevel.Debug,
+                                () => $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
+
+                            noEvents = false;
+
+                            idleContext?.Dispose();
+                            idleContext = null;
+
+                            Events.Mark(e.OriginalStreamId);
+
+                            tasks[i][streamType][i] = Task.Run(async () =>
+                            {
+                                await ProcessEvent(param.MessageMeta, param.JsonSettings, @event, param.Token).ConfigureAwait(false);
+
+                                Logger.Write(LogLevel.Debug,
+                                    () => $"Scheduling acknowledge event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
+                                client[streamType].Acknowledge(e);
+                            }, param.Token);
+                        }
+
+                    }
                 }
                 if (idleContext == null)
                     idleContext = threadIdle.NewContext();

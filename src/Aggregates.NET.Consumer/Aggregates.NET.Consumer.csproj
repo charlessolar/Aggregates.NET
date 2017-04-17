@@ -61,6 +61,7 @@
     </Compile>
     <Compile Include="Exceptions\DiscriminatorException.cs" />
     <Compile Include="Exceptions\SubscriptionCanceled.cs" />
+    <Compile Include="Extensions\EnumerableExtensions.cs" />
     <Compile Include="Internal\CatchupClient.cs" />
     <Compile Include="Internal\DelayedClient.cs" />
     <Compile Include="Internal\DelayedSubscriber.cs" />
@@ -88,9 +89,7 @@
       <Name>Aggregates.NET</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Extensions\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

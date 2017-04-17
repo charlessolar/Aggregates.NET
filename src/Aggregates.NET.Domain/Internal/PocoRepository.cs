@@ -7,6 +7,7 @@ using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Metrics;
+using Newtonsoft.Json;
 using NServiceBus.Logging;
 using NServiceBus.ObjectBuilder;
 
@@ -64,7 +65,7 @@ namespace Aggregates.Internal
         private static readonly Histogram WrittenEvents = Metric.Histogram("Written Pocos", Unit.Events, tags: "debug");
         private static readonly Meter WriteErrors = Metric.Meter("Poco Write Errors", Unit.Errors, tags: "debug");
 
-        protected readonly IDictionary<Tuple<string, Id, IEnumerable<Id>>, T> Tracked = new Dictionary<Tuple<string, Id, IEnumerable<Id>>, T>();
+        protected readonly IDictionary<Tuple<string, Id, IEnumerable<Id>>, Tuple<long, T, string>> Tracked = new Dictionary<Tuple<string, Id, IEnumerable<Id>>, Tuple<long, T, string>>();
 
         private bool _disposed;
 
@@ -97,9 +98,14 @@ namespace Aggregates.Internal
                 var success = false;
                 do
                 {
+                    var serialized = JsonConvert.SerializeObject(tracked.Value.Item2);
+                    // Poco didnt change, no need to save
+                    if (serialized == tracked.Value.Item3)
+                        continue;
+
                     try
                     {
-                        await _store.Write(tracked.Value, tracked.Key.Item1, tracked.Key.Item2, tracked.Key.Item3, headers).ConfigureAwait(false);
+                        await _store.Write(new Tuple<long, T>(tracked.Value.Item1, tracked.Value.Item2), tracked.Key.Item1, tracked.Key.Item2, tracked.Key.Item3, headers).ConfigureAwait(false);
                         success = true;
                     }
                     catch (PersistenceException e)
@@ -172,11 +178,15 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving aggregate id [{id}] from bucket [{bucket}] in store");
             var cacheId = new Tuple<string, Id, IEnumerable<Id>>(bucket, id, parents);
-            T root;
-            if (!Tracked.TryGetValue(cacheId, out root))
-                Tracked[cacheId] = root = await _store.Get<T>(bucket, id, parents).ConfigureAwait(false);
+            Tuple<long,T, string> root;
+            if (Tracked.TryGetValue(cacheId, out root))
+                return root.Item2;
 
-            return root;
+            var poco = await _store.Get<T>(bucket, id, parents).ConfigureAwait(false);
+            // Storing the original value in the cache via SerializeObject so we can check if needs saving
+            Tracked[cacheId] =new Tuple<long, T, string>(poco.Item1, poco.Item2, JsonConvert.SerializeObject(poco.Item2));
+
+            return root.Item2;
         }
         
         public virtual Task<T> New(Id id)
@@ -191,12 +201,12 @@ namespace Aggregates.Internal
 
         protected Task<T> New(string bucket, Id id, IEnumerable<Id> parents)
         {
-
-            T root;
             var cacheId = new Tuple<string, Id, IEnumerable<Id>>(bucket, id, parents);
-            Tracked[cacheId] = root = new T();
+            var poco = new T();
 
-            return Task.FromResult(root);
+            Tracked[cacheId] = new Tuple<long, T, string>(-1, poco, JsonConvert.SerializeObject(poco));
+
+            return Task.FromResult(poco);
         }
     }
 }

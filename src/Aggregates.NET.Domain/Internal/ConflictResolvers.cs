@@ -31,7 +31,7 @@ namespace Aggregates.Internal
             {
                 var settings = b.Build<ReadOnlySettings>();
                 return new ResolveWeaklyConflictResolver(b.Build<IUnitOfWork>(), b.Build<IStoreStreams>(), b.Build<IDelayedChannel>(),
-                    settings.Get<StreamIdGenerator>("StreamGenerator"), settings.Get<int>("MaxPulledDelayed"));
+                    settings.Get<StreamIdGenerator>("StreamGenerator"));
             });
         public static ConcurrencyStrategy Custom = new ConcurrencyStrategy(ConcurrencyConflict.Custom, "Custom", (b, type) => (IResolveConflicts)b.Build(type));
 
@@ -182,16 +182,14 @@ namespace Aggregates.Internal
         private readonly IStoreStreams _store;
         private readonly IDelayedChannel _delay;
         private readonly StreamIdGenerator _streamGen;
-        private readonly int _maxPulledDelayed;
 
 
-        public ResolveWeaklyConflictResolver(IUnitOfWork uow, IStoreStreams eventstore, IDelayedChannel delay, StreamIdGenerator streamGen, int maxPulledDelayed)
+        public ResolveWeaklyConflictResolver(IUnitOfWork uow, IStoreStreams eventstore, IDelayedChannel delay, StreamIdGenerator streamGen)
         {
             _uow = uow;
             _store = eventstore;
             _delay = delay;
             _streamGen = streamGen;
-            _maxPulledDelayed = maxPulledDelayed;
         }
 
         private Task<IEventSourced> GetBase(string bucket, string type, Id id, IEventSourced parent = null)
@@ -322,7 +320,7 @@ namespace Aggregates.Internal
                     return;
                 }
                 uncommitted =
-                    (await _delay.Pull(streamName, max: _maxPulledDelayed).ConfigureAwait(false)).Cast<IFullEvent>();
+                    (await _delay.Pull(streamName, max: 200).ConfigureAwait(false)).Cast<IFullEvent>();
 
                 // If someone else pulled while we were waiting
                 if (!uncommitted.Any())
