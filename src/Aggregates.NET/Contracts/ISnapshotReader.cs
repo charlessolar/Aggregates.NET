@@ -8,12 +8,10 @@ using Aggregates.Contracts;
 
 namespace Aggregates.Contracts
 {
-    public interface ISnapshotReader : IDisposable
+    public interface ISnapshotReader
     {
-        Task Setup(string endpoint);
-
-        Task Subscribe(CancellationToken cancelToken);
-
+        Task Connect(string endpoint, CancellationToken cancelToken);
+        
         Task<ISnapshot> Retreive(string stream);
     }
 }

@@ -29,6 +29,10 @@ namespace Aggregates
         {
             settings.GetSettings().Set("Shards", connections);
         }
+        public static void WithExtraStats(this ExposeSettings settings, bool use)
+        {
+            settings.GetSettings().Set("ExtraStats", use);
+        }
 
     }
 }

@@ -11,10 +11,6 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using EventStore.ClientAPI;
-using EventStore.ClientAPI.Common;
-using EventStore.ClientAPI.Exceptions;
-using EventStore.ClientAPI.Projections;
 using Metrics;
 using Newtonsoft.Json;
 using NServiceBus;
@@ -29,110 +25,77 @@ using MessageContext = NServiceBus.Transport.MessageContext;
 
 namespace Aggregates.Internal
 {
-    // Todo: a lot of canceling goes on here because we're dealing with potentially unstable networks
-    // Need to lay all this out and make sure we are processing events correctly, even in the case of
-    // a single subscription going down amoung many.  No message should be ACKed or discarded without
-    // knowing
+    class EventMessage : IMessage { }
+
     class EventSubscriber : IEventSubscriber
     {
 
         private static readonly ILog Logger = LogManager.GetLogger("EventSubscriber");
         private static readonly Metrics.Timer EventExecution = Metric.Timer("Event Execution", Unit.Items, tags: "debug");
-        private static readonly Counter EventCount = Metric.Counter("Event Messages", Unit.Items, tags: "debug");
-        private static readonly Meter Events = Metric.Meter("Events", Unit.Items, tags: "debug");
+        private static readonly Counter EventsQueued = Metric.Counter("Events Queued", Unit.Items, tags: "debug");
+        private static readonly Counter EventsHandled = Metric.Counter("Events Handled", Unit.Items, tags: "debug");
         private static readonly Meter EventErrors = Metric.Meter("Event Failures", Unit.Items);
+
+        private static readonly BlockingCollection<Tuple<string, long, IFullEvent>> WaitingEvents = new BlockingCollection<Tuple<string, long, IFullEvent>>();
 
         private class ThreadParam
         {
-            public IEnumerable<Dictionary<string, PersistentClient>> Clients { get; set; }
+            public IEventStoreConsumer Consumer { get; set; }
             public int Concurrency { get; set; }
             public CancellationToken Token { get; set; }
             public MessageMetadataRegistry MessageMeta { get; set; }
-            public JsonSerializerSettings JsonSettings { get; set; }
         }
 
 
         private Thread _pinnedThread;
         private CancellationTokenSource _cancelation;
         private string _endpoint;
-        private int _readsize;
-        private bool _extraStats;
 
         private readonly MessageHandlerRegistry _registry;
-        private readonly JsonSerializerSettings _settings;
         private readonly MessageMetadataRegistry _messageMeta;
         private readonly int _concurrency;
-
-        private readonly IEventStoreConnection[] _clients;
+        
+        private readonly IEventStoreConsumer _consumer;
 
         private bool _disposed;
 
 
         public EventSubscriber(MessageHandlerRegistry registry, IMessageMapper mapper,
-            MessageMetadataRegistry messageMeta, IEventStoreConnection[] connections, int concurrency)
+            MessageMetadataRegistry messageMeta, IEventStoreConsumer consumer, int concurrency)
         {
             _registry = registry;
-            _clients = connections;
+            _consumer = consumer;
             _messageMeta = messageMeta;
             _concurrency = concurrency;
-            _settings = new JsonSerializerSettings
-            {
-                TypeNameHandling = TypeNameHandling.Auto,
-                SerializationBinder = new EventSerializationBinder(mapper),
-                ContractResolver = new EventContractResolver(mapper)
-            };
         }
 
-        public async Task Setup(string endpoint, int readsize, bool extraStats)
+        public async Task Setup(string endpoint, CancellationToken cancelToken)
         {
             _endpoint = endpoint;
-            _readsize = readsize;
-            _extraStats = extraStats;
+            await _consumer.EnableProjection("$by_category").ConfigureAwait(false);
+            _cancelation = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
 
-            foreach (var client in _clients)
+            var discoveredEvents =
+                _registry.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).OrderBy(x => x.FullName).ToList();
+
+            if (!discoveredEvents.Any())
             {
-                if (client.Settings.GossipSeeds == null || !client.Settings.GossipSeeds.Any())
-                    throw new ArgumentException(
-                        "Eventstore connection settings does not contain gossip seeds (even if single host call SetGossipSeedEndPoints and SetClusterGossipPort)");
+                Logger.Warn($"Event consuming is enabled but we did not detect and IEvent handlers");
+                return;
+            }
 
-                var manager = new ProjectionsManager(client.Settings.Log,
-                    new IPEndPoint(client.Settings.GossipSeeds[0].EndPoint.Address,
-                        client.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
+            // Dont use - we dont need category projection projecting our projection
+            var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}".Replace("-", "");
 
-                try
-                {
-                    await
-                        manager.EnableAsync("$by_category", client.Settings.DefaultUserCredentials)
-                            .ConfigureAwait(false);
-                }
-                catch
-                {
-                    Logger.Error($"Failed to connect to eventstore instance: {client.Settings.GossipSeeds[0].EndPoint}");
-                    throw new ArgumentException(
-                        $"Failed to connect to eventstore instance: {client.Settings.GossipSeeds[0].EndPoint}");
-                }
+            // Link all events we are subscribing to to a stream
+            var functions =
+                discoveredEvents
+                    .Select(
+                        eventType => $"'{eventType.AssemblyQualifiedName}': processEvent")
+                    .Aggregate((cur, next) => $"{cur},\n{next}");
 
-                var discoveredEvents =
-                    _registry.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).OrderBy(x => x.FullName).ToList();
-
-                if (!discoveredEvents.Any())
-                {
-                    Logger.Warn($"Event consuming is enabled but we did not detect and IEvent handlers");
-                    return;
-                }
-
-                // Dont use - we dont need category projection projecting our projection
-                var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}".Replace("-", "");
-
-                // Link all events we are subscribing to to a stream
-                var functions =
-                    discoveredEvents
-                        .Select(
-                            eventType => $"'{eventType.AssemblyQualifiedName}': processEvent")
-                        .Aggregate((cur, next) => $"{cur},\n{next}");
-
-                // Don't tab this '@' will create tabs in projection definition
-                var definition = @"
+            // Don't tab this '@' will create tabs in projection definition
+            var definition = @"
 function processEvent(s,e) {{
     linkTo('{1}.{0}', e);
 }}
@@ -141,116 +104,22 @@ when({{
 {2}
 }});";
 
-                // Todo: replace with `fromCategories([])` when available
-                var appDefinition = string.Format(definition, StreamTypes.Domain, stream, functions).Replace(Environment.NewLine, "\n");
-                var oobDefinition = string.Format(definition, StreamTypes.OOB, stream, functions).Replace(Environment.NewLine, "\n");
-                var pocoDefinition = string.Format(definition, StreamTypes.Poco, stream, functions).Replace(Environment.NewLine, "\n");
+            // Todo: replace with `fromCategories([])` when available
+            var appDefinition = string.Format(definition, StreamTypes.Domain, stream, functions);
+            var oobDefinition = string.Format(definition, StreamTypes.OOB, stream, functions);
+            var pocoDefinition = string.Format(definition, StreamTypes.Poco, stream, functions);
 
-                // Create a projection for domain events and one for OOB events, later we'll subscribe as PINNED to domain events
-                // and ROUNDROBIN for OOB events.  
-                // OOB events by definition don't need ordering, so theres no reason to overload a single PINNED consumer
-                // if the user uses a ton of OOB events
-                try
-                {
-                    var existing = await manager.GetQueryAsync($"{stream}.app.projection").ConfigureAwait(false);
-
-                    var fixedExisting = Regex.Replace(existing, @"\s+", String.Empty);
-                    var fixedDefinition = Regex.Replace(appDefinition, @"\s+", String.Empty);
-
-
-                    if (!string.Equals(fixedExisting, fixedDefinition, StringComparison.OrdinalIgnoreCase))
-                    {
-                        Logger.Fatal(
-                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!\nExisting:\n{existing}\nDesired:\n{appDefinition}");
-                        throw new EndpointVersionException(
-                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
-                    }
-                }
-                catch (ProjectionCommandFailedException)
-                {
-                    try
-                    {
-                        // Projection doesn't exist 
-                        await
-                            manager.CreateContinuousAsync($"{stream}.app.projection", appDefinition, false,
-                                    client.Settings.DefaultUserCredentials)
-                                .ConfigureAwait(false);
-                    }
-                    catch (ProjectionCommandFailedException)
-                    {
-                    }
-                }
-                try
-                {
-                    var existing = await manager.GetQueryAsync($"{stream}.oob.projection").ConfigureAwait(false);
-
-                    var fixedExisting = Regex.Replace(existing, @"\s+", String.Empty);
-                    var fixedDefinition = Regex.Replace(oobDefinition, @"\s+", String.Empty);
-
-                    if (!string.Equals(fixedExisting, fixedDefinition, StringComparison.OrdinalIgnoreCase))
-                    {
-                        Logger.Fatal(
-                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!\nExisting:\n{existing}\nDesired:\n{appDefinition}");
-                        throw new EndpointVersionException(
-                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
-                    }
-                }
-                catch (ProjectionCommandFailedException)
-                {
-                    try
-                    {
-                        // Projection doesn't exist 
-                        await
-                            manager.CreateContinuousAsync($"{stream}.oob.projection", oobDefinition, false,
-                                    client.Settings.DefaultUserCredentials)
-                                .ConfigureAwait(false);
-                    }
-                    catch (ProjectionCommandFailedException)
-                    {
-                    }
-                }
-                try
-                {
-                    var existing = await manager.GetQueryAsync($"{stream}.poco.projection").ConfigureAwait(false);
-
-                    var fixedExisting = Regex.Replace(existing, @"\s+", String.Empty);
-                    var fixedDefinition = Regex.Replace(pocoDefinition, @"\s+", String.Empty);
-
-
-                    if (!string.Equals(fixedExisting, fixedDefinition, StringComparison.OrdinalIgnoreCase))
-                    {
-                        Logger.Fatal(
-                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!\nExisting:\n{existing}\nDesired:\n{pocoDefinition}");
-                        throw new EndpointVersionException(
-                            $"Projection [{stream}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
-                    }
-                }
-                catch (ProjectionCommandFailedException)
-                {
-                    try
-                    {
-                        // Projection doesn't exist 
-                        await
-                            manager.CreateContinuousAsync($"{stream}.poco.projection", pocoDefinition, false,
-                                    client.Settings.DefaultUserCredentials)
-                                .ConfigureAwait(false);
-                    }
-                    catch (ProjectionCommandFailedException)
-                    {
-                    }
-                }
-            }
+            await _consumer.CreateProjection($"{stream}.app.projection", appDefinition).ConfigureAwait(false);
+            await _consumer.CreateProjection($"{stream}.oob.projection", oobDefinition).ConfigureAwait(false);
+            await _consumer.CreateProjection($"{stream}.poco.projection", pocoDefinition).ConfigureAwait(false);
         }
 
-        public Task Subscribe(CancellationToken cancelToken)
+        public Task Connect()
         {
             var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
             var appGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.{StreamTypes.Domain}";
             var oobGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.{StreamTypes.OOB}";
             var pocoGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.{StreamTypes.Poco}";
-
-            _cancelation = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
-
 
             Task.Run(async () =>
             {
@@ -258,91 +127,26 @@ when({{
                 while (Bus.OnMessage == null || Bus.OnError == null)
                 {
                     Logger.Warn($"Could not find NSBs onMessage handler yet - if this persists there is a problem.");
-                    await Task.Delay(1000, cancelToken).ConfigureAwait(false);
+                    await Task.Delay(1000, _cancelation.Token).ConfigureAwait(false);
                 }
 
-
-                var settings = PersistentSubscriptionSettings.Create()
-                    .StartFromBeginning()
-                    .WithMaxRetriesOf(10)
-                    .WithReadBatchOf(_readsize)
-                    .WithLiveBufferSizeOf(_readsize * _readsize)
-                    .DontTimeoutMessages()
-                    //.WithMessageTimeoutOf(TimeSpan.FromMilliseconds(int.MaxValue))
-                    //.WithMessageTimeoutOf(TimeSpan.FromMinutes(1))
-                    .CheckPointAfter(TimeSpan.FromSeconds(5))
-                    .MaximumCheckPointCountOf(_readsize * _readsize)
-                    .ResolveLinkTos();
-                if (_extraStats)
-                    settings.WithExtraStatistics();
-
-                var clients = new List<Dictionary<string, PersistentClient>>();// new PersistentClient[_clients.Count()];
-
-                for (var i = 0; i < _clients.Count(); i++)
-                {
-                    var client = _clients.ElementAt(i);
-
-                    var clientCancelSource = CancellationTokenSource.CreateLinkedTokenSource(_cancelation.Token);
-
-                    client.Closed += (object s, ClientClosedEventArgs args) =>
-                    {
-                        Logger.Info($"Eventstore disconnected - shutting down client subscription");
-                        clientCancelSource.Cancel();
-                    };
-
-                    try
-                    {
-                        settings.WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
-                        await
-                            client.CreatePersistentSubscriptionAsync($"{stream}.{StreamTypes.Domain}", appGroup, settings,
-                                client.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                        Logger.Info($"Created PINNED persistent subscription to stream [{stream}.{StreamTypes.Domain}]");
-
-                    }
-                    catch (InvalidOperationException)
-                    {
-                    }
-                    try
-                    {
-                        settings.WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
-                        await
-                            client.CreatePersistentSubscriptionAsync($"{stream}.{StreamTypes.OOB}", oobGroup, settings,
-                                client.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                        Logger.Info($"Created ROUND ROBIN persistent subscription to stream [{stream}.{StreamTypes.OOB}]");
-
-                    }
-                    catch (InvalidOperationException)
-                    {
-                    }
-                    try
-                    {
-                        settings.WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
-                        await
-                            client.CreatePersistentSubscriptionAsync($"{stream}.{StreamTypes.Poco}", pocoGroup, settings,
-                                client.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                        Logger.Info($"Created ROUND ROBIN persistent subscription to stream [{stream}.{StreamTypes.Poco}]");
-
-                    }
-                    catch (InvalidOperationException)
-                    {
-                    }
-
-                    clients.Add(new Dictionary<string, PersistentClient>()
-                    {
-                        [StreamTypes.Domain] = new PersistentClient(client, $"{stream}.{StreamTypes.Domain}", appGroup, _readsize, clientCancelSource.Token),
-                        [StreamTypes.OOB] = new PersistentClient(client, $"{stream}.{StreamTypes.OOB}", oobGroup, _readsize, clientCancelSource.Token),
-                        [StreamTypes.Poco] = new PersistentClient(client, $"{stream}.{StreamTypes.Poco}", pocoGroup, _readsize, clientCancelSource.Token),
-                    });
-
-                }
+                await _consumer.ConnectPinnedPersistentSubscription(stream, appGroup, _cancelation.Token, onEvent, Connect).ConfigureAwait(false);
+                await _consumer.ConnectPinnedPersistentSubscription(stream, oobGroup, _cancelation.Token, onEvent, Connect).ConfigureAwait(false);
+                await _consumer.ConnectPinnedPersistentSubscription(stream, pocoGroup, _cancelation.Token, onEvent, Connect).ConfigureAwait(false);
 
                 _pinnedThread = new Thread(Threaded)
                 { IsBackground = true, Name = $"Main Event Thread" };
-                _pinnedThread.Start(new ThreadParam { Token = cancelToken, Clients = clients, MessageMeta = _messageMeta, JsonSettings = _settings, Concurrency = _concurrency });
+                _pinnedThread.Start(new ThreadParam { Token = _cancelation.Token, MessageMeta = _messageMeta, Concurrency = _concurrency, Consumer=_consumer });
+                
 
             });
 
             return Task.CompletedTask;
+        }
+        private void onEvent(string stream, long position, IFullEvent e)
+        {
+            EventsQueued.Increment();
+            WaitingEvents.Add(new Tuple<string, long, IFullEvent>(stream, position, e));
         }
 
 
@@ -350,103 +154,74 @@ when({{
         {
             var param = (ThreadParam)state;
 
-            param.Clients.SelectMany(x => x.Values).WhenAllAsync(x => x.Connect()).Wait();
 
-            var threadIdle = Metric.Timer("Process Events Idle", Unit.None, tags: "debug");
-
-
-            var tasks = param.Clients.Select(x => new Dictionary<string, Task[]>()
-            {
-                [StreamTypes.Domain] = new Task[param.Concurrency],
-                [StreamTypes.OOB] = new Task[param.Concurrency],
-                [StreamTypes.Poco] = new Task[param.Concurrency],
-            }).ToArray();
-
-            TimerContext? idleContext = threadIdle.NewContext();
+            var semaphore = new SemaphoreSlim(param.Concurrency);
+            
             while (true)
             {
                 param.Token.ThrowIfCancellationRequested();
 
-                var noEvents = true;
-                for (var i = 0; i < param.Clients.Count(); i++)
+                if (semaphore.CurrentCount == 0)
+                    Thread.Sleep(100);
+
+                var @event = WaitingEvents.Take(param.Token);
+
+                Task.Run(async () =>
                 {
-                    var client = param.Clients.ElementAt(i);
+                    await semaphore.WaitAsync(param.Token).ConfigureAwait(false);
 
-                    // Check each persistent subscription for an event
-                    foreach (var streamType in new[] { StreamTypes.Domain, StreamTypes.OOB, StreamTypes.Poco })
-                    {
-                        var free = tasks[i][streamType].FirstIndex(x => x == null || x.IsCompleted);
-                        if (free == -1)
-                            continue;
+                    await
+                        ProcessEvent(param.MessageMeta, @event.Item1, @event.Item2, @event.Item3, param.Token)
+                            .ConfigureAwait(false);
 
-                        ResolvedEvent e;
-                        if (client[streamType].TryDequeue(out e))
-                        {
+                    Logger.Write(LogLevel.Debug,
+                        () =>
+                                $"Scheduling acknowledge event {@event.Item3.Descriptor.EventId} stream [{@event.Item1}] number {@event.Item2}");
+                    await param.Consumer.Acknowledge(@event.Item3).ConfigureAwait(false);
 
-                            var @event = e.Event;
+                    semaphore.Release();
+                });
 
-                            Logger.Write(LogLevel.Debug,
-                                () => $"Processing event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
 
-                            noEvents = false;
-
-                            idleContext?.Dispose();
-                            idleContext = null;
-
-                            Events.Mark(e.OriginalStreamId);
-
-                            tasks[i][streamType][i] = Task.Run(async () =>
-                            {
-                                await ProcessEvent(param.MessageMeta, param.JsonSettings, @event, param.Token).ConfigureAwait(false);
-
-                                Logger.Write(LogLevel.Debug,
-                                    () => $"Scheduling acknowledge event {@event.EventId} type {@event.EventType} stream [{@event.EventStreamId}] number {@event.EventNumber}");
-                                client[streamType].Acknowledge(e);
-                            }, param.Token);
-                        }
-
-                    }
-                }
-                if (idleContext == null)
-                    idleContext = threadIdle.NewContext();
-                // Cheap hack to not burn cpu incase there are no events
-                if (noEvents) Thread.Sleep(50);
+                
             }
 
 
         }
 
-        private static async Task ProcessEvent(MessageMetadataRegistry messageMeta, JsonSerializerSettings settings, RecordedEvent @event, CancellationToken token)
+        // A fake message that will travel through the pipeline in order to process events from the context bag
+        private static readonly byte[] Marker= new EventMessage().Serialize(new JsonSerializerSettings()).AsByteArray();
+
+        private static async Task ProcessEvent(MessageMetadataRegistry messageMeta, string stream, long position, IFullEvent @event, CancellationToken token)
         {
-            var transportTransaction = new TransportTransaction();
+
+
             var contextBag = new ContextBag();
+            // Hack to get all the events to invoker without NSB deserializing 
+            contextBag.Set(Defaults.EventHeader, @event.Event);
 
-            var metadata = @event.Metadata;
-            var data = @event.Data;
 
-            var descriptor = metadata.Deserialize(settings);
-
-            if (descriptor.Compressed)
-                data = data.Decompress();
-
-            var messageId = Guid.NewGuid().ToString();
-            var headers = new Dictionary<string, string>(descriptor.Headers)
-            {
-                [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
-                [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(messageMeta, Type.GetType(@event.EventType)),
-                [Headers.MessageId] = messageId,
-                ["EventId"] = @event.EventId.ToString(),
-                ["EventStreamId"] = @event.EventStreamId,
-                ["EventNumber"] = @event.EventNumber.ToString()
-            };
-
-            using (var tokenSource = new CancellationTokenSource())
+            using (var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(token))
             {
                 var processed = false;
                 var numberOfDeliveryAttempts = 0;
 
                 while (!processed)
                 {
+                    var transportTransaction = new TransportTransaction();
+
+                    var messageId = Guid.NewGuid().ToString();
+                    var headers = new Dictionary<string, string>(@event.Descriptor.Headers)
+                    {
+                        [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
+                        [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(messageMeta, @event.GetType()),
+                        [Headers.MessageId] = messageId,
+                        [Defaults.EventHeader]="",
+                        ["EventId"] = @event.EventId.ToString(),
+                        ["EventStream"] = stream,
+                        ["EventPosition"] = position.ToString()
+                    };
+
                     using (var ctx = EventExecution.NewContext())
                     {
                         try
@@ -457,10 +232,10 @@ when({{
                             // Don't re-use the event id for the message id
                             var messageContext = new MessageContext(messageId,
                                 headers,
-                                data ?? new byte[0], transportTransaction, tokenSource,
+                                Marker, transportTransaction, tokenSource,
                                 contextBag);
                             await Bus.OnMessage(messageContext).ConfigureAwait(false);
-                            EventCount.Increment();
+                            EventsHandled.Increment();
                             processed = true;
                         }
                         catch (ObjectDisposedException)
@@ -474,41 +249,16 @@ when({{
                             ++numberOfDeliveryAttempts;
                             var errorContext = new ErrorContext(ex, headers,
                                 messageId,
-                                data ?? new byte[0], transportTransaction,
+                                Marker, transportTransaction,
                                 numberOfDeliveryAttempts);
                             if (await Bus.OnError(errorContext).ConfigureAwait(false) ==
                                 ErrorHandleResult.Handled)
                                 break;
-
+                            await Task.Delay((numberOfDeliveryAttempts/5)*200, token).ConfigureAwait(false);
                         }
                     }
                 }
             }
-        }
-
-        // Moved event to error queue
-        private static async Task PoisonEvent(MessageMetadataRegistry messageMeta, JsonSerializerSettings settings, RecordedEvent e)
-        {
-            var transportTransaction = new TransportTransaction();
-
-            var descriptor = e.Metadata.Deserialize(settings);
-
-            var messageId = Guid.NewGuid().ToString();
-            var headers = new Dictionary<string, string>(descriptor.Headers)
-            {
-                [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
-                [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(messageMeta, Type.GetType(e.EventType)),
-                [Headers.MessageId] = messageId,
-                ["EventId"] = e.EventId.ToString(),
-                ["EventStreamId"] = e.EventStreamId,
-                ["EventNumber"] = e.EventNumber.ToString()
-            };
-            var ex = new InvalidOperationException("Poisoned Event");
-            var errorContext = new ErrorContext(ex, headers,
-                            messageId,
-                            e.Data ?? new byte[0], transportTransaction,
-                            int.MaxValue);
-            await Bus.OnError(errorContext).ConfigureAwait(false);
         }
 
         public void Dispose()

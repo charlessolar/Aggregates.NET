@@ -7,8 +7,8 @@ namespace Aggregates.Contracts
 {
     public interface IEventSubscriber : IDisposable
     {
-        Task Setup(string endpoint, int readsize, bool extraStats);
+        Task Setup(string endpoint, CancellationToken cancelToken);
 
-        Task Subscribe(CancellationToken cancelToken);
+        Task Connect();
     }
 }

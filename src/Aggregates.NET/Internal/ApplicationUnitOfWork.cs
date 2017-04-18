@@ -78,7 +78,9 @@ namespace Aggregates.Internal
 
                     using (ProcessTimer.NewContext())
                     {
+                        // Stupid hack to get events from ES and messages from NSB into the same pipeline
                         DelayedMessage[] delayed;
+                        object @event;
                         // Special case for delayed messages read from delayed stream
                         if (context.Headers.ContainsKey(Defaults.BulkHeader) && context.Extensions.TryGet(Defaults.BulkHeader, out delayed))
                         {
@@ -104,6 +106,13 @@ namespace Aggregates.Internal
                                 index++;
                             }
 
+                        }
+                        else if (context.Headers.ContainsKey(Defaults.EventHeader) &&
+                                 context.Extensions.TryGet(Defaults.EventHeader, out @event))
+                        {
+
+                            context.UpdateMessageInstance(@event);
+                            await next().ConfigureAwait(false);
                         }
                         else
                             await next().ConfigureAwait(false);

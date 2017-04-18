@@ -9,9 +9,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
-using EventStore.ClientAPI;
-using EventStore.ClientAPI.Exceptions;
-using EventStore.ClientAPI.Projections;
 using Metrics;
 using Newtonsoft.Json;
 using NServiceBus;
@@ -32,109 +29,83 @@ namespace Aggregates.Internal
     class SnapshotReader : ISnapshotReader
     {
         private static readonly ILog Logger = LogManager.GetLogger("SnapshotReader");
+        private static readonly Counter SnapshotsSeen = Metric.Counter("Snapshots Seen", Unit.Items, tags: "debug");
         private static readonly Counter StoredSnapshots = Metric.Counter("Snapshots Stored", Unit.Items, tags: "debug");
 
         private static readonly ConcurrentDictionary<string, ISnapshot> Snapshots = new ConcurrentDictionary<string, ISnapshot>();
         private static readonly ConcurrentDictionary<string, long> TruncateBefore = new ConcurrentDictionary<string, long>();
 
-        private static Task Truncate;
+        private static Task _truncate;
+        private static int _truncating;
 
         private CancellationTokenSource _cancelation;
         private string _endpoint;
 
-        private readonly IStoreEvents _store;
-        private readonly JsonSerializerSettings _settings;
-        private readonly IEventStoreConnection[] _connections;
+        private readonly IEventStoreConsumer _consumer;
         private readonly Compression _compress;
 
-        private CatchupClient[] _clients;
-
-
-        private bool _disposed;
-
-        public SnapshotReader(IStoreEvents store, IMessageMapper mapper, IEventStoreConnection[] connections, Compression compress)
+        public SnapshotReader(IStoreEvents store, IMessageMapper mapper, IEventStoreConsumer consumer, Compression compress)
         {
-            _store = store;
-            _connections = connections;
+            _consumer = consumer;
             _compress = compress;
-            _settings = new JsonSerializerSettings
+
+            if (Interlocked.CompareExchange(ref _truncating, 1, 0) == 1) return;
+
+            // Writes truncateBefore metadata to snapshot streams to let ES know it can delete old snapshots
+            // its done here so that we actually get the snapshot before its deleted
+            _truncate = Timer.Repeat(async (state) =>
             {
-                TypeNameHandling = TypeNameHandling.Auto,
-                SerializationBinder = new EventSerializationBinder(mapper),
-                ContractResolver = new EventContractResolver(mapper)
-            };
-            if (Truncate == null)
-            {
-                Truncate = Timer.Repeat(async (state) =>
+                var eventstore = state as IStoreEvents;
+
+                var truncates = TruncateBefore.Keys.ToList();
+
+                await truncates.WhenAllAsync(async x =>
                 {
-                    var eventstore = state as IStoreEvents;
+                    long tb;
+                    if (!TruncateBefore.TryRemove(x, out tb))
+                        return;
 
-                    var truncates = TruncateBefore.Keys.ToList();
-
-                    await truncates.WhenAllAsync(async x =>
+                    try
                     {
-                        long tb;
-                        if (!TruncateBefore.TryRemove(x, out tb))
-                            return;
-
-                        try
-                        {
-                            await eventstore.WriteMetadata(x, truncateBefore: tb).ConfigureAwait(false);
-                        }
-                        catch {}
-                    });
-                }, store, TimeSpan.FromMinutes(5), "snapshot truncate before");
-            }
+                        await eventstore.WriteMetadata(x, truncateBefore: tb).ConfigureAwait(false);
+                    }
+                    catch { }
+                });
+            }, store, TimeSpan.FromMinutes(5), "snapshot truncate before");
         }
 
-        public async Task Setup(string endpoint)
+
+        public async Task Connect(string endpoint, CancellationToken cancelToken)
         {
             _endpoint = endpoint;
-
-            // Setup snapshot projection
-            foreach (var connection in _connections)
-            {
-                if (connection.Settings.GossipSeeds == null || !connection.Settings.GossipSeeds.Any())
-                    throw new ArgumentException(
-                        "Eventstore connection settings does not contain gossip seeds (even if single host call SetGossipSeedEndPoints and SetClusterGossipPort)");
-
-                var manager = new ProjectionsManager(connection.Settings.Log,
-                    new IPEndPoint(connection.Settings.GossipSeeds[0].EndPoint.Address,
-                        connection.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
-
-                await manager.EnableAsync("$by_category", connection.Settings.DefaultUserCredentials).ConfigureAwait(false);
-
-            }
+            await _consumer.EnableProjection("$by_category").ConfigureAwait(false);
+            _cancelation = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
+            await Connect().ConfigureAwait(false);
         }
 
-        public async Task Subscribe(CancellationToken cancelToken)
+
+        private Task Connect()
         {
             // by_category projection of all events in category "SNAPSHOT"
             var stream = $"$ce-SNAPSHOT";
+            return _consumer.SubscribeToStreamEnd(stream, _cancelation.Token, onEvent, Connect);
 
-            _cancelation = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
-
-            _clients = new CatchupClient[_connections.Count()];
-            for (var i = 0; i < _connections.Count(); i++)
-            {
-                var connection = _connections.ElementAt(i);
-
-                var clientCancelSource = CancellationTokenSource.CreateLinkedTokenSource(_cancelation.Token);
-
-                connection.Closed += (object s, ClientClosedEventArgs args) =>
-                {
-                    Logger.Info($"Eventstore disconnected - shutting down snapshot subscription");
-                    clientCancelSource.Cancel();
-                };
-
-                _clients[i] = new CatchupClient(onSnapshot, connection, stream, clientCancelSource.Token, _settings, _compress);
-                await _clients[i].Connect().ConfigureAwait(false);
-            }
         }
 
-        private void onSnapshot(string stream, long position, ISnapshot snapshot)
+        private void onEvent(string stream, long position, IFullEvent e)
         {
-            Logger.Write(LogLevel.Debug, () => $"Got snapshot stream [{stream}] version {snapshot.Version}");
+            var snapshot = new Snapshot
+            {
+                EntityType = e.Descriptor.EntityType,
+                Bucket = e.Descriptor.Bucket,
+                StreamId = e.Descriptor.StreamId,
+                Timestamp = e.Descriptor.Timestamp,
+                Version = e.Descriptor.Version,
+                Payload = e.Event
+            };
+            SnapshotsSeen.Increment();
+
+            Logger.Write(LogLevel.Debug, () => $"Got snapshot of stream id [{snapshot.StreamId}] bucket [{snapshot.Bucket}] entity [{snapshot.EntityType}] version {snapshot.Version}");
             Snapshots.AddOrUpdate(stream, (key) =>
             {
                 StoredSnapshots.Increment();
@@ -144,7 +115,6 @@ namespace Aggregates.Internal
                 TruncateBefore[key] = position;
                 return snapshot;
             });
-
         }
 
         public Task<ISnapshot> Retreive(string stream)
@@ -153,16 +123,6 @@ namespace Aggregates.Internal
             if (!Snapshots.TryGetValue(stream, out snapshot))
                 snapshot = null;
             return Task.FromResult(snapshot);
-        }
-        public void Dispose()
-        {
-            if (_disposed)
-                return;
-
-            _disposed = true;
-            _cancelation.Cancel();
-            foreach (var client in _clients)
-                client.Dispose();
         }
     }
 

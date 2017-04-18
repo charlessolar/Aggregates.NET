@@ -52,6 +52,15 @@ namespace Aggregates
                 return new StoreEvents(b.Build<IMessageMapper>(), settings.Get<int>("ReadSize"), settings.Get<Compression>("Compress"), connections);
             },
                 DependencyLifecycle.InstancePerCall);
+
+            context.Container.ConfigureComponent(b =>
+            {
+                IEventStoreConnection[] connections;
+                if (!settings.TryGet<IEventStoreConnection[]>("Shards", out connections))
+                    connections = new[] {b.Build<IEventStoreConnection>()};
+                return new EventStoreConsumer(b.Build<IMessageMapper>(), connections, settings.Get<int>("ReadSize"),
+                    settings.Get<bool>("ExtraStats"));
+            }, DependencyLifecycle.SingleInstance);
         }
 
     }

@@ -61,6 +61,7 @@
     </Compile>
     <Compile Include="Configuration.cs" />
     <Compile Include="GetEventStore.cs" />
+    <Compile Include="Internal\EventStoreConsumer.cs" />
     <Compile Include="Internal\EventStoreDelayed.cs" />
     <Compile Include="Internal\StoreEvents.cs" />
   </ItemGroup>

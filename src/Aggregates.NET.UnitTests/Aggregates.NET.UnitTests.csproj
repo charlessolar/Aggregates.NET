@@ -48,6 +48,10 @@
       <HintPath>..\packages\Moq.4.7.8\lib\net45\Moq.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="NServiceBus.Core, Version=6.0.0.0, Culture=neutral, PublicKeyToken=9fc386479f8a226c, processorArchitecture=MSIL">
       <HintPath>..\packages\NServiceBus.6.2.1\lib\net452\NServiceBus.Core.dll</HintPath>
       <Private>True</Private>
@@ -79,6 +83,8 @@
     <Compile Include="Common\Internal\MutateOutgoingEvents.cs" />
     <Compile Include="Common\Specifications\ExpressionSerialization.cs" />
     <Compile Include="Common\Specifications\Specifications.cs" />
+    <Compile Include="Consumer\Internal\CatchupClient.cs" />
+    <Compile Include="Extensions\ReflectionExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -104,8 +110,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Consumer\Internal\" />
-    <Folder Include="Domain\" />
+    <Folder Include="Domain\Internal\" />
     <Folder Include="GetEventStore\" />
   </ItemGroup>
   <Choose>

@@ -144,7 +144,7 @@ namespace Aggregates.Internal
 
                 if (!ShouldExecute(delayed, size, age))
                 {
-                    Logger.Write(LogLevel.Info, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing channel [{channelKey}] specific [{specificKey}]");
+                    Logger.Write(LogLevel.Debug, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - delaying processing channel [{channelKey}] specific [{specificKey}]");
 
                     return;
                 }

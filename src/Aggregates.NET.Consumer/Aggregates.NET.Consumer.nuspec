@@ -19,9 +19,7 @@
         <dependency id="NServiceBus" version="[6.1.2,7)" />
         <dependency id="Metrics.NET" version="[0.4,1)" />
         <dependency id="Newtonsoft.Json" version="[9,)" />
-        <dependency id="EventStore.Client" version="[4,5)" />
         <dependency id="Aggregates.NET" version="[0.6,0.7)" />
-        <dependency id="Aggregates.NET.GetEventStore" version="[0.6,0.7)" />
       </group>
     </dependencies>
   </metadata>

@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Aggregates.Internal;
-using EventStore.ClientAPI;
 using NServiceBus;
 using NServiceBus.Features;
 using NServiceBus.Logging;
@@ -25,10 +24,9 @@ namespace Aggregates
             Defaults(s =>
             {
                 s.SetDefault("ExtraStats", false);
-                s.SetDefault("ParallelEvents", 4);
+                s.SetDefault("ParallelEvents", 10);
             });
             DependsOn<Aggregates.Feature>();
-            DependsOn<Aggregates.GetEventStore>();
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
@@ -37,30 +35,20 @@ namespace Aggregates
             var settings = context.Settings;
             context.Container.ConfigureComponent(b =>
             {
-                IEventStoreConnection[] connections;
-                if (!settings.TryGet<IEventStoreConnection[]>("Shards", out connections))
-                    connections = new[] { b.Build<IEventStoreConnection>() };
                 var concurrency = settings.Get<int>("ParallelEvents");
 
-                return new EventSubscriber(b.Build<MessageHandlerRegistry>(), b.Build<IMessageMapper>(), b.Build<MessageMetadataRegistry>(), connections, concurrency);
+                return new EventSubscriber(b.Build<MessageHandlerRegistry>(), b.Build<IMessageMapper>(), b.Build<MessageMetadataRegistry>(), b.Build<IEventStoreConsumer>(), concurrency);
             }, DependencyLifecycle.SingleInstance);
 
             context.Container.ConfigureComponent(b =>
             {
-                IEventStoreConnection[] connections;
-                if (!settings.TryGet<IEventStoreConnection[]>("Shards", out connections))
-                    connections = new[] { b.Build<IEventStoreConnection>() };
                 var compress = settings.Get<Compression>("Compress");
-                return new SnapshotReader(b.Build<IStoreEvents>(), b.Build<IMessageMapper>(), connections, compress);
+                return new SnapshotReader(b.Build<IStoreEvents>(), b.Build<IMessageMapper>(), b.Build<IEventStoreConsumer>(), compress);
             }, DependencyLifecycle.SingleInstance);
 
             context.Container.ConfigureComponent(b =>
             {
-                IEventStoreConnection[] connections;
-                if (!settings.TryGet<IEventStoreConnection[]>("Shards", out connections))
-                    connections = new[] { b.Build<IEventStoreConnection>() };
-
-                return new DelayedSubscriber(b.Build<IMessageMapper>(), connections, settings.Get<int>("MaxDelayed"), settings.Get<int>("Retries"));
+                return new DelayedSubscriber(b.Build<IEventStoreConsumer>(), settings.Get<int>("Retries"));
             }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register<MutateIncomingEventRegistration>();
@@ -90,11 +78,10 @@ namespace Aggregates
             Logger.Write(LogLevel.Info, "Starting event consumer");
             await _subscribers.WhenAllAsync(x => x.Setup(
                     _settings.EndpointName(),
-                    _settings.Get<int>("ReadSize"),
-                    _settings.Get<bool>("ExtraStats"))
+                    _cancellationTokenSource.Token)
             ).ConfigureAwait(false);
 
-            await _subscribers.WhenAllAsync(x => x.Subscribe(_cancellationTokenSource.Token)).ConfigureAwait(false);
+            await _subscribers.WhenAllAsync(x => x.Connect()).ConfigureAwait(false);
         }
 
         protected override Task OnStop(IMessageSession session)

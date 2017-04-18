@@ -31,10 +31,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="EventStore.ClientAPI, Version=4.0.0.7, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\EventStore.Client.4.0.0\lib\net40\EventStore.ClientAPI.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="Metrics, Version=0.4.7.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Metrics.NET.0.4.7\lib\net45\Metrics.dll</HintPath>
       <Private>True</Private>
@@ -62,10 +58,7 @@
     <Compile Include="Exceptions\DiscriminatorException.cs" />
     <Compile Include="Exceptions\SubscriptionCanceled.cs" />
     <Compile Include="Extensions\EnumerableExtensions.cs" />
-    <Compile Include="Internal\CatchupClient.cs" />
-    <Compile Include="Internal\DelayedClient.cs" />
     <Compile Include="Internal\DelayedSubscriber.cs" />
-    <Compile Include="Internal\PersistentClient.cs" />
     <Compile Include="Internal\EventSubscriber.cs" />
     <Compile Include="Consumer.cs" />
     <Compile Include="ConsumerConfiguration.cs" />
@@ -80,10 +73,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Aggregates.NET.GetEventStore\Aggregates.NET.GetEventStore.csproj">
-      <Project>{cf5bc870-c30b-45de-b440-2cbd740ce370}</Project>
-      <Name>Aggregates.NET.GetEventStore</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj">
       <Project>{ec7040e2-7a13-4447-900d-6ed57328e5df}</Project>
       <Name>Aggregates.NET</Name>

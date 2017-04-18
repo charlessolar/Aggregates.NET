@@ -3,12 +3,41 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Aggregates
 {
+    internal class IdJsonConverter : JsonConverter
+    {
+        public override bool CanConvert(Type objectType) => typeof(Id) == objectType;
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            if (reader.TokenType == JsonToken.Integer)
+                return new Id((long)reader.Value);
+
+            var str = reader.Value as string;
+            Guid guid;
+            return Guid.TryParse(str, out guid) ? new Id(guid) : new Id(str);
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            if (value == null)
+            {
+                writer.WriteNull();
+                return;
+            }
+
+            var id = (Id)value;
+            writer.WriteValue(id.Value);
+        }
+    }
+
+    [JsonConverter(typeof(IdJsonConverter))]
     public class Id : IEquatable<Id>
     {
-        private object Value { get; set; }
+        internal object Value { get; set; }
 
         public Id(string id) { Value = id; }
         public Id(long id) { Value = id; }

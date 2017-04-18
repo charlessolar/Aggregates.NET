@@ -32,8 +32,6 @@ namespace Aggregates
             var consumerFeature = Type.GetType("Aggregates.ConsumerFeature", false);
             if (consumerFeature != null && context.Settings.IsFeatureEnabled(consumerFeature))
             {
-                context.RegisterStartupTask(
-                    builder => new DomainStart(builder.Build<ISnapshotReader>(), context.Settings));
 
                 context.Container.ConfigureComponent(b =>
                         new StoreSnapshots(b.Build<IStoreEvents>(), b.Build<ISnapshotReader>(),
@@ -105,17 +103,15 @@ namespace Aggregates
             //context.Pipeline.Register<TesterBehaviorRegistration>();
         }
 
-        public class DomainStart : FeatureStartupTask, IDisposable
+        public class DomainStart : FeatureStartupTask
         {
             private static readonly ILog Logger = LogManager.GetLogger("DomainStart");
 
             private readonly ReadOnlySettings _settings;
-            private readonly ISnapshotReader _subscriber;
             private readonly CancellationTokenSource _cancellationTokenSource;
 
-            public DomainStart(ISnapshotReader subscriber, ReadOnlySettings settings)
+            public DomainStart(ReadOnlySettings settings)
             {
-                _subscriber = subscriber;
                 _settings = settings;
                 _cancellationTokenSource = new CancellationTokenSource();
             }
@@ -128,11 +124,8 @@ namespace Aggregates
                     x.Endpoint = _settings.InstanceSpecificQueue();
                     x.Instance = Aggregates.Defaults.Instance;
                 }).ConfigureAwait(false);
-
-                Logger.Write(LogLevel.Info, "Starting snapshot consumer");
-                await _subscriber.Setup(_settings.EndpointName()).ConfigureAwait(false);
-
-                await _subscriber.Subscribe(_cancellationTokenSource.Token).ConfigureAwait(false);
+                
+                
 
             }
             protected override async Task OnStop(IMessageSession session)
@@ -145,10 +138,6 @@ namespace Aggregates
                 }).ConfigureAwait(false);
                 Logger.Write(LogLevel.Info, "Stopping snapshot consumer");
                 _cancellationTokenSource.Cancel();
-            }
-            public void Dispose()
-            {
-                _subscriber.Dispose();
             }
         }
     }
