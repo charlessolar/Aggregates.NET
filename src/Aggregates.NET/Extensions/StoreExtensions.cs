@@ -19,7 +19,11 @@ namespace Aggregates.Extensions
             {
                 using (var zip = new GZipStream(stream, CompressionMode.Compress))
                 {
-                    zip.Write(bytes, 0, bytes.Length);
+                    using (var writer = new BinaryWriter(zip, Encoding.UTF8))
+                    {
+                        writer.Write(bytes.Length);
+                        writer.Write(bytes, 0, bytes.Length);
+                    }
                 }
                 return stream.ToArray();
             }
@@ -28,13 +32,13 @@ namespace Aggregates.Extensions
         {
             using (var stream = new MemoryStream(bytes))
             {
-                using (var dezip = new MemoryStream())
+                using (var gz = new GZipStream(stream, CompressionMode.Decompress))
                 {
-                    using (var gz = new GZipStream(stream, CompressionMode.Decompress))
+                    using (var reader = new BinaryReader(gz, Encoding.UTF8))
                     {
-                        gz.CopyTo(dezip);
+                        var length = reader.ReadInt32();
+                        return reader.ReadBytes(length);
                     }
-                    return dezip.ToArray();
                 }
             }
         }
@@ -76,6 +80,6 @@ namespace Aggregates.Extensions
             var name = type.Substring(type.LastIndexOf('.') + 1);
             return char.ToLower(name[0]) + name.Substring(1);
         }
-        
+
     }
 }

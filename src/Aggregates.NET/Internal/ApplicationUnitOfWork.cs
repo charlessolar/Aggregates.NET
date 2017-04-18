@@ -131,7 +131,7 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
-                Logger.Warn($"Caught exception '{e.GetType().FullName}' while executing message {context.MessageId} {context.Message.MessageType.FullName}", e);
+                Logger.Info($"Caught exception '{e.GetType().FullName}' while executing message {context.MessageId} {context.Message.MessageType.FullName}", e);
 
                 ErrorsMeter.Mark(context.Message.MessageType.FullName);
                 var trailingExceptions = new List<Exception>();

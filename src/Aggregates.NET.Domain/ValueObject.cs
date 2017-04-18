@@ -54,20 +54,14 @@ namespace Aggregates
         }
         public static bool operator ==(Immutable<T> x, Immutable<T> y)
         {
-            if (x == null)
-                return y == null;
             return x.Equals(y);
         }
         public static bool operator ==(Immutable<T> x, T y)
         {
-            if (x == null)
-                return y == null;
             return x.Equals(new Immutable<T>(y));
         }
         public static bool operator ==(T x, Immutable<T> y)
         {
-            if (y == null)
-                return x == null;
             return y.Equals(new Immutable<T>(x));
         }
 

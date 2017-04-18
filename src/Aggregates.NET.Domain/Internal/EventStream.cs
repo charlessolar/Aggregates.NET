@@ -38,7 +38,8 @@ namespace Aggregates.Internal
 
         public IEnumerable<IFullEvent> OobUncommitted => _outofband;
 
-        public bool Dirty => Uncommitted.Any() || OobUncommitted.Any() || _pendingShot != null;
+        // Don't count OOB events as Dirty
+        public bool Dirty => Uncommitted.Any()|| _pendingShot != null;
         public int TotalUncommitted => Uncommitted.Count() + OobUncommitted.Count() + (_pendingShot != null ? 1 : 0);
 
         private readonly Guid _commitId;
@@ -208,6 +209,8 @@ namespace Aggregates.Internal
             // Flush events first, guarantee consistency through expected version THEN write snapshots and OOB
             if (_uncommitted.Any())
             {
+
+                await _store.Evict<T>(Bucket, StreamId, Parents).ConfigureAwait(false);
                 Logger.Write(LogLevel.Debug,
                     () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {Uncommitted.Count()} events");
                 await _store.WriteStream<T>(this, commitHeaders).ConfigureAwait(false);

@@ -288,7 +288,8 @@ namespace Aggregates.Internal
             // After 100 or so pile up pull the latest stream and attempt to write them again
 
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, sourced.Stream.Bucket, sourced.Stream.StreamId, sourced.Stream.Parents);
-            var package = new ConflictingEvents
+
+            var message = new ConflictingEvents
             {
                 Bucket = sourced.Stream.Bucket,
                 StreamId = sourced.Stream.StreamId,
@@ -296,6 +297,17 @@ namespace Aggregates.Internal
                 Parents = BuildParentList(entity),
                 Events = uncommitted
             };
+
+            var package = new DelayedMessage
+            {
+                MessageId = Guid.NewGuid().ToString(),
+                Headers = new Dictionary<string, string>(),
+                Message = message,
+                Received = DateTime.UtcNow,
+                ChannelKey = streamName
+            };
+            foreach (var header in commitHeaders)
+                package.Headers[$"Conflict.{header.Key}"] = header.Value;
 
             await _delay.AddToQueue(ConcurrencyConflict.ResolveWeakly.ToString(), package, streamName)
                     .ConfigureAwait(false);

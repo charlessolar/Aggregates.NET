@@ -59,7 +59,7 @@ namespace Aggregates.Internal
         private static int _flushing;
 
         //                                                Channel  key          Last Pull   Lock          Stored Objects
-        private static readonly ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, SemaphoreSlim, List<object>>> MemCache = new ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, SemaphoreSlim, List<object>>>();
+        private static readonly ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>> MemCache = new ConcurrentDictionary<Tuple<string, string>, Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>>();
         private static int _tooLarge = 0;
 
         private readonly IStoreEvents _store;
@@ -67,8 +67,8 @@ namespace Aggregates.Internal
         private readonly string _endpoint;
 
         private readonly object _lock = new object();
-        private Dictionary<Tuple<string, string>, List<object>> _inFlightMemCache;
-        private Dictionary<Tuple<string, string>, List<object>> _uncommitted;
+        private Dictionary<Tuple<string, string>, List<IDelayedMessage>> _inFlightMemCache;
+        private Dictionary<Tuple<string, string>, List<IDelayedMessage>> _uncommitted;
 
         static async Task Flush(object state, bool all = false)
         {
@@ -90,7 +90,7 @@ namespace Aggregates.Internal
 
                 await expiredSpecificChannels.WhenAllAsync(async (expired) =>
                 {
-                    Tuple<DateTime, SemaphoreSlim, List<object>> fromCache;
+                    Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>> fromCache;
                     if (!MemCache.TryRemove(expired, out fromCache))
                         return;
 
@@ -111,14 +111,14 @@ namespace Aggregates.Internal
                         // Put rest back in cache
                         MemCache.AddOrUpdate(expired,
                             (key) =>
-                                    new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
+                                    new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
                             (key, existing) =>
                             {
                                 existing.Item2.Wait();
                                 existing.Item3.AddRange(fromCache.Item3);
                                 existing.Item2.Release();
 
-                                return new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, existing.Item2, existing.Item3);
+                                return new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(DateTime.UtcNow, existing.Item2, existing.Item3);
                             }
                         );
                     }
@@ -175,7 +175,7 @@ namespace Aggregates.Internal
                         // Failed to write to ES - put object back in memcache
                         MemCache.AddOrUpdate(expired,
                             (key) =>
-                                new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, fromCache.Item2,
+                                new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(DateTime.UtcNow, fromCache.Item2,
                                     overLimit),
                             (key, existing) =>
                             {
@@ -183,7 +183,7 @@ namespace Aggregates.Internal
                                 overLimit.AddRange(existing.Item3);
                                 existing.Item2.Release();
 
-                                return new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, existing.Item2,
+                                return new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(DateTime.UtcNow, existing.Item2,
                                     overLimit);
                             }
                         );
@@ -221,7 +221,7 @@ namespace Aggregates.Internal
 
                         await toFlush.WhenAllAsync(async (expired) =>
                         {
-                            Tuple<DateTime, SemaphoreSlim, List<object>> fromCache;
+                            Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>> fromCache;
                             if (!MemCache.TryRemove(expired, out fromCache))
                                 return;
 
@@ -239,7 +239,7 @@ namespace Aggregates.Internal
                                 // Put rest back in cache
                                 MemCache.AddOrUpdate(expired,
                                     (key) =>
-                                        new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow,
+                                        new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(DateTime.UtcNow,
                                             fromCache.Item2,
                                             fromCache.Item3),
                                     (key, existing) =>
@@ -248,7 +248,7 @@ namespace Aggregates.Internal
                                         fromCache.Item3.AddRange(existing.Item3);
                                         existing.Item2.Release();
 
-                                        return new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow,
+                                        return new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(DateTime.UtcNow,
                                             existing.Item2,
                                             fromCache.Item3);
                                     }
@@ -309,7 +309,7 @@ namespace Aggregates.Internal
                                 // Failed to write to ES - put object back in memcache
                                 MemCache.AddOrUpdate(expired,
                                     (key) =>
-                                        new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow,
+                                        new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(DateTime.UtcNow,
                                             fromCache.Item2,
                                             overLimit),
                                     (key, existing) =>
@@ -318,7 +318,7 @@ namespace Aggregates.Internal
                                         overLimit.AddRange(existing.Item3);
                                         existing.Item2.Release();
 
-                                        return new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow,
+                                        return new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(DateTime.UtcNow,
                                             existing.Item2,
                                             overLimit);
                                     }
@@ -364,8 +364,8 @@ namespace Aggregates.Internal
 
         public Task Begin()
         {
-            _uncommitted = new Dictionary<Tuple<string, string>, List<object>>();
-            _inFlightMemCache = new Dictionary<Tuple<string, string>, List<object>>();
+            _uncommitted = new Dictionary<Tuple<string, string>, List<IDelayedMessage>>();
+            _inFlightMemCache = new Dictionary<Tuple<string, string>, List<IDelayedMessage>>();
             return Task.CompletedTask;
         }
 
@@ -382,14 +382,14 @@ namespace Aggregates.Internal
                 {
                     MemCache.AddOrUpdate(inflight.Key,
                         (key) =>
-                                new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, new SemaphoreSlim(1), inflight.Value),
+                                new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(DateTime.UtcNow, new SemaphoreSlim(1), inflight.Value),
                         (key, existing) =>
                         {
                             existing.Item2.Wait();
                             inflight.Value.AddRange(existing.Item3);
                             existing.Item2.Release();
 
-                            return new Tuple<DateTime, SemaphoreSlim, List<object>>(existing.Item1, existing.Item2, inflight.Value);
+                            return new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(existing.Item1, existing.Item2, inflight.Value);
                         }
                     );
                     MemCacheSize.Increment(inflight.Value.Count);
@@ -441,14 +441,14 @@ namespace Aggregates.Internal
                     // Failed to write to ES or has specific key - put objects into memcache
                     MemCache.AddOrUpdate(kv.Key,
                         (key) =>
-                                new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, new SemaphoreSlim(1), kv.Value),
+                                new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(DateTime.UtcNow, new SemaphoreSlim(1), kv.Value),
                         (key, existing) =>
                         {
                             existing.Item2.Wait();
                             existing.Item3.AddRange(kv.Value);
                             existing.Item2.Release();
 
-                            return new Tuple<DateTime, SemaphoreSlim, List<object>>(existing.Item1, existing.Item2, existing.Item3);
+                            return new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(existing.Item1, existing.Item2, existing.Item3);
                         }
                     );
                     MemCacheSize.Increment(kv.Value.Count);
@@ -468,7 +468,7 @@ namespace Aggregates.Internal
 
                 // Get age from memcache
                 var specificKey = new Tuple<string, string>(channel, key);
-                Tuple<DateTime, SemaphoreSlim, List<object>> temp;
+                Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>> temp;
                 if (MemCache.TryGetValue(specificKey, out temp))
                     specificAge = DateTime.UtcNow - temp.Item1;
 
@@ -489,7 +489,7 @@ namespace Aggregates.Internal
             {
                 // Get size from memcache
                 var specificKey = new Tuple<string, string>(channel, key);
-                Tuple<DateTime, SemaphoreSlim, List<object>> temp;
+                Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>> temp;
                 if (MemCache.TryGetValue(specificKey, out temp))
                     specificSize = temp.Item3.Count;
                 if (_uncommitted.ContainsKey(specificKey))
@@ -501,7 +501,7 @@ namespace Aggregates.Internal
             return Task.FromResult(specificSize);
         }
 
-        public Task AddToQueue(string channel, object queued, string key = null)
+        public Task AddToQueue(string channel, IDelayedMessage queued, string key = null)
         {
             Logger.Write(LogLevel.Debug, () => $"Appending delayed object to channel [{channel}] key [{key}]");
 
@@ -515,7 +515,7 @@ namespace Aggregates.Internal
             lock (_lock)
             {
                 if (!_uncommitted.ContainsKey(specificKey))
-                    _uncommitted[specificKey] = new List<object>();
+                    _uncommitted[specificKey] = new List<IDelayedMessage>();
                 _uncommitted[specificKey].Add(queued);
             }
 
@@ -523,19 +523,19 @@ namespace Aggregates.Internal
             return Task.CompletedTask;
         }
 
-        public Task<IEnumerable<object>> Pull(string channel, string key = null, int? max = null)
+        public Task<IEnumerable<IDelayedMessage>> Pull(string channel, string key = null, int? max = null)
         {
             var specificKey = new Tuple<string, string>(channel, key);
 
             Logger.Write(LogLevel.Info, () => $"Pulling delayed channel [{channel}] key [{key}]");
 
-            Tuple<DateTime, SemaphoreSlim, List<object>> fromCache;
+            Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>> fromCache;
 
             // Check memcache even if key == null because messages failing to save to ES are put in memcache
             if (!MemCache.TryRemove(specificKey, out fromCache))
                 fromCache = null;
 
-            List<object> discovered = new List<object>();
+            List<IDelayedMessage> discovered = new List<IDelayedMessage>();
             if (fromCache != null)
             {
                 fromCache.Item2.Wait();
@@ -546,7 +546,7 @@ namespace Aggregates.Internal
                     fromCache.Item3.Clear();
                 fromCache.Item2.Release();
             }
-            List<object> fromUncommitted;
+            List<IDelayedMessage> fromUncommitted;
             if (_uncommitted.TryGetValue(specificKey, out fromUncommitted))
                 discovered.AddRange(fromUncommitted);
 
@@ -558,20 +558,20 @@ namespace Aggregates.Internal
             {
                 MemCache.AddOrUpdate(specificKey,
                     (_) =>
-                            new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
+                            new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(DateTime.UtcNow, fromCache.Item2, fromCache.Item3),
                     (_, existing) =>
                     {
                         fromCache.Item2.Wait();
                         fromCache.Item3.AddRange(existing.Item3);
                         fromCache.Item2.Release();
 
-                        return new Tuple<DateTime, SemaphoreSlim, List<object>>(DateTime.UtcNow, existing.Item2, fromCache.Item3);
+                        return new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(DateTime.UtcNow, existing.Item2, fromCache.Item3);
                     });
             }
             MemCacheSize.Decrement(discovered.Count);
 
             Logger.Write(LogLevel.Info, () => $"Pulled {discovered.Count} from delayed channel [{channel}] key [{key}]");
-            return Task.FromResult<IEnumerable<object>>(discovered);
+            return Task.FromResult<IEnumerable<IDelayedMessage>>(discovered);
         }
 
 

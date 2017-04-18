@@ -16,7 +16,7 @@ using NServiceBus.Pipeline;
 
 namespace Aggregates.Internal
 {
-    internal class DelayedMessage
+    internal class DelayedMessage : IDelayedMessage
     {
         public string MessageId { get; set; }
         public IDictionary<string, string> Headers { get; set; }

@@ -75,12 +75,11 @@ namespace Aggregates.Internal
         protected readonly IStoreStreams _store;
         protected readonly IBuilder _builder;
         private readonly IStoreSnapshots _snapstore;
-        private readonly ReadOnlySettings _settings;
 
+        private static readonly Meter WriteErrors = Metric.Meter("Event Write Errors", Unit.Errors);
         private static readonly Meter Conflicts = Metric.Meter("Conflicts", Unit.Items, tags: "debug");
         private static readonly Meter ConflictsResolved = Metric.Meter("Conflicts Resolved", Unit.Items, tags: "debug");
         private static readonly Meter ConflictsUnresolved = Metric.Meter("Conflicts Unresolved", Unit.Items, tags: "debug");
-        private static readonly Meter WriteErrors = Metric.Meter("Event Write Errors", Unit.Errors, tags: "debug");
         private static readonly Metrics.Timer CommitTime = Metric.Timer("Repository Commit Time", Unit.Items, tags: "debug");
         private static readonly Meter WrittenEvents = Metric.Meter("Repository Written Events", Unit.Events, tags: "debug");
         private static readonly Metrics.Timer ConflictResolutionTime = Metric.Timer("Conflict Resolution Time", Unit.Items, tags: "debug");
@@ -97,7 +96,6 @@ namespace Aggregates.Internal
             _builder = builder;
             _snapstore = _builder.Build<IStoreSnapshots>();
             _store = _builder.Build<IStoreStreams>();
-            _settings = _builder.Build<ReadOnlySettings>();
             _store.Builder = _builder;
 
             // Conflict resolution is strong by default
@@ -110,9 +108,11 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Repository {typeof(T).FullName} starting prepare {commitId}");
 
+            // Verify streams we read but didn't change are still save version
             return
                 Tracked.Values
                     .ToArray()
+                    .Where(x => !x.Stream.Dirty)
                     .WhenAllAsync(async (x) =>
                     {
                         try
@@ -134,10 +134,10 @@ namespace Aggregates.Internal
             using (CommitTime.NewContext())
             {
                 await Tracked.Values
-                    .Where(x => x.Stream.Dirty)
                     .ToArray()
                     .WhenAllAsync(async (tracked) =>
                     {
+
                         var headers = new Dictionary<string, string>(commitHeaders);
 
                         var stream = tracked.Stream;
@@ -155,7 +155,6 @@ namespace Aggregates.Internal
 
                         try
                         {
-                            await _store.Evict<T>(stream.Bucket, stream.StreamId, stream.Parents).ConfigureAwait(false);
                             await stream.Commit(commitId, headers).ConfigureAwait(false);
                         }
                         catch (VersionException e)

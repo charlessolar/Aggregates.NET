@@ -105,7 +105,7 @@ namespace Aggregates.Internal
         public IRepository<TParent, TEntity> For<TParent, TEntity>(TParent parent) where TEntity : Entity<TEntity, TParent> where TParent : Entity<TParent>
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving entity repository for type {typeof(TEntity)}");
-            var key = $"{parent.BuildParentsString()}:{typeof(TEntity).FullName}";
+            var key = $"{typeof(TParent).FullName}.{typeof(TEntity).FullName}";
 
             IRepository repository;
             if (_repositories.TryGetValue(key, out repository))
@@ -116,7 +116,7 @@ namespace Aggregates.Internal
         public IPocoRepository<T> Poco<T>() where T : class, new()
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving poco repository for type {typeof(T)}");
-            var key = $"{typeof(T).FullName}";
+            var key = typeof(T).FullName;
 
             IRepository repository;
             if (_pocoRepositories.TryGetValue(key, out repository)) return (IPocoRepository<T>)repository;
@@ -126,7 +126,7 @@ namespace Aggregates.Internal
         public IPocoRepository<TParent, T> Poco<TParent, T>(TParent parent) where T : class, new() where TParent : Entity<TParent>
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving child poco repository for type {typeof(T)}");
-            var key = $"{parent.BuildParentsString()}:{typeof(T).FullName}";
+            var key = $"{typeof(TParent).FullName}.{typeof(T).FullName}";
 
             IRepository repository;
             if (_pocoRepositories.TryGetValue(key, out repository))
@@ -185,34 +185,24 @@ namespace Aggregates.Internal
             };
 
             var allRepos =
-                _repositories.Values.Concat(_repositories.Values).Concat(_pocoRepositories.Values).ToArray();
+                _repositories.Values.Concat(_pocoRepositories.Values).ToArray();
 
 
-            var changedStreams = _repositories.Sum(x => x.Value.ChangedStreams) + _repositories.Sum(x => x.Value.ChangedStreams);
+            var changedStreams = _repositories.Sum(x => x.Value.ChangedStreams) + _pocoRepositories.Sum(x => x.Value.ChangedStreams);
 
             Logger.Write(LogLevel.Debug, () => $"Detected {changedStreams} changed streams in commit {CommitId}");
             if (changedStreams > 1)
             {
-                Logger.Write(LogLevel.Info, () =>
-                        $"Starting prepare for commit id {CommitId} with {_repositories.Count + _repositories.Count + _pocoRepositories.Count} tracked repositories");
+                Logger.Write(LogLevel.Info, $"Starting prepare for commit id {CommitId} with {_repositories.Count + _pocoRepositories.Count} tracked repositories. You changed {changedStreams} streams.  We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams");
+                
                 using (PrepareTime.NewContext())
                 {
                     // First check all streams read but not modified - if the store has a different version a VersionException will be thrown
                     await allRepos.WhenAllAsync(x => x.Prepare(CommitId)).ConfigureAwait(false);
                 }
             }
-
-            // this log message can be expensive as the list is computed for a check
-            // so only warn users about multiple stream commits when debugging
-            Logger.Write(LogLevel.Debug, () =>
-            {
-                var orderedRepos = _repositories.Select(x => new Tuple<int, IRepository>(x.Value.ChangedStreams, x.Value))
-                                                .Concat(_repositories.Select(x => new Tuple<int, IRepository>(x.Value.ChangedStreams, x.Value)));
-                if (orderedRepos.Count(x => x.Item1 != 0) > 1)
-                    return $"Starting commit id {CommitId} with {_repositories.Count + _repositories.Count + _pocoRepositories.Count} tracked repositories. You changed {orderedRepos.Sum(x => x.Item1)} streams.  We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams";
-
-                return $"Starting commit id {CommitId} with {_repositories.Count + _repositories.Count + _pocoRepositories.Count} tracked repositories";
-            });
+            
+            Logger.Write(LogLevel.Debug, () => $"Starting commit id {CommitId} with {_repositories.Count + _pocoRepositories.Count} tracked repositories");
 
 
             using (var ctx = CommitTime.NewContext())

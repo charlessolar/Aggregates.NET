@@ -86,7 +86,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             Assert.True(invoked);
             channel.Verify(x => x.Age(Moq.It.IsAny<string>(), Moq.It.IsAny<string>()), Moq.Times.Never);
             channel.Verify(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>()), Moq.Times.Never);
-            channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<object>(), Moq.It.IsAny<string>()), Moq.Times.Never);
+            channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<IDelayedMessage>(), Moq.It.IsAny<string>()), Moq.Times.Never);
         }
 
         [Test]
@@ -112,7 +112,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
 
             await _terminator.Invoke(context.Object, next.Object);
             Assert.False(invoked);
-            channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<object>(), Moq.It.IsAny<string>()), Moq.Times.Once);
+            channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<IDelayedMessage>(), Moq.It.IsAny<string>()), Moq.Times.Once);
             // Posibly optional
             channel.Verify(x => x.Age(Moq.It.IsAny<string>(), Moq.It.IsAny<string>()), Moq.Times.Once);
             channel.Verify(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>()), Moq.Times.Once);
@@ -141,12 +141,12 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             
 
             context.Setup(x => x.MessageBeingHandled).Returns(new DelayedMessage { Test = 1 });
-            channel.Setup(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<object>(), Moq.It.IsAny<string>()))
+            channel.Setup(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<IDelayedMessage>(), Moq.It.IsAny<string>()))
                 .Callback<string, object, string>((chn, msg, key) => keyPropChannelKey = chn+key)
                 .Returns(Task.CompletedTask);
             await _terminator.Invoke(context.Object, next.Object);
             context.Setup(x => x.MessageBeingHandled).Returns(new DelayedMessageNoProps());
-            channel.Setup(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<object>(), Moq.It.IsAny<string>()))
+            channel.Setup(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<IDelayedMessage>(), Moq.It.IsAny<string>()))
                 .Callback<string, object, string>((chn, msg, key) => channelKey = chn + key)
                 .Returns(Task.CompletedTask);
             await _terminator.Invoke(context.Object, next.Object);
@@ -180,10 +180,10 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             channel.Setup(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>())).Returns(Task.FromResult(2));
             channel.Setup(x => x.Pull(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new object[] {new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage()}.AsEnumerable()));
+                .Returns(Task.FromResult(new IDelayedMessage[] {new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage()}.AsEnumerable()));
 
             await _terminator.Invoke(context.Object, next.Object);
-            channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<object>(), Moq.It.IsAny<string>()), Moq.Times.Once);
+            channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<IDelayedMessage>(), Moq.It.IsAny<string>()), Moq.Times.Once);
             // Posibly optional
             channel.Verify(x => x.Age(Moq.It.IsAny<string>(), Moq.It.IsAny<string>()), Moq.Times.Once);
             channel.Verify(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>()), Moq.Times.Once);
@@ -214,10 +214,10 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             channel.Setup(x => x.Age(Moq.It.IsAny<string>(), Moq.It.IsAny<string>())).Returns(Task.FromResult<TimeSpan?>(TimeSpan.FromSeconds(2)));
             channel.Setup(x => x.Pull(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new object[] { new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage() }.AsEnumerable()));
+                .Returns(Task.FromResult(new IDelayedMessage[] { new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage() }.AsEnumerable()));
 
             await _terminator.Invoke(context.Object, next.Object);
-            channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<object>(), Moq.It.IsAny<string>()), Moq.Times.Once);
+            channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<IDelayedMessage>(), Moq.It.IsAny<string>()), Moq.Times.Once);
             // Posibly optional
             channel.Verify(x => x.Age(Moq.It.IsAny<string>(), Moq.It.IsAny<string>()), Moq.Times.Once);
             channel.Verify(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>()), Moq.Times.Once);
@@ -248,10 +248,10 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             channel.Setup(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>())).Returns(Task.FromResult(2));
             channel.Setup(x => x.Pull(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new object[] { new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage() }.AsEnumerable()));
+                .Returns(Task.FromResult(new IDelayedMessage[] { new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage() }.AsEnumerable()));
 
             await _terminator.Invoke(context.Object, next.Object);
-            channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<object>(), Moq.It.IsAny<string>()), Moq.Times.Once);
+            channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<IDelayedMessage>(), Moq.It.IsAny<string>()), Moq.Times.Once);
             // Posibly optional
             channel.Verify(x => x.Age(Moq.It.IsAny<string>(), Moq.It.IsAny<string>()), Moq.Times.Once);
             channel.Verify(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>()), Moq.Times.Once);
@@ -284,11 +284,11 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             channel.Setup(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>())).Returns(Task.FromResult(2));
             channel.Setup(x => x.Pull(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new object[] { new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage() }.AsEnumerable()));
+                .Returns(Task.FromResult(new IDelayedMessage[] { new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage() }.AsEnumerable()));
 
             await _terminator.Invoke(context.Object, next.Object);
             await _terminator.Invoke(context.Object, next.Object);
-            channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<object>(), Moq.It.IsAny<string>()), Moq.Times.Exactly(2));
+            channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<IDelayedMessage>(), Moq.It.IsAny<string>()), Moq.Times.Exactly(2));
             Assert.AreEqual(2, invoked);
         }
 
@@ -314,15 +314,13 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.MessageBeingHandled).Returns(new DelayedMessageNoProps());
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             channel.Setup(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>())).Returns(Task.FromResult(1));
-
-            channel.Setup(x => x.Pull(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), 1))
-                .Returns(Task.FromResult(new object[] { "test" }.AsEnumerable()));
+            
 
             channel.Setup(x => x.Pull("test", Moq.It.IsAny<string>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new object[] { new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage() }.AsEnumerable()));
+                .Returns(Task.FromResult(new IDelayedMessage[] { new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage() }.AsEnumerable()));
 
             await _terminator.Invoke(context.Object, next.Object);
-            channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<object>(), Moq.It.IsAny<string>()), Moq.Times.Once);
+            channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<IDelayedMessage>(), Moq.It.IsAny<string>()), Moq.Times.Once);
             // Posibly optional
             channel.Verify(x => x.Age(Moq.It.IsAny<string>(), Moq.It.IsAny<string>()), Moq.Times.Never);
             channel.Verify(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>()), Moq.Times.Once);
