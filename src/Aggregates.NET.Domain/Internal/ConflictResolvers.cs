@@ -173,101 +173,20 @@ namespace Aggregates.Internal
     /// Save conflicts for later processing, can only be used if the stream can never fail to merge
     /// </summary>
     internal class ResolveWeaklyConflictResolver :
-        IResolveConflicts,
-        IHandleMessages<ConflictingEvents>
+        IResolveConflicts
     {
         internal static readonly ILog Logger = LogManager.GetLogger("ResolveWeaklyConflictResolver");
 
-        private readonly IUnitOfWork _uow;
         private readonly IStoreStreams _store;
         private readonly IDelayedChannel _delay;
         private readonly StreamIdGenerator _streamGen;
 
 
-        public ResolveWeaklyConflictResolver(IUnitOfWork uow, IStoreStreams eventstore, IDelayedChannel delay, StreamIdGenerator streamGen)
+        public ResolveWeaklyConflictResolver(IStoreStreams eventstore, IDelayedChannel delay, StreamIdGenerator streamGen)
         {
-            _uow = uow;
             _store = eventstore;
             _delay = delay;
             _streamGen = streamGen;
-        }
-
-        private Task<IEventSourced> GetBase(string bucket, string type, Id id, IEventSourced parent = null)
-        {
-            var entityType = Type.GetType(type, false, true);
-            if (entityType == null)
-            {
-                Logger.Error($"Received conflicting events message for unknown type {type}");
-                throw new ArgumentException($"Received conflicting events message for unknown type {type}");
-            }
-
-            // We have the type name, hack the generic parameters to build IBase
-            if (parent == null)
-            {
-                var method = typeof(IUnitOfWork).GetMethod("For").MakeGenericMethod(entityType);
-
-                var repo = method.Invoke(_uow, new object[] { });
-
-                method = typeof(IRepository<,>).GetMethod("Get");
-                return (Task<IEventSourced>)method.Invoke(repo, new object[] { bucket, id });
-            }
-            else
-            {
-                var method = typeof(IUnitOfWork).GetMethod("For").MakeGenericMethod(parent.GetType(), entityType);
-
-                var repo = method.Invoke(_uow, new object[] { parent });
-
-                method = typeof(IRepository<,>).GetMethod("Get");
-                return (Task<IEventSourced>)method.Invoke(repo, new object[] { bucket, id });
-            }
-        }
-
-        public async Task Handle(ConflictingEvents conflicts, IMessageHandlerContext ctx)
-        {
-            // Hydrate the entity, include all his parents
-            IEventSourced parentBase = null;
-            foreach (var parent in conflicts.Parents)
-                parentBase = await GetBase(conflicts.Bucket, parent.Item1, parent.Item2, parentBase).ConfigureAwait(false);
-
-            var target = await GetBase(conflicts.Bucket, conflicts.EntityType, conflicts.StreamId, parentBase).ConfigureAwait(false);
-
-
-            Logger.Write(LogLevel.Info,
-                () => $"Weakly resolving {conflicts.Events.Count()} conflicts on stream [{conflicts.StreamId}] type [{target.GetType().FullName}] bucket [{target.Stream.Bucket}]");
-
-            // No need to pull from the delayed channel or hydrate as below because this is called from the Delayed system which means
-            // the conflict is not in delayed cache and GetBase above pulls the latest stream
-
-            Logger.Write(LogLevel.Debug, () => $"Merging {conflicts.Events.Count()} conflicted events");
-            try
-            {
-                foreach (var u in conflicts.Events)
-                    target.Conflict(u.Event as IEvent,
-                        metadata:
-                        new Dictionary<string, string>
-                        {
-                                {"ConflictResolution", ConcurrencyConflict.ResolveWeakly.ToString()}
-                        });
-            }
-            catch (NoRouteException e)
-            {
-                Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
-                throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
-            }
-
-            Logger.Write(LogLevel.Info, () => "Successfully merged conflicted events");
-
-            if (target.Stream.StreamVersion != target.Stream.CommitVersion && target is ISnapshotting &&
-                ((ISnapshotting)target).ShouldTakeSnapshot())
-            {
-                Logger.Write(LogLevel.Debug,
-                    () => $"Taking snapshot of [{target.GetType().FullName}] id [{target.Id}] version {target.Stream.StreamVersion}");
-                var memento = ((ISnapshotting)target).TakeSnapshot();
-                target.Stream.AddSnapshot(memento);
-            }
-            
-            // Dont call stream.Commit we are inside a UOW in this method it will do the commit for us
-
         }
 
         private IEnumerable<Tuple<string, Id>> BuildParentList(IEventSource entity)
@@ -389,6 +308,94 @@ namespace Aggregates.Internal
             }
         }
     
+
+    }
+    /// <summary>
+    /// When the above pushes a conflicting event package onto the delayed queue it can end up 
+    /// flushed out to the store.  In that case the conflict will be handled via IHandleMessages
+    /// The methods here are mostly a hack to rebuild the entity and its parents based on 
+    /// information from the conflicting events package.
+    /// </summary>
+    internal class HandleConflictingEvents :
+        IHandleMessages<ConflictingEvents>
+    {
+        internal static readonly ILog Logger = LogManager.GetLogger("HandleConflictingEvents");
+        private readonly IUnitOfWork _uow;
+
+        public HandleConflictingEvents(IUnitOfWork uow)
+        {
+            _uow = uow;
+        }
+
+        private Task<IEventSourced> GetBase(string bucket, string type, Id id, IEventSourced parent = null)
+        {
+            var entityType = Type.GetType(type, false, true);
+            if (entityType == null)
+            {
+                Logger.Error($"Received conflicting events message for unknown type {type}");
+                throw new ArgumentException($"Received conflicting events message for unknown type {type}");
+            }
+
+            // We have the type name, hack the generic parameters to build IBase
+            if (parent == null)
+            {
+                var method = typeof(IUnitOfWork).GetMethod("For").MakeGenericMethod(entityType);
+
+                var repo = method.Invoke(_uow, new object[] { });
+
+                method = typeof(IRepository<,>).GetMethod("Get");
+                return (Task<IEventSourced>)method.Invoke(repo, new object[] { bucket, id });
+            }
+            else
+            {
+                var method = typeof(IUnitOfWork).GetMethod("For").MakeGenericMethod(parent.GetType(), entityType);
+
+                var repo = method.Invoke(_uow, new object[] { parent });
+
+                method = typeof(IRepository<,>).GetMethod("Get");
+                return (Task<IEventSourced>)method.Invoke(repo, new object[] { bucket, id });
+            }
+        }
+
+        public async Task Handle(ConflictingEvents conflicts, IMessageHandlerContext ctx)
+        {
+            // Hydrate the entity, include all his parents
+            IEventSourced parentBase = null;
+            foreach (var parent in conflicts.Parents)
+                parentBase = await GetBase(conflicts.Bucket, parent.Item1, parent.Item2, parentBase).ConfigureAwait(false);
+
+            var target = await GetBase(conflicts.Bucket, conflicts.EntityType, conflicts.StreamId, parentBase).ConfigureAwait(false);
+
+
+            Logger.Write(LogLevel.Info,
+                () => $"Weakly resolving {conflicts.Events.Count()} conflicts on stream [{conflicts.StreamId}] type [{target.GetType().FullName}] bucket [{target.Stream.Bucket}]");
+
+            // No need to pull from the delayed channel or hydrate as below because this is called from the Delayed system which means
+            // the conflict is not in delayed cache and GetBase above pulls the latest stream
+
+            Logger.Write(LogLevel.Debug, () => $"Merging {conflicts.Events.Count()} conflicted events");
+            try
+            {
+                foreach (var u in conflicts.Events)
+                    target.Conflict(u.Event as IEvent,
+                        metadata:
+                        new Dictionary<string, string>
+                        {
+                                {"ConflictResolution", ConcurrencyConflict.ResolveWeakly.ToString()}
+                        });
+            }
+            catch (NoRouteException e)
+            {
+                Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
+                throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
+            }
+
+            Logger.Write(LogLevel.Info, () => "Successfully merged conflicted events");
+
+            // Dont call stream.Commit we are inside a UOW in this method it will do the commit for us
+
+        }
+
 
     }
 
