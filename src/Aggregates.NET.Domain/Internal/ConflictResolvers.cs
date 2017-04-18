@@ -30,8 +30,7 @@ namespace Aggregates.Internal
             (b, _) =>
             {
                 var settings = b.Build<ReadOnlySettings>();
-                return new ResolveWeaklyConflictResolver(b.Build<IUnitOfWork>(), b.Build<IStoreStreams>(), b.Build<IDelayedChannel>(),
-                    settings.Get<StreamIdGenerator>("StreamGenerator"));
+                return new ResolveWeaklyConflictResolver(b.Build<IStoreStreams>(), b.Build<IDelayedChannel>(), settings.Get<StreamIdGenerator>("StreamGenerator"));
             });
         public static ConcurrencyStrategy Custom = new ConcurrencyStrategy(ConcurrencyConflict.Custom, "Custom", (b, type) => (IResolveConflicts)b.Build(type));
 
