@@ -126,24 +126,36 @@ namespace Aggregates.Internal
 
                     DelayedQueued.Decrement(flushedEvents.Count());
 
-                    Task.Run(async () =>
+                    try
                     {
-                        using (var ctx = DelayedExecution.NewContext())
+                        Task.Run(async () =>
                         {
-                            // Same stream ids should modify the same models, processing this way reduces write collisions on commit
-                            await ProcessEvents(param, flushedEvents.ToArray()).ConfigureAwait(false);
+                            using (var ctx = DelayedExecution.NewContext())
+                            {
+                                // Same stream ids should modify the same models, processing this way reduces write collisions on commit
+                                await ProcessEvents(param, flushedEvents.ToArray()).ConfigureAwait(false);
 
-                            if (ctx.Elapsed > TimeSpan.FromSeconds(5))
-                                SlowLogger.Warn(
-                                    $"Processing {flushedEvents.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
-                            Logger.Write(LogLevel.Info,
-                                () => $"Processing {flushedEvents.Count()} bulked events took {ctx.Elapsed.TotalMilliseconds} ms");
+                                if (ctx.Elapsed > TimeSpan.FromSeconds(5))
+                                    SlowLogger.Warn(
+                                        $"Processing {flushedEvents.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
+                                Logger.Write(LogLevel.Info,
+                                    () => $"Processing {flushedEvents.Count()} bulked events took {ctx.Elapsed.TotalMilliseconds} ms");
 
-                        }
-                    }, param.Token).Wait();
+                            }
+                        }, param.Token).Wait();
+                    }
+                    catch (System.AggregateException e)
+                    {
+                        if (e.InnerException is OperationCanceledException)
+                            throw e.InnerException;
+
+                        // If not a canceled exception, just write to log and continue
+                        // we dont want some random unknown exception to kill the whole event loop
+                        Logger.Error(
+                            $"Received exception in main event thread: {e.InnerException.GetType()}: {e.InnerException.Message}", e);
+                    }
                 }
             }
-            catch (System.AggregateException) { }
             catch (OperationCanceledException) { }
 
         }

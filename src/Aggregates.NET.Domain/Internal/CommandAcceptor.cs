@@ -14,7 +14,7 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger("CommandAcceptor");
         
-        private static readonly Meter ErrorsMeter = Metric.Meter("Business Exceptions", Unit.Errors);        
+        private static readonly Meter ErrorsMeter = Metric.Meter("Business Exceptions", Unit.Errors);
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {

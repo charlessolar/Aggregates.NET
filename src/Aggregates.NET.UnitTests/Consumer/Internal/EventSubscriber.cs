@@ -20,7 +20,6 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
         private Moq.Mock<IEventStoreConsumer> _consumer;
         private Aggregates.Internal.EventSubscriber _subscriber;
         private bool _onMessaged;
-        private bool _onErrored;
 
         [SetUp]
         public void Setup()
@@ -36,11 +35,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
                 _onMessaged = true;
                 return Task.CompletedTask;
             };
-            Bus.OnError = (ctx) =>
-            {
-                _onErrored = true;
-                return Task.FromResult(ErrorHandleResult.Handled);
-            };
+            Bus.OnError = (ctx) => Task.FromResult(ErrorHandleResult.Handled);
         }
 
         [TearDown]
@@ -157,6 +152,8 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             var message = new Moq.Mock<IFullEvent>();
             message.Setup(x => x.Descriptor).Returns(new EventDescriptor());
+            message.Setup(x => x.Event).Returns(new object());
+
             eventCb("test", 0, message.Object);
 
             Assert.That(() => _onMessaged, Is.True.After(300));
@@ -193,6 +190,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             var message = new Moq.Mock<IFullEvent>();
             message.Setup(x => x.Descriptor).Returns(new EventDescriptor());
+            message.Setup(x => x.Event).Returns(new object());
 
             var threw = false;
             var called = 0;
@@ -246,6 +244,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             var message = new Moq.Mock<IFullEvent>();
             message.Setup(x => x.Descriptor).Returns(new EventDescriptor());
+            message.Setup(x => x.Event).Returns(new object());
 
             var called = 0;
             Bus.OnMessage = (ctx) =>
@@ -299,6 +298,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             var message = new Moq.Mock<IFullEvent>();
             message.Setup(x => x.Descriptor).Returns(new EventDescriptor());
+            message.Setup(x => x.Event).Returns(new object());
 
             var called = 0;
             Bus.OnMessage = (ctx) =>
@@ -345,6 +345,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             var message = new Moq.Mock<IFullEvent>();
             message.Setup(x => x.Descriptor).Returns(new EventDescriptor());
+            message.Setup(x => x.Event).Returns(new object());
 
             var called = 0;
             Bus.OnMessage = (ctx) =>

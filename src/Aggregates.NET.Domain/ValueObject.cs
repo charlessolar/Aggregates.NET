@@ -14,7 +14,7 @@ namespace Aggregates
             Value = value;
         }
 
-        public bool HasValue => Value != null && !Value.Equals(default(T));
+        public bool HasValue => !Value.Equals(default(T));
 
         public override bool Equals(object obj)
         {

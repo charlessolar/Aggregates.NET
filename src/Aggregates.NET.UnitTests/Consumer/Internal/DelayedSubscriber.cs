@@ -22,7 +22,6 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
         private Moq.Mock<IEventStoreConsumer> _consumer;
         private Aggregates.Internal.DelayedSubscriber _subscriber;
         private bool _onMessaged;
-        private bool _onErrored;
 
         [SetUp]
         public void Setup()
@@ -35,11 +34,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
                 _onMessaged = true;
                 return Task.CompletedTask;
             };
-            Bus.OnError = (ctx) =>
-            {
-                _onErrored = true;
-                return Task.FromResult(ErrorHandleResult.Handled);
-            };
+            Bus.OnError = (ctx) => Task.FromResult(ErrorHandleResult.Handled);
         }
 
         [TearDown]

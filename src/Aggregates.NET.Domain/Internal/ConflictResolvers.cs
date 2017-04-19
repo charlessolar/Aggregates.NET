@@ -17,6 +17,7 @@ namespace Aggregates.Internal
 
     class ConcurrencyStrategy : Enumeration<ConcurrencyStrategy, ConcurrencyConflict>
     {
+        public static ConcurrencyStrategy Throw = new ConcurrencyStrategy(ConcurrencyConflict.Throw, "Throw", (b, _) => b.Build<ThrowConflictResolver>());
         public static ConcurrencyStrategy Ignore = new ConcurrencyStrategy(ConcurrencyConflict.Ignore, "Ignore",
             (b, _) =>
             {
@@ -40,6 +41,14 @@ namespace Aggregates.Internal
         }
 
         public ResolverBuilder Build { get; private set; }
+    }
+
+    internal class ThrowConflictResolver : IResolveConflicts
+    {
+        public Task Resolve<T>(T entity, IEnumerable<IFullEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
+        {
+            throw new ConflictResolutionFailedException("No conflict resolution attempted");
+        }
     }
 
     /// <summary>

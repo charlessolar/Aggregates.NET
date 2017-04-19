@@ -128,7 +128,7 @@ when({{
             _pinnedThread = new Thread(Threaded)
             { IsBackground = true, Name = $"Main Event Thread" };
             _pinnedThread.Start(new ThreadParam { Token = _cancelation.Token, Messaging = _messaging, Concurrency = _concurrency, Consumer = _consumer });
-            
+
         }
         private void onEvent(string stream, long position, IFullEvent e)
         {
@@ -163,25 +163,41 @@ when({{
 
                     var @event = WaitingEvents.Take(param.Token);
                     EventsQueued.Decrement();
+                    semaphore.Wait();
 
-                    Task.Run(async () =>
+                    try
                     {
-                        await semaphore.WaitAsync(param.Token).ConfigureAwait(false);
+                        Task.Run(async () =>
+                        {
 
-                        await
-                            ProcessEvent(param.Messaging, @event.Item1, @event.Item2, @event.Item3, param.Token)
-                                .ConfigureAwait(false);
+                            await
+                                ProcessEvent(param.Messaging, @event.Item1, @event.Item2, @event.Item3, param.Token)
+                                    .ConfigureAwait(false);
 
-                        Logger.Write(LogLevel.Debug,
-                            () => $"Acknowledge event {@event.Item3.Descriptor.EventId} stream [{@event.Item1}] number {@event.Item2}");
-                        await param.Consumer.Acknowledge(@event.Item3).ConfigureAwait(false);
+                            Logger.Write(LogLevel.Debug,
+                                () =>
+                                        $"Acknowledge event {@event.Item3.Descriptor.EventId} stream [{@event.Item1}] number {@event.Item2}");
+                            await param.Consumer.Acknowledge(@event.Item3).ConfigureAwait(false);
 
-                        semaphore.Release();
-                    }, param.Token).Wait();
+                            semaphore.Release();
+                        }, param.Token).Wait();
+                    }
+                    catch (System.AggregateException e)
+                    {
+                        if (e.InnerException is OperationCanceledException)
+                            throw e.InnerException;
+
+                        // If not a canceled exception, just write to log and continue
+                        // we dont want some random unknown exception to kill the whole event loop
+                        Logger.Error(
+                            $"Received exception in main event thread: {e.InnerException.GetType()}: {e.InnerException.Message}", e);
+                    }
+
                 }
             }
-            catch (System.AggregateException) { }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+            }
 
 
         }
@@ -209,10 +225,10 @@ when({{
                     var transportTransaction = new TransportTransaction();
 
                     var messageId = Guid.NewGuid().ToString();
-                    var headers = new Dictionary<string, string>(@event.Descriptor.Headers ?? new Dictionary<string,string>())
+                    var headers = new Dictionary<string, string>(@event.Descriptor.Headers ?? new Dictionary<string, string>())
                     {
                         [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
-                        [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(messaging, @event.GetType()),
+                        [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(messaging, @event.Event.GetType()),
                         [Headers.MessageId] = messageId,
                         [Defaults.EventHeader] = "",
                         ["EventId"] = @event.EventId.ToString(),

@@ -16,8 +16,6 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
     {
         private Moq.Mock<IEventStoreConsumer> _consumer;
         private Aggregates.Internal.SnapshotReader _subscriber;
-        private bool _onMessaged;
-        private bool _onErrored;
 
         [SetUp]
         public void Setup()
@@ -25,17 +23,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             _consumer = new Moq.Mock<IEventStoreConsumer>();
             var store = new Moq.Mock<IStoreEvents>();
             _subscriber = new Aggregates.Internal.SnapshotReader(store.Object, _consumer.Object);
-
-            Bus.OnMessage = (ctx) =>
-            {
-                _onMessaged = true;
-                return Task.CompletedTask;
-            };
-            Bus.OnError = (ctx) =>
-            {
-                _onErrored = true;
-                return Task.FromResult(ErrorHandleResult.Handled);
-            };
+            
         }
 
         [TearDown]

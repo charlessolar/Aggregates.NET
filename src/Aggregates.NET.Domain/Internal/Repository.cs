@@ -101,7 +101,7 @@ namespace Aggregates.Internal
             // Conflict resolution is strong by default
             if (_conflictResolution == null)
                 _conflictResolution = (OptimisticConcurrencyAttribute)Attribute.GetCustomAttribute(typeof(T), typeof(OptimisticConcurrencyAttribute))
-                    ?? new OptimisticConcurrencyAttribute(ConcurrencyConflict.ResolveStrongly);
+                    ?? new OptimisticConcurrencyAttribute(ConcurrencyConflict.Throw);
         }
 
         Task IRepository.Prepare(Guid commitId)
@@ -353,7 +353,7 @@ namespace Aggregates.Internal
         {
             // Call the 'private' constructor
             var tCtor = typeof(T).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { }, null);
-
+            
             if (tCtor == null)
                 throw new AggregateException("Aggregate needs a PRIVATE parameterless constructor");
             var root = (T)tCtor.Invoke(null);

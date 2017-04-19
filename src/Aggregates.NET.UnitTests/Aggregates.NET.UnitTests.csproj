@@ -76,6 +76,7 @@
   </Choose>
   <ItemGroup>
     <Compile Include="Common\Enumeration.cs" />
+    <Compile Include="Common\Immutable.cs" />
     <Compile Include="Common\Internal\ApplicationUnitOfWork.cs" />
     <Compile Include="Common\Internal\BulkInvokeHandlerTerminator.cs" />
     <Compile Include="Common\Internal\ExceptionRejector.cs" />
@@ -86,6 +87,7 @@
     <Compile Include="Consumer\Internal\DelayedSubscriber.cs" />
     <Compile Include="Consumer\Internal\EventSubscriber.cs" />
     <Compile Include="Consumer\Internal\SnapshotReader.cs" />
+    <Compile Include="Domain\Internal\CommandAcceptor.cs" />
     <Compile Include="Extensions\ReflectionExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -112,7 +114,6 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Domain\Internal\" />
     <Folder Include="GetEventStore\" />
   </ItemGroup>
   <Choose>
