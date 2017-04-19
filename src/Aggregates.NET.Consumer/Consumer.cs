@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
@@ -30,20 +31,18 @@ namespace Aggregates
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
-            context.RegisterStartupTask(builder => new EventStoreRunner(builder.BuildAll<IEventSubscriber>(), context.Settings));
 
             var settings = context.Settings;
             context.Container.ConfigureComponent(b =>
             {
                 var concurrency = settings.Get<int>("ParallelEvents");
 
-                return new EventSubscriber(b.Build<MessageHandlerRegistry>(), b.Build<IMessageMapper>(), b.Build<MessageMetadataRegistry>(), b.Build<IEventStoreConsumer>(), concurrency);
+                return new EventSubscriber(b.Build<IMessaging>(), b.Build<IEventStoreConsumer>(), concurrency);
             }, DependencyLifecycle.SingleInstance);
 
             context.Container.ConfigureComponent(b =>
             {
-                var compress = settings.Get<Compression>("Compress");
-                return new SnapshotReader(b.Build<IStoreEvents>(), b.Build<IMessageMapper>(), b.Build<IEventStoreConsumer>(), compress);
+                return new SnapshotReader(b.Build<IStoreEvents>(), b.Build<IEventStoreConsumer>());
             }, DependencyLifecycle.SingleInstance);
 
             context.Container.ConfigureComponent(b =>
@@ -52,6 +51,8 @@ namespace Aggregates
             }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register<MutateIncomingEventRegistration>();
+
+            context.RegisterStartupTask(builder => new EventStoreRunner(builder.BuildAll<IEventSubscriber>(), context.Settings));
 
             // bulk invoke only possible with consumer feature because it uses the eventstore as a sink when overloaded
             context.Pipeline.Replace("InvokeHandlers", (b) =>
@@ -78,9 +79,11 @@ namespace Aggregates
             Logger.Write(LogLevel.Info, "Starting event consumer");
             await _subscribers.WhenAllAsync(x => x.Setup(
                     _settings.EndpointName(),
-                    _cancellationTokenSource.Token)
+                    _cancellationTokenSource.Token,
+                    Assembly.GetEntryAssembly().GetName().Version)
             ).ConfigureAwait(false);
 
+            
             await _subscribers.WhenAllAsync(x => x.Connect()).ConfigureAwait(false);
         }
 

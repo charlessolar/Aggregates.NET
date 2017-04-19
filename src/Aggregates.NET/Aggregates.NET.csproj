@@ -77,6 +77,7 @@
     <Compile Include="Contracts\IEventDescriptor.cs" />
     <Compile Include="Contracts\IEventMutator.cs" />
     <Compile Include="Contracts\IEventStoreConsumer.cs" />
+    <Compile Include="Contracts\IMessaging.cs" />
     <Compile Include="Contracts\IMutating.cs" />
     <Compile Include="Contracts\ISnapshot.cs" />
     <Compile Include="Contracts\ISnapshotReader.cs" />
@@ -115,6 +116,7 @@
     <Compile Include="Internal\MutateOutgoingEvents.cs" />
     <Compile Include="Internal\MutateOutgoingCommands.cs" />
     <Compile Include="Internal\Mutating.cs" />
+    <Compile Include="Internal\NServiceBusMessaging.cs" />
     <Compile Include="Internal\Snapshot.cs" />
     <Compile Include="Internal\StreamPosition.cs" />
     <Compile Include="Internal\TimeExecutionBehavior.cs" />

@@ -43,40 +43,39 @@ namespace Aggregates.Internal
             public IEventStoreConsumer Consumer { get; set; }
             public int Concurrency { get; set; }
             public CancellationToken Token { get; set; }
-            public MessageMetadataRegistry MessageMeta { get; set; }
+            public IMessaging Messaging { get; set; }
         }
 
 
         private Thread _pinnedThread;
         private CancellationTokenSource _cancelation;
         private string _endpoint;
+        private Version _version;
 
-        private readonly MessageHandlerRegistry _registry;
-        private readonly MessageMetadataRegistry _messageMeta;
+        private readonly IMessaging _messaging;
         private readonly int _concurrency;
-        
+
         private readonly IEventStoreConsumer _consumer;
 
         private bool _disposed;
 
 
-        public EventSubscriber(MessageHandlerRegistry registry, IMessageMapper mapper,
-            MessageMetadataRegistry messageMeta, IEventStoreConsumer consumer, int concurrency)
+        public EventSubscriber(IMessaging messaging, IEventStoreConsumer consumer, int concurrency)
         {
-            _registry = registry;
+            _messaging = messaging;
             _consumer = consumer;
-            _messageMeta = messageMeta;
             _concurrency = concurrency;
         }
 
-        public async Task Setup(string endpoint, CancellationToken cancelToken)
+        public async Task Setup(string endpoint, CancellationToken cancelToken, Version version)
         {
             _endpoint = endpoint;
+            _version = version;
             await _consumer.EnableProjection("$by_category").ConfigureAwait(false);
             _cancelation = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
 
             var discoveredEvents =
-                _registry.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).OrderBy(x => x.FullName).ToList();
+                _messaging.GetMessageTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).OrderBy(x => x.FullName).ToList();
 
             if (!discoveredEvents.Any())
             {
@@ -85,7 +84,7 @@ namespace Aggregates.Internal
             }
 
             // Dont use - we dont need category projection projecting our projection
-            var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}".Replace("-", "");
+            var stream = $"{_endpoint}.{version}".Replace("-", "");
 
             // Link all events we are subscribing to to a stream
             var functions =
@@ -114,34 +113,22 @@ when({{
             await _consumer.CreateProjection($"{stream}.poco.projection", pocoDefinition).ConfigureAwait(false);
         }
 
-        public Task Connect()
+        public async Task Connect()
         {
-            var stream = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}";
-            var appGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.{StreamTypes.Domain}";
-            var oobGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.{StreamTypes.OOB}";
-            var pocoGroup = $"{_endpoint}.{Assembly.GetEntryAssembly().GetName().Version}.{StreamTypes.Poco}";
+            var group = $"{_endpoint}.{_version}";
+            var appStream = $"{_endpoint}.{_version}.{StreamTypes.Domain}";
+            var oobStream = $"{_endpoint}.{_version}.{StreamTypes.OOB}";
+            var pocoStream = $"{_endpoint}.{_version}.{StreamTypes.Poco}";
 
-            Task.Run(async () =>
-            {
 
-                while (Bus.OnMessage == null || Bus.OnError == null)
-                {
-                    Logger.Warn($"Could not find NSBs onMessage handler yet - if this persists there is a problem.");
-                    await Task.Delay(1000, _cancelation.Token).ConfigureAwait(false);
-                }
+            await _consumer.ConnectPinnedPersistentSubscription(appStream, group, _cancelation.Token, onEvent, Connect).ConfigureAwait(false);
+            await _consumer.ConnectPinnedPersistentSubscription(oobStream, group, _cancelation.Token, onEvent, Connect).ConfigureAwait(false);
+            await _consumer.ConnectPinnedPersistentSubscription(pocoStream, group, _cancelation.Token, onEvent, Connect).ConfigureAwait(false);
 
-                await _consumer.ConnectPinnedPersistentSubscription(stream, appGroup, _cancelation.Token, onEvent, Connect).ConfigureAwait(false);
-                await _consumer.ConnectPinnedPersistentSubscription(stream, oobGroup, _cancelation.Token, onEvent, Connect).ConfigureAwait(false);
-                await _consumer.ConnectPinnedPersistentSubscription(stream, pocoGroup, _cancelation.Token, onEvent, Connect).ConfigureAwait(false);
-
-                _pinnedThread = new Thread(Threaded)
-                { IsBackground = true, Name = $"Main Event Thread" };
-                _pinnedThread.Start(new ThreadParam { Token = _cancelation.Token, MessageMeta = _messageMeta, Concurrency = _concurrency, Consumer=_consumer });
-                
-
-            });
-
-            return Task.CompletedTask;
+            _pinnedThread = new Thread(Threaded)
+            { IsBackground = true, Name = $"Main Event Thread" };
+            _pinnedThread.Start(new ThreadParam { Token = _cancelation.Token, Messaging = _messaging, Concurrency = _concurrency, Consumer = _consumer });
+            
         }
         private void onEvent(string stream, long position, IFullEvent e)
         {
@@ -154,46 +141,57 @@ when({{
         {
             var param = (ThreadParam)state;
 
+            while (Bus.OnMessage == null || Bus.OnError == null)
+            {
+                Logger.Warn($"Could not find NSBs onMessage handler yet - if this persists there is a problem.");
+                Thread.Sleep(500);
+            }
 
             var semaphore = new SemaphoreSlim(param.Concurrency);
-            
-            while (true)
+
+            try
             {
-                param.Token.ThrowIfCancellationRequested();
-
-                if (semaphore.CurrentCount == 0)
-                    Thread.Sleep(100);
-
-                var @event = WaitingEvents.Take(param.Token);
-
-                Task.Run(async () =>
+                while (true)
                 {
-                    await semaphore.WaitAsync(param.Token).ConfigureAwait(false);
+                    param.Token.ThrowIfCancellationRequested();
 
-                    await
-                        ProcessEvent(param.MessageMeta, @event.Item1, @event.Item2, @event.Item3, param.Token)
-                            .ConfigureAwait(false);
+                    if (semaphore.CurrentCount == 0)
+                    {
+                        Thread.Sleep(100);
+                        continue;
+                    }
 
-                    Logger.Write(LogLevel.Debug,
-                        () =>
-                                $"Scheduling acknowledge event {@event.Item3.Descriptor.EventId} stream [{@event.Item1}] number {@event.Item2}");
-                    await param.Consumer.Acknowledge(@event.Item3).ConfigureAwait(false);
+                    var @event = WaitingEvents.Take(param.Token);
+                    EventsQueued.Decrement();
 
-                    semaphore.Release();
-                });
+                    Task.Run(async () =>
+                    {
+                        await semaphore.WaitAsync(param.Token).ConfigureAwait(false);
 
+                        await
+                            ProcessEvent(param.Messaging, @event.Item1, @event.Item2, @event.Item3, param.Token)
+                                .ConfigureAwait(false);
 
-                
+                        Logger.Write(LogLevel.Debug,
+                            () => $"Acknowledge event {@event.Item3.Descriptor.EventId} stream [{@event.Item1}] number {@event.Item2}");
+                        await param.Consumer.Acknowledge(@event.Item3).ConfigureAwait(false);
+
+                        semaphore.Release();
+                    }, param.Token).Wait();
+                }
             }
+            catch (System.AggregateException) { }
+            catch (OperationCanceledException) { }
 
 
         }
 
         // A fake message that will travel through the pipeline in order to process events from the context bag
-        private static readonly byte[] Marker= new EventMessage().Serialize(new JsonSerializerSettings()).AsByteArray();
+        private static readonly byte[] Marker = new EventMessage().Serialize(new JsonSerializerSettings()).AsByteArray();
 
-        private static async Task ProcessEvent(MessageMetadataRegistry messageMeta, string stream, long position, IFullEvent @event, CancellationToken token)
+        private static async Task ProcessEvent(IMessaging messaging, string stream, long position, IFullEvent @event, CancellationToken token)
         {
+            Logger.Write(LogLevel.Debug, () => $"Processing event from stream [{@event.Descriptor.StreamId}] bucket [{@event.Descriptor.Bucket}] entity [{@event.Descriptor.EntityType}] event id {@event.EventId}");
 
 
             var contextBag = new ContextBag();
@@ -211,12 +209,12 @@ when({{
                     var transportTransaction = new TransportTransaction();
 
                     var messageId = Guid.NewGuid().ToString();
-                    var headers = new Dictionary<string, string>(@event.Descriptor.Headers)
+                    var headers = new Dictionary<string, string>(@event.Descriptor.Headers ?? new Dictionary<string,string>())
                     {
                         [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
-                        [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(messageMeta, @event.GetType()),
+                        [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(messaging, @event.GetType()),
                         [Headers.MessageId] = messageId,
-                        [Defaults.EventHeader]="",
+                        [Defaults.EventHeader] = "",
                         ["EventId"] = @event.EventId.ToString(),
                         ["EventStream"] = stream,
                         ["EventPosition"] = position.ToString()
@@ -245,8 +243,14 @@ when({{
                         }
                         catch (Exception ex)
                         {
+
                             EventErrors.Mark($"{ex.GetType().Name} {ex.Message}");
                             ++numberOfDeliveryAttempts;
+
+                            // Don't retry a cancelation
+                            if (tokenSource.IsCancellationRequested)
+                                numberOfDeliveryAttempts = Int32.MaxValue;
+
                             var errorContext = new ErrorContext(ex, headers,
                                 messageId,
                                 Marker, transportTransaction,
@@ -254,7 +258,7 @@ when({{
                             if (await Bus.OnError(errorContext).ConfigureAwait(false) ==
                                 ErrorHandleResult.Handled)
                                 break;
-                            await Task.Delay((numberOfDeliveryAttempts/5)*200, token).ConfigureAwait(false);
+                            await Task.Delay((numberOfDeliveryAttempts / 5) * 200, token).ConfigureAwait(false);
                         }
                     }
                 }
@@ -267,16 +271,14 @@ when({{
                 return;
 
             _disposed = true;
-            _cancelation.Cancel();
-            _pinnedThread.Join();
+            _cancelation?.Cancel();
+            _pinnedThread?.Join();
         }
 
-        static string SerializeEnclosedMessageTypes(MessageMetadataRegistry messageMeta, Type messageType)
+        static string SerializeEnclosedMessageTypes(IMessaging messaging, Type messageType)
         {
-            var metadata = messageMeta.GetMessageMetadata(messageType);
-
             var assemblyQualifiedNames = new HashSet<string>();
-            foreach (var type in metadata.MessageHierarchy)
+            foreach (var type in messaging.GetMessageHierarchy(messageType))
             {
                 assemblyQualifiedNames.Add(type.AssemblyQualifiedName);
             }

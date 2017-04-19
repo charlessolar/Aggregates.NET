@@ -26,7 +26,7 @@ namespace Aggregates.Internal
     /// (Faster than ReadEventsBackwards everytime we want to get a snapshot from ES [especially for larger snapshots])
     /// We could just cache snapshots for a certian period of time but then we'll have to deal with eviction options
     /// </summary>
-    class SnapshotReader : ISnapshotReader
+    class SnapshotReader : ISnapshotReader, IEventSubscriber
     {
         private static readonly ILog Logger = LogManager.GetLogger("SnapshotReader");
         private static readonly Counter SnapshotsSeen = Metric.Counter("Snapshots Seen", Unit.Items, tags: "debug");
@@ -40,14 +40,13 @@ namespace Aggregates.Internal
 
         private CancellationTokenSource _cancelation;
         private string _endpoint;
+        private Version _version;
 
         private readonly IEventStoreConsumer _consumer;
-        private readonly Compression _compress;
 
-        public SnapshotReader(IStoreEvents store, IMessageMapper mapper, IEventStoreConsumer consumer, Compression compress)
+        public SnapshotReader(IStoreEvents store, IEventStoreConsumer consumer)
         {
             _consumer = consumer;
-            _compress = compress;
 
             if (Interlocked.CompareExchange(ref _truncating, 1, 0) == 1) return;
 
@@ -74,20 +73,18 @@ namespace Aggregates.Internal
             }, store, TimeSpan.FromMinutes(5), "snapshot truncate before");
         }
 
-
-        public async Task Connect(string endpoint, CancellationToken cancelToken)
+        public async Task Setup(string endpoint, CancellationToken cancelToken, Version version)
         {
             _endpoint = endpoint;
+            _version = version;
             await _consumer.EnableProjection("$by_category").ConfigureAwait(false);
             _cancelation = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
-            await Connect().ConfigureAwait(false);
         }
 
-
-        private Task Connect()
+        public Task Connect()
         {
             // by_category projection of all events in category "SNAPSHOT"
-            var stream = $"$ce-SNAPSHOT";
+            var stream = $"$ce-{StreamTypes.Snapshot}";
             return _consumer.SubscribeToStreamEnd(stream, _cancelation.Token, onEvent, Connect);
 
         }
@@ -123,6 +120,12 @@ namespace Aggregates.Internal
             if (!Snapshots.TryGetValue(stream, out snapshot))
                 snapshot = null;
             return Task.FromResult(snapshot);
+        }
+
+        public void Dispose()
+        {
+            Snapshots.Clear();
+            TruncateBefore.Clear();
         }
     }
 

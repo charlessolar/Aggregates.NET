@@ -10,13 +10,6 @@ namespace Aggregates.Internal
 {
     class NsbOobHandler : IOobHandler
     {
-        private readonly IMessageSession _endpoint;
-
-        public NsbOobHandler(IMessageSession endpoint)
-        {
-            _endpoint = endpoint;
-        }
-
 
         public async Task Publish<T>(string bucket, Id streamId, IEnumerable<Id> parents, IEnumerable<IFullEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
@@ -49,7 +42,7 @@ namespace Aggregates.Internal
                     options.SetHeader(header.Key, header.Value);
 
 
-                return _endpoint.Publish(@event.Event, options);
+                return Bus.Instance.Publish(@event.Event, options);
             }).ConfigureAwait(false);
 
         }

@@ -83,7 +83,9 @@
     <Compile Include="Common\Internal\MutateOutgoingEvents.cs" />
     <Compile Include="Common\Specifications\ExpressionSerialization.cs" />
     <Compile Include="Common\Specifications\Specifications.cs" />
-    <Compile Include="Consumer\Internal\CatchupClient.cs" />
+    <Compile Include="Consumer\Internal\DelayedSubscriber.cs" />
+    <Compile Include="Consumer\Internal\EventSubscriber.cs" />
+    <Compile Include="Consumer\Internal\SnapshotReader.cs" />
     <Compile Include="Extensions\ReflectionExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
