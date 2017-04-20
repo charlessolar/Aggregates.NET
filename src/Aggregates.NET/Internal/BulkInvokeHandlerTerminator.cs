@@ -212,7 +212,7 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Info, () => $"Starting invoke handle {count} times channel key [{channelKey}] specific key [{specificKey}]");
             using (var ctx = InvokeTime.NewContext())
             {
-                foreach (var msg in msgs.Cast<DelayedMessage>())
+                foreach (var msg in msgs.Cast<IDelayedMessage>())
                 {
                     idx++;
                     Logger.Write(LogLevel.Debug,

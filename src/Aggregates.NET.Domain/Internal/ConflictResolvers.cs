@@ -344,7 +344,7 @@ namespace Aggregates.Internal
                 throw new ArgumentException($"Received conflicting events message for unknown type {type}");
             }
 
-            // We have the type name, hack the generic parameters to build IBase
+            // We have the type name, hack the generic parameters to build Entity
             if (parent == null)
             {
                 var method = typeof(IUnitOfWork).GetMethod("For").MakeGenericMethod(entityType);

@@ -84,6 +84,7 @@
     <Compile Include="Contracts\IStoreEvents.cs" />
     <Compile Include="Exceptions\EndpointVersionException.cs" />
     <Compile Include="Extensions\EventSourceExtensions.cs" />
+    <Compile Include="Extensions\MethodInfoExtensions.cs" />
     <Compile Include="ICache.cs" />
     <Compile Include="Contracts\IFullEvent.cs" />
     <Compile Include="Defaults.cs" />

@@ -76,7 +76,6 @@
   </Choose>
   <ItemGroup>
     <Compile Include="Common\Enumeration.cs" />
-    <Compile Include="Common\Immutable.cs" />
     <Compile Include="Common\Internal\ApplicationUnitOfWork.cs" />
     <Compile Include="Common\Internal\BulkInvokeHandlerTerminator.cs" />
     <Compile Include="Common\Internal\ExceptionRejector.cs" />

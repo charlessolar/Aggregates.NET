@@ -270,7 +270,7 @@ namespace Aggregates.Internal
         public Task<long> WriteEvents(string stream, IEnumerable<IFullEvent> events,
             IDictionary<string, string> commitHeaders, long? expectedVersion = null)
         {
-            Logger.Write(LogLevel.Info, () => $"Writing {events.Count()} events to stream id [{stream}].  Expected version: {expectedVersion}");
+            Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{stream}].  Expected version: {expectedVersion}");
 
             var settings = new JsonSerializerSettings
             {
@@ -371,7 +371,7 @@ namespace Aggregates.Internal
                 WrittenEventsSize.Update(events.Sum(x => x.Data.Length));
                 if (ctx.Elapsed > TimeSpan.FromSeconds(1))
                     SlowLogger.Write(LogLevel.Warn, () => $"Writing {events.Count()} events of total size {events.Sum(x => x.Data.Length)} to stream [{stream}] version {expectedVersion} took {ctx.Elapsed.TotalSeconds} seconds!");
-                Logger.Write(LogLevel.Info, () => $"Writing {events.Count()} events of total size {events.Sum(x => x.Data.Length)} to stream [{stream}] version {expectedVersion} took {ctx.Elapsed.TotalMilliseconds} ms");
+                Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events of total size {events.Sum(x => x.Data.Length)} to stream [{stream}] version {expectedVersion} took {ctx.Elapsed.TotalMilliseconds} ms");
             }
             return nextVersion;
         }

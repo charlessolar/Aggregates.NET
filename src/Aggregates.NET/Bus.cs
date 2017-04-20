@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Aggregates.Extensions;
 using NServiceBus;
 using NServiceBus.Transport;
 
@@ -64,12 +65,18 @@ namespace Aggregates
                         .GetField("recoverabilityExecutor", BindingFlags.Instance | BindingFlags.NonPublic)
                         .GetValue(main);
 
-                var pipelineMethod = pipelineExecutor.GetType()
-                    .GetMethod("Invoke", BindingFlags.Instance | BindingFlags.Public);
-                OnMessage = (c) => (Task)pipelineMethod.Invoke(pipelineExecutor, new object[] {c});
+                var pipelineMethod = pipelineExecutor.GetType().GetMethod("Invoke", BindingFlags.Instance | BindingFlags.Public)
+                    .MakeFuncDelegateWithTarget<MessageContext, Task>(pipelineExecutor.GetType());
+
+                OnMessage = (c) => pipelineMethod.Invoke(pipelineExecutor, c);
+
+
                 var recoverabilityMethod = recoverabilityExecutor.GetType()
-                    .GetMethod("Invoke", BindingFlags.Instance | BindingFlags.Public);
-                OnError = (c) => (Task<ErrorHandleResult>)recoverabilityMethod.Invoke(recoverabilityExecutor, new object[] { c });
+                        .GetMethod("Invoke", BindingFlags.Instance | BindingFlags.Public)
+                    .MakeFuncDelegateWithTarget<ErrorContext, Task<ErrorHandleResult>>(recoverabilityExecutor.GetType());
+
+                OnError = (c) => recoverabilityMethod(recoverabilityExecutor, c);
+
                 PushSettings = (PushRuntimeSettings)main.GetType()
                         .GetField("pushRuntimeSettings", BindingFlags.Instance | BindingFlags.NonPublic)
                         .GetValue(main);

@@ -5,85 +5,19 @@ using System.Reflection;
 
 namespace Aggregates
 {
-    public class Immutable<T> : IEquatable<T>
-    {
-        public readonly T Value;
-
-        public Immutable(T value = default(T))
-        {
-            Value = value;
-        }
-
-        public bool HasValue => !Value.Equals(default(T));
-
-        public override bool Equals(object obj)
-        {
-            if (obj == null)
-                return false;
-
-            var other = (T)obj;
-
-            return Equals(other);
-        }
-
-        public bool Equals(T other)
-        {
-            return Equals(new Immutable<T>(other));
-        }
-        public virtual bool Equals(Immutable<T> other)
-        {
-            return HasValue && Value.Equals(other.Value);
-        }
-
-        public override int GetHashCode()
-        {
-            return Value.GetHashCode();
-        }
-
-
-        public override string ToString()
-        {
-            if (!HasValue) return "";
-            return Value.ToString();
-        }
-
-        
-        public static implicit operator Immutable<T>(T x)
-        {
-            return new Immutable<T>(x);
-        }
-        public static bool operator ==(Immutable<T> x, Immutable<T> y)
-        {
-            return x.Equals(y);
-        }
-        public static bool operator ==(Immutable<T> x, T y)
-        {
-            return x.Equals(new Immutable<T>(y));
-        }
-        public static bool operator ==(T x, Immutable<T> y)
-        {
-            return y.Equals(new Immutable<T>(x));
-        }
-
-        public static bool operator !=(Immutable<T> x, Immutable<T> y)
-        {
-            return !(x == y);
-        }
-        public static bool operator !=(Immutable<T> x, T y)
-        {
-            return !(x == y);
-        }
-        public static bool operator !=(T x, Immutable<T> y)
-        {
-            return !(x == y);
-        }
-    }
-
+    
     // Implementation from http://grabbagoft.blogspot.com/2007/06/generic-value-object-equality.html
-    public class ValueObject<T> : IEquatable<T>
+    public abstract class ValueObject<T> : IEquatable<T>
         where T : ValueObject<T>
     {
         private int? _cachedHash;
+
+
+
+
+
+
+
 
         public override bool Equals(object obj)
         {
