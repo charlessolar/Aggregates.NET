@@ -64,7 +64,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
         {
             _consumer.Setup(
                 x =>
-                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Domain)),
+                    x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                         Moq.It.IsAny<string>(),
                         Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                         Moq.It.IsAny<Func<Task>>())).Returns(Task.FromResult(true));
@@ -75,49 +75,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             _consumer.Verify(
                 x =>
-                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Domain)),
-                        Moq.It.IsAny<string>(),
-                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
-                        Moq.It.IsAny<Func<Task>>()), Moq.Times.Once);
-        }
-        [Test]
-        public async Task connects_to_oob_stream()
-        {
-            _consumer.Setup(
-                x =>
-                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.OOB)),
-                        Moq.It.IsAny<string>(),
-                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
-                        Moq.It.IsAny<Func<Task>>())).Returns(Task.FromResult(true));
-
-            await _subscriber.Setup("test", CancellationToken.None, Version.Parse("0.0.0")).ConfigureAwait(false);
-
-            await _subscriber.Connect().ConfigureAwait(false);
-
-            _consumer.Verify(
-                x =>
-                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.OOB)),
-                        Moq.It.IsAny<string>(),
-                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
-                        Moq.It.IsAny<Func<Task>>()), Moq.Times.Once);
-        }
-        [Test]
-        public async Task connects_to_poco_stream()
-        {
-            _consumer.Setup(
-                x =>
-                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Poco)),
-                        Moq.It.IsAny<string>(),
-                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
-                        Moq.It.IsAny<Func<Task>>())).Returns(Task.FromResult(true));
-
-            await _subscriber.Setup("test", CancellationToken.None, Version.Parse("0.0.0")).ConfigureAwait(false);
-
-            await _subscriber.Connect().ConfigureAwait(false);
-
-            _consumer.Verify(
-                x =>
-                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Poco)),
+                    x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                         Moq.It.IsAny<string>(),
                         Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                         Moq.It.IsAny<Func<Task>>()), Moq.Times.Once);
@@ -131,7 +89,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             Action<string, long, IFullEvent> eventCb = null;
             _consumer.Setup(
                     x =>
-                        x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Domain)),
+                        x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                             Moq.It.IsAny<string>(),
                             Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                             Moq.It.IsAny<Func<Task>>()))
@@ -169,7 +127,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             Action<string, long, IFullEvent> eventCb = null;
             _consumer.Setup(
                     x =>
-                        x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Domain)),
+                        x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                             Moq.It.IsAny<string>(),
                             Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                             Moq.It.IsAny<Func<Task>>()))
@@ -223,7 +181,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             Action<string, long, IFullEvent> eventCb = null;
             _consumer.Setup(
                     x =>
-                        x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Domain)),
+                        x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                             Moq.It.IsAny<string>(),
                             Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                             Moq.It.IsAny<Func<Task>>()))
@@ -277,7 +235,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             Action<string, long, IFullEvent> eventCb = null;
             _consumer.Setup(
                     x =>
-                        x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Domain)),
+                        x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                             Moq.It.IsAny<string>(),
                             Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                             Moq.It.IsAny<Func<Task>>()))
@@ -324,7 +282,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             Action<string, long, IFullEvent> eventCb = null;
             _consumer.Setup(
                     x =>
-                        x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Domain)),
+                        x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                             Moq.It.IsAny<string>(),
                             Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                             Moq.It.IsAny<Func<Task>>()))
@@ -371,7 +329,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             _consumer.Setup(
                 x =>
-                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Domain)),
+                    x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                         Moq.It.IsAny<string>(),
                         Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                         Moq.It.IsAny<Func<Task>>()))
@@ -384,7 +342,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             _consumer.Verify(
                 x =>
-                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Domain)),
+                    x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                         Moq.It.IsAny<string>(),
                         Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                         Moq.It.IsAny<Func<Task>>()), Moq.Times.Once);
@@ -395,7 +353,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             _consumer.Verify(
                 x =>
-                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Domain)),
+                    x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                         Moq.It.IsAny<string>(),
                         Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                         Moq.It.IsAny<Func<Task>>()), Moq.Times.Exactly(2));

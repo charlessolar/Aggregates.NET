@@ -33,7 +33,7 @@ namespace Aggregates.Internal
             // private void Conflict(Events.MyEvent e) {}
             // this little cache GetOrAdd is basically searching for those methods and returning an Action the caller 
             // can use to execute the method 
-            var mappedType = _mapper.GetMappedTypeFor(eventType);
+            var mappedType = _mapper.GetMappedTypeFor(eventType) ?? eventType;
             IDictionary<string, Action<IEventSource, object>> handles;
             lock (Lock)
             {

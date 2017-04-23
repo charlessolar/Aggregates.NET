@@ -148,12 +148,12 @@ namespace Aggregates.Internal
 
                 var settings = PersistentSubscriptionSettings.Create()
                     .StartFromBeginning()
-                    .WithMaxRetriesOf(0)
+                    .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readSize)
-                    .WithLiveBufferSizeOf(_readSize * _readSize)
-                    .DontTimeoutMessages()
-                    .CheckPointAfter(TimeSpan.FromSeconds(30))
-                    .MaximumCheckPointCountOf(_readSize * _readSize)
+                    .WithLiveBufferSizeOf(_readSize^3)
+                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(5))
+                    .CheckPointAfter(TimeSpan.FromMinutes(1))
+                    .MaximumCheckPointCountOf(_readSize*5)
                     .ResolveLinkTos()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                 if (_extraStats)
@@ -176,7 +176,7 @@ namespace Aggregates.Internal
                         eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
                         subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected),
                         // Let us accept large number of unacknowledged events
-                        bufferSize: _readSize * 5,
+                        bufferSize: _readSize^2,
                         autoAck: false).ConfigureAwait(false);
 
                     lock (_subLock) _persistentSubs.Add(subscription);
@@ -204,10 +204,10 @@ namespace Aggregates.Internal
                     .StartFromBeginning()
                     .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readSize)
-                    .WithLiveBufferSizeOf(_readSize * _readSize)
+                    .WithLiveBufferSizeOf(_readSize ^ 3)
                     .WithMessageTimeoutOf(TimeSpan.FromMinutes(5))
-                    .CheckPointAfter(TimeSpan.FromSeconds(30))
-                    .MaximumCheckPointCountOf(_readSize * _readSize)
+                    .CheckPointAfter(TimeSpan.FromMinutes(1))
+                    .MaximumCheckPointCountOf(_readSize * 5)
                     .ResolveLinkTos()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.RoundRobin);
                 if (_extraStats)
@@ -231,7 +231,7 @@ namespace Aggregates.Internal
                         eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
                         subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected),
                         // Let us accept large number of unacknowledged events
-                        bufferSize: _readSize * 5,
+                        bufferSize: _readSize ^ 2,
                         autoAck: false).ConfigureAwait(false);
 
                     lock (_subLock) _persistentSubs.Add(subscription);

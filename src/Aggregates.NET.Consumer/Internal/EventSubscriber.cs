@@ -96,33 +96,27 @@ namespace Aggregates.Internal
             // Don't tab this '@' will create tabs in projection definition
             var definition = @"
 function processEvent(s,e) {{
-    linkTo('{1}.{0}', e);
+    linkTo('{1}', e);
 }}
-fromCategory('{0}').
+fromStreams([{0}]).
 when({{
 {2}
 }});";
 
             // Todo: replace with `fromCategories([])` when available
-            var appDefinition = string.Format(definition, StreamTypes.Domain, stream, functions);
-            var oobDefinition = string.Format(definition, StreamTypes.OOB, stream, functions);
-            var pocoDefinition = string.Format(definition, StreamTypes.Poco, stream, functions);
-
+            var appDefinition = string.Format(definition, $"'$ce-{StreamTypes.Domain}','$ce-{StreamTypes.OOB}','$ce-{StreamTypes.Poco}'", stream, functions);
             await _consumer.CreateProjection($"{stream}.app.projection", appDefinition).ConfigureAwait(false);
-            await _consumer.CreateProjection($"{stream}.oob.projection", oobDefinition).ConfigureAwait(false);
-            await _consumer.CreateProjection($"{stream}.poco.projection", pocoDefinition).ConfigureAwait(false);
         }
 
         public async Task Connect()
         {
+            // Todo: currently we project the events we want to see and so a single subscription group
+            // we can make it so users can specify their own events and subscribe 1 instance to many streams
+            // by perhaps putting attributes on events to specify a bounded context and saying '.SubscribeTo("Invoices")'
             var group = $"{_endpoint}.{_version}";
-            var appStream = $"{_endpoint}.{_version}.{StreamTypes.Domain}";
-            var oobStream = $"{_endpoint}.{_version}.{StreamTypes.OOB}";
-            var pocoStream = $"{_endpoint}.{_version}.{StreamTypes.Poco}";
+            var appStream = $"{_endpoint}.{_version}";
 
             await Reconnect(appStream, group).ConfigureAwait(false);
-            await Reconnect(oobStream, group).ConfigureAwait(false);
-            await Reconnect(pocoStream, group).ConfigureAwait(false);
 
             _pinnedThread = new Thread(Threaded)
             { IsBackground = true, Name = $"Main Event Thread" };
@@ -163,6 +157,12 @@ when({{
 
                     if (semaphore.CurrentCount == 0)
                     {
+                        Thread.Sleep(100);
+                        continue;
+                    }
+
+                    if (WaitingEvents.Count == 0)
+                    {
                         // Completed all tasks waiting 
                         taskCompletionSource.TrySetResult(null);
 
@@ -170,9 +170,7 @@ when({{
                         taskCompletionSource = new TaskCompletionSource<object>();
 
                         // set pause oob back to completed task
-                        Bus.PauseOob= () => Task.CompletedTask;
-                        Thread.Sleep(100);
-                        continue;
+                        Bus.PauseOob = () => Task.CompletedTask;
                     }
 
                     var @event = WaitingEvents.Take(param.Token);
