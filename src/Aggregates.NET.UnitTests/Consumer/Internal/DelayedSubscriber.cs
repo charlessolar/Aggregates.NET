@@ -442,5 +442,43 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             cts.Cancel();
         }
+
+        [Test]
+        public async Task consumer_reconnects()
+        {
+            Func<Task> disconnect=null;
+
+            _consumer.Setup(
+                x =>
+                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                        Moq.It.IsAny<string>(),
+                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
+                        Moq.It.IsAny<Func<Task>>()))
+                        .Callback<string, string, CancellationToken, Action<string,long,IFullEvent>, Func<Task>>((stream, group, token, onEvent, dis) => disconnect=dis)
+                        .Returns(Task.FromResult(true));
+
+            await _subscriber.Setup("test", CancellationToken.None, Version.Parse("0.0.0")).ConfigureAwait(false);
+
+            await _subscriber.Connect().ConfigureAwait(false);
+
+            _consumer.Verify(
+                x =>
+                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                        Moq.It.IsAny<string>(),
+                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
+                        Moq.It.IsAny<Func<Task>>()), Moq.Times.Once);
+
+            Assert.NotNull(disconnect);
+
+            await disconnect().ConfigureAwait(false);
+
+            _consumer.Verify(
+                x =>
+                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                        Moq.It.IsAny<string>(),
+                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
+                        Moq.It.IsAny<Func<Task>>()), Moq.Times.Exactly(2));
+
+        }
     }
 }

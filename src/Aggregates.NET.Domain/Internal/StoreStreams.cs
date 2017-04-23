@@ -39,12 +39,11 @@ namespace Aggregates.Internal
             _streamGen = streamGen;
         }
 
-        public Task Evict<T>(string bucket, Id streamId, IEnumerable<Id> parents = null) where T : class, IEventSource
+        public Task Evict<T>(IEventStream stream) where T : class, IEventSource
         {
             if (!_shouldCache) return Task.CompletedTask;
 
-            parents = parents ?? new Id[] {};
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
             _cache.Evict(streamName);
             return Task.CompletedTask;
         }
@@ -76,7 +75,7 @@ namespace Aggregates.Internal
                 MissMeter.Mark();
             }
 
-            while (await CheckFrozen<T>(bucket, streamId, parents).ConfigureAwait(false))
+            while (await CheckFrozen<T>(bucket,streamId, parents).ConfigureAwait(false))
             {
                 Logger.Write(LogLevel.Info, () => $"Stream [{streamName}] is frozen - waiting");
                 Thread.Sleep(100);
@@ -85,7 +84,7 @@ namespace Aggregates.Internal
 
             var events = await _store.GetEvents(streamName, start: snapshot?.Version + 1L).ConfigureAwait(false);
 
-            var eventstream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, parents, events, snapshot);
+            var eventstream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, parents, streamName, events, snapshot);
             
             await Cache<T>(eventstream).ConfigureAwait(false);
 
@@ -96,8 +95,9 @@ namespace Aggregates.Internal
         public Task<IEventStream> NewStream<T>(string bucket, Id streamId, IEnumerable<Id> parents = null) where T : class, IEventSource
         {
             parents = parents ?? new Id[] { };
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
             Logger.Write(LogLevel.Debug, () => $"Creating new stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
-            IEventStream stream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, parents, null, null);
+            IEventStream stream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, parents, streamName, null, null);
 
             return Task.FromResult(stream);
         }
@@ -154,10 +154,9 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Verified version of stream [{stream.StreamId}] in bucket [{stream.Bucket}] for type {typeof(T).FullName}");
         }
 
-        public async Task Freeze<T>(string bucket, Id streamId, IEnumerable<Id> parents = null) where T : class, IEventSource
+        public async Task Freeze<T>(IEventStream stream) where T : class, IEventSource
         {
-            parents = parents ?? new Id[] { };
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
             Logger.Write(LogLevel.Info, () => $"Freezing stream [{streamName}]");
             try
             {
@@ -170,19 +169,18 @@ namespace Aggregates.Internal
             }
         }
 
-        public async Task Unfreeze<T>(string bucket, Id streamId, IEnumerable<Id> parents = null) where T : class, IEventSource
+        public async Task Unfreeze<T>(IEventStream stream) where T : class, IEventSource
         {
-            parents = parents ?? new Id[] { };
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
             Logger.Write(LogLevel.Info, () => $"Unfreezing stream [{streamName}]");
 
             try
             {
                 await _store.WriteMetadata(streamName, frozen: false).ConfigureAwait(false);
             }
-            catch (VersionException)
+            catch (VersionException e)
             {
-                Logger.Write(LogLevel.Info, () => $"Unfreeze: stream [{streamName}] is not frozen");
+                Logger.Write(LogLevel.Info, () => $"Unfreeze failed on stream [{streamName}].  Message: {e.Message}");
             }
 
         }

@@ -18,10 +18,10 @@ namespace Aggregates.Internal
 
         public string StreamType { get; }
         public string Bucket { get; }
-
         public Id StreamId { get; }
+        public IEnumerable<Id> Parents { get; }
 
-        public IEnumerable<Id> Parents { get; private set; }
+        public string StreamName { get; }
 
         public long StreamVersion => CommitVersion + Uncommitted.Count();
         // +1 because Version is 0 indexed.  If we have a stream of 100 events with a snapshot at event 100 the snapshot version would be 100
@@ -44,6 +44,7 @@ namespace Aggregates.Internal
 
         private readonly Guid _commitId;
         private readonly IStoreStreams _store;
+        private readonly IStoreEvents _eventstore;
         private readonly IStoreSnapshots _snapshots;
         private readonly IOobHandler _oobHandler;
         private readonly IBuilder _builder;
@@ -53,16 +54,19 @@ namespace Aggregates.Internal
         private readonly IList<IFullEvent> _outofband;
         private ISnapshot _pendingShot;
 
-        public EventStream(IBuilder builder, IStoreStreams store, string streamType, string bucket, Id streamId, IEnumerable<Id> parents, IEnumerable<IFullEvent> events, ISnapshot snapshot)
+        // Todo: refactor this into better SRP
+        public EventStream(IBuilder builder, IStoreStreams store, string streamType, string bucket, Id streamId, IEnumerable<Id> parents, string streamName, IEnumerable<IFullEvent> events, ISnapshot snapshot)
         {
             _store = store;
             _snapshots = builder?.Build<IStoreSnapshots>();
             _oobHandler = builder?.Build<IOobHandler>();
+            _eventstore = builder?.Build<IStoreEvents>();
             _builder = builder;
             StreamType = streamType;
             Bucket = bucket;
             StreamId = streamId;
             Parents = parents.ToList();
+            StreamName = streamName;
             _committed = events?.ToList() ?? new List<IFullEvent>();
             _snapshot = snapshot;
 
@@ -81,11 +85,13 @@ namespace Aggregates.Internal
             _store = store;
             _snapshots = builder.Build<IStoreSnapshots>();
             _oobHandler = builder.Build<IOobHandler>();
+            _eventstore = builder.Build<IStoreEvents>();
             _builder = builder;
             StreamType = clone.StreamType;
             Bucket = clone.Bucket;
             StreamId = clone.StreamId;
             Parents = clone.Parents.ToList();
+            StreamName = clone.StreamName;
             _snapshot = snapshot;
             _committed = clone.Committed.ToList();
             _uncommitted = new List<IFullEvent>();
@@ -118,7 +124,7 @@ namespace Aggregates.Internal
             if (@event != null)
                 committed.Add(@event);
 
-            return new EventStream<T>(null, null, StreamType, Bucket, StreamId, Parents, committed, _snapshot);
+            return new EventStream<T>(null, null, StreamType, Bucket, StreamId, Parents, StreamName, committed, _snapshot);
         }
 
         void IEventStream.Concat(IEnumerable<IFullEvent> events)
@@ -128,7 +134,7 @@ namespace Aggregates.Internal
         
         public Task<IEnumerable<IFullEvent>> Events(long? start = null, int? count = null)
         {
-            return _store.GetEvents<T>(Bucket, StreamId, Parents, start, count);
+            return _eventstore.GetEvents(StreamName, start, count);
         }
         
         public Task<IEnumerable<IFullEvent>> OobEvents(long? start = null, int? count = null)
@@ -136,14 +142,14 @@ namespace Aggregates.Internal
             return _oobHandler.Retrieve<T>(Bucket, StreamId, Parents, start, count);
         }
 
-        private IFullEvent MakeWritableEvent(IEvent @event, IDictionary<string, string> headers, bool version = true)
+        private IFullEvent MakeWritableEvent(string streamType,IEvent @event, IDictionary<string, string> headers, bool version = true)
         {
             var writable = new WritableEvent
             {
                 Descriptor = new EventDescriptor
                 {
                     EntityType = typeof(T).AssemblyQualifiedName,
-                    StreamType = StreamType,
+                    StreamType = streamType,
                     Bucket = Bucket,
                     StreamId = StreamId,
                     Timestamp = DateTime.UtcNow,
@@ -173,12 +179,12 @@ namespace Aggregates.Internal
 
         public void AddOutOfBand(IEvent @event, IDictionary<string, string> headers)
         {
-            _outofband.Add(MakeWritableEvent(@event, headers, false));
+            _outofband.Add(MakeWritableEvent(StreamTypes.OOB, @event, headers, false));
         }
 
         public void Add(IEvent @event, IDictionary<string, string> headers)
         {
-            _uncommitted.Add(MakeWritableEvent(@event, headers));
+            _uncommitted.Add(MakeWritableEvent(StreamTypes.Domain, @event, headers));
         }
 
         public void AddSnapshot(object memento)
@@ -210,7 +216,7 @@ namespace Aggregates.Internal
             if (_uncommitted.Any())
             {
 
-                await _store.Evict<T>(Bucket, StreamId, Parents).ConfigureAwait(false);
+                await _store.Evict<T>(this).ConfigureAwait(false);
                 Logger.Write(LogLevel.Debug,
                     () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing {Uncommitted.Count()} events");
                 await _store.WriteStream<T>(this, commitHeaders).ConfigureAwait(false);

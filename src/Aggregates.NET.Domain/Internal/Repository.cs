@@ -121,7 +121,7 @@ namespace Aggregates.Internal
                         }
                         catch (VersionException)
                         {
-                            await _store.Evict<T>(x.Stream.Bucket, x.Stream.StreamId, x.Stream.Parents).ConfigureAwait(false);
+                            await _store.Evict<T>(x.Stream).ConfigureAwait(false);
                             throw;
                         }
                     });
@@ -181,22 +181,15 @@ namespace Aggregates.Internal
                                     // make new clean entity
                                     var clean = await GetUntracked(stream).ConfigureAwait(false);
 
-                                    try
-                                    {
 
-                                        Logger.Write(LogLevel.Debug,
-                                            () => $"Attempting to resolve conflict with strategy {_conflictResolution.Conflict}");
-                                        var strategy = _conflictResolution.Conflict.Build(_builder,
-                                            _conflictResolution.Resolver);
-                                        await
-                                            strategy.Resolve(clean, uncommitted, commitId,
-                                                commitHeaders).ConfigureAwait(false);
+                                    Logger.Write(LogLevel.Debug,
+                                        () => $"Attempting to resolve conflict with strategy {_conflictResolution.Conflict}");
+                                    var strategy = _conflictResolution.Conflict.Build(_builder,
+                                        _conflictResolution.Resolver);
+                                    await
+                                        strategy.Resolve(clean, uncommitted, commitId,
+                                            commitHeaders).ConfigureAwait(false);
 
-                                    }
-                                    catch (ConflictingCommandException)
-                                    {
-                                        throw new ConflictResolutionFailedException("Failed to resolve stream conflict");
-                                    }
                                 }
 
                                 Logger.WriteFormat(LogLevel.Info,
@@ -353,7 +346,7 @@ namespace Aggregates.Internal
         {
             // Call the 'private' constructor
             var tCtor = typeof(T).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { }, null);
-            
+
             if (tCtor == null)
                 throw new AggregateException("Aggregate needs a PRIVATE parameterless constructor");
             var root = (T)tCtor.Invoke(null);

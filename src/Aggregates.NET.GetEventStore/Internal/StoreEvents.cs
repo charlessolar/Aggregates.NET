@@ -43,7 +43,6 @@ namespace Aggregates.Internal
             _compress = compress;
         }
 
-
         public async Task<IEnumerable<IFullEvent>> GetEvents(string stream, long? start = null, int? count = null)
         {
 
@@ -51,7 +50,8 @@ namespace Aggregates.Internal
             {
                 TypeNameHandling = TypeNameHandling.Auto,
                 SerializationBinder = new EventSerializationBinder(_mapper),
-                ContractResolver = new EventContractResolver(_mapper)
+                ContractResolver = new EventContractResolver(_mapper),
+                Converters = new[] {new Newtonsoft.Json.Converters.StringEnumConverter()}
             };
 
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
@@ -129,7 +129,8 @@ namespace Aggregates.Internal
             {
                 TypeNameHandling = TypeNameHandling.Auto,
                 SerializationBinder = new EventSerializationBinder(_mapper),
-                ContractResolver = new EventContractResolver(_mapper)
+                ContractResolver = new EventContractResolver(_mapper),
+                Converters = new[] { new Newtonsoft.Json.Converters.StringEnumConverter() }
             };
 
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
@@ -228,6 +229,7 @@ namespace Aggregates.Internal
                 TypeNameHandling = TypeNameHandling.Auto,
                 SerializationBinder = new EventSerializationBinder(_mapper),
                 //ContractResolver = new EventContractResolver(_mapper)
+                Converters = new[] { new Newtonsoft.Json.Converters.StringEnumConverter() }
             };
 
             var descriptor = snapshot.Descriptor;
@@ -277,6 +279,7 @@ namespace Aggregates.Internal
                 TypeNameHandling = TypeNameHandling.Auto,
                 SerializationBinder = new EventSerializationBinder(_mapper),
                 //ContractResolver = new EventContractResolver(_mapper)
+                Converters = new[] { new Newtonsoft.Json.Converters.StringEnumConverter() }
             };
 
             var translatedEvents = events.Select(e =>

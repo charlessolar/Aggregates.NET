@@ -14,6 +14,7 @@ namespace Aggregates.Contracts
         string Bucket { get; }
         string StreamType { get; }
         IEnumerable<Id> Parents { get; }
+        string StreamName { get; }
 
         long StreamVersion { get; }
         long CommitVersion { get; }

@@ -191,6 +191,8 @@ namespace Aggregates.Internal
             var changedStreams = _repositories.Sum(x => x.Value.ChangedStreams) + _pocoRepositories.Sum(x => x.Value.ChangedStreams);
 
             Logger.Write(LogLevel.Debug, () => $"Detected {changedStreams} changed streams in commit {CommitId}");
+            // Only prepare if multiple changed streams, which will quickly check all changed streams to see if they are all the same version as when we read them
+            // Not 100% guarenteed to eliminate writing 1 stream then failing the other one but will help - and we also tell the user to not do this.. 
             if (changedStreams > 1)
             {
                 Logger.Write(LogLevel.Info, $"Starting prepare for commit id {CommitId} with {_repositories.Count + _pocoRepositories.Count} tracked repositories. You changed {changedStreams} streams.  We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams");

@@ -48,7 +48,8 @@ namespace Aggregates.Internal
             {
                 TypeNameHandling = TypeNameHandling.Auto,
                 SerializationBinder = new EventSerializationBinder(mapper),
-                ContractResolver = new EventContractResolver(mapper)
+                ContractResolver = new EventContractResolver(mapper),
+                Converters = new[] { new Newtonsoft.Json.Converters.StringEnumConverter() }
             };
 
 
@@ -201,10 +202,10 @@ namespace Aggregates.Internal
 
                 var settings = PersistentSubscriptionSettings.Create()
                     .StartFromBeginning()
-                    .WithMaxRetriesOf(0)
+                    .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readSize)
                     .WithLiveBufferSizeOf(_readSize * _readSize)
-                    .DontTimeoutMessages()
+                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(5))
                     .CheckPointAfter(TimeSpan.FromSeconds(30))
                     .MaximumCheckPointCountOf(_readSize * _readSize)
                     .ResolveLinkTos()

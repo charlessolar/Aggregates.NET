@@ -77,12 +77,15 @@ namespace Aggregates.Internal
             var stream = $"$ce-{_endpoint}.{StreamTypes.Delayed}";
             var group = $"{_endpoint}.{_version}.{StreamTypes.Delayed}";
 
-
-            await _consumer.ConnectPinnedPersistentSubscription(stream, @group, _cancelation.Token, onEvent, Connect).ConfigureAwait(false);
+            await Reconnect(stream, group).ConfigureAwait(false);
 
             _delayedThread = new Thread(Threaded)
             { IsBackground = true, Name = $"Delayed Event Thread" };
             _delayedThread.Start(new ThreadParam { Token = _cancelation.Token, MaxRetry = _maxRetry, Consumer = _consumer });
+        }
+        private Task Reconnect(string stream, string group)
+        {
+            return _consumer.ConnectPinnedPersistentSubscription(stream, group, _cancelation.Token, onEvent, () => Reconnect(stream, group));
         }
 
         private void onEvent(string stream, long position, IFullEvent e)

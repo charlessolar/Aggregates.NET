@@ -32,10 +32,22 @@ namespace Aggregates.Contracts
         /// <summary>
         /// Initiates a new event stream
         /// </summary>
-        Task<T> New(string bucketId, Id id);
         Task<T> New(Id id);
+        Task<T> New(string bucketId, Id id);
     }
-    public interface IRepository<TParent, T> : IRepository<T> where TParent : Entity<TParent> where T : Entity<T, TParent>
+    public interface IRepository<TParent, T> where TParent : Entity<TParent> where T : Entity<T, TParent>
     {
+        /// <summary>
+        /// Attempts to get aggregate from store, if stream does not exist it throws
+        /// </summary>
+        Task<T> Get(Id id);
+        /// <summary>
+        /// Attempts to retreive aggregate from store, if stream does not exist it does not throw
+        /// </summary>
+        Task<T> TryGet(Id id);
+        /// <summary>
+        /// Initiates a new event stream
+        /// </summary>
+        Task<T> New(Id id);
     }
 }

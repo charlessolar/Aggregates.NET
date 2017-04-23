@@ -87,6 +87,23 @@
     <Compile Include="Consumer\Internal\EventSubscriber.cs" />
     <Compile Include="Consumer\Internal\SnapshotReader.cs" />
     <Compile Include="Domain\Internal\CommandAcceptor.cs" />
+    <Compile Include="Domain\Internal\ConflictResolvers\EasyConflictResolvers.cs" />
+    <Compile Include="Domain\Internal\ConflictResolvers\StrongConflictResolver.cs" />
+    <Compile Include="Domain\Internal\ConflictResolvers\WeakConflictMessageHandler.cs" />
+    <Compile Include="Domain\Internal\ConflictResolvers\WeakConflictResolver.cs" />
+    <Compile Include="Domain\Internal\DefaultOOBHandler.cs" />
+    <Compile Include="Domain\Internal\DefaultRouteResolver.cs" />
+    <Compile Include="Domain\Internal\Entity.cs" />
+    <Compile Include="Domain\Internal\EventStream.cs" />
+    <Compile Include="Domain\Internal\MutateIncomingCommands.cs" />
+    <Compile Include="Domain\Internal\NSBOOBHandler.cs" />
+    <Compile Include="Domain\Internal\PocoRepository.cs" />
+    <Compile Include="Domain\Internal\Processor.cs" />
+    <Compile Include="Domain\Internal\Repository.cs" />
+    <Compile Include="Domain\Internal\StorePocos.cs" />
+    <Compile Include="Domain\Internal\StoreSnapshots.cs" />
+    <Compile Include="Domain\Internal\StoreStreams.cs" />
+    <Compile Include="Domain\Internal\UnitOfWork.cs" />
     <Compile Include="Extensions\ReflectionExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

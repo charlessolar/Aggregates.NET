@@ -120,16 +120,21 @@ when({{
             var oobStream = $"{_endpoint}.{_version}.{StreamTypes.OOB}";
             var pocoStream = $"{_endpoint}.{_version}.{StreamTypes.Poco}";
 
-
-            await _consumer.ConnectPinnedPersistentSubscription(appStream, group, _cancelation.Token, onEvent, Connect).ConfigureAwait(false);
-            await _consumer.ConnectPinnedPersistentSubscription(oobStream, group, _cancelation.Token, onEvent, Connect).ConfigureAwait(false);
-            await _consumer.ConnectPinnedPersistentSubscription(pocoStream, group, _cancelation.Token, onEvent, Connect).ConfigureAwait(false);
+            await Reconnect(appStream, group).ConfigureAwait(false);
+            await Reconnect(oobStream, group).ConfigureAwait(false);
+            await Reconnect(pocoStream, group).ConfigureAwait(false);
 
             _pinnedThread = new Thread(Threaded)
             { IsBackground = true, Name = $"Main Event Thread" };
             _pinnedThread.Start(new ThreadParam { Token = _cancelation.Token, Messaging = _messaging, Concurrency = _concurrency, Consumer = _consumer });
 
         }
+
+        private Task Reconnect(string stream, string group)
+        {
+            return _consumer.ConnectPinnedPersistentSubscription(stream, group, _cancelation.Token, onEvent, () => Reconnect(stream,group));
+        }
+
         private void onEvent(string stream, long position, IFullEvent e)
         {
             EventsQueued.Increment();
@@ -149,6 +154,7 @@ when({{
 
             var semaphore = new SemaphoreSlim(param.Concurrency);
 
+            var taskCompletionSource = new TaskCompletionSource<object>();
             try
             {
                 while (true)
@@ -157,6 +163,14 @@ when({{
 
                     if (semaphore.CurrentCount == 0)
                     {
+                        // Completed all tasks waiting 
+                        taskCompletionSource.TrySetResult(null);
+
+                        // initiate a new one
+                        taskCompletionSource = new TaskCompletionSource<object>();
+
+                        // set pause oob back to completed task
+                        Bus.PauseOob= () => Task.CompletedTask;
                         Thread.Sleep(100);
                         continue;
                     }
@@ -167,19 +181,25 @@ when({{
 
                     try
                     {
+                        // anyone using this will pause until we're done processing domain events
+                        Bus.PauseOob = () => taskCompletionSource.Task;
                         Task.Run(async () =>
                         {
+                            try
+                            {
+                                await
+                                    ProcessEvent(param.Messaging, @event.Item1, @event.Item2, @event.Item3, param.Token)
+                                        .ConfigureAwait(false);
 
-                            await
-                                ProcessEvent(param.Messaging, @event.Item1, @event.Item2, @event.Item3, param.Token)
-                                    .ConfigureAwait(false);
-
-                            Logger.Write(LogLevel.Debug,
-                                () =>
-                                        $"Acknowledge event {@event.Item3.Descriptor.EventId} stream [{@event.Item1}] number {@event.Item2}");
-                            await param.Consumer.Acknowledge(@event.Item3).ConfigureAwait(false);
-
-                            semaphore.Release();
+                                Logger.Write(LogLevel.Debug,
+                                    () =>
+                                            $"Acknowledge event {@event.Item3.Descriptor.EventId} stream [{@event.Item1}] number {@event.Item2}");
+                                await param.Consumer.Acknowledge(@event.Item3).ConfigureAwait(false);
+                            }
+                            finally
+                            {
+                                semaphore.Release();
+                            }
                         }, param.Token).Wait();
                     }
                     catch (System.AggregateException e)
@@ -190,7 +210,8 @@ when({{
                         // If not a canceled exception, just write to log and continue
                         // we dont want some random unknown exception to kill the whole event loop
                         Logger.Error(
-                            $"Received exception in main event thread: {e.InnerException.GetType()}: {e.InnerException.Message}", e);
+                            $"Received exception in main event thread: {e.InnerException.GetType()}: {e.InnerException.Message}",
+                            e);
                     }
 
                 }

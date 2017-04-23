@@ -85,8 +85,13 @@ namespace Aggregates.Internal
         {
             // by_category projection of all events in category "SNAPSHOT"
             var stream = $"$ce-{StreamTypes.Snapshot}";
-            return _consumer.SubscribeToStreamEnd(stream, _cancelation.Token, onEvent, Connect);
+            return Reconnect(stream);
 
+        }
+
+        private Task Reconnect(string stream)
+        {
+            return _consumer.SubscribeToStreamEnd(stream, _cancelation.Token, onEvent, () => Reconnect(stream));
         }
 
         private void onEvent(string stream, long position, IFullEvent e)

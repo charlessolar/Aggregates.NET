@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
@@ -31,7 +32,7 @@ namespace Aggregates.Internal
             (b, _) =>
             {
                 var settings = b.Build<ReadOnlySettings>();
-                return new ResolveWeaklyConflictResolver(b.Build<IStoreStreams>(), b.Build<IDelayedChannel>(), settings.Get<StreamIdGenerator>("StreamGenerator"));
+                return new ResolveWeaklyConflictResolver(b.Build<IStoreStreams>(), b.Build<IStoreEvents>(), b.Build<IDelayedChannel>(), settings.Get<StreamIdGenerator>("StreamGenerator"));
             });
         public static ConcurrencyStrategy Custom = new ConcurrencyStrategy(ConcurrencyConflict.Custom, "Custom", (b, type) => (IResolveConflicts)b.Build(type));
 
@@ -108,10 +109,14 @@ namespace Aggregates.Internal
         internal static readonly ILog Logger = LogManager.GetLogger("ResolveStronglyConflictResolver");
 
         private readonly IStoreStreams _store;
+        private readonly IStoreEvents _eventstore;
+        private readonly StreamIdGenerator _streamGen;
 
-        public ResolveStronglyConflictResolver(IStoreStreams eventstore)
+        public ResolveStronglyConflictResolver(IStoreStreams store, IStoreEvents eventstore, StreamIdGenerator streamGen)
         {
-            _store = eventstore;
+            _store = store;
+            _eventstore = eventstore;
+            _streamGen = streamGen;
         }
 
         public async Task Resolve<T>(T entity, IEnumerable<IFullEvent> uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where T : class, IEventSource
@@ -119,16 +124,15 @@ namespace Aggregates.Internal
             var sourced = (IEventSourced)entity;
 
             var stream = sourced.Stream;
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
             Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
 
             try
             {
-                await _store.Freeze<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
+                await _store.Freeze<T>(stream).ConfigureAwait(false);
 
                 var latestEvents =
-                    await
-                        _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.Parents, stream.CommitVersion + 1)
-                            .ConfigureAwait(false);
+                    await _eventstore.GetEvents(streamName, stream.CommitVersion + 1).ConfigureAwait(false);
                 Logger.Write(LogLevel.Info, () => $"Stream is {latestEvents.Count()} events behind store");
 
                 var writableEvents = latestEvents as IFullEvent[] ?? latestEvents.ToArray();
@@ -163,11 +167,11 @@ namespace Aggregates.Internal
             }
             finally
             {
-                await _store.Unfreeze<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
+                await _store.Unfreeze<T>(stream).ConfigureAwait(false);
             }
         }
     }
-
+        
     internal class ConflictingEvents : IMessage
     {
         public string EntityType { get; set; }
@@ -186,13 +190,15 @@ namespace Aggregates.Internal
         internal static readonly ILog Logger = LogManager.GetLogger("ResolveWeaklyConflictResolver");
 
         private readonly IStoreStreams _store;
+        private readonly IStoreEvents _eventstore;
         private readonly IDelayedChannel _delay;
         private readonly StreamIdGenerator _streamGen;
 
 
-        public ResolveWeaklyConflictResolver(IStoreStreams eventstore, IDelayedChannel delay, StreamIdGenerator streamGen)
+        public ResolveWeaklyConflictResolver(IStoreStreams store, IStoreEvents eventstore, IDelayedChannel delay, StreamIdGenerator streamGen)
         {
-            _store = eventstore;
+            _store = store;
+            _eventstore = eventstore;
             _delay = delay;
             _streamGen = streamGen;
         }
@@ -240,7 +246,7 @@ namespace Aggregates.Internal
                     .ConfigureAwait(false);
 
             // Todo: make 30 seconds configurable
-            var age = await _delay.Age(streamName).ConfigureAwait(false);
+            var age = await _delay.Age(ConcurrencyConflict.ResolveWeakly.ToString(), streamName).ConfigureAwait(false);
             if (!age.HasValue || age < TimeSpan.FromSeconds(30))
                 return;
 
@@ -249,27 +255,19 @@ namespace Aggregates.Internal
                 () => $"Starting weak conflict resolve for stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
             try
             {
-                try
-                {
-                    await _store.Freeze<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
-                }
-                catch (VersionException)
-                {
-                    Logger.Write(LogLevel.Info, () => $"Stopping weak conflict resolve - someone else is processing");
-                    return;
-                }
-                uncommitted =
-                    (await _delay.Pull(streamName, max: 200).ConfigureAwait(false)).Cast<IFullEvent>();
+                await _store.Freeze<T>(stream).ConfigureAwait(false);
+
+                var delayed = await _delay.Pull(streamName, max: 200).ConfigureAwait(false);
 
                 // If someone else pulled while we were waiting
-                if (!uncommitted.Any())
+                if (!delayed.Any())
                     return;
 
                 Logger.Write(LogLevel.Info,
-                    () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
+                    () => $"Resolving {delayed.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
 
                 var latestEvents =
-                    await _store.GetEvents<T>(stream.Bucket, stream.StreamId, stream.Parents, stream.CommitVersion + 1L)
+                    await _eventstore.GetEvents(stream.StreamName, stream.CommitVersion + 1L)
                         .ConfigureAwait(false);
                 Logger.Write(LogLevel.Info,
                     () => $"Stream [{stream.StreamId}] bucket [{stream.Bucket}] is {latestEvents.Count()} events behind store");
@@ -279,10 +277,10 @@ namespace Aggregates.Internal
                 sourced.Hydrate(writableEvents.Select(x => x.Event as IEvent));
 
 
-                Logger.Write(LogLevel.Debug, () => $"Merging {uncommitted.Count()} conflicted events");
+                Logger.Write(LogLevel.Debug, () => $"Merging {delayed.Count()} conflicted events");
                 try
                 {
-                    foreach (var u in uncommitted)
+                    foreach (var u in delayed.Select(x => x.Message as ConflictingEvents).SelectMany(x => x.Events))
                         sourced.Conflict(u.Event as IEvent,
                             metadata:
                             new Dictionary<string, string>
@@ -312,11 +310,9 @@ namespace Aggregates.Internal
             }
             finally
             {
-                await _store.Unfreeze<T>(stream.Bucket, stream.StreamId).ConfigureAwait(false);
+                await _store.Unfreeze<T>(stream).ConfigureAwait(false);
             }
         }
-    
-
     }
     /// <summary>
     /// When the above pushes a conflicting event package onto the delayed queue it can end up 
@@ -335,7 +331,7 @@ namespace Aggregates.Internal
             _uow = uow;
         }
 
-        private Task<IEventSourced> GetBase(string bucket, string type, Id id, IEventSourced parent = null)
+        private async Task<IEventSourced> GetBase(string bucket, string type, Id id, IEventSourced parent = null)
         {
             var entityType = Type.GetType(type, false, true);
             if (entityType == null)
@@ -347,21 +343,30 @@ namespace Aggregates.Internal
             // We have the type name, hack the generic parameters to build Entity
             if (parent == null)
             {
-                var method = typeof(IUnitOfWork).GetMethod("For").MakeGenericMethod(entityType);
+                var method = typeof(IUnitOfWork).GetMethod("For", new Type[] {}).MakeGenericMethod(entityType);
 
                 var repo = method.Invoke(_uow, new object[] { });
-
-                method = typeof(IRepository<,>).GetMethod("Get");
-                return (Task<IEventSourced>)method.Invoke(repo, new object[] { bucket, id });
+                
+                method = repo.GetType().GetMethod("Get", new Type[] {typeof(string), typeof(Id)});
+                // Note: we can't just cast method.Invoke into Task<IEventSourced> because Task is not covariant
+                // believe it or not this is the easiest solution
+                var task = (Task)method.Invoke(repo, new object[] {bucket, id});
+                await task.ConfigureAwait(false);
+                return task.GetType().GetProperty("Result").GetValue(task) as IEventSourced;
             }
             else
             {
-                var method = typeof(IUnitOfWork).GetMethod("For").MakeGenericMethod(parent.GetType(), entityType);
-
+                var method =
+                    typeof(IUnitOfWork).GetMethods()
+                        .Single(x => x.Name=="For" && x.GetParameters().Length == 1)
+                        .MakeGenericMethod(parent.GetType(), entityType);
+                
                 var repo = method.Invoke(_uow, new object[] { parent });
 
-                method = typeof(IRepository<,>).GetMethod("Get");
-                return (Task<IEventSourced>)method.Invoke(repo, new object[] { bucket, id });
+                method = repo.GetType().GetMethod("Get", new Type[] { typeof(Id) });
+                var task = (Task)method.Invoke(repo, new object[] { id });
+                await task.ConfigureAwait(false);
+                return task.GetType().GetProperty("Result").GetValue(task) as IEventSourced;
             }
         }
 
@@ -373,7 +378,7 @@ namespace Aggregates.Internal
                 parentBase = await GetBase(conflicts.Bucket, parent.Item1, parent.Item2, parentBase).ConfigureAwait(false);
 
             var target = await GetBase(conflicts.Bucket, conflicts.EntityType, conflicts.StreamId, parentBase).ConfigureAwait(false);
-
+            var stream = target.Stream;
 
             Logger.Write(LogLevel.Info,
                 () => $"Weakly resolving {conflicts.Events.Count()} conflicts on stream [{conflicts.StreamId}] type [{target.GetType().FullName}] bucket [{target.Stream.Bucket}]");
@@ -381,7 +386,7 @@ namespace Aggregates.Internal
             // No need to pull from the delayed channel or hydrate as below because this is called from the Delayed system which means
             // the conflict is not in delayed cache and GetBase above pulls the latest stream
 
-            Logger.Write(LogLevel.Debug, () => $"Merging {conflicts.Events.Count()} conflicted events");
+                Logger.Write(LogLevel.Debug, () => $"Merging {conflicts.Events.Count()} conflicted events");
             try
             {
                 foreach (var u in conflicts.Events)
@@ -400,8 +405,16 @@ namespace Aggregates.Internal
 
             Logger.Write(LogLevel.Info, () => "Successfully merged conflicted events");
 
-            // Dont call stream.Commit we are inside a UOW in this method it will do the commit for us
-
+            if (stream.StreamVersion != stream.CommitVersion && target is ISnapshotting &&
+                ((ISnapshotting)target).ShouldTakeSnapshot())
+            {
+                Logger.Write(LogLevel.Debug,
+                    () => $"Taking snapshot of [{target.GetType().FullName}] id [{target.Id}] version {stream.StreamVersion}");
+                var memento = ((ISnapshotting)target).TakeSnapshot();
+                stream.AddSnapshot(memento);
+            }
+                // Dont call stream.Commit we are inside a UOW in this method it will do the commit for us
+            
         }
 
 
