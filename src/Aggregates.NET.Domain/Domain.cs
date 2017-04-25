@@ -66,13 +66,15 @@ namespace Aggregates
                     DependencyLifecycle.InstancePerCall);
             }
             context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
-            context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<Processor>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<Processor>(DependencyLifecycle.SingleInstance);
+
             context.Container.ConfigureComponent<ResolveStronglyConflictResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<ResolveWeaklyConflictResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<DiscardConflictResolver>(DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<IgnoreConflictResolver>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<ThrowConflictResolver>(DependencyLifecycle.InstancePerCall);
 
             context.Container.ConfigureComponent<Func<Accept>>(y =>
             {
