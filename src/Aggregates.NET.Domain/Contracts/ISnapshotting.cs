@@ -4,8 +4,8 @@
     {
         ISnapshot Snapshot { get; }
 
-        void RestoreSnapshot(object snapshot);
-        object TakeSnapshot();
+        void RestoreSnapshot(IMemento snapshot);
+        IMemento TakeSnapshot();
         bool ShouldTakeSnapshot();
     }
 }

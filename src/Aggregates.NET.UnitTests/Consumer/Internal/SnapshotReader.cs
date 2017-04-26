@@ -87,13 +87,16 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             Assert.NotNull(eventCb);
 
+            var memento = new Moq.Mock<IMemento>();
+            memento.Setup(x => x.EntityId).Returns(1);
+
             var message = new Moq.Mock<IFullEvent>();
             message.Setup(x => x.Descriptor).Returns(new EventDescriptor());
-            message.Setup(x => x.Event).Returns(1);
+            message.Setup(x => x.Event).Returns(memento.Object);
             eventCb("test", 0, message.Object);
 
-            var snapshot = await _subscriber.Retreive("test").ConfigureAwait(false);
-            Assert.AreEqual(1, snapshot.Payload);
+            var read = await _subscriber.Retreive("test").ConfigureAwait(false);
+            Assert.AreEqual(new Id(1), read.Payload.EntityId);
 
 
             cts.Cancel();
@@ -133,15 +136,20 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             Assert.NotNull(eventCb);
 
+            var memento = new Moq.Mock<IMemento>();
+            var memento2 = new Moq.Mock<IMemento>();
+            memento.Setup(x => x.EntityId).Returns("test1");
+            memento2.Setup(x => x.EntityId).Returns("test2");
+
             var message = new Moq.Mock<IFullEvent>();
             message.Setup(x => x.Descriptor).Returns(new EventDescriptor());
-            message.Setup(x => x.Event).Returns(1);
+            message.Setup(x => x.Event).Returns(memento.Object);
             eventCb("test", 0, message.Object);
-            message.Setup(x => x.Event).Returns(2);
+            message.Setup(x => x.Event).Returns(memento2.Object);
             eventCb("test", 0, message.Object);
 
             var snapshot = await _subscriber.Retreive("test").ConfigureAwait(false);
-            Assert.AreEqual(2, snapshot.Payload);
+            Assert.AreEqual(new Id("test2"), snapshot.Payload.EntityId);
 
 
             cts.Cancel();

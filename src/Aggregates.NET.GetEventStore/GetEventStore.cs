@@ -51,7 +51,7 @@ namespace Aggregates
                     connections = new[] { b.Build<IEventStoreConnection>() };
                 return new StoreEvents(b.Build<IMessageMapper>(), settings.Get<int>("ReadSize"), settings.Get<Compression>("Compress"), connections);
             },
-                DependencyLifecycle.InstancePerCall);
+                DependencyLifecycle.SingleInstance);
 
             context.Container.ConfigureComponent(b =>
             {

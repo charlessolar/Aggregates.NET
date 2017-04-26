@@ -193,7 +193,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             // Delayes conflicting events to be resolved later
             var resolver = new Aggregates.Internal.ResolveWeaklyConflictResolver(_store.Object, _eventstore.Object, _channel.Object, streamGen);
 
-            _stream.Setup(x => x.AddSnapshot(Moq.It.IsAny<object>()));
+            _stream.Setup(x => x.AddSnapshot(Moq.It.IsAny<IMemento>()));
             _stream.Setup(x => x.StreamVersion).Returns(0);
             _stream.Setup(x => x.CommitVersion).Returns(1);
 
@@ -211,7 +211,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             _stream.Verify(
                 x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()),
                 Moq.Times.Once);
-            _stream.Verify(x => x.AddSnapshot(Moq.It.IsAny<object>()), Moq.Times.Once);
+            _stream.Verify(x => x.AddSnapshot(Moq.It.IsAny<IMemento>()), Moq.Times.Once);
         }
 
         [Test]

@@ -103,7 +103,7 @@ namespace Aggregates.Internal
                 StreamId = e.Descriptor.StreamId,
                 Timestamp = e.Descriptor.Timestamp,
                 Version = e.Descriptor.Version,
-                Payload = e.Event
+                Payload = e.Event as IMemento
             };
             SnapshotsSeen.Increment();
 

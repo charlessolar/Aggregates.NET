@@ -40,7 +40,7 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Getting snapshot for stream [{streamName}]");
             if(_snapshots != null)
             {
-                var snapshot = await _snapshots.Retreive(streamName).ConfigureAwait(false);
+                var snapshot = await _snapshots.Retreive(streamName).ConfigureAwait(false); 
                 if (snapshot != null)
                 {
                     HitMeter.Mark();
@@ -67,7 +67,7 @@ namespace Aggregates.Internal
                     StreamId = streamId,
                     Timestamp = @event.Descriptor.Timestamp,
                     Version = @event.Descriptor.Version,
-                    Payload = @event.Event
+                    Payload = @event.Event as IMemento
                 };
                 Logger.Write(LogLevel.Debug, () => $"Found snapshot [{streamName}] version {snapshot.Version} from store");
                 return snapshot;
@@ -78,7 +78,7 @@ namespace Aggregates.Internal
         }
 
 
-        public async Task WriteSnapshots<T>(string bucket, Id streamId, IEnumerable<Id> parents, ISnapshot snapshot, IDictionary<string, string> commitHeaders) where T : class, IEventSource
+        public async Task WriteSnapshots<T>(string bucket, Id streamId, IEnumerable<Id> parents, long version, IMemento snapshot, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), StreamTypes.Snapshot, bucket, streamId, parents);
             Logger.Write(LogLevel.Debug, () => $"Writing snapshot to stream [{streamName}]");
@@ -91,12 +91,12 @@ namespace Aggregates.Internal
                     StreamType = StreamTypes.Snapshot,
                     Bucket = bucket,
                     StreamId = streamId,
-                    Timestamp = snapshot.Timestamp,
-                    Version = snapshot.Version,
+                    Timestamp = DateTime.UtcNow,
+                    Version = version,
                     Headers = new Dictionary<string, string>(),
                     CommitHeaders = commitHeaders
                 },
-                Event = snapshot.Payload,
+                Event = snapshot,
             };
 
             Saved.Mark();

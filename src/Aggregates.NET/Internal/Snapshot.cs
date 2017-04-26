@@ -8,7 +8,7 @@ namespace Aggregates.Internal
         public string Bucket { get; set; }
         public Id StreamId { get; set; }
         public long Version { get; set; }
-        public object Payload { get; set; }
+        public IMemento Payload { get; set; }
 
         public string EntityType { get; set; }
         public DateTime Timestamp { get; set; }

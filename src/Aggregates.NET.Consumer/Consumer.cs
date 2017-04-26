@@ -51,7 +51,6 @@ namespace Aggregates
             }, DependencyLifecycle.SingleInstance);
 
             context.Pipeline.Register<MutateIncomingEventRegistration>();
-            context.Pipeline.Register<BlockOobEventsRegistration>();
 
             context.RegisterStartupTask(builder => new EventStoreRunner(builder.BuildAll<IEventSubscriber>(), context.Settings));
 

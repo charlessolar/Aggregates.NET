@@ -82,7 +82,7 @@ namespace Aggregates.Internal
             }
             Logger.Write(LogLevel.Debug, () => $"Stream [{streamName}] not in cache - reading from store");
 
-            var events = await _store.GetEvents(streamName, start: snapshot?.Version + 1L).ConfigureAwait(false);
+            var events = await _store.GetEvents(streamName, start: snapshot?.Version).ConfigureAwait(false);
 
             var eventstream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, parents, streamName, events, snapshot);
             

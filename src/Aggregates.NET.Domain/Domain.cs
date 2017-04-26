@@ -36,7 +36,7 @@ namespace Aggregates
                 context.Container.ConfigureComponent(b =>
                         new StoreSnapshots(b.Build<IStoreEvents>(), b.Build<ISnapshotReader>(),
                             settings.Get<StreamIdGenerator>("StreamGenerator")),
-                    DependencyLifecycle.InstancePerCall);
+                    DependencyLifecycle.SingleInstance);
             }
             else
             {
@@ -44,15 +44,15 @@ namespace Aggregates
                 context.Container.ConfigureComponent(b =>
                         new StoreSnapshots(b.Build<IStoreEvents>(),
                             settings.Get<StreamIdGenerator>("StreamGenerator")),
-                    DependencyLifecycle.InstancePerCall);
+                    DependencyLifecycle.SingleInstance);
             }
 
             context.Container.ConfigureComponent(b => 
                 new StoreStreams(b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
-                DependencyLifecycle.InstancePerCall);
+                DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent(b =>
                 new StorePocos(b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
-                DependencyLifecycle.InstancePerCall);
+                DependencyLifecycle.SingleInstance);
 
             if (settings.Get<bool>("UseNsbForOob"))
             {
@@ -70,11 +70,11 @@ namespace Aggregates
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<Processor>(DependencyLifecycle.SingleInstance);
 
-            context.Container.ConfigureComponent<ResolveStronglyConflictResolver>(DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<ResolveWeaklyConflictResolver>(DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<DiscardConflictResolver>(DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<IgnoreConflictResolver>(DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<ThrowConflictResolver>(DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<ResolveStronglyConflictResolver>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<ResolveWeaklyConflictResolver>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<DiscardConflictResolver>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<IgnoreConflictResolver>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<ThrowConflictResolver>(DependencyLifecycle.SingleInstance);
 
             context.Container.ConfigureComponent<Func<Accept>>(y =>
             {

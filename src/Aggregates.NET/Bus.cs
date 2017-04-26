@@ -18,7 +18,6 @@ namespace Aggregates
         internal static Func<MessageContext, Task> OnMessage;
         internal static Func<ErrorContext, Task<ErrorHandleResult>> OnError;
         internal static PushRuntimeSettings PushSettings;
-        internal static Func<Task> PauseOob = () => Task.CompletedTask;
 
         public static async Task<IEndpointInstance> Start( EndpointConfiguration configuration)
         {

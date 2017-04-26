@@ -160,27 +160,13 @@ when({{
                         Thread.Sleep(100);
                         continue;
                     }
-
-                    if (WaitingEvents.Count == 0)
-                    {
-                        // Completed all tasks waiting 
-                        taskCompletionSource.TrySetResult(null);
-
-                        // initiate a new one
-                        taskCompletionSource = new TaskCompletionSource<object>();
-
-                        // set pause oob back to completed task
-                        Bus.PauseOob = () => Task.CompletedTask;
-                    }
-
+                    
                     var @event = WaitingEvents.Take(param.Token);
                     EventsQueued.Decrement();
                     semaphore.Wait();
 
                     try
                     {
-                        // anyone using this will pause until we're done processing domain events
-                        Bus.PauseOob = () => taskCompletionSource.Task;
                         Task.Run(async () =>
                         {
                             try

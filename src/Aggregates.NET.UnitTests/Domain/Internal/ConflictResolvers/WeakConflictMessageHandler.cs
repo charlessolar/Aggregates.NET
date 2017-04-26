@@ -190,7 +190,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
         {
             var handler = new HandleConflictingEvents(_uow.Object);
 
-            _stream.Setup(x => x.AddSnapshot(Moq.It.IsAny<object>()));
+            _stream.Setup(x => x.AddSnapshot(Moq.It.IsAny<IMemento>()));
             _stream.Setup(x => x.StreamVersion).Returns(0);
             _stream.Setup(x => x.CommitVersion).Returns(1);
 
@@ -204,7 +204,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             _stream.Verify(x => x.Add(Moq.It.IsAny<IEvent>(), Moq.It.IsAny<IDictionary<string, string>>()),
                 Moq.Times.Once);
             
-            _stream.Verify(x => x.AddSnapshot(Moq.It.IsAny<object>()), Moq.Times.Once);
+            _stream.Verify(x => x.AddSnapshot(Moq.It.IsAny<IMemento>()), Moq.Times.Once);
         }
 
         [Test]

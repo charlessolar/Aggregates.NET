@@ -24,12 +24,10 @@ namespace Aggregates.Internal
         public string StreamName { get; }
 
         public long StreamVersion => CommitVersion + Uncommitted.Count();
-        // +1 because Version is 0 indexed.  If we have a stream of 100 events with a snapshot at event 100 the snapshot version would be 100
-        // When we read the stream we'll get 1 snapshot and 0 events making CommitVersion 99 if no +1
-        // -1 because if you have a stream with 1 event CommitVersion should be 0
-        public long CommitVersion => (Snapshot?.Version + 1L ?? 0L) + Committed.Count() - 1L;
 
-        public object CurrentMemento => _snapshot?.Payload;
+        public long CommitVersion => (Snapshot?.Version ?? 0L) + Committed.Count() - 1L;
+
+        public IMemento CurrentMemento => _snapshot?.Payload;
         public ISnapshot Snapshot => _snapshot;
 
         public IEnumerable<IFullEvent> Committed => _committed;
@@ -39,7 +37,7 @@ namespace Aggregates.Internal
         public IEnumerable<IFullEvent> OobUncommitted => _outofband;
 
         // Don't count OOB events as Dirty
-        public bool Dirty => Uncommitted.Any()|| _pendingShot != null;
+        public bool Dirty => Uncommitted.Any() || _pendingShot != null;
         public int TotalUncommitted => Uncommitted.Count() + OobUncommitted.Count() + (_pendingShot != null ? 1 : 0);
 
         private readonly Guid _commitId;
@@ -49,10 +47,11 @@ namespace Aggregates.Internal
         private readonly IOobHandler _oobHandler;
         private readonly IBuilder _builder;
         private readonly ISnapshot _snapshot;
+        // Todo: make readonly
         private IEnumerable<IFullEvent> _committed;
         private readonly IList<IFullEvent> _uncommitted;
         private readonly IList<IFullEvent> _outofband;
-        private ISnapshot _pendingShot;
+        private IMemento _pendingShot;
 
         // Todo: refactor this into better SRP
         public EventStream(IBuilder builder, IStoreStreams store, string streamType, string bucket, Id streamId, IEnumerable<Id> parents, string streamName, IEnumerable<IFullEvent> events, ISnapshot snapshot)
@@ -65,9 +64,9 @@ namespace Aggregates.Internal
             StreamType = streamType;
             Bucket = bucket;
             StreamId = streamId;
-            Parents = parents.ToList();
             StreamName = streamName;
-            _committed = events?.ToList() ?? new List<IFullEvent>();
+            Parents = parents?.ToArray() ?? new Id[] {};
+            _committed = events?.ToArray() ?? new IFullEvent[] { };
             _snapshot = snapshot;
 
             _uncommitted = new List<IFullEvent>();
@@ -96,7 +95,7 @@ namespace Aggregates.Internal
             _committed = clone.Committed.ToList();
             _uncommitted = new List<IFullEvent>();
             _outofband = new List<IFullEvent>();
-            _pendingShot = null; ;
+            _pendingShot = null;
 
             // Todo: this is a hack
             // Get the commit id of the current message because we need it to make writable events
@@ -118,13 +117,10 @@ namespace Aggregates.Internal
         /// </summary>
         /// <param name="event"></param>
         /// <returns></returns>
-        public IEventStream Clone(IFullEvent @event = null)
+        public IEventStream Clone()
         {
-            var committed = Committed.ToList();
-            if (@event != null)
-                committed.Add(@event);
-
-            return new EventStream<T>(null, null, StreamType, Bucket, StreamId, Parents, StreamName, committed, _snapshot);
+            // Todo: because this is only used for caching we should create a new IEventStream interface like ICachedEventStream which doesn't have Add, Commit, etc
+            return new EventStream<T>(null, null, StreamType, Bucket, StreamId, Parents, StreamName, _committed, _snapshot);
         }
 
         void IEventStream.Concat(IEnumerable<IFullEvent> events)
@@ -142,7 +138,7 @@ namespace Aggregates.Internal
             return _oobHandler.Retrieve<T>(Bucket, StreamId, Parents, start, count);
         }
 
-        private IFullEvent MakeWritableEvent(string streamType,IEvent @event, IDictionary<string, string> headers, bool version = true)
+        private IFullEvent MakeWritableEvent(string streamType, IEvent @event, IDictionary<string, string> headers, bool version = true)
         {
             var writable = new WritableEvent
             {
@@ -187,20 +183,12 @@ namespace Aggregates.Internal
             _uncommitted.Add(MakeWritableEvent(StreamTypes.Domain, @event, headers));
         }
 
-        public void AddSnapshot(object memento)
+        public void AddSnapshot(IMemento memento)
         {
-            var snapshot = new Snapshot
-            {
-                Bucket = Bucket,
-                StreamId = StreamId,
-                Payload = memento,
-                Version = StreamVersion,
-                EntityType = memento.GetType().AssemblyQualifiedName,
-                Timestamp = DateTime.UtcNow,
-            };
-            _pendingShot = snapshot;
+            _pendingShot = memento;
         }
 
+        // Todo: whoever calls this should call store directly?
         public Task VerifyVersion(Guid commitId)
         {
             return _store.VerifyVersion<T>(this);
@@ -226,7 +214,7 @@ namespace Aggregates.Internal
             {
                 Logger.Write(LogLevel.Debug,
                     () => $"Event stream [{StreamId}] in bucket [{Bucket}] committing snapshot");
-                await _snapshots.WriteSnapshots<T>(Bucket, StreamId, Parents, _pendingShot, commitHeaders).ConfigureAwait(false);
+                await _snapshots.WriteSnapshots<T>(Bucket, StreamId, Parents, StreamVersion, _pendingShot, commitHeaders).ConfigureAwait(false);
             }
 
             if (_outofband.Any())

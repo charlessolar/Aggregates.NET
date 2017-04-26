@@ -33,14 +33,7 @@ namespace Aggregates.Internal
             _shouldCache = shouldCache;
             _streamGen = streamGen;
         }
-
-        public Task Evict<T>(string bucket, Id streamId, IEnumerable<Id> parents) where T : class
-        {
-            var streamName = _streamGen(typeof(T), StreamTypes.Poco, bucket, streamId, parents);
-            _cache.Evict(streamName);
-            return Task.CompletedTask;
-        }
-
+        
 
         public async Task<Tuple<long,T>> Get<T>(string bucket, Id streamId, IEnumerable<Id> parents) where T : class
         {

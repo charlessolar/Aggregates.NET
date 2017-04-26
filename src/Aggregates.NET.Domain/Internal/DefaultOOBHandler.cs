@@ -21,10 +21,7 @@ namespace Aggregates.Internal
         {
             var streamName = _streamGen(typeof(T), StreamTypes.OOB, bucket, streamId, parents);
             var writableEvents = events as IFullEvent[] ?? events.ToArray();
-            if(await _store.WriteEvents(streamName, writableEvents, commitHeaders).ConfigureAwait(false) == (writableEvents.Count() - 1))
-                // New stream - write metadata
-                await _store.WriteMetadata(streamName, maxCount: 200000).ConfigureAwait(false);
-            
+            await _store.WriteEvents(streamName, writableEvents, commitHeaders).ConfigureAwait(false);
         }
         public Task<IEnumerable<IFullEvent>> Retrieve<T>(string bucket, Id streamId, IEnumerable<Id> parents, long? skip = null, int? take = null, bool ascending = true) where T : class, IEventSource
         {

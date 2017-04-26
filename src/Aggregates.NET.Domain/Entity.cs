@@ -17,12 +17,12 @@ namespace Aggregates
     {
         ISnapshot ISnapshotting.Snapshot => Stream.Snapshot;
 
-        void ISnapshotting.RestoreSnapshot(object snapshot)
+        void ISnapshotting.RestoreSnapshot(IMemento snapshot)
         {
             RestoreSnapshot(snapshot as TMemento);
         }
 
-        object ISnapshotting.TakeSnapshot()
+        IMemento ISnapshotting.TakeSnapshot()
         {
             return TakeSnapshot();
         }

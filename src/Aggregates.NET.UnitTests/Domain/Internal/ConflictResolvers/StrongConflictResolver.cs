@@ -177,7 +177,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             // Runs all conflicting events back through a re-hydrated entity
             var resolver = new Aggregates.Internal.ResolveStronglyConflictResolver(_store.Object, _eventstore.Object, streamGen);
 
-            _stream.Setup(x => x.AddSnapshot(Moq.It.IsAny<object>()));
+            _stream.Setup(x => x.AddSnapshot(Moq.It.IsAny<IMemento>()));
             _stream.Setup(x => x.StreamVersion).Returns(0);
             _stream.Setup(x => x.CommitVersion).Returns(1);
 
@@ -195,7 +195,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             _stream.Verify(
                 x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()),
                 Moq.Times.Once);
-            _stream.Verify(x => x.AddSnapshot(Moq.It.IsAny<object>()), Moq.Times.Once);
+            _stream.Verify(x => x.AddSnapshot(Moq.It.IsAny<IMemento>()), Moq.Times.Once);
         }
 
 

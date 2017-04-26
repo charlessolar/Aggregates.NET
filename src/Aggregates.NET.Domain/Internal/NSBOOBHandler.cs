@@ -48,7 +48,7 @@ namespace Aggregates.Internal
         }
         public Task<IEnumerable<IFullEvent>> Retrieve<T>(string bucket, Id streamId, IEnumerable<Id> parents, long? skip = null, int? take = null, bool ascending = true) where T : class, IEventSource
         {
-            throw new NotImplementedException("NSB OOB handler does not support retrieving OOB events");
+            throw new InvalidOperationException("NSB OOB handler does not support retrieving OOB events");
         }
         public Task<long> Size<T>(string bucket, Id streamId, IEnumerable<Id> parents) where T : class, IEventSource
         {

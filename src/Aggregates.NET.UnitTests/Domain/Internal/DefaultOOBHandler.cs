@@ -38,12 +38,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
                 x =>
                     x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
                         Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>())).Returns(Task.FromResult(0L));
-            _store.Setup(
-                    x =>
-                        x.WriteMetadata(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<long?>(),
-                            Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<bool?>(),
-                            Moq.It.IsAny<Guid?>(), Moq.It.IsAny<bool>(), Moq.It.IsAny<IDictionary<string, string>>()))
-                .Returns(Task.CompletedTask);
 
 
             await _handler.Publish<Entity>("test", "test", new Id[] {}, _events, new Dictionary<string, string>()).ConfigureAwait(false);
@@ -51,12 +45,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _store.Verify(x =>
                 x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
                     Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
-            _store.Verify(
-                x =>
-                    x.WriteMetadata(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<long?>(),
-                        Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<bool?>(),
-                        Moq.It.IsAny<Guid?>(), Moq.It.IsAny<bool>(), Moq.It.IsAny<IDictionary<string, string>>()),
-                Moq.Times.Once);
         }
 
         [Test]

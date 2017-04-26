@@ -58,7 +58,6 @@
     <Compile Include="Exceptions\DiscriminatorException.cs" />
     <Compile Include="Exceptions\SubscriptionCanceled.cs" />
     <Compile Include="Extensions\EnumerableExtensions.cs" />
-    <Compile Include="Internal\BlockOobEvents.cs" />
     <Compile Include="Internal\DelayedSubscriber.cs" />
     <Compile Include="Internal\EventSubscriber.cs" />
     <Compile Include="Consumer.cs" />

@@ -60,7 +60,13 @@ namespace Aggregates.Internal
 
         protected override async Task Terminate(IInvokeHandlerContext context)
         {
-            var channel = context.Builder.Build<IDelayedChannel>();
+            IDelayedChannel channel = null;
+            try
+            {
+                channel = context.Builder.Build<IDelayedChannel>();
+            }
+            // Catch in case IDelayedChannel isn't registered which shouldn't happen unless a user registered Consumer without GetEventStore
+            catch (Exception) { }
 
             var msgType = context.MessageBeingHandled.GetType();
             if (!msgType.IsInterface)

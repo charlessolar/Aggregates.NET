@@ -3,12 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using NUnit.Framework;
 
-namespace Aggregates.NET.UnitTests.Domain.Internal
+namespace Aggregates
 {
-    [TestFixture]
-    public class Processor
+    public interface IMemento
     {
+        Id EntityId { get; }
     }
 }

@@ -98,7 +98,6 @@
     <Compile Include="Domain\Internal\MutateIncomingCommands.cs" />
     <Compile Include="Domain\Internal\NSBOOBHandler.cs" />
     <Compile Include="Domain\Internal\PocoRepository.cs" />
-    <Compile Include="Domain\Internal\Processor.cs" />
     <Compile Include="Domain\Internal\Repository.cs" />
     <Compile Include="Domain\Internal\StorePocos.cs" />
     <Compile Include="Domain\Internal\StoreSnapshots.cs" />

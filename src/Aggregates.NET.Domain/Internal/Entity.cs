@@ -111,6 +111,9 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Applying event {typeof(TEvent).FullName} to entity {GetType().FullName} stream [{Id}] bucket [{Bucket}]");
             var @event = EventFactory.CreateInstance(action);
+
+            if (@event == null)
+                throw new ArgumentException($"Failed to build event type {typeof(TEvent).FullName}");
             Apply(@event, metadata);
         }
         /// <summary>
@@ -121,6 +124,8 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Raising an OOB event {typeof(TEvent).FullName} on entity {GetType().FullName} stream [{Id}] bucket [{Bucket}]");
             var @event = EventFactory.CreateInstance(action);
 
+            if (@event == null)
+                throw new ArgumentException($"Failed to build event type {typeof(TEvent).FullName}");
             Raise(@event, metadata);
         }
 

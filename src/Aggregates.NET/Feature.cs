@@ -32,8 +32,7 @@ namespace Aggregates
         {
             context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue()));
 
-            context.Container.ConfigureComponent<IntelligentCache>(DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<IDelayedChannel>(() => null, DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<IntelligentCache>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<NServiceBusMessaging>(DependencyLifecycle.InstancePerCall);
 
             // Check that aggregates has been properly setup
@@ -45,14 +44,6 @@ namespace Aggregates
                 b => new ExceptionRejector(settings.Get<int>("Retries")),
                 "Watches message faults, sends error replies to client when message moves to error queue"
                 );
-            context.Pipeline.Register(
-                behavior: typeof(MutateOutgoingCommands),
-                description: "runs command mutators on outgoing commands"
-                );
-            context.Pipeline.Register(
-                behavior: typeof(MutateOutgoingEvents),
-                description: "runs command mutators on outgoing events"
-                );
 
 
             if(context.Settings.Get<bool>("SlowAlerts"))
@@ -62,6 +53,8 @@ namespace Aggregates
                     );
 
             context.Pipeline.Register<ApplicationUowRegistration>();
+            context.Pipeline.Register<MutateOutgoingCommandsRegistration>();
+            context.Pipeline.Register<MutateOutgoingEventsRegistration>();
             // We are sending IEvents, which NSB doesn't like out of the box - so turn that check off
             context.Pipeline.Remove("EnforceSendBestPractices");
 

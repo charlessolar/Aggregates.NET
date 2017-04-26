@@ -28,122 +28,94 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
         private Aggregates.Internal.CommandAcceptor _acceptor;
 
+        private ContextBag _bag;
+        private Moq.Mock<IIncomingLogicalMessageContext> _context;
+        private Moq.Mock<Func<Task>> _next;
+        private Moq.Mock<IBuilder> _builder;
+
         [SetUp]
         public void Setup()
         {
             _acceptor = new Aggregates.Internal.CommandAcceptor();
+
+            _bag = new ContextBag();
+            _context = new Moq.Mock<IIncomingLogicalMessageContext>();
+            _next = new Moq.Mock<Func<Task>>();
+            _builder = new Moq.Mock<IBuilder>();
+
+            _context.Setup(x => x.MessageId).Returns("1");
+            _context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
+            _context.Setup(x => x.Extensions).Returns(_bag);
+            _context.Setup(x => x.Builder).Returns(_builder.Object);
+            _context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+            _context.Setup(x => x.MessageHeaders)
+                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
+            _builder.Setup(x => x.Build<Func<BusinessException, Reject>>()).Returns((e) => new FakeReject());
+            _builder.Setup(x => x.Build<Func<Accept>>()).Returns(() => new FakeAccept());
         }
 
         [Test]
         public async Task no_problem()
         {
-            var bag = new ContextBag();
-            var context = new Moq.Mock<IIncomingLogicalMessageContext>();
-            var next = new Moq.Mock<Func<Task>>();
-            var builder = new Moq.Mock<IBuilder>();
-            context.Setup(x => x.MessageId).Returns("1");
-            context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(object)), new object()));
-            context.Setup(x => x.Extensions).Returns(bag);
-            context.Setup(x => x.Builder).Returns(builder.Object);
-            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
-            context.Setup(x => x.MessageHeaders)
-                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
-
-            await _acceptor.Invoke(context.Object, next.Object);
-            next.Verify(x => x(), Moq.Times.Once);
+            await _acceptor.Invoke(_context.Object, _next.Object);
+            _next.Verify(x => x(), Moq.Times.Once);
         }
         [Test]
         public async Task command_no_problem()
         {
-            var bag = new ContextBag();
-            var context = new Moq.Mock<IIncomingLogicalMessageContext>();
-            var next = new Moq.Mock<Func<Task>>();
-            var builder = new Moq.Mock<IBuilder>();
-            context.Setup(x => x.MessageId).Returns("1");
-            context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(FakeCommand)), new FakeCommand()));
-            context.Setup(x => x.Extensions).Returns(bag);
-            context.Setup(x => x.Builder).Returns(builder.Object);
-            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
-            context.Setup(x => x.MessageHeaders)
-                .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
+            _context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(FakeCommand)), new FakeCommand()));
 
-            await _acceptor.Invoke(context.Object, next.Object);
-            next.Verify(x => x(), Moq.Times.Once);
+            await _acceptor.Invoke(_context.Object, _next.Object);
+            _next.Verify(x => x(), Moq.Times.Once);
         }
         [Test]
         public void command_throws_no_response()
         {
-            var bag = new ContextBag();
-            var context = new Moq.Mock<IIncomingLogicalMessageContext>();
-            var next = new Moq.Mock<Func<Task>>();
-            var builder = new Moq.Mock<IBuilder>();
-            context.Setup(x => x.MessageId).Returns("1");
-            context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(FakeCommand)), new FakeCommand()));
-            context.Setup(x => x.Extensions).Returns(bag);
-            context.Setup(x => x.Builder).Returns(builder.Object);
-            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
-            context.Setup(x => x.MessageHeaders)
+            _context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(FakeCommand)), new FakeCommand()));
+            _context.Setup(x => x.MessageHeaders)
                 .Returns(new Dictionary<string, string> { [Headers.MessageIntent] = MessageIntentEnum.Send.ToString() });
-            context.Setup(x => x.Send(Moq.It.IsAny<object>(), Moq.It.IsAny<SendOptions>())).Returns(Task.CompletedTask); 
+            _context.Setup(x => x.Send(Moq.It.IsAny<object>(), Moq.It.IsAny<SendOptions>())).Returns(Task.CompletedTask); 
 
-            next.Setup(x => x()).Throws(new BusinessException("test"));
+            _next.Setup(x => x()).Throws(new BusinessException("test"));
 
-            Assert.DoesNotThrowAsync(() => _acceptor.Invoke(context.Object, next.Object));
-            next.Verify(x => x(), Moq.Times.Once);
-            context.Verify(x => x.Send(Moq.It.IsAny<object>(), Moq.It.IsAny<SendOptions>()), Moq.Times.Never);
+            Assert.DoesNotThrowAsync(() => _acceptor.Invoke(_context.Object, _next.Object));
+            _next.Verify(x => x(), Moq.Times.Once);
+            _context.Verify(x => x.Send(Moq.It.IsAny<object>(), Moq.It.IsAny<SendOptions>()), Moq.Times.Never);
         }
         [Test]
         public void command_throws_send_response()
         {
-            var bag = new ContextBag();
-            var context = new Moq.Mock<IIncomingLogicalMessageContext>();
-            var next = new Moq.Mock<Func<Task>>();
-            var builder = new Moq.Mock<IBuilder>();
-            builder.Setup(x => x.Build<Func<BusinessException, Reject>>()).Returns((e) => new FakeReject());
-            context.Setup(x => x.MessageId).Returns("1");
-            context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(FakeCommand)), new FakeCommand()));
-            context.Setup(x => x.Extensions).Returns(bag);
-            context.Setup(x => x.Builder).Returns(builder.Object);
-            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
-            context.Setup(x => x.MessageHeaders)
+            _context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(FakeCommand)), new FakeCommand()));
+            _context.Setup(x => x.MessageHeaders)
                 .Returns(new Dictionary<string, string>
                 {
                     [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
                     [Defaults.RequestResponse] = "1"
                 });
-            context.Setup(x => x.Send(Moq.It.IsAny<object>(), Moq.It.IsAny<SendOptions>())).Returns(Task.CompletedTask);
+            _context.Setup(x => x.Send(Moq.It.IsAny<object>(), Moq.It.IsAny<SendOptions>())).Returns(Task.CompletedTask);
 
-            next.Setup(x => x()).Throws(new BusinessException("test"));
+            _next.Setup(x => x()).Throws(new BusinessException("test"));
 
-            Assert.DoesNotThrowAsync(() => _acceptor.Invoke(context.Object, next.Object));
-            builder.Verify(x => x.Build<Func<BusinessException, Reject>>(), Moq.Times.Once);
+            Assert.DoesNotThrowAsync(() => _acceptor.Invoke(_context.Object, _next.Object));
+            _builder.Verify(x => x.Build<Func<BusinessException, Reject>>(), Moq.Times.Once);
         }
         [Test]
         public void command_accept_send_response()
         {
-            var bag = new ContextBag();
-            var context = new Moq.Mock<IIncomingLogicalMessageContext>();
-            var next = new Moq.Mock<Func<Task>>();
-            var builder = new Moq.Mock<IBuilder>();
-            builder.Setup(x => x.Build<Func<Accept>>()).Returns(() => new FakeAccept());
-            context.Setup(x => x.MessageId).Returns("1");
-            context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(FakeCommand)), new FakeCommand()));
-            context.Setup(x => x.Extensions).Returns(bag);
-            context.Setup(x => x.Builder).Returns(builder.Object);
-            context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
-            context.Setup(x => x.MessageHeaders)
+            _context.Setup(x => x.Message).Returns(new LogicalMessage(new NServiceBus.Unicast.Messages.MessageMetadata(typeof(FakeCommand)), new FakeCommand()));
+            _context.Setup(x => x.MessageHeaders)
                 .Returns(new Dictionary<string, string>
                 {
                     [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
                     [Defaults.RequestResponse] = "1"
                 });
-            context.Setup(x => x.Send(Moq.It.IsAny<object>(), Moq.It.IsAny<SendOptions>())).Returns(Task.CompletedTask);
+            _context.Setup(x => x.Send(Moq.It.IsAny<object>(), Moq.It.IsAny<SendOptions>())).Returns(Task.CompletedTask);
 
-            next.Setup(x => x()).Returns(Task.CompletedTask);
+            _next.Setup(x => x()).Returns(Task.CompletedTask);
 
-            Assert.DoesNotThrowAsync(() => _acceptor.Invoke(context.Object, next.Object));
-            next.Verify(x => x(), Moq.Times.Once);
-            builder.Verify(x => x.Build<Func<Accept>>(), Moq.Times.Once);
+            Assert.DoesNotThrowAsync(() => _acceptor.Invoke(_context.Object, _next.Object));
+            _next.Verify(x => x(), Moq.Times.Once);
+            _builder.Verify(x => x.Build<Func<Accept>>(), Moq.Times.Once);
         }
     }
 }

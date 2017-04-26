@@ -40,5 +40,16 @@ namespace Aggregates.Internal
             return next();
         }
     }
+    internal class MutateOutgoingEventsRegistration : RegisterStep
+    {
+        public MutateOutgoingEventsRegistration() : base(
+            stepId: "MutateOutgoingEvents",
+            behavior: typeof(MutateOutgoingEvents),
+            description: "runs command mutators on outgoing events"
+        )
+        {
+            InsertAfter("MutateOutgoingMessages");
+        }
+    }
 
 }

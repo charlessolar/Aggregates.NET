@@ -7,7 +7,7 @@ namespace Aggregates.Contracts
 {
     public interface IEventStream
     {
-        object CurrentMemento { get; }
+        IMemento CurrentMemento { get; }
         ISnapshot Snapshot { get; }
 
         Id StreamId { get; }
@@ -56,12 +56,12 @@ namespace Aggregates.Contracts
 
         void Add(IEvent @event, IDictionary<string, string> headers);
         void AddOutOfBand(IEvent @event, IDictionary<string, string> headers);
-        void AddSnapshot(object memento);
+        void AddSnapshot(IMemento memento);
         void Concat(IEnumerable<IFullEvent> events);
         Task Commit(Guid commitId, IDictionary<string, string> commitHeaders);
         Task VerifyVersion(Guid commitId);
 
-        IEventStream Clone(IFullEvent @event = null);
+        IEventStream Clone();
         void Flush(bool committed);
     }
 }

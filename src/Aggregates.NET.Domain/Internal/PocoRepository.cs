@@ -19,7 +19,7 @@ namespace Aggregates.Internal
 
         private readonly TParent _parent;
 
-        public PocoRepository(TParent parent, IBuilder builder) : base(builder)
+        public PocoRepository(TParent parent, IStorePocos store) : base(store)
         { 
             _parent = parent;
         }
@@ -70,11 +70,19 @@ namespace Aggregates.Internal
         private bool _disposed;
 
         public int TotalUncommitted => Tracked.Count;
-        public int ChangedStreams => Tracked.Count;
 
-        public PocoRepository(IBuilder builder)
+        public int ChangedStreams
         {
-            _store = builder.Build<IStorePocos>();
+            get
+            {
+                // Compares the stored serialized poco against the current to determine how many changed
+                return Tracked.Values.Count(x => x.Item1 == -1 || JsonConvert.SerializeObject(x.Item2) != x.Item3);
+            }
+        }
+
+        public PocoRepository(IStorePocos store)
+        {
+            _store = store;
         }
 
         Task IRepository.Prepare(Guid commitId)
@@ -100,8 +108,11 @@ namespace Aggregates.Internal
                 {
                     var serialized = JsonConvert.SerializeObject(tracked.Value.Item2);
                     // Poco didnt change, no need to save
-                    if (serialized == tracked.Value.Item3)
-                        continue;
+                    if (tracked.Value.Item1 != -1 && serialized == tracked.Value.Item3)
+                    {
+                        success = true;
+                        break;
+                    }
 
                     try
                     {
@@ -121,9 +132,13 @@ namespace Aggregates.Internal
                     if (!success)
                     {
                         count++;
-                        Thread.Sleep(75 * (count / 2));
+                        Thread.Sleep(25 * (count / 2));
                     }
                 } while (!success && count < 5);
+
+                if (!success)
+                    throw new PersistenceException(
+                        $"Failed to commit events to store for stream: [{tracked.Key.Item2}] bucket [{tracked.Key.Item1}] after 5 retries");
 
             }).ConfigureAwait(false);
             WrittenEvents.Update(written);
@@ -148,18 +163,13 @@ namespace Aggregates.Internal
 
         public virtual Task<T> TryGet(Id id)
         {
-            try
-            {
-                return Get(id);
-            }
-            catch (NotFoundException) { }
-            return null;
+            return TryGet(Defaults.Bucket, id);
         }
-        public Task<T> TryGet(string bucket, Id id)
+        public async Task<T> TryGet(string bucket, Id id)
         {
             try
             {
-                return Get(bucket, id);
+                return await Get(bucket, id).ConfigureAwait(false);
             }
             catch (NotFoundException) { }
             return null;
@@ -183,10 +193,14 @@ namespace Aggregates.Internal
                 return root.Item2;
 
             var poco = await _store.Get<T>(bucket, id, parents).ConfigureAwait(false);
-            // Storing the original value in the cache via SerializeObject so we can check if needs saving
-            Tracked[cacheId] =new Tuple<long, T, string>(poco.Item1, poco.Item2, JsonConvert.SerializeObject(poco.Item2));
 
-            return root.Item2;
+            if (poco == null)
+                throw new NotFoundException($"Poco {cacheId} not found");
+
+            // Storing the original value in the cache via SerializeObject so we can check if needs saving
+            Tracked[cacheId] = new Tuple<long, T, string>(poco.Item1, poco.Item2, JsonConvert.SerializeObject(poco.Item2));
+
+            return poco.Item2;
         }
         
         public virtual Task<T> New(Id id)
@@ -202,6 +216,10 @@ namespace Aggregates.Internal
         protected Task<T> New(string bucket, Id id, IEnumerable<Id> parents)
         {
             var cacheId = new Tuple<string, Id, IEnumerable<Id>>(bucket, id, parents);
+
+            if (Tracked.ContainsKey(cacheId))
+                throw new InvalidOperationException($"Poco of Id {cacheId} already exists, cannot make a new one");
+
             var poco = new T();
 
             Tracked[cacheId] = new Tuple<long, T, string>(-1, poco, JsonConvert.SerializeObject(poco));
