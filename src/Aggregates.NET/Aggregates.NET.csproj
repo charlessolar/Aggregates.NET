@@ -76,7 +76,11 @@
     <Compile Include="Contracts\IDelayedChannel.cs" />
     <Compile Include="Contracts\IEventDescriptor.cs" />
     <Compile Include="Contracts\IEventMutator.cs" />
+    <Compile Include="Contracts\IEventSource.cs" />
     <Compile Include="Contracts\IEventStoreConsumer.cs" />
+    <Compile Include="Contracts\IEventStream.cs" />
+    <Compile Include="Contracts\IQueryResponse.cs" />
+    <Compile Include="IEntity.cs" />
     <Compile Include="IMemento.cs" />
     <Compile Include="Contracts\IMessaging.cs" />
     <Compile Include="Contracts\IMutating.cs" />

@@ -1,4 +1,5 @@
-﻿using NServiceBus;
+﻿using Aggregates.Contracts;
+using NServiceBus;
 
 namespace Aggregates
 {

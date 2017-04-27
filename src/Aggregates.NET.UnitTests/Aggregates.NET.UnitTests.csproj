@@ -104,6 +104,7 @@
     <Compile Include="Domain\Internal\StoreStreams.cs" />
     <Compile Include="Domain\Internal\UnitOfWork.cs" />
     <Compile Include="Extensions\ReflectionExtensions.cs" />
+    <Compile Include="Global.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

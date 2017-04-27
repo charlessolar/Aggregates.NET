@@ -59,8 +59,6 @@
     <Compile Include="Attributes\OptimisticConcurrencyAttribute.cs" />
     <Compile Include="ConcurrencyConflict.cs" />
     <Compile Include="Configuration.cs" />
-    <Compile Include="Contracts\IEventSource.cs" />
-    <Compile Include="Contracts\IEventStream.cs" />
     <Compile Include="Contracts\IHaveEntities.cs" />
     <Compile Include="Contracts\IOOBHandler.cs" />
     <Compile Include="Contracts\IPocoRepository.cs" />
@@ -79,7 +77,6 @@
     <Compile Include="Extensions\EntityExtensions.cs" />
     <Compile Include="IComputed.cs" />
     <Compile Include="IHandleComputed.cs" />
-    <Compile Include="IEntity.cs" />
     <Compile Include="Internal\Entity.cs" />
     <Compile Include="Internal\DefaultOOBHandler.cs" />
     <Compile Include="Internal\ConflictResolvers.cs" />
@@ -108,7 +105,6 @@
     <Compile Include="Internal\CommandAcceptor.cs" />
     <Compile Include="Internal\Repository.cs" />
     <Compile Include="Internal\UnitOfWork.cs" />
-    <Compile Include="IQueryResponse.cs" />
     <Compile Include="Domain.cs" />
     <Compile Include="IUnitOfWork.cs" />
     <Compile Include="ValueObject.cs" />

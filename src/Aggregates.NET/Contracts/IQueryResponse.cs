@@ -1,4 +1,4 @@
-﻿namespace Aggregates
+﻿namespace Aggregates.Contracts
 {
     public interface IQueryResponse
     {
