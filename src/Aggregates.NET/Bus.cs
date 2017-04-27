@@ -18,9 +18,11 @@ namespace Aggregates
         internal static Func<MessageContext, Task> OnMessage;
         internal static Func<ErrorContext, Task<ErrorHandleResult>> OnError;
         internal static PushRuntimeSettings PushSettings;
+        internal static bool BusOnline;
 
         public static async Task<IEndpointInstance> Start( EndpointConfiguration configuration)
         {
+            BusOnline = false;
             var instance = await NServiceBus.Endpoint.Start(configuration).ConfigureAwait(false);
             // Take IEndpointInstance and pull out the info we need for eventstore consuming
             Instance = instance;
@@ -82,6 +84,7 @@ namespace Aggregates
                         .GetField("pushRuntimeSettings", BindingFlags.Instance | BindingFlags.NonPublic)
                         .GetValue(main);
 
+                BusOnline = true;
                 return instance;
             }
             catch (Exception e)

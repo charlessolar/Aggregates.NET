@@ -35,6 +35,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
                 return Task.CompletedTask;
             };
             Bus.OnError = (ctx) => Task.FromResult(ErrorHandleResult.Handled);
+            Bus.BusOnline = true;
         }
 
         [TearDown]
@@ -43,6 +44,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             _subscriber.Dispose();
             Bus.OnMessage = null;
             Bus.OnError = null;
+            Bus.BusOnline = false;
         }
 
         [Test]

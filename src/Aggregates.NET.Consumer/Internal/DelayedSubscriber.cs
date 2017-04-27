@@ -103,7 +103,7 @@ namespace Aggregates.Internal
             var param = (ThreadParam)state;
             var random = new Random();
 
-            while (Bus.OnMessage == null || Bus.OnError == null)
+            while (!Bus.BusOnline)
             {
                 Logger.Warn($"Could not find NSBs onMessage handler yet - if this persists there is a problem.");
                 Thread.Sleep(500);

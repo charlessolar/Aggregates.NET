@@ -140,15 +140,14 @@ when({{
         {
             var param = (ThreadParam)state;
 
-            while (Bus.OnMessage == null || Bus.OnError == null)
+            while (!Bus.BusOnline)
             {
                 Logger.Warn($"Could not find NSBs onMessage handler yet - if this persists there is a problem.");
                 Thread.Sleep(500);
             }
 
             var semaphore = new SemaphoreSlim(param.Concurrency);
-
-            var taskCompletionSource = new TaskCompletionSource<object>();
+            
             try
             {
                 while (true)
@@ -225,11 +224,11 @@ when({{
                 var processed = false;
                 var numberOfDeliveryAttempts = 0;
 
+                var messageId = Guid.NewGuid().ToString();
                 while (!processed)
                 {
                     var transportTransaction = new TransportTransaction();
 
-                    var messageId = Guid.NewGuid().ToString();
                     var headers = new Dictionary<string, string>(@event.Descriptor.Headers ?? new Dictionary<string, string>())
                     {
                         [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),

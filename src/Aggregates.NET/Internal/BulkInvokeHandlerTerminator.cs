@@ -168,7 +168,7 @@ namespace Aggregates.Internal
 
                 Logger.Write(LogLevel.Info, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing channel [{channelKey}] specific [{specificKey}]");
                 
-                await InvokeDelayedChannel(channel, channelKey, specificKey, delayed, messageHandler, context).ConfigureAwait(false);
+                await InvokeDelayedChannel(channel, channelKey, specificKey, delayed, messageHandler, context).ConfigureAwait(true);
 
                 return;
             }
@@ -204,27 +204,22 @@ namespace Aggregates.Internal
         {
             var msgs = await channel.Pull(channelKey, key: specificKey, max: attr.Count).ConfigureAwait(false);
 
-            if (!msgs.Any())
+            var messages = msgs as IDelayedMessage[] ?? msgs.ToArray();
+            if (!messages.Any())
             {
                 Logger.Write(LogLevel.Debug, () => $"No delayed events found on channel [{channelKey}] specific key [{specificKey}]");
                 return;
             }
-
-            var idx = 0;
-            var count = msgs.Count();
+            
+            var count = messages.Length;
 
             Invokes.Mark();
-            InvokeSize.Update(msgs.Count());
+            InvokeSize.Update(messages.Length);
             Logger.Write(LogLevel.Info, () => $"Starting invoke handle {count} times channel key [{channelKey}] specific key [{specificKey}]");
             using (var ctx = InvokeTime.NewContext())
             {
-                foreach (var msg in msgs.Cast<IDelayedMessage>())
-                {
-                    idx++;
-                    Logger.Write(LogLevel.Debug,
-                        () => $"Invoking handle {idx}/{count} times channel key [{channelKey}] specific key [{specificKey}]");
-                    await handler.Invoke(msg.Message, context).ConfigureAwait(false);
-                }
+                await messages.WhenAllAsync((msg) => handler.Invoke(msg.Message, context)).ConfigureAwait(false);
+
                 if(ctx.Elapsed > TimeSpan.FromSeconds(5))
                     SlowLogger.Write(LogLevel.Warn, () => $"Bulk invoking {count} times on channel key [{channelKey}] specific key [{specificKey}] took {ctx.Elapsed.TotalSeconds} seconds!");
                 Logger.Write(LogLevel.Info, () => $"Bulk invoking {count} times on channel key [{channelKey}] specific key [{specificKey}] took {ctx.Elapsed.TotalMilliseconds} ms!");

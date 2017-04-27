@@ -23,7 +23,8 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             _consumer = new Moq.Mock<IEventStoreConsumer>();
             var store = new Moq.Mock<IStoreEvents>();
             _subscriber = new Aggregates.Internal.SnapshotReader(store.Object, _consumer.Object);
-            
+            Bus.BusOnline = true;
+
         }
 
         [TearDown]
@@ -32,6 +33,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             _subscriber.Dispose();
             Bus.OnMessage = null;
             Bus.OnError = null;
+            Bus.BusOnline = false;
         }
 
         [Test]

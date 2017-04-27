@@ -195,7 +195,7 @@ namespace Aggregates.Internal
             // Not 100% guarenteed to eliminate writing 1 stream then failing the other one but will help - and we also tell the user to not do this.. 
             if (changedStreams > 1)
             {
-                Logger.Write(LogLevel.Info, $"Starting prepare for commit id {CommitId} with {_repositories.Count + _pocoRepositories.Count} tracked repositories. You changed {changedStreams} streams.  We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams");
+                Logger.Write(LogLevel.Warn, $"Starting prepare for commit id {CommitId} with {_repositories.Count + _pocoRepositories.Count} tracked repositories. You changed {changedStreams} streams.  We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams");
                 
                 using (PrepareTime.NewContext())
                 {
@@ -213,7 +213,7 @@ namespace Aggregates.Internal
 
                 if(ctx.Elapsed > TimeSpan.FromSeconds(1))
                     SlowLogger.Write(LogLevel.Warn, () => $"Commit id {CommitId} took {ctx.Elapsed.TotalSeconds} seconds!");
-                Logger.Write(LogLevel.Info, () => $"Commit id {CommitId} took {ctx.Elapsed.TotalMilliseconds} ms");
+                Logger.Write(LogLevel.Debug, () => $"Commit id {CommitId} took {ctx.Elapsed.TotalMilliseconds} ms");
             }
 
         }
