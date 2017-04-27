@@ -75,7 +75,6 @@
     <Compile Include="Exceptions\DiscardEventException.cs" />
     <Compile Include="Exceptions\NoRouteException.cs" />
     <Compile Include="Extensions\EntityExtensions.cs" />
-    <Compile Include="IComputed.cs" />
     <Compile Include="IHandleComputed.cs" />
     <Compile Include="Internal\Entity.cs" />
     <Compile Include="Internal\DefaultOOBHandler.cs" />
@@ -84,7 +83,6 @@
     <Compile Include="Internal\NSBOOBHandler.cs" />
     <Compile Include="Internal\PocoRepository.cs" />
     <Compile Include="Internal\Processor.cs" />
-    <Compile Include="IQuery.cs" />
     <Compile Include="Contracts\IProcessor.cs" />
     <Compile Include="Contracts\IStoreSnapshots.cs" />
     <Compile Include="IHandleQueries.cs" />

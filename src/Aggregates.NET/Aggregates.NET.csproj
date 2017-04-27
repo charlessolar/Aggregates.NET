@@ -80,6 +80,7 @@
     <Compile Include="Contracts\IEventStoreConsumer.cs" />
     <Compile Include="Contracts\IEventStream.cs" />
     <Compile Include="Contracts\IQueryResponse.cs" />
+    <Compile Include="IComputed.cs" />
     <Compile Include="IEntity.cs" />
     <Compile Include="IMemento.cs" />
     <Compile Include="Contracts\IMessaging.cs" />
@@ -129,6 +130,7 @@
     <Compile Include="Internal\Timer.cs" />
     <Compile Include="Internal\WritableEvent.cs" />
     <Compile Include="IApplicationUnitOfWork.cs" />
+    <Compile Include="IQuery.cs" />
     <Compile Include="Messages\Accept.cs" />
     <Compile Include="Messages\EndpointAlive.cs" />
     <Compile Include="Messages\EndpointDead.cs" />
