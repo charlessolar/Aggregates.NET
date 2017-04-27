@@ -78,7 +78,7 @@ namespace Aggregates.Internal
             while (await CheckFrozen<T>(bucket,streamId, parents).ConfigureAwait(false))
             {
                 Logger.Write(LogLevel.Info, () => $"Stream [{streamName}] is frozen - waiting");
-                Thread.Sleep(100);
+                await Task.Delay(100).ConfigureAwait(false);
             }
             Logger.Write(LogLevel.Debug, () => $"Stream [{streamName}] not in cache - reading from store");
 

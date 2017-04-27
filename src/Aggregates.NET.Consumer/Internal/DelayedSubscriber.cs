@@ -182,12 +182,12 @@ namespace Aggregates.Internal
             {
                 var success = false;
                 var retry = 0;
+                var messageId = Guid.NewGuid().ToString();
                 do
                 {
                     var transportTransaction = new TransportTransaction();
 
                     // Need to supply EnclosedMessageTypes to trick NSB pipeline into processing our fake message
-                    var messageId = Guid.NewGuid().ToString();
                     var headers = new Dictionary<string, string>()
                     {
                         [Headers.EnclosedMessageTypes] = typeof(BulkMessage).AssemblyQualifiedName,

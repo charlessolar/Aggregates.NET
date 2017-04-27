@@ -20,7 +20,7 @@ namespace Aggregates.Internal
         private readonly TParent _parent;
 
         public PocoRepository(TParent parent, IStorePocos store) : base(store)
-        { 
+        {
             _parent = parent;
         }
         public override Task<T> TryGet(Id id)
@@ -41,7 +41,7 @@ namespace Aggregates.Internal
 
             Logger.Write(LogLevel.Debug, () => $"Retreiving entity id [{id}] from parent {_parent.Id} [{typeof(TParent).FullName}] in store");
             var streamId = $"{parent.BuildParentsString()}.{id}";
-            
+
             var entity = await Get(parent.Stream.Bucket, streamId, parent.BuildParents()).ConfigureAwait(false);
             return entity;
         }
@@ -102,43 +102,28 @@ namespace Aggregates.Internal
 
                 Interlocked.Add(ref written, 1);
 
-                var count = 0;
-                var success = false;
-                do
+                var serialized = JsonConvert.SerializeObject(tracked.Value.Item2);
+                // Poco didnt change, no need to save
+                if (tracked.Value.Item1 != -1 && serialized == tracked.Value.Item3)
+                    return;
+
+                try
                 {
-                    var serialized = JsonConvert.SerializeObject(tracked.Value.Item2);
-                    // Poco didnt change, no need to save
-                    if (tracked.Value.Item1 != -1 && serialized == tracked.Value.Item3)
-                    {
-                        success = true;
-                        break;
-                    }
+                    await _store.Write(new Tuple<long, T>(tracked.Value.Item1, tracked.Value.Item2), tracked.Key.Item1, tracked.Key.Item2, tracked.Key.Item3, headers).ConfigureAwait(false);
 
-                    try
-                    {
-                        await _store.Write(new Tuple<long, T>(tracked.Value.Item1, tracked.Value.Item2), tracked.Key.Item1, tracked.Key.Item2, tracked.Key.Item3, headers).ConfigureAwait(false);
-                        success = true;
-                    }
-                    catch (PersistenceException e)
-                    {
-                        WriteErrors.Mark();
-                        Logger.WriteFormat(LogLevel.Warn, "Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", tracked.Key.Item2, tracked.Key.Item1, e.Message);
-                    }
-                    catch
-                    {
-                        WriteErrors.Mark();
-                        throw;
-                    }
-                    if (!success)
-                    {
-                        count++;
-                        Thread.Sleep(25 * (count / 2));
-                    }
-                } while (!success && count < 5);
+                }
+                catch (PersistenceException e)
+                {
+                    WriteErrors.Mark();
+                    Logger.WriteFormat(LogLevel.Warn, "Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", tracked.Key.Item2, tracked.Key.Item1, e.Message);
+                    throw;
+                }
+                catch
+                {
+                    WriteErrors.Mark();
+                    throw;
+                }
 
-                if (!success)
-                    throw new PersistenceException(
-                        $"Failed to commit events to store for stream: [{tracked.Key.Item2}] bucket [{tracked.Key.Item1}] after 5 retries");
 
             }).ConfigureAwait(false);
             WrittenEvents.Update(written);
@@ -188,7 +173,7 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving aggregate id [{id}] from bucket [{bucket}] in store");
             var cacheId = new Tuple<string, Id, IEnumerable<Id>>(bucket, id, parents);
-            Tuple<long,T, string> root;
+            Tuple<long, T, string> root;
             if (Tracked.TryGetValue(cacheId, out root))
                 return root.Item2;
 
@@ -202,12 +187,12 @@ namespace Aggregates.Internal
 
             return poco.Item2;
         }
-        
+
         public virtual Task<T> New(Id id)
         {
             return New(Defaults.Bucket, id);
         }
-        
+
         public Task<T> New(string bucket, Id id)
         {
             return New(bucket, id, null);

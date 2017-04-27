@@ -204,31 +204,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             Assert.ThrowsAsync<PersistenceException>(() =>
                     (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
         }
-
-        [Test]
-        public async Task transient_persistence_exception_is_retried()
-        {
-            var first = true;
-            _store.Setup(
-                    x =>
-                        x.Write<Poco>(Moq.It.IsAny<Tuple<long, Poco>>(), Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
-                            Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<IDictionary<string, string>>()))
-                .Returns(() =>
-                {
-                    if (first)
-                    {
-                        first = false;
-                        throw new PersistenceException();
-                    }
-                    return Task.CompletedTask;
-                });
-
-            var poco = _repository.New("test").ConfigureAwait(false);
-
-            await
-                (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>())
-                    .ConfigureAwait(false);
-        }
+        
 
         [Test]
         public void throws_any_other_exception()
