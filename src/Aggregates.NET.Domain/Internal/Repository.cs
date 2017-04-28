@@ -96,7 +96,6 @@ namespace Aggregates.Internal
             _builder = builder;
             _snapstore = _builder.Build<IStoreSnapshots>();
             _store = _builder.Build<IStoreStreams>();
-            _store.Builder = _builder;
 
             // Conflict resolution is strong by default
             if (_conflictResolution == null)

@@ -9,6 +9,7 @@ using Aggregates.Messages;
 using NServiceBus;
 using NServiceBus.Features;
 using NServiceBus.Logging;
+using NServiceBus.ObjectBuilder;
 using NServiceBus.Settings;
 
 namespace Aggregates
@@ -48,7 +49,7 @@ namespace Aggregates
             }
 
             context.Container.ConfigureComponent(b => 
-                new StoreStreams(b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
+                new StoreStreams(b.Build<IBuilder>(), b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
                 DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent(b =>
                 new StorePocos(b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),

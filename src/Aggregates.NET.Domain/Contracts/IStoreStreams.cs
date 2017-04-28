@@ -18,7 +18,6 @@ namespace Aggregates.Contracts
 
         Task Freeze<T>(IEventStream stream) where T : class, IEventSource;
         Task Unfreeze<T>(IEventStream stream) where T : class, IEventSource;
-
-        IBuilder Builder { get; set; }
+        
     }
 }

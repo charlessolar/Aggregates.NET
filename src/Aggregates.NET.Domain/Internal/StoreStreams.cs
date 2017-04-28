@@ -25,15 +25,16 @@ namespace Aggregates.Internal
 
         private static readonly ILog Logger = LogManager.GetLogger("StoreStreams");
         private readonly IStoreEvents _store;
+        private readonly IBuilder _builder;
         private readonly ICache _cache;
         private readonly bool _shouldCache;
         private readonly StreamIdGenerator _streamGen;
+        
 
-        public IBuilder Builder { get; set; }
-
-        public StoreStreams(IStoreEvents store, ICache cache, bool cacheStreams, StreamIdGenerator streamGen)
+        public StoreStreams(IBuilder builder, IStoreEvents store, ICache cache, bool cacheStreams, StreamIdGenerator streamGen)
         {
             _store = store;
+            _builder = builder;
             _cache = cache;
             _shouldCache = cacheStreams;
             _streamGen = streamGen;
@@ -70,7 +71,7 @@ namespace Aggregates.Internal
                 {
                     HitMeter.Mark();
                     Logger.Write(LogLevel.Debug, () => $"Found stream [{streamName}] in cache");
-                    return new EventStream<T>(cached, Builder, this, snapshot);
+                    return new EventStream<T>(cached, _builder, this, snapshot);
                 }
                 MissMeter.Mark();
             }
@@ -84,7 +85,7 @@ namespace Aggregates.Internal
 
             var events = await _store.GetEvents(streamName, start: snapshot?.Version).ConfigureAwait(false);
 
-            var eventstream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, parents, streamName, events, snapshot);
+            var eventstream = new EventStream<T>(_builder, this, StreamTypes.Domain, bucket, streamId, parents, streamName, events, snapshot);
             
             await Cache<T>(eventstream).ConfigureAwait(false);
 
@@ -97,7 +98,7 @@ namespace Aggregates.Internal
             parents = parents ?? new Id[] { };
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
             Logger.Write(LogLevel.Debug, () => $"Creating new stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
-            IEventStream stream = new EventStream<T>(Builder, this, StreamTypes.Domain, bucket, streamId, parents, streamName, null, null);
+            IEventStream stream = new EventStream<T>(_builder, this, StreamTypes.Domain, bucket, streamId, parents, streamName, null, null);
 
             return Task.FromResult(stream);
         }
