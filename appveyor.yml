@@ -1,59 +1,23 @@
-version: 0.6.0.{build}-beta
 
+os: Visual Studio 2017
+platform:
+- Any CPU
+skip_branch_with_pr: true
+configuration:
+- Release
+environment:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  NUGET_API_KEY:
+    secure: nyYYvfNcljaFo6s6IBdC3lhqwAKOC9HfQjPguKXoHfgs22MwakH+IeXrM2Xn1uc0
+  NUGET_API_URL: https://www.nuget.org/api/v2/package
+  GITHUB_API_KEY:
+    secure: E3k8jpbA+1HCY5PHHiUlaOTJVBSlJyGNUGdIAUTStkSs9Aw8b5jYJ8bMZv+9/nb+
+
+# Build script
+build_script:
+  - ps: .\build.ps1 -Target "AppVeyor"
+
+# Build cache
 cache:
-  - src\packages
-
-platform: Any CPU
-configuration: Release
-  
-assembly_info:
-  patch: true
-  file: src\SharedAssemblyInfo.cs
-  assembly_version: "{version}"
-  assembly_file_version: "{version}"
-  assembly_informational_version: "{version}"
-  
-init:
-  - echo %APPVEYOR_BUILD_VERSION%
-  
-before_build:
-  - nuget restore src/Aggregates.NET.sln -DisableParallelProcessing
-
-
-build:
-  parallel: true                  # enable MSBuild parallel builds
-  project: src\Aggregates.NET.sln      # path to Visual Studio solution or project
-  verbosity: minimal
-  publish_nuget: true             # package projects with .nuspec files and push to artifacts
-  publish_nuget_symbols: true     # generate and publish NuGet symbol packages
-  include_nuget_references: true  # add -IncludeReferencedProjects option while packaging NuGet artifacts
-
-after_build:
-  git archive -o Aggregates.NET.Source.zip HEAD
-
-test: auto
-
-artifacts:
-# - path: Aggregates.NET.Binaries*.zip
-#   name: Binaries
- - path: Aggregates.NET.Source.zip
-   name: Source
-   
-
-deploy:
-  - provider: NuGet
-    api_key:
-      secure: nyYYvfNcljaFo6s6IBdC3lhqwAKOC9HfQjPguKXoHfgs22MwakH+IeXrM2Xn1uc0
-    artifact: /.*\.nupkg/
-    draft: false
-    prerelease: true
-    on:
-      branch: master
-  - provider: GitHub
-    auth_token:
-      secure: E3k8jpbA+1HCY5PHHiUlaOTJVBSlJyGNUGdIAUTStkSs9Aw8b5jYJ8bMZv+9/nb+
-    artifact: Source
-    draft: false
-    prerelease: true
-    on:
-      appveyor_repo_tag: true
+- tools -> build.cake

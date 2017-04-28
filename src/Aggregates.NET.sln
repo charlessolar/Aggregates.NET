@@ -8,14 +8,12 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A82C3E3A-11AA-4C4C-B641-6CB4174606A4}"
 	ProjectSection(SolutionItems) = preProject
 		..\appveyor.yml = ..\appveyor.yml
+		..\build.cake = ..\build.cake
+		..\build.ps1 = ..\build.ps1
+		..\build.sh = ..\build.sh
 		..\LICENSE = ..\LICENSE
 		..\README.md = ..\README.md
 		SharedAssemblyInfo.cs = SharedAssemblyInfo.cs
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NuGet", "NuGet", "{0A5B9348-0BC6-451D-AA97-6EB46B382F72}"
-	ProjectSection(SolutionItems) = preProject
-		..\NuGet\NuGet.exe = ..\NuGet\NuGet.exe
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.Domain", "Aggregates.NET.Domain\Aggregates.NET.Domain.csproj", "{44ABA11E-6ABD-4BDF-9FB4-02C2852BAADF}"

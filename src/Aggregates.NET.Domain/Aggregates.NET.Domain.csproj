@@ -108,7 +108,6 @@
     <Compile Include="ValueObject.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Aggregates.NET.Domain.nuspec" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

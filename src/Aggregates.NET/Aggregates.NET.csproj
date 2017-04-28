@@ -152,7 +152,6 @@
     <Compile Include="Specifications\Specification.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Aggregates.NET.nuspec" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup />

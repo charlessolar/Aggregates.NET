@@ -67,9 +67,6 @@
     <Compile Include="Internal\SnapshotReader.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Aggregates.NET.Consumer.nuspec">
-      <SubType>Designer</SubType>
-    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
