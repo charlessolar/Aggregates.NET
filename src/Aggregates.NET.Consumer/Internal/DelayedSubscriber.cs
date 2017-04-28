@@ -31,8 +31,8 @@ namespace Aggregates.Internal
         private static readonly ILog SlowLogger = LogManager.GetLogger("Slow Alarm");
 
         private static readonly Metrics.Timer DelayedExecution = Metric.Timer("Delayed Execution", Unit.Items, tags: "debug");
-        private static readonly Counter DelayedQueued = Metric.Counter("Delayed Queued", Unit.Items, tags: "debug");
         private static readonly Counter DelayedHandled = Metric.Counter("Delayed Handled", Unit.Items, tags: "debug");
+        private static readonly Counter DelayedQueued = Metric.Counter("Delayed Queued", Unit.Items);
         private static readonly Meter DelayedErrors = Metric.Meter("Delayed Failures", Unit.Items);
 
 

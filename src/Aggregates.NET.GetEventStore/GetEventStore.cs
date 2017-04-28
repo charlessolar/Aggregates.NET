@@ -25,6 +25,7 @@ namespace Aggregates
                 s.Set("FlushInterval", TimeSpan.FromSeconds(60));
                 s.Set("DelayedExpiration", TimeSpan.FromMinutes(5));
             });
+            DependsOn<Aggregates.Feature>();
         }
 
         protected override void Setup(FeatureConfigurationContext context)

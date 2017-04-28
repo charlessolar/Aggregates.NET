@@ -161,3 +161,4 @@ samples/Delayed/packages/
 samples/OutOfBand/packages/
 samples/PerformanceCounters/packages/
 tools/
+artifacts/

@@ -46,7 +46,7 @@ namespace Aggregates.Internal
             public int ReadSize { get; set; }
         }
 
-        private static readonly Counter MemCacheSize = Metric.Counter("Delayed Cache Size", Unit.Items);
+        private static readonly Histogram MemCacheSize = Metric.Histogram("Delayed Cache Size", Unit.Items);
         private static readonly Histogram DelayedSize = Metric.Histogram("Delayed Channel Size", Unit.Items, tags: "debug");
         private static readonly Histogram DelayedAge = Metric.Histogram("Delayed Channel Age", Unit.Items, tags: "debug");
         private static readonly Histogram FlushedSize = Metric.Histogram("Delayed Flushed", Unit.Items, tags: "debug");
@@ -77,6 +77,7 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Info, () => $"App shutting down, flushing ALL mem cached channels");
 
             var memCacheTotalSize = MemCache.Values.Sum(x => x.Item3.Count);
+            MemCacheSize.Update(memCacheTotalSize);
             Logger.Write(LogLevel.Info, () => $"Flushing expired delayed channels - cache size: {memCacheTotalSize} - total channels: {MemCache.Keys.Count}");
             using (var ctx = FlushedTime.NewContext())
             {
@@ -158,7 +159,6 @@ namespace Aggregates.Internal
                                 $"{expired.Item1}.{expired.Item2}", new Id[] {});
                             await flushState.Store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
                             Flushes.Mark(expired.Item1);
-                            MemCacheSize.Decrement(overLimit.Count);
                             Interlocked.Add(ref totalFlushed, overLimit.Count);
                         }
                         finally
@@ -289,7 +289,6 @@ namespace Aggregates.Internal
                                     await flushState.Store.WriteEvents(streamName, translatedEvents, null)
                                         .ConfigureAwait(false);
                                     Flushes.Mark(expired.Item1);
-                                    MemCacheSize.Decrement(overLimit.Count);
                                     Interlocked.Add(ref totalFlushed, overLimit.Count);
                                 }
                                 finally
@@ -388,14 +387,13 @@ namespace Aggregates.Internal
                             return new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(existing.Item1, existing.Item2, inflight.Value);
                         }
                     );
-                    MemCacheSize.Increment(inflight.Value.Count);
                 }
             }
 
             if (ex == null)
             {
                 Logger.Write(LogLevel.Debug, () => $"Putting {_uncommitted.Count()} delayed streams into mem cache");
-
+                
                 _inFlightMemCache.Clear();
 
                 await _uncommitted.WhileAsync(async kv =>
@@ -447,7 +445,6 @@ namespace Aggregates.Internal
                             return new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(existing.Item1, existing.Item2, existing.Item3);
                         }
                     );
-                    MemCacheSize.Increment(kv.Value.Count);
 
                 }).ConfigureAwait(false);
             }
@@ -564,7 +561,6 @@ namespace Aggregates.Internal
                         return new Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>>(DateTime.UtcNow, existing.Item2, fromCache.Item3);
                     });
             }
-            MemCacheSize.Decrement(discovered.Count);
 
             Logger.Write(LogLevel.Info, () => $"Pulled {discovered.Count} from delayed channel [{channel}] key [{key}]");
             return Task.FromResult<IEnumerable<IDelayedMessage>>(discovered);

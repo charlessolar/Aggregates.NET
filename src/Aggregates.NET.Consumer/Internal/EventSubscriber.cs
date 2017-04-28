@@ -32,8 +32,8 @@ namespace Aggregates.Internal
 
         private static readonly ILog Logger = LogManager.GetLogger("EventSubscriber");
         private static readonly Metrics.Timer EventExecution = Metric.Timer("Event Execution", Unit.Items, tags: "debug");
-        private static readonly Counter EventsQueued = Metric.Counter("Events Queued", Unit.Items, tags: "debug");
         private static readonly Counter EventsHandled = Metric.Counter("Events Handled", Unit.Items, tags: "debug");
+        private static readonly Counter EventsQueued = Metric.Counter("Events Queued", Unit.Items);
         private static readonly Meter EventErrors = Metric.Meter("Event Failures", Unit.Items);
 
         private static readonly BlockingCollection<Tuple<string, long, IFullEvent>> WaitingEvents = new BlockingCollection<Tuple<string, long, IFullEvent>>();

@@ -18,9 +18,9 @@ using NServiceBus.Unicast.Messages;
 
 namespace Aggregates
 {
-    public class ConsumerFeature : NServiceBus.Features.Feature
+    public class Consumer : NServiceBus.Features.Feature
     {
-        public ConsumerFeature()
+        public Consumer()
         {
             Defaults(s =>
             {

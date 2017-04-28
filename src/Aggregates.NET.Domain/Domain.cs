@@ -24,16 +24,17 @@ namespace Aggregates
                 s.SetDefault("MaxConflictResolves", 3);
                 s.SetDefault("UseNsbForOob", false);
             });
+            DependsOn<Aggregates.Feature>();
+            DependsOnOptionally("Aggregates.Consumer");
         }
         protected override void Setup(FeatureConfigurationContext context)
         {
             var settings = context.Settings;
 
-
-            var consumerFeature = Type.GetType("Aggregates.ConsumerFeature", false);
-            if (consumerFeature != null && context.Settings.IsFeatureEnabled(consumerFeature))
+            // Trick to test if consumer feature exists, IsFeatureEnabled doesn't seem to work
+            int temp;
+            if(context.Settings.TryGet<int>("ParallelEvents", out temp))
             {
-
                 context.Container.ConfigureComponent(b =>
                         new StoreSnapshots(b.Build<IStoreEvents>(), b.Build<ISnapshotReader>(),
                             settings.Get<StreamIdGenerator>("StreamGenerator")),
