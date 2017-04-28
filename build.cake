@@ -169,6 +169,7 @@ Task("Create-NuGet-Packages")
 });
 
 Task("Upload-AppVeyor-Artifacts")
+    .IsDependentOn("Zip-Files")
     .IsDependentOn("Create-NuGet-Packages")
     .WithCriteria(() => parameters.IsRunningOnAppVeyor)
     .Does(() =>
@@ -216,10 +217,10 @@ Task("Publish-NuGet")
 			.Execute(()=> {
 
 					// Push the package.
-					//NuGetPush(package.PackagePath, new NuGetPushSettings {
-					//  ApiKey = apiKey,
-					//  Source = apiUrl
-					//});
+					NuGetPush(package.PackagePath, new NuGetPushSettings {
+					  ApiKey = apiKey,
+					  Source = apiUrl
+					});
 			});
     }
 })
