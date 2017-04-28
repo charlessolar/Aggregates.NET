@@ -175,8 +175,7 @@ when({{
                                         .ConfigureAwait(false);
 
                                 Logger.Write(LogLevel.Debug,
-                                    () =>
-                                            $"Acknowledge event {@event.Item3.Descriptor.EventId} stream [{@event.Item1}] number {@event.Item2}");
+                                    () => $"Acknowledge event {@event.Item3.Descriptor.EventId} stream [{@event.Item1}] number {@event.Item2}");
                                 await param.Consumer.Acknowledge(@event.Item3).ConfigureAwait(false);
                             }
                             finally

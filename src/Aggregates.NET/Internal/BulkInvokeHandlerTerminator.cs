@@ -133,7 +133,7 @@ namespace Aggregates.Internal
                 if (context.Extensions.TryGet<bool>("BulkInvoked", out bulkInvoked) && bulkInvoked)
                 {
                     // Prevents a single message from triggering a dozen different bulk invokes
-                    Logger.Write(LogLevel.Info, () => $"Limiting bulk processing for a single message to a single invoke");
+                    Logger.Write(LogLevel.Debug, () => $"Limiting bulk processing for a single message to a single invoke");
                     return;
                 }
 
@@ -168,7 +168,7 @@ namespace Aggregates.Internal
 
                 Logger.Write(LogLevel.Info, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing channel [{channelKey}] specific [{specificKey}]");
                 
-                await InvokeDelayedChannel(channel, channelKey, specificKey, delayed, messageHandler, context).ConfigureAwait(true);
+                await InvokeDelayedChannel(channel, channelKey, specificKey, delayed, messageHandler, context).ConfigureAwait(false);
 
                 return;
             }
@@ -218,13 +218,17 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Info, () => $"Starting invoke handle {count} times channel key [{channelKey}] specific key [{specificKey}]");
             using (var ctx = InvokeTime.NewContext())
             {
-                await messages.WhenAllAsync((msg) => handler.Invoke(msg.Message, context)).ConfigureAwait(false);
+                foreach (var idx in Enumerable.Range(0, messages.Length))
+                {
+                    Logger.Write(LogLevel.Debug,
+                        () => $"Invoking handle {idx}/{count} times channel key [{channelKey}] specific key [{specificKey}]");
+                    await handler.Invoke(messages[idx].Message, context).ConfigureAwait(false);
+                }
 
                 if(ctx.Elapsed > TimeSpan.FromSeconds(5))
                     SlowLogger.Write(LogLevel.Warn, () => $"Bulk invoking {count} times on channel key [{channelKey}] specific key [{specificKey}] took {ctx.Elapsed.TotalSeconds} seconds!");
                 Logger.Write(LogLevel.Info, () => $"Bulk invoking {count} times on channel key [{channelKey}] specific key [{specificKey}] took {ctx.Elapsed.TotalMilliseconds} ms!");
             }
-            Logger.Write(LogLevel.Info, () => $"Finished invoke handle {count} times channel key [{channelKey}] specific key [{specificKey}]");
         }
 
 

@@ -98,7 +98,7 @@ namespace Aggregates.Internal
                         () => $"Flushing expired channel {expired.Item1} key {expired.Item2} with {fromCache.Item3.Count} objects");
 
                     // Just take 500 from the end of the channel to prevent trying to write 20,000 items in 1 go
-                    await fromCache.Item2.WaitAsync().ConfigureAwait(true);
+                    await fromCache.Item2.WaitAsync().ConfigureAwait(false);
                     var overLimit =
                         fromCache.Item3.GetRange(Math.Max(0, fromCache.Item3.Count - flushState.ReadSize),
                             Math.Min(fromCache.Item3.Count, flushState.ReadSize)).ToList();
@@ -146,7 +146,7 @@ namespace Aggregates.Internal
                     {
                         // Take lock on list lock so no new objects can be added while we flush
                         // prevents the consumer from adding items to cache faster than we can possibly flush
-                        await fromCache.Item2.WaitAsync().ConfigureAwait(true);
+                        await fromCache.Item2.WaitAsync().ConfigureAwait(false);
                         try
                         {
 
@@ -156,9 +156,7 @@ namespace Aggregates.Internal
                             var streamName = flushState.StreamGen(typeof(EventStoreDelayed),
                                 $"{flushState.Endpoint}.{StreamTypes.Delayed}", Assembly.GetEntryAssembly().FullName,
                                 $"{expired.Item1}.{expired.Item2}", new Id[] {});
-                            // Configure await true because we need to comeback to the same thread to release the mutex lock otherwise
-                            // Exception: Object synchronization method was called from an unsynchronized block of code.
-                            await flushState.Store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(true);
+                            await flushState.Store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
                             Flushes.Mark(expired.Item1);
                             MemCacheSize.Decrement(overLimit.Count);
                             Interlocked.Add(ref totalFlushed, overLimit.Count);
@@ -228,7 +226,7 @@ namespace Aggregates.Internal
                             var start = Math.Max(0, fromCache.Item3.Count - flushState.ReadSize);
                             var toTake = Math.Min(fromCache.Item3.Count, flushState.ReadSize);
                             
-                            await fromCache.Item2.WaitAsync().ConfigureAwait(true);
+                            await fromCache.Item2.WaitAsync().ConfigureAwait(false);
                             // Take from the end of the channel
                             var overLimit = fromCache.Item3.GetRange(start, toTake).ToList();
                             fromCache.Item3.RemoveRange(start, toTake);
@@ -280,18 +278,16 @@ namespace Aggregates.Internal
                             {
                                 // Take lock on list lock so no new objects can be added while we flush
                                 // prevents the consumer from adding items to cache faster than we can possibly flush
-                                await fromCache.Item2.WaitAsync().ConfigureAwait(true);
+                                await fromCache.Item2.WaitAsync().ConfigureAwait(false);
                                 try
                                 {
                                     var streamName = flushState.StreamGen(typeof(EventStoreDelayed),
                                         $"{flushState.Endpoint}.{StreamTypes.Delayed}",
                                         Assembly.GetEntryAssembly().FullName,
                                         $"{expired.Item1}.{expired.Item2}", new Id[] { });
-
-                                    // Configure await true because we need to comeback to the same thread to release the mutex lock otherwise
-                                    // Exception: Object synchronization method was called from an unsynchronized block of code.
+                                    
                                     await flushState.Store.WriteEvents(streamName, translatedEvents, null)
-                                        .ConfigureAwait(true);
+                                        .ConfigureAwait(false);
                                     Flushes.Mark(expired.Item1);
                                     MemCacheSize.Decrement(overLimit.Count);
                                     Interlocked.Add(ref totalFlushed, overLimit.Count);

@@ -63,7 +63,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
         {
             _consumer.Setup(
                 x =>
-                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                    x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
                         Moq.It.IsAny<string>(),
                         Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                         Moq.It.IsAny<Func<Task>>())).Returns(Task.FromResult(true));
@@ -74,7 +74,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             _consumer.Verify(
                 x =>
-                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                    x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
                         Moq.It.IsAny<string>(),
                         Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                         Moq.It.IsAny<Func<Task>>()), Moq.Times.Once);
@@ -87,7 +87,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             Action<string, long, IFullEvent> eventCb = null;
             _consumer.Setup(
                     x =>
-                        x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                        x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
                             Moq.It.IsAny<string>(),
                             Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                             Moq.It.IsAny<Func<Task>>()))
@@ -123,7 +123,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             Action<string, long, IFullEvent> eventCb = null;
             _consumer.Setup(
                     x =>
-                        x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                        x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
                             Moq.It.IsAny<string>(),
                             Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                             Moq.It.IsAny<Func<Task>>()))
@@ -172,7 +172,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             Action<string, long, IFullEvent> eventCb = null;
             _consumer.Setup(
                     x =>
-                        x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                        x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
                             Moq.It.IsAny<string>(),
                             Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                             Moq.It.IsAny<Func<Task>>()))
@@ -218,7 +218,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             Action<string, long, IFullEvent> eventCb = null;
             _consumer.Setup(
                     x =>
-                        x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                        x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
                             Moq.It.IsAny<string>(),
                             Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                             Moq.It.IsAny<Func<Task>>()))
@@ -263,7 +263,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             Action<string, long, IFullEvent> eventCb = null;
             _consumer.Setup(
                     x =>
-                        x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                        x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
                             Moq.It.IsAny<string>(),
                             Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                             Moq.It.IsAny<Func<Task>>()))
@@ -309,7 +309,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             Action<string, long, IFullEvent> eventCb = null;
             _consumer.Setup(
                     x =>
-                        x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                        x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
                             Moq.It.IsAny<string>(),
                             Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                             Moq.It.IsAny<Func<Task>>()))
@@ -351,7 +351,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             Action<string, long, IFullEvent> eventCb = null;
             _consumer.Setup(
                     x =>
-                        x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                        x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
                             Moq.It.IsAny<string>(),
                             Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                             Moq.It.IsAny<Func<Task>>()))
@@ -401,7 +401,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             Action<string, long, IFullEvent> eventCb = null;
             _consumer.Setup(
                     x =>
-                        x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                        x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
                             Moq.It.IsAny<string>(),
                             Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                             Moq.It.IsAny<Func<Task>>()))
@@ -452,7 +452,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             _consumer.Setup(
                 x =>
-                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                    x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
                         Moq.It.IsAny<string>(),
                         Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                         Moq.It.IsAny<Func<Task>>()))
@@ -465,7 +465,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             _consumer.Verify(
                 x =>
-                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                    x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
                         Moq.It.IsAny<string>(),
                         Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                         Moq.It.IsAny<Func<Task>>()), Moq.Times.Once);
@@ -476,7 +476,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             _consumer.Verify(
                 x =>
-                    x.ConnectPinnedPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+                    x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
                         Moq.It.IsAny<string>(),
                         Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
                         Moq.It.IsAny<Func<Task>>()), Moq.Times.Exactly(2));

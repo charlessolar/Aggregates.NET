@@ -85,7 +85,7 @@ namespace Aggregates.Internal
         }
         private Task Reconnect(string stream, string group)
         {
-            return _consumer.ConnectPinnedPersistentSubscription(stream, group, _cancelation.Token, onEvent, () => Reconnect(stream, group));
+            return _consumer.ConnectRoundRobinPersistentSubscription(stream, group, _cancelation.Token, onEvent, () => Reconnect(stream, group));
         }
 
         private void onEvent(string stream, long position, IFullEvent e)

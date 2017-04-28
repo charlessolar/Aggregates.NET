@@ -102,7 +102,7 @@ namespace Aggregates.Internal
                                 //context.Extensions.Set(Defaults.ChannelKey, x.ChannelKey);
 
                                 context.UpdateMessageInstance(x.Message);
-                                await next().ConfigureAwait(true);
+                                await next().ConfigureAwait(false);
                                 index++;
                             }
 
@@ -127,7 +127,7 @@ namespace Aggregates.Internal
                             try
                             {
                                 // ConfigureAwait true because we don't want uow.End running in parrallel
-                                await uow.End().ConfigureAwait(true);
+                                await uow.End().ConfigureAwait(false);
                             }
                             finally
                             {
@@ -152,7 +152,7 @@ namespace Aggregates.Internal
                         {
                             Logger.Write(LogLevel.Debug,
                                 () => $"Running UOW.End with exception [{e.GetType().Name}] for message {context.MessageId} on {uow.GetType().FullName}");
-                            await uow.End(e).ConfigureAwait(true);
+                            await uow.End(e).ConfigureAwait(false);
                         }
                         catch (Exception endException)
                         {
