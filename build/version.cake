@@ -40,12 +40,6 @@ public class BuildVersion
 
             version = assertedVersions.MajorMinorPatch;
             semVersion = assertedVersions.LegacySemVerPadded;
-
-			if(parameters.IsRunningOnAppVeyor)
-			{
-				version += "-" + context.EnvironmentVariable("APPVEYOR_BUILD_NUMBER") + "-beta";
-				semVersion += "." + context.EnvironmentVariable("APPVEYOR_BUILD_NUMBER");
-			}
             milestone = string.Concat("v", version);
 
             context.Information("Calculated Semantic Version: {0}", semVersion);
