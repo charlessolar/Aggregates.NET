@@ -33,6 +33,9 @@ Setup(context =>
 {
     parameters.Initialize(context);
 
+    Information("==============================================");
+    Information("==============================================");
+
     if (parameters.IsRunningOnAppVeyor)
     {
         Information("Repository Name: " + BuildSystem.AppVeyor.Environment.Repository.Name);
