@@ -22,7 +22,12 @@ public class BuildPaths
             throw new ArgumentNullException("semVersion");
         }
 
-		var directories = context.GetDirectories("./src/**/bin/" + configuration);
+		var directories = new [] {
+			(DirectoryPath)(context.Directory("./src/Aggregates.NET/bin") + context.Directory(configuration)),
+			(DirectoryPath)(context.Directory("./src/Aggregates.NET.Consumer/bin") + context.Directory(configuration)),
+			(DirectoryPath)(context.Directory("./src/Aggregates.NET.Domain/bin") + context.Directory(configuration)),
+			(DirectoryPath)(context.Directory("./src/Aggregates.NET.GetEventStore/bin") + context.Directory(configuration))
+		};
 
         var artifactsDir = (DirectoryPath)(context.Directory("./artifacts") + context.Directory("v" + semVersion));
         var artifactsBinDir = artifactsDir.Combine("bin");
