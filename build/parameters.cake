@@ -27,7 +27,7 @@ public class BuildParameters
         get
         {
             return !IsLocalBuild && !IsPullRequest && IsMainRepo
-                && IsMasterBranch && IsTagged;
+                && IsReleaseBuild && IsTagged;
         }
     }
 
@@ -81,7 +81,7 @@ public class BuildParameters
 
     private static bool IsReleasing(string target)
     {
-        var targets = new [] { "Publish", "Publish-NuGet" };
+        var targets = new [] { "AppVeyor", "Publish", "Publish-NuGet" };
         return targets.Any(t => StringComparer.OrdinalIgnoreCase.Equals(t, target));
     }
 

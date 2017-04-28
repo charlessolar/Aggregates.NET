@@ -33,19 +33,6 @@ Setup(context =>
 {
     parameters.Initialize(context);
 
-    // Increase verbosity?
-    if(parameters.IsMasterBranch && (context.Log.Verbosity != Verbosity.Diagnostic)) {
-        Information("Increasing verbosity to diagnostic.");
-        context.Log.Verbosity = Verbosity.Diagnostic;
-    }
-
-    Information("Building version {0} of Aggregates.NET ({1}, {2}) using version {3} of Cake. (IsTagged: {4})",
-        parameters.Version.SemVersion,
-        parameters.Configuration,
-        parameters.Target,
-        parameters.Version.CakeVersion,
-        parameters.IsTagged);
-
     if (parameters.IsRunningOnAppVeyor)
     {
         Information("Repository Name: " + BuildSystem.AppVeyor.Environment.Repository.Name);
@@ -63,6 +50,20 @@ Setup(context =>
     Information("IsMasterBranch: " + parameters.IsMasterBranch);
     Information("IsTagged: " + parameters.IsTagged);
     Information("ShouldPublish: " + parameters.ShouldPublish);
+
+    // Increase verbosity?
+    if(parameters.IsMasterBranch && (context.Log.Verbosity != Verbosity.Diagnostic)) {
+        Information("Increasing verbosity to diagnostic.");
+        context.Log.Verbosity = Verbosity.Diagnostic;
+    }
+
+    Information("Building version {0} of Aggregates.NET ({1}, {2}) using version {3} of Cake. (IsTagged: {4})",
+        parameters.Version.SemVersion,
+        parameters.Configuration,
+        parameters.Target,
+        parameters.Version.CakeVersion,
+        parameters.IsTagged);
+
 });
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -114,14 +115,18 @@ Task("Build")
     if(IsRunningOnWindows())
     {
       // Use MSBuild
-      MSBuild("./src/Aggregates.NET.sln", settings =>
-        settings.SetConfiguration(parameters.Configuration));
+      MSBuild("./src/Aggregates.NET.sln", settings => {
+        settings.SetConfiguration(parameters.Configuration);
+        settings.SetVerbosity(Verbosity.Minimal);
+	  });
     }
     else
     {
       // Use XBuild
-      XBuild("./src/Aggregates.NET.sln", settings =>
-        settings.SetConfiguration(parameters.Configuration));
+      XBuild("./src/Aggregates.NET.sln", settings => {
+        settings.SetConfiguration(parameters.Configuration);
+        settings.SetVerbosity(Verbosity.Minimal);
+	  });
     }
 });
 
