@@ -83,7 +83,7 @@ namespace Aggregates.Internal
             {
                 var totalFlushed = 0;
 
-                // A list of channels who have expired or have more than 1/10 the max total cache size
+                // A list of channels who have expired or have more than 1/5 the max total cache size
                 var expiredSpecificChannels =
                     MemCache.Where(x => all || (DateTime.UtcNow - x.Value.Item1) > flushState.Expire || (x.Value.Item3.Count > (flushState.MaxSize / 5)))
                         .Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5))
@@ -101,10 +101,10 @@ namespace Aggregates.Internal
                     // Just take 500 from the end of the channel to prevent trying to write 20,000 items in 1 go
                     await fromCache.Item2.WaitAsync().ConfigureAwait(false);
                     var overLimit =
-                        fromCache.Item3.GetRange(Math.Max(0, fromCache.Item3.Count - flushState.ReadSize),
-                            Math.Min(fromCache.Item3.Count, flushState.ReadSize)).ToList();
-                    fromCache.Item3.RemoveRange(Math.Max(0, fromCache.Item3.Count - flushState.ReadSize),
-                        Math.Min(fromCache.Item3.Count, flushState.ReadSize));
+                        fromCache.Item3.GetRange(Math.Max(0, fromCache.Item3.Count - (flushState.ReadSize * 5)),
+                            Math.Min(fromCache.Item3.Count, (flushState.ReadSize*5))).ToList();
+                    fromCache.Item3.RemoveRange(Math.Max(0, fromCache.Item3.Count - (flushState.ReadSize * 5)),
+                        Math.Min(fromCache.Item3.Count, (flushState.ReadSize*5)));
                     fromCache.Item2.Release();
 
                     if (fromCache.Item3.Any())
@@ -213,9 +213,11 @@ namespace Aggregates.Internal
                     using (var ctx = FlushedTime.NewContext())
                     {
                         var totalFlushed = 0;
-                        // Flush 500 off the oldest streams until total size is under limit or we've flushed all the streams
-                        var toFlush =
-                            MemCache.OrderBy(x => x.Value.Item1).Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5)).ToList();
+                        // Flush the largest channels
+                        var toFlush = MemCache.Where(x => x.Value.Item3.Count > flushState.ReadSize).Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5)).ToList();
+                        // If no large channels, take some of the oldest
+                        if(toFlush.Count==0)
+                            toFlush = MemCache.OrderBy(x => x.Value.Item1).Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5)).ToList();
 
                         await toFlush.WhenAllAsync(async (expired) =>
                         {
@@ -223,8 +225,8 @@ namespace Aggregates.Internal
                             if (!MemCache.TryRemove(expired, out fromCache))
                                 return;
 
-                            var start = Math.Max(0, fromCache.Item3.Count - flushState.ReadSize);
-                            var toTake = Math.Min(fromCache.Item3.Count, flushState.ReadSize);
+                            var start = Math.Max(0, fromCache.Item3.Count - (flushState.ReadSize * 5));
+                            var toTake = Math.Min(fromCache.Item3.Count, (flushState.ReadSize * 5));
                             
                             await fromCache.Item2.WaitAsync().ConfigureAwait(false);
                             // Take from the end of the channel
@@ -243,6 +245,7 @@ namespace Aggregates.Internal
                                     (key, existing) =>
                                     {
                                         existing.Item2.Wait();
+                                        // Anything in existing is older than fromcache
                                         fromCache.Item3.AddRange(existing.Item3);
                                         existing.Item2.Release();
 
@@ -326,6 +329,7 @@ namespace Aggregates.Internal
                         FlushedSize.Update(totalFlushed);
 
                         memCacheTotalSize = MemCache.Values.Sum(x => x.Item3.Count);
+                        MemCacheSize.Update(memCacheTotalSize);
                     }
                 }
             }
