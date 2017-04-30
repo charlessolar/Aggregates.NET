@@ -520,7 +520,7 @@ namespace Aggregates.Internal
         {
             var specificKey = new Tuple<string, string>(channel, key);
 
-            Logger.Write(LogLevel.Info, () => $"Pulling delayed channel [{channel}] key [{key}]");
+            Logger.Write(LogLevel.Debug, () => $"Pulling delayed channel [{channel}] key [{key}] max [{max}]");
 
             Tuple<DateTime, SemaphoreSlim, List<IDelayedMessage>> fromCache;
 

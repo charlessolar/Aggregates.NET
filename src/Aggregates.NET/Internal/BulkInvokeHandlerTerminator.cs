@@ -215,7 +215,7 @@ namespace Aggregates.Internal
 
             Invokes.Mark();
             InvokeSize.Update(messages.Length);
-            Logger.Write(LogLevel.Info, () => $"Starting invoke handle {count} times channel key [{channelKey}] specific key [{specificKey}]");
+            Logger.Write(LogLevel.Debug, () => $"Starting invoke handle {count} times channel key [{channelKey}] specific key [{specificKey}]");
             using (var ctx = InvokeTime.NewContext())
             {
                 foreach (var idx in Enumerable.Range(0, messages.Length))

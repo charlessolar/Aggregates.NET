@@ -198,7 +198,7 @@ namespace Aggregates.Internal
         public async Task Commit(Guid commitId, IDictionary<string, string> commitHeaders)
         {
             var hasSnapshot = _pendingShot == null ? "no" : "with";
-            Logger.Write(LogLevel.Info, () => $"Event stream [{StreamId}] in bucket [{Bucket}] for type {typeof(T).FullName} commiting {_uncommitted.Count} events, {_outofband.Count} out of band, {hasSnapshot} snapshot");
+            Logger.Write(LogLevel.Debug, () => $"Event stream [{StreamId}] in bucket [{Bucket}] for type {typeof(T).FullName} commiting {_uncommitted.Count} events, {_outofband.Count} out of band, {hasSnapshot} snapshot");
 
             // Flush events first, guarantee consistency through expected version THEN write snapshots and OOB
             if (_uncommitted.Any())

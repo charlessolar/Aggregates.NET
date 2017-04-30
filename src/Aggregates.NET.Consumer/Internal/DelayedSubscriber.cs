@@ -122,10 +122,19 @@ namespace Aggregates.Internal
 
                     List<IFullEvent> flushedEvents;
                     // Pull a random delayed stream for processing
-                    if (
-                        !WaitingEvents.TryRemove(WaitingEvents.Keys.ElementAt(random.Next(WaitingEvents.Keys.Count)),
-                            out flushedEvents))
+                    try
+                    {
+                        if (
+                            !WaitingEvents.TryRemove(
+                                WaitingEvents.Keys.ElementAt(random.Next(WaitingEvents.Keys.Count)),
+                                out flushedEvents))
+                            continue;
+                    }
+                    catch (ArgumentOutOfRangeException)
+                    {
+                        // Keys.Count is not thread safe and this can throw very occasionally
                         continue;
+                    }
 
                     DelayedQueued.Decrement(flushedEvents.Count());
 
