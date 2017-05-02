@@ -150,7 +150,7 @@ namespace Aggregates.Internal
                     .StartFromBeginning()
                     .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readSize)
-                    .WithLiveBufferSizeOf(_readSize * _readSize)
+                    .WithLiveBufferSizeOf(_readSize * 5)
                     .WithMessageTimeoutOf(TimeSpan.FromMinutes(5))
                     .CheckPointAfter(TimeSpan.FromMinutes(1))
                     .MaximumCheckPointCountOf(_readSize*5)
@@ -176,7 +176,7 @@ namespace Aggregates.Internal
                         eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
                         subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected),
                         // Let us accept large number of unacknowledged events
-                        bufferSize: _readSize * 2,
+                        bufferSize: _readSize * 3,
                         autoAck: false).ConfigureAwait(false);
 
                     lock (_subLock) _persistentSubs.Add(subscription);
@@ -204,7 +204,7 @@ namespace Aggregates.Internal
                     .StartFromBeginning()
                     .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readSize)
-                    .WithLiveBufferSizeOf(_readSize * _readSize)
+                    .WithLiveBufferSizeOf(_readSize * 5)
                     .WithMessageTimeoutOf(TimeSpan.FromMinutes(5))
                     .CheckPointAfter(TimeSpan.FromMinutes(1))
                     .MaximumCheckPointCountOf(_readSize * 5)
@@ -231,7 +231,7 @@ namespace Aggregates.Internal
                         eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
                         subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected),
                         // Let us accept large number of unacknowledged events
-                        bufferSize: _readSize * 2,
+                        bufferSize: _readSize * 3,
                         autoAck: false).ConfigureAwait(false);
 
                     lock (_subLock) _persistentSubs.Add(subscription);

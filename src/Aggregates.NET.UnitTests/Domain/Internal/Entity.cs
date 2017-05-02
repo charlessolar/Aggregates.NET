@@ -90,7 +90,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _stream.Setup(x => x.Events(Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
                 .Returns(Task.FromResult(new IFullEvent[] {}.AsEnumerable()));
 
-            await _entity.Events(0, 1).ConfigureAwait(false);
+            await _entity.HistoricalEvents(0, 1).ConfigureAwait(false);
 
             _stream.Verify(x => x.Events(Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()), Moq.Times.Once);
         }
@@ -100,7 +100,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _stream.Setup(x => x.OobEvents(Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
                 .Returns(Task.FromResult(new IFullEvent[] { }.AsEnumerable()));
 
-            await _entity.OobEvents(0, 1).ConfigureAwait(false);
+            await _entity.HistoricalOobEvents(0, 1).ConfigureAwait(false);
 
             _stream.Verify(x => x.OobEvents(Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()), Moq.Times.Once);
         }

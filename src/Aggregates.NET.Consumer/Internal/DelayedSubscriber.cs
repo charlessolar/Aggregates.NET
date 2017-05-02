@@ -67,7 +67,8 @@ namespace Aggregates.Internal
         public async Task Setup(string endpoint, CancellationToken cancelToken, Version version)
         {
             _endpoint = endpoint;
-            _version = version;
+            // Changes which affect minor version require a new projection, ignore revision and build numbers
+            _version = new Version(version.Major, version.Minor);
             await _consumer.EnableProjection("$by_category").ConfigureAwait(false);
             _cancelation = CancellationTokenSource.CreateLinkedTokenSource(cancelToken);
 

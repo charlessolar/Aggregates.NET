@@ -216,7 +216,7 @@ namespace Aggregates.Internal
                         // Flush the largest channels
                         var toFlush = MemCache.Where(x => x.Value.Item3.Count > flushState.ReadSize).Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5)).ToList();
                         // If no large channels, take some of the oldest
-                        if(toFlush.Count==0)
+                        if(!toFlush.Any())
                             toFlush = MemCache.OrderBy(x => x.Value.Item1).Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5)).ToList();
 
                         await toFlush.WhenAllAsync(async (expired) =>

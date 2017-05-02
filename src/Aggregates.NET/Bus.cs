@@ -20,12 +20,11 @@ namespace Aggregates
         internal static PushRuntimeSettings PushSettings;
         internal static bool BusOnline;
 
-        public static async Task<IEndpointInstance> Start( EndpointConfiguration configuration)
+        public static async Task<IEndpointInstance> Start(EndpointConfiguration configuration)
         {
             BusOnline = false;
-            var instance = await NServiceBus.Endpoint.Start(configuration).ConfigureAwait(false);
+            Instance = await NServiceBus.Endpoint.Start(configuration).ConfigureAwait(false);
             // Take IEndpointInstance and pull out the info we need for eventstore consuming
-            Instance = instance;
 
             // We want eventstore to push message directly into NSB
             // That way we can have all the fun stuff like retries, error queues, incoming/outgoing mutators etc
@@ -41,9 +40,9 @@ namespace Aggregates
                 var receivers = (
                     (IEnumerable)
                     // ReSharper disable once PossibleNullReferenceException
-                    instance.GetType()
+                    Instance.GetType()
                         .GetField("receivers", BindingFlags.Instance | BindingFlags.NonPublic)
-                        .GetValue(instance)).Cast<object>();
+                        .GetValue(Instance)).Cast<object>();
                 object main = null;
                 foreach (var receiver in receivers)
                 {
@@ -85,7 +84,7 @@ namespace Aggregates
                         .GetValue(main);
 
                 BusOnline = true;
-                return instance;
+                return Instance;
             }
             catch (Exception e)
             {

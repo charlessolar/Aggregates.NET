@@ -59,11 +59,11 @@ namespace Aggregates.Internal
             return uow.Poco<TThis, T>(this as TThis);
         }
 
-        public Task<IEnumerable<IFullEvent>> Events(long? start = null, int? count = null)
+        public Task<IEnumerable<IFullEvent>> HistoricalEvents(long? start = null, int? count = null)
         {
             return Stream.Events(start, count);
         }
-        public Task<IEnumerable<IFullEvent>> OobEvents(long? start = null, int? count = null)
+        public Task<IEnumerable<IFullEvent>> HistoricalOobEvents(long? start = null, int? count = null)
         {
             return Stream.OobEvents(start, count);
         }
