@@ -441,7 +441,7 @@ namespace Aggregates.Internal
             if (custom != null)
             {
                 foreach (var kv in custom)
-                    metadata.SetCustomProperty(kv.Key, kv.Value.ToString());
+                    metadata.SetCustomProperty(kv.Key, kv.Value);
             }
 
             try

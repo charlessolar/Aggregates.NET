@@ -26,8 +26,7 @@ namespace Aggregates.Internal
         public long StreamVersion => CommitVersion + Uncommitted.Count();
 
         public long CommitVersion => (Snapshot?.Version ?? 0L) + Committed.Count() - 1L;
-
-        public IMemento CurrentMemento => _snapshot?.Payload;
+        
         public ISnapshot Snapshot => _snapshot;
 
         public IEnumerable<IFullEvent> Committed => _committed;
@@ -75,7 +74,7 @@ namespace Aggregates.Internal
 
             // Todo: this is a hack
             // Get the commit id of the current message because we need it to make writable events
-            _commitId = builder?.Build<IUnitOfWork>().CommitId ?? Guid.Empty;
+            _commitId = builder?.Build<IUnitOfWork>()?.CommitId ?? Guid.Empty;
         }
 
         // Special constructor for building from a cached instance
@@ -99,7 +98,7 @@ namespace Aggregates.Internal
 
             // Todo: this is a hack
             // Get the commit id of the current message because we need it to make writable events
-            _commitId = builder?.Build<IUnitOfWork>().CommitId ?? Guid.Empty;
+            _commitId = builder?.Build<IUnitOfWork>()?.CommitId ?? Guid.Empty;
 
             // The commit version is calculated based on an existing snapshot.
             // If restoring from cache with a new snapshot, we'll remove committed events before the snapshot
@@ -128,12 +127,12 @@ namespace Aggregates.Internal
             _committed = _committed.Concat(events);
         }
         
-        public Task<IEnumerable<IFullEvent>> Events(long? start = null, int? count = null)
+        public Task<IEnumerable<IFullEvent>> Events(long start, int count)
         {
             return _eventstore.GetEvents(StreamName, start, count);
         }
         
-        public Task<IEnumerable<IFullEvent>> OobEvents(long? start = null, int? count = null)
+        public Task<IEnumerable<IFullEvent>> OobEvents(long start, int count)
         {
             return _oobHandler.Retrieve<T>(Bucket, StreamId, Parents, start, count);
         }

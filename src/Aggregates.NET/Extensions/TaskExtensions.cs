@@ -22,6 +22,21 @@ namespace Aggregates.Extensions
 
                 }));
         }
+        public static async Task<IEnumerable<TReturn>> StartEachAsync<T, TReturn>(
+            this T[] source, int dop, Func<T, Task<TReturn>> body)
+        {
+
+            var ret = await Task.WhenAll(Partitioner.Create(source, loadBalance: true).GetPartitions(dop)
+                .Select(partition => Task.Run(async () =>
+                {
+                    var results = new List<TReturn>();
+                    using (partition)
+                        while (partition.MoveNext())
+                            results.Add(await body(partition.Current).ConfigureAwait(false));
+                    return results;
+                }))).ConfigureAwait(false);
+            return ret.SelectMany(x => x);
+        }
 
         // http://compiledexperience.com/blog/posts/async-extensions/
         public static Task WhenAllAsync<T>(this IEnumerable<T> values, Func<T, Task> asyncAction)

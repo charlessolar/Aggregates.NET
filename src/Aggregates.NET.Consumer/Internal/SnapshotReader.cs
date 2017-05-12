@@ -32,10 +32,12 @@ namespace Aggregates.Internal
         private static readonly Counter SnapshotsSeen = Metric.Counter("Snapshots Seen", Unit.Items, tags: "debug");
         private static readonly Counter StoredSnapshots = Metric.Counter("Snapshots Stored", Unit.Items, tags: "debug");
 
-        private static readonly ConcurrentDictionary<string, ISnapshot> Snapshots = new ConcurrentDictionary<string, ISnapshot>();
+        // Todo: upgrade to LRU cache?
+        private static readonly ConcurrentDictionary<string, Tuple<DateTime, ISnapshot>> Snapshots = new ConcurrentDictionary<string, Tuple<DateTime, ISnapshot>>();
         private static readonly ConcurrentDictionary<string, long> TruncateBefore = new ConcurrentDictionary<string, long>();
 
         private static Task _truncate;
+        private static Task _snapshotExpiration;
         private static int _truncating;
 
         private CancellationTokenSource _cancelation;
@@ -71,6 +73,18 @@ namespace Aggregates.Internal
                     catch { }
                 });
             }, store, TimeSpan.FromMinutes(5), "snapshot truncate before");
+
+            _snapshotExpiration = Timer.Repeat(() =>
+            {
+                var expired = Snapshots.Where(x => (DateTime.UtcNow - x.Value.Item1) > TimeSpan.FromMinutes(5)).Select(x => x.Key)
+                    .ToList();
+
+                Tuple<DateTime, ISnapshot> temp;
+                foreach (var key in expired)
+                    Snapshots.TryRemove(key, out temp);
+
+                return Task.CompletedTask;
+            }, TimeSpan.FromMinutes(5), "expires snapshots from the cache");
         }
 
         public async Task Setup(string endpoint, CancellationToken cancelToken, Version version)
@@ -111,20 +125,24 @@ namespace Aggregates.Internal
             Snapshots.AddOrUpdate(stream, (key) =>
             {
                 StoredSnapshots.Increment();
-                return snapshot;
+                return new Tuple<DateTime, ISnapshot>(DateTime.UtcNow, snapshot);
             }, (key, existing) =>
             {
                 TruncateBefore[key] = position;
-                return snapshot;
+                return new Tuple<DateTime, ISnapshot>(DateTime.UtcNow, snapshot);
             });
         }
 
         public Task<ISnapshot> Retreive(string stream)
         {
-            ISnapshot snapshot;
+            Tuple<DateTime, ISnapshot> snapshot;
             if (!Snapshots.TryGetValue(stream, out snapshot))
-                snapshot = null;
-            return Task.FromResult(snapshot);
+                return Task.FromResult((ISnapshot)null);
+
+            // Update timestamp so snapshot doesn't expire
+            Snapshots.TryUpdate(stream, new Tuple<DateTime, ISnapshot>(DateTime.UtcNow, snapshot.Item2), snapshot);
+
+            return Task.FromResult(snapshot.Item2);
         }
 
         public void Dispose()

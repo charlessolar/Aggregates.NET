@@ -32,7 +32,7 @@ namespace Aggregates
             return ShouldTakeSnapshot();
         }
 
-        public ISnapshot Snapshot => (this as ISnapshotting).Snapshot;
+        public TMemento Snapshot => (this as ISnapshotting).Snapshot?.Payload as TMemento;
 
         protected abstract void RestoreSnapshot(TMemento memento);
 

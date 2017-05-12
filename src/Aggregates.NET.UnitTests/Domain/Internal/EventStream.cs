@@ -81,6 +81,21 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         }
 
         [Test]
+        public void new_stream_version()
+        {
+
+            var stream = new Aggregates.Internal.EventStream<Entity>(_builder.Object, _store.Object, "test", "test", "test", null, "test", new IFullEvent[] { }, null);
+
+            Assert.AreEqual(-1, stream.CommitVersion);
+            Assert.AreEqual(-1, stream.StreamVersion);
+
+            stream.Add(new FakeEvent(), new Dictionary<string, string>());
+
+            Assert.AreEqual(-1, stream.CommitVersion);
+            Assert.AreEqual(0, stream.StreamVersion);
+        }
+
+        [Test]
         public void version_with_snapshot()
         {
             var memento = new Moq.Mock<IMemento>();
@@ -162,7 +177,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
             Assert.AreEqual(1, stream.StreamVersion);
 
-            Assert.AreEqual(new Id("test"), stream.CurrentMemento.EntityId);
+            Assert.AreEqual(new Id("test"), stream.Snapshot.Payload.EntityId);
 
         }
 
@@ -186,7 +201,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             Assert.AreEqual("test", clone.StreamName);
 
             Assert.AreEqual(stream.CommitVersion, clone.CommitVersion);
-            Assert.AreEqual(stream.CurrentMemento, clone.CurrentMemento);
+            Assert.AreEqual(stream.Snapshot.Payload, clone.Snapshot.Payload);
 
         }
 
@@ -206,7 +221,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         public void events_gets_events()
         {
             _eventstore.Setup(x => x.GetEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IFullEvent[] {}.AsEnumerable()));
+                .Returns(Task.FromResult(new IFullEvent[] { }.AsEnumerable()));
 
             var stream = new Aggregates.Internal.EventStream<Entity>(_builder.Object, _store.Object, "test", "test", "test", null, "test", _events, null);
             stream.Events(0, 1);
@@ -217,13 +232,13 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         [Test]
         public void oobevents_gets_oobevents()
         {
-            _handler.Setup(x => x.Retrieve<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>(), Moq.It.IsAny<bool>()))
+            _handler.Setup(x => x.Retrieve<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<long>(), Moq.It.IsAny<int>(), Moq.It.IsAny<bool>()))
                 .Returns(Task.FromResult(new IFullEvent[] { }.AsEnumerable()));
 
             var stream = new Aggregates.Internal.EventStream<Entity>(_builder.Object, _store.Object, "test", "test", "test", null, "test", _events, null);
             stream.OobEvents(0, 1);
 
-            _handler.Verify(x => x.Retrieve<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>(), Moq.It.IsAny<bool>()),
+            _handler.Verify(x => x.Retrieve<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<long>(), Moq.It.IsAny<int>(), Moq.It.IsAny<bool>()),
                 Moq.Times.Once);
         }
 
@@ -233,7 +248,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             var mutator = new Moq.Mock<IEventMutator>();
             mutator.Setup(x => x.MutateOutgoing(Moq.It.IsAny<IMutating>())).Returns<IMutating>(x => x);
 
-            _builder.Setup(x => x.BuildAll<IEventMutator>()).Returns(new[] {mutator.Object});
+            _builder.Setup(x => x.BuildAll<IEventMutator>()).Returns(new[] { mutator.Object });
 
             var stream = new Aggregates.Internal.EventStream<Entity>(_builder.Object, _store.Object, "test", "test", "test", null, "test", _events, null);
             stream.Add(new FakeEvent(), new Dictionary<string, string>());

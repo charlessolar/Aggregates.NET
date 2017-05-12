@@ -53,10 +53,11 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _store.Setup(x => x.GetEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
                 .Returns(Task.FromResult(_events));
 
-            var retreived = await _handler.Retrieve<Entity>("test", "test", new Id[] {}).ConfigureAwait(false);
+            var retreived = await _handler.Retrieve<Entity>("test", "test", new Id[] {}, 0, 1).ConfigureAwait(false);
 
+            // retrieve calls GetEvents on each of 10 vary streams ( see code )
             _store.Verify(x => x.GetEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()),
-                Moq.Times.Once);
+                Moq.Times.Exactly(10));
             
         }
         [Test]
@@ -65,11 +66,11 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _store.Setup(x => x.GetEventsBackwards(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
                 .Returns(Task.FromResult(_events));
 
-            var retreived = await _handler.Retrieve<Entity>("test", "test", new Id[] { }, ascending: false).ConfigureAwait(false);
+            var retreived = await _handler.Retrieve<Entity>("test", "test", new Id[] { }, 0, 1, ascending: false).ConfigureAwait(false);
 
             _store.Verify(x => x.GetEventsBackwards(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()),
-                Moq.Times.Once);
-            
+                Moq.Times.Exactly(10));
+
         }
         [Test]
         public async Task retreive_skip_take()
@@ -77,10 +78,10 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _store.Setup(x => x.GetEvents(Moq.It.IsAny<string>(), 1, 1))
                 .Returns(Task.FromResult(_events));
 
-            var retreived = await _handler.Retrieve<Entity>("test", "test", new Id[] { }, skip:1, take:1).ConfigureAwait(false);
+            var retreived = await _handler.Retrieve<Entity>("test", "test", new Id[] { }, 1, 10).ConfigureAwait(false);
 
             _store.Verify(x => x.GetEvents(Moq.It.IsAny<string>(), 1, 1),
-                Moq.Times.Once);
+                Moq.Times.Exactly(10));
         }
 
         [Test]
@@ -90,7 +91,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
             var size = await _handler.Size<Entity>("test", "test", new Id[] {}).ConfigureAwait(false);
 
-            _store.Verify(x => x.Size(Moq.It.IsAny<string>()), Moq.Times.Once);
+            _store.Verify(x => x.Size(Moq.It.IsAny<string>()), Moq.Times.Exactly(10));
         }
     }
 }

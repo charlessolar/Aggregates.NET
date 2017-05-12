@@ -87,22 +87,22 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         [Test]
         public async Task events_get_event()
         {
-            _stream.Setup(x => x.Events(Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+            _stream.Setup(x => x.Events(Moq.It.IsAny<long>(), Moq.It.IsAny<int>()))
                 .Returns(Task.FromResult(new IFullEvent[] {}.AsEnumerable()));
 
             await _entity.HistoricalEvents(0, 1).ConfigureAwait(false);
 
-            _stream.Verify(x => x.Events(Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()), Moq.Times.Once);
+            _stream.Verify(x => x.Events(Moq.It.IsAny<long>(), Moq.It.IsAny<int>()), Moq.Times.Once);
         }
         [Test]
         public async Task events_get_oobevent()
         {
-            _stream.Setup(x => x.OobEvents(Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+            _stream.Setup(x => x.OobEvents(Moq.It.IsAny<long>(), Moq.It.IsAny<int>()))
                 .Returns(Task.FromResult(new IFullEvent[] { }.AsEnumerable()));
 
             await _entity.HistoricalOobEvents(0, 1).ConfigureAwait(false);
 
-            _stream.Verify(x => x.OobEvents(Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()), Moq.Times.Once);
+            _stream.Verify(x => x.OobEvents(Moq.It.IsAny<long>(), Moq.It.IsAny<int>()), Moq.Times.Once);
         }
 
         [Test]

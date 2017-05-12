@@ -7,7 +7,6 @@ namespace Aggregates.Contracts
 {
     public interface IEventStream
     {
-        IMemento CurrentMemento { get; }
         ISnapshot Snapshot { get; }
 
         Id StreamId { get; }
@@ -47,12 +46,12 @@ namespace Aggregates.Contracts
         /// <summary>
         /// Retrieves a slice of the event stream 
         /// </summary>
-        Task<IEnumerable<IFullEvent>> Events(long? start = null, int? count = null);
+        Task<IEnumerable<IFullEvent>> Events(long start, int count);
 
         /// <summary>
         /// Retreives a slice of the oob event stream
         /// </summary>
-        Task<IEnumerable<IFullEvent>> OobEvents(long? start = null, int? count = null);
+        Task<IEnumerable<IFullEvent>> OobEvents(long start, int count);
 
         void Add(IEvent @event, IDictionary<string, string> headers);
         void AddOutOfBand(IEvent @event, IDictionary<string, string> headers);

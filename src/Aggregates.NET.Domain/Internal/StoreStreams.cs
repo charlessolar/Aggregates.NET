@@ -66,7 +66,7 @@ namespace Aggregates.Internal
 
             if (_shouldCache)
             {
-                var cached = _cache.Retreive(streamName) as EventStream<T>;
+                var cached = _cache.Retreive(streamName) as IEventStream;
                 if (cached != null)
                 {
                     HitMeter.Mark();
@@ -87,7 +87,8 @@ namespace Aggregates.Internal
 
             var eventstream = new EventStream<T>(_builder, this, StreamTypes.Domain, bucket, streamId, parents, streamName, events, snapshot);
             
-            await Cache<T>(eventstream).ConfigureAwait(false);
+            if(_shouldCache)
+                await Cache<T>(eventstream).ConfigureAwait(false);
 
             Logger.Write(LogLevel.Debug, () => $"Stream [{streamName}] read - version is {eventstream.CommitVersion}");
             return eventstream;

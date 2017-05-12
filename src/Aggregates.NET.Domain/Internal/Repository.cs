@@ -110,8 +110,8 @@ namespace Aggregates.Internal
             // Verify streams we read but didn't change are still save version
             return
                 Tracked.Values
-                    .ToArray()
                     .Where(x => !x.Stream.Dirty)
+                    .ToArray()
                     .WhenAllAsync(async (x) =>
                     {
                         try
@@ -316,8 +316,8 @@ namespace Aggregates.Internal
             // Call the 'private' constructor
             var root = (IEventSourced)Newup(stream, _builder);
 
-            if (stream.CurrentMemento != null)
-                (root as ISnapshotting)?.RestoreSnapshot(stream.CurrentMemento);
+            if (stream.Snapshot != null)
+                (root as ISnapshotting)?.RestoreSnapshot(stream.Snapshot.Payload);
 
             root.Hydrate(stream.Committed.Select(e => e.Event as IEvent));
 

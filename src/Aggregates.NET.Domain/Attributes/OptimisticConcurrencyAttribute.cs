@@ -19,7 +19,7 @@ namespace Aggregates.Attributes
 
             if (conflict == ConcurrencyConflict.Custom && resolver == null)
                 throw new ArgumentException("For CUSTOM conflict resolution the Resolver parameter is required");
-            if (resolver != null && typeof(IResolveConflicts).IsAssignableFrom(resolver))
+            if (resolver != null && resolver.IsAssignableFrom(typeof(IResolveConflicts)))
                 throw new ArgumentException("Conflict resolver must inherit from IResolveConflicts");
         }
 

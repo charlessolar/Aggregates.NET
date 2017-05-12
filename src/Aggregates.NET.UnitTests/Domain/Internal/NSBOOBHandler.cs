@@ -48,7 +48,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         [Test]
         public void retrieve_fails()
         {
-            Assert.ThrowsAsync<InvalidOperationException>(() => _handler.Retrieve<Entity>("test", "test", new Id[] {}));
+            Assert.ThrowsAsync<InvalidOperationException>(() => _handler.Retrieve<Entity>("test", "test", new Id[] {}, 0, 1));
         }
 
         [Test]
