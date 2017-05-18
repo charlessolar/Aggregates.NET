@@ -82,7 +82,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
                 .Returns((entity, e) => (entity as Entity).Handle((IEvent)e));
 
             _stream.Setup(x => x.Add(Moq.It.IsAny<IEvent>(), Moq.It.IsAny<IDictionary<string, string>>()));
-            _stream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
 
             _event = new Moq.Mock<IFullEvent>();
             _event.Setup(x => x.Event).Returns(new Event());
@@ -101,6 +100,8 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
                     x => x.WriteEvents("test", new[] { _event.Object }, Moq.It.IsAny<IDictionary<string, string>>(), null))
                 .Returns(Task.FromResult(0L));
 
+            _store.Setup(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(),
+                Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
             _store.Setup(x => x.Freeze<Entity>(Moq.It.IsAny<IEventStream>())).Returns(Task.CompletedTask).Callback(() => _wasFrozen=true);
             _store.Setup(x => x.Unfreeze<Entity>(Moq.It.IsAny<IEventStream>())).Returns(Task.CompletedTask);
         }
@@ -132,9 +133,8 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             _stream.Verify(x => x.Add(Moq.It.IsAny<IEvent>(), Moq.It.IsAny<IDictionary<string, string>>()),
                 Moq.Times.Once);
 
-            _stream.Verify(
-                x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()),
-                Moq.Times.Once);
+            _store.Verify(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(),
+                Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
         }
 
         [Test]
@@ -207,11 +207,11 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
 
             _stream.Verify(x => x.Add(Moq.It.IsAny<IEvent>(), Moq.It.IsAny<IDictionary<string, string>>()),
                 Moq.Times.Once);
-
-            _stream.Verify(
-                x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()),
-                Moq.Times.Once);
+            
             _stream.Verify(x => x.AddSnapshot(Moq.It.IsAny<IMemento>()), Moq.Times.Once);
+
+            _store.Verify(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(),
+                Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
         }
 
         [Test]
@@ -235,9 +235,8 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             _stream.Verify(x => x.Add(Moq.It.IsAny<IEvent>(), Moq.It.IsAny<IDictionary<string, string>>()),
                 Moq.Times.Never);
 
-            _stream.Verify(
-                x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()),
-                Moq.Times.Never);
+            _store.Verify(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(),
+                Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
         }
         
     }

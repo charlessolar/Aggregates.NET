@@ -13,7 +13,6 @@ using NServiceBus.Settings;
 
 namespace Aggregates.Internal
 {
-
     delegate IResolveConflicts ResolverBuilder(IBuilder builder, Type type);
 
     class ConcurrencyStrategy : Enumeration<ConcurrencyStrategy, ConcurrencyConflict>
@@ -82,7 +81,6 @@ namespace Aggregates.Internal
 
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
             await _store.WriteEvents(streamName, uncommitted, commitHeaders).ConfigureAwait(false);
-            stream.Flush(true);
         }
     }
     /// <summary>
@@ -130,15 +128,12 @@ namespace Aggregates.Internal
             try
             {
                 await _store.Freeze<T>(stream).ConfigureAwait(false);
-
+                
                 var latestEvents =
                     await _eventstore.GetEvents(streamName, stream.CommitVersion + 1).ConfigureAwait(false);
                 Logger.Write(LogLevel.Info, () => $"Stream is {latestEvents.Count()} events behind store");
-
-                var writableEvents = latestEvents as IFullEvent[] ?? latestEvents.ToArray();
-                stream.Concat(writableEvents);
-                sourced.Hydrate(writableEvents.Select(x => x.Event as IEvent));
-
+                
+                sourced.Hydrate(latestEvents.Select(x => x.Event as IEvent));
 
                 Logger.Write(LogLevel.Debug, () => "Merging conflicted events");
                 try
@@ -163,7 +158,7 @@ namespace Aggregates.Internal
                     stream.AddSnapshot(memento);
                 }
 
-                await stream.Commit(commitId, commitHeaders).ConfigureAwait(false);
+                await _store.WriteStream<T>(commitId, stream, commitHeaders).ConfigureAwait(false);
             }
             finally
             {
@@ -267,14 +262,12 @@ namespace Aggregates.Internal
                     () => $"Resolving {delayed.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
 
                 var latestEvents =
-                    await _eventstore.GetEvents(stream.StreamName, stream.CommitVersion + 1L)
+                    await _eventstore.GetEvents(streamName, stream.CommitVersion + 1L)
                         .ConfigureAwait(false);
                 Logger.Write(LogLevel.Info,
                     () => $"Stream [{stream.StreamId}] bucket [{stream.Bucket}] is {latestEvents.Count()} events behind store");
-
-                var writableEvents = latestEvents as IFullEvent[] ?? latestEvents.ToArray();
-                stream.Concat(writableEvents);
-                sourced.Hydrate(writableEvents.Select(x => x.Event as IEvent));
+                
+                sourced.Hydrate(latestEvents.Select(x => x.Event as IEvent));
 
 
                 Logger.Write(LogLevel.Debug, () => $"Merging {delayed.Count()} conflicted events");
@@ -306,7 +299,7 @@ namespace Aggregates.Internal
                     stream.AddSnapshot(memento);
                 }
 
-                await stream.Commit(commitId, commitHeaders).ConfigureAwait(false);
+                await _store.WriteStream<T>(commitId, stream, commitHeaders).ConfigureAwait(false);
             }
             finally
             {

@@ -89,7 +89,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         public async Task get_exists()
         {
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
 
             Assert.NotNull(await _repository.Get("test"));
         }
@@ -98,7 +98,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         public async Task get_exists_with_bucket()
         {
             _streams.Setup(x => x.GetStream<Entity>("test", new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
 
             Assert.NotNull(await _repository.Get("test", "test"));
         }
@@ -107,7 +107,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         public void get_doesnt_exist()
         {
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Throws<NotFoundException>();
+                Moq.It.IsAny<IEnumerable<Id>>())).Throws<NotFoundException>();
 
             Assert.ThrowsAsync<NotFoundException>(() => _repository.Get("test"));
         }
@@ -115,7 +115,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         public void try_get_no_exception()
         {
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Throws<NotFoundException>();
+                Moq.It.IsAny<IEnumerable<Id>>())).Throws<NotFoundException>();
 
             Assert.DoesNotThrowAsync(() => _repository.TryGet("test"));
         }
@@ -124,7 +124,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         public void get_with_bucket_doesnt_exist()
         {
             _streams.Setup(x => x.GetStream<Entity>("test", new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Throws<NotFoundException>();
+                Moq.It.IsAny<IEnumerable<Id>>())).Throws<NotFoundException>();
 
             Assert.ThrowsAsync<NotFoundException>(() => _repository.Get("test", "test"));
         }
@@ -132,7 +132,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         public void try_get_with_bucket_no_exception()
         {
             _streams.Setup(x => x.GetStream<Entity>("test", new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Throws<NotFoundException>();
+                Moq.It.IsAny<IEnumerable<Id>>())).Throws<NotFoundException>();
 
             Assert.DoesNotThrowAsync(() => _repository.TryGet("test", "test"));
         }
@@ -141,7 +141,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         public async Task get_already_gotten()
         {
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
 
             var entity = await _repository.Get("test");
             entity.Foo = "test";
@@ -151,41 +151,9 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             Assert.AreEqual(entity2.Foo, entity.Foo);
 
             _streams.Verify(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>()), Moq.Times.Once);
+                Moq.It.IsAny<IEnumerable<Id>>()), Moq.Times.Once);
         }
-
-        [Test]
-        public async Task get_has_snapshot()
-        {
-            var snapshot = new Moq.Mock<ISnapshot>();
-            snapshot.Setup(x => x.Version).Returns(100);
-
-            _snapshots.Setup(x => x.GetSnapshot<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
-                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(snapshot.Object));
-            _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.Is<ISnapshot>(s => s.Version==100))).Returns(Task.FromResult(_stream.Object));
-
-            var entity = await _repository.Get("test");
-
-            _streams.Verify(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.Is<ISnapshot>(s => s.Version == 100)), Moq.Times.Once);
-        }
-
-        [Test]
-        public async Task get_restores_snapshot()
-        {
-            var snapshot = new Moq.Mock<ISnapshot>();
-            snapshot.Setup(x => x.Version).Returns(100);
-            snapshot.Setup(x => x.Payload).Returns(new Entity.Memento {EntityId = "test", Test = "Foo"});
-            
-            _stream.Setup(x => x.Snapshot).Returns(snapshot.Object);
-            _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
-
-            var entity = await _repository.Get("test");
-
-            Assert.AreEqual("Foo", entity.Snapshot.Test);
-        }
+        
 
         [Test]
         public async Task new_stream()
@@ -214,7 +182,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _streams.Setup(x => x.NewStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
                 Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
 
             var repository = new Aggregates.Internal.Repository<BadEntity>(_builder.Object);
             Assert.ThrowsAsync<Aggregates.Exceptions.AggregateException>(() => repository.New("test"));
@@ -226,14 +194,14 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         {
             _stream.Setup(x => x.Dirty).Returns(false);
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
 
-            _stream.Setup(x => x.VerifyVersion(Moq.It.IsAny<Guid>())).Returns(Task.CompletedTask);
+            _streams.Setup(x => x.VerifyVersion<Entity>(Moq.It.IsAny<IEventStream>())).Returns(Task.CompletedTask);
 
             var entity = await _repository.Get("test");
             await (_repository as IRepository).Prepare(Guid.NewGuid());
 
-            _stream.Verify(x => x.VerifyVersion(Moq.It.IsAny<Guid>()), Moq.Times.Once);
+            _streams.Verify(x => x.VerifyVersion<Entity>(Moq.It.IsAny<IEventStream>()), Moq.Times.Once);
         }
 
         [Test]
@@ -241,15 +209,15 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         {
             _stream.Setup(x => x.Dirty).Returns(true);
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
 
-            _stream.Setup(x => x.VerifyVersion(Moq.It.IsAny<Guid>())).Returns(Task.CompletedTask);
+            _streams.Setup(x => x.VerifyVersion<Entity>(Moq.It.IsAny<IEventStream>())).Returns(Task.CompletedTask);
 
             var entity = await _repository.Get("test");
 
             await (_repository as IRepository).Prepare(Guid.NewGuid());
 
-            _stream.Verify(x => x.VerifyVersion(Moq.It.IsAny<Guid>()), Moq.Times.Never);
+            _streams.Verify(x => x.VerifyVersion<Entity>(Moq.It.IsAny<IEventStream>()), Moq.Times.Never);
         }
 
         [Test]
@@ -257,16 +225,14 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         {
             _stream.Setup(x => x.Dirty).Returns(false);
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
 
-            _stream.Setup(x => x.VerifyVersion(Moq.It.IsAny<Guid>())).Throws(new VersionException("test"));
-            _streams.Setup(x => x.Evict<Entity>(Moq.It.IsAny<IEventStream>())).Returns(Task.CompletedTask);
+            _streams.Setup(x => x.VerifyVersion<Entity>(Moq.It.IsAny<IEventStream>())).Throws(new VersionException("test"));
 
             var entity = await _repository.Get("test");
             Assert.ThrowsAsync<VersionException>(() => (_repository as IRepository).Prepare(Guid.NewGuid()));
 
-            _stream.Verify(x => x.VerifyVersion(Moq.It.IsAny<Guid>()), Moq.Times.Once);
-            _streams.Verify(x => x.Evict<Entity>(Moq.It.IsAny<IEventStream>()), Moq.Times.Once);
+            _streams.Verify(x => x.VerifyVersion<Entity>(Moq.It.IsAny<IEventStream>()), Moq.Times.Once);
         }
 
         [Test]
@@ -280,24 +246,26 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         public async Task commit_stream()
         {
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
-            _stream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()))
-                .Returns(Task.CompletedTask);
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
+
+            _streams.Setup(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<IDictionary<string,string>>())).Returns(Task.CompletedTask);
 
             var entity = await _repository.Get("test");
 
             await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
-            _stream.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()),
-                Moq.Times.Once);
+
+            _streams.Verify(
+                x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(),
+                    Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
         }
 
         [Test]
         public async Task commit_take_snapshot_but_not_changed()
         {
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
-            _stream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()))
-                .Returns(Task.CompletedTask);
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
+            _streams.Setup(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
+            
             _stream.Setup(x => x.AddSnapshot(Moq.It.IsAny<IMemento>()));
             _stream.Setup(x => x.StreamVersion).Returns(0);
             _stream.Setup(x => x.CommitVersion).Returns(0);
@@ -314,9 +282,9 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         public async Task commit_take_snapshot()
         {
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), new Id("test"),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
-            _stream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()))
-                .Returns(Task.CompletedTask);
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
+            _streams.Setup(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
+
             _stream.Setup(x => x.AddSnapshot(Moq.It.IsAny<IMemento>()));
             _stream.Setup(x => x.StreamVersion).Returns(0);
             _stream.Setup(x => x.CommitVersion).Returns(1);
@@ -337,7 +305,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
             _streams.Setup(x => x.NewStream<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
                 Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
-            _stream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()))
+            _streams.Setup(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<IDictionary<string, string>>()))
                 .Throws(new VersionException("test"));
             _stream.Setup(x => x.CommitVersion).Returns(-1);
 
@@ -346,8 +314,9 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             Assert.ThrowsAsync<ConflictResolutionFailedException>(() =>
                 (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
 
-            _stream.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()),
-                Moq.Times.Once);
+            _streams.Verify(
+                x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(),
+                    Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
 
             _builder.Verify(x => x.Build<ThrowConflictResolver>(), Moq.Times.Never);
         }
@@ -358,9 +327,10 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _resolver.Fail = true;
 
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
-            _stream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()))
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
+            _streams.Setup(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<IDictionary<string, string>>()))
                 .Throws(new VersionException("test"));
+
             _stream.Setup(x => x.CommitVersion).Returns(1);
 
             var entity = await _repository.Get("test");
@@ -368,8 +338,9 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             Assert.ThrowsAsync<ConflictResolutionFailedException>(() =>
                 (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
 
-            _stream.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()),
-                Moq.Times.Once);
+            _streams.Verify(
+                x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(),
+                    Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
 
             _builder.Verify(x => x.Build(typeof(FakeResolver)), Moq.Times.Once);
         }
@@ -381,8 +352,8 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _resolver.Fail = false;
 
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
-            _stream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()))
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
+            _streams.Setup(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<IDictionary<string, string>>()))
                 .Throws(new VersionException("test"));
             _stream.Setup(x => x.CommitVersion).Returns(1);
 
@@ -391,8 +362,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             Assert.DoesNotThrowAsync(
                 () => (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
 
-            _stream.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()),
-                Moq.Times.Once);
+            _streams.Verify(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
 
             _builder.Verify(x => x.Build(typeof(FakeResolver)), Moq.Times.Once);
         }
@@ -402,8 +372,8 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _resolver.Abandon = true;
 
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
-            _stream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()))
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
+            _streams.Setup(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<IDictionary<string, string>>()))
                 .Throws(new VersionException("test"));
             _stream.Setup(x => x.CommitVersion).Returns(1);
 
@@ -412,8 +382,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             Assert.ThrowsAsync<ConflictResolutionFailedException>(() =>
                 (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
 
-            _stream.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()),
-                Moq.Times.Once);
+            _streams.Verify(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
 
             _builder.Verify(x => x.Build(typeof(FakeResolver)), Moq.Times.Once);
         }
@@ -423,8 +392,8 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         public async Task commit_persistence_exception()
         {
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
-            _stream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()))
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
+            _streams.Setup(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<IDictionary<string, string>>()))
                 .Throws(new PersistenceException("test"));
             _stream.Setup(x => x.CommitVersion).Returns(1);
 
@@ -432,17 +401,16 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
             Assert.ThrowsAsync<PersistenceException>(() =>
                 (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
-
-            _stream.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()),
-                Moq.Times.Once);
+            
+            _streams.Verify(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
 
         }
         [Test]
         public async Task commit_duplicate_commit_exception()
         {
             _streams.Setup(x => x.GetStream<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
-                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<ISnapshot>())).Returns(Task.FromResult(_stream.Object));
-            _stream.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()))
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(_stream.Object));
+            _streams.Setup(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<IDictionary<string, string>>()))
                 .Throws(new DuplicateCommitException("test"));
             _stream.Setup(x => x.CommitVersion).Returns(1);
 
@@ -451,8 +419,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             Assert.DoesNotThrowAsync(() =>
                 (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
 
-            _stream.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()),
-                Moq.Times.Once);
+            _streams.Verify(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
         }
 
     }

@@ -124,7 +124,7 @@ namespace Aggregates.Internal
                         );
                     }
 
-                    var translatedEvents = overLimit.Select(x => new WritableEvent
+                    var translatedEvents = overLimit.Select(x => (IFullEvent)new WritableEvent
                     {
                         Descriptor = new EventDescriptor
                         {
@@ -258,7 +258,7 @@ namespace Aggregates.Internal
 
                             Logger.Write(LogLevel.Info,
                                 () => $"Flushing too large channel {expired.Item1} key {expired.Item2} with {overLimit.Count} objects");
-                            var translatedEvents = overLimit.Select(x => new WritableEvent
+                            var translatedEvents = overLimit.Select(x => (IFullEvent)new WritableEvent
                             {
                                 Descriptor = new EventDescriptor
                                 {
@@ -408,7 +408,7 @@ namespace Aggregates.Internal
                     // Anything without specific key gets committed to ES right away
                     if (string.IsNullOrEmpty(kv.Key.Item2))
                     {
-                        var translatedEvents = kv.Value.Select(x => new WritableEvent
+                        var translatedEvents = kv.Value.Select(x => (IFullEvent)new WritableEvent
                         {
                             Descriptor = new EventDescriptor
                             {

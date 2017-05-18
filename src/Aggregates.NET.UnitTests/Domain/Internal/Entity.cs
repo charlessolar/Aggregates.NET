@@ -17,7 +17,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
     {
         class Test : IEvent { }
 
-        class FakeEntity : Aggregates.Internal.Entity<FakeEntity>
+        class FakeEntity : Aggregates.Aggregate<FakeEntity>
         {
             public int Handles;
             public int Conflicts;
@@ -52,12 +52,13 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
             public void RaiseEvent()
             {
-                Raise<Test>(x => { });
+                Raise<Test>(x => { }, "test");
             }
         }
 
         private Moq.Mock<IUnitOfWork> _uow;
         private Moq.Mock<IEventStream> _stream;
+        private Moq.Mock<IStoreStreams> _streamstore;
         private Moq.Mock<IBuilder> _builder;
         private Moq.Mock<IMessageCreator> _creator;
         private Moq.Mock<IMessageMapper> _mapper;
@@ -71,6 +72,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         {
             _uow = new Moq.Mock<IUnitOfWork>();
             _stream = new Moq.Mock<IEventStream>();
+            _streamstore = new Moq.Mock<IStoreStreams>();
             _builder = new Moq.Mock<IBuilder>();
             _creator = new Moq.Mock<IMessageCreator>();
             _mapper = new Moq.Mock<IMessageMapper>();
@@ -79,6 +81,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _resolver = new Aggregates.Internal.DefaultRouteResolver(_mapper.Object);
 
             _builder.Setup(x => x.Build<IUnitOfWork>()).Returns(_uow.Object);
+            _builder.Setup(x => x.Build<IStoreStreams>()).Returns(_streamstore.Object);
 
             _entity = new FakeEntity(_stream.Object, _builder.Object, _creator.Object, _resolver);
         }
@@ -87,22 +90,27 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         [Test]
         public async Task events_get_event()
         {
-            _stream.Setup(x => x.Events(Moq.It.IsAny<long>(), Moq.It.IsAny<int>()))
+            _streamstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<long>(), Moq.It.IsAny<int>(), Moq.It.IsAny<string>()))
                 .Returns(Task.FromResult(new IFullEvent[] {}.AsEnumerable()));
 
-            await _entity.HistoricalEvents(0, 1).ConfigureAwait(false);
+            await _entity.GetEvents(0, 1).ConfigureAwait(false);
 
-            _stream.Verify(x => x.Events(Moq.It.IsAny<long>(), Moq.It.IsAny<int>()), Moq.Times.Once);
+            _streamstore.Verify(
+                x => x.GetEvents<FakeEntity>(Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<long>(), Moq.It.IsAny<int>(),
+                    Moq.It.IsAny<string>()), Moq.Times.Once);
         }
         [Test]
         public async Task events_get_oobevent()
         {
-            _stream.Setup(x => x.OobEvents(Moq.It.IsAny<long>(), Moq.It.IsAny<int>()))
+            _streamstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<long>(), Moq.It.IsAny<int>(), "test"))
                 .Returns(Task.FromResult(new IFullEvent[] { }.AsEnumerable()));
 
-            await _entity.HistoricalOobEvents(0, 1).ConfigureAwait(false);
+            await _entity.GetEvents(0, 1, oob: "test").ConfigureAwait(false);
 
-            _stream.Verify(x => x.OobEvents(Moq.It.IsAny<long>(), Moq.It.IsAny<int>()), Moq.Times.Once);
+            _streamstore.Verify(
+                x => x.GetEvents<FakeEntity>(Moq.It.IsAny<IEventStream>(), Moq.It.IsAny<long>(), Moq.It.IsAny<int>(),
+                    "test"), Moq.Times.Once);
+            
         }
 
         [Test]
@@ -166,11 +174,11 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         [Test]
         public void raise_event()
         {
-            _stream.Setup(x => x.AddOutOfBand(Moq.It.IsAny<IEvent>(), Moq.It.IsAny<IDictionary<string, string>>()));
+            _stream.Setup(x => x.AddOob(Moq.It.IsAny<IEvent>(), Moq.It.IsAny<string>(), Moq.It.IsAny<IDictionary<string, string>>()));
 
             _entity.RaiseEvent();
 
-            _stream.Verify(x => x.AddOutOfBand(Moq.It.IsAny<IEvent>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
+            _stream.Verify(x => x.AddOob(Moq.It.IsAny<IEvent>(), Moq.It.IsAny<string>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
         }
     }
 }

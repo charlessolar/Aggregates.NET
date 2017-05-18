@@ -124,6 +124,7 @@
     <Compile Include="Internal\MutateOutgoingCommands.cs" />
     <Compile Include="Internal\Mutating.cs" />
     <Compile Include="Internal\NServiceBusMessaging.cs" />
+    <Compile Include="Internal\OobDefinition.cs" />
     <Compile Include="Internal\Snapshot.cs" />
     <Compile Include="Internal\StreamPosition.cs" />
     <Compile Include="Internal\TimeExecutionBehavior.cs" />

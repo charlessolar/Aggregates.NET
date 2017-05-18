@@ -8,13 +8,11 @@ using NServiceBus;
 
 namespace Aggregates.Internal
 {
-    class NsbOobHandler : IOobHandler
+    class NSBPublisher : IMessagePublisher
     {
 
-        public async Task Publish<T>(string bucket, Id streamId, IEnumerable<Id> parents, IEnumerable<IFullEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource
+        public async Task Publish<T>(string streamName, IEnumerable<IFullEvent> events, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
-
-            var parentStr = parents.BuildParentsString();
             await events.WhenAllAsync(@event =>
             {
                 var options = new PublishOptions();
@@ -34,9 +32,7 @@ namespace Aggregates.Internal
                 options.SetHeader("Timestamp", @event.Descriptor.Timestamp.ToString("s"));
                 options.SetHeader("Version", @event.Descriptor.Version.ToString());
 
-                options.SetHeader("Bucket", bucket);
-                options.SetHeader("StreamId", streamId);
-                options.SetHeader("Parents", parentStr);
+                options.SetHeader("StreamName", streamName);
 
                 foreach (var header in @event.Descriptor.Headers)
                     options.SetHeader(header.Key, header.Value);
@@ -45,15 +41,6 @@ namespace Aggregates.Internal
                 return Bus.Instance.Publish(@event.Event, options);
             }).ConfigureAwait(false);
 
-        }
-        public Task<IEnumerable<IFullEvent>> Retrieve<T>(string bucket, Id streamId, IEnumerable<Id> parents, long skip, int take, bool ascending = true) where T : class, IEventSource
-        {
-            throw new InvalidOperationException("NSB OOB handler does not support retrieving OOB events");
-        }
-        public Task<long> Size<T>(string bucket, Id streamId, IEnumerable<Id> parents) where T : class, IEventSource
-        {
-            // NSB oob events can't be retreived so size is naturally 0
-            return Task.FromResult(0L);
         }
     }
 }
