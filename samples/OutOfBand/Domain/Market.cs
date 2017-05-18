@@ -33,6 +33,7 @@ namespace Domain
         private void Handle(MarketCreated e)
         {
             this.Wall = new Wall(e.Bid, e.Ask);
+            DefineOob("trades", transient: true);
         }
 
         public void Trade(decimal price, decimal amount)
@@ -47,7 +48,7 @@ namespace Domain
                 x.Market = this.Id;
                 x.Price = price;
                 x.Amount = amount;
-            });
+            }, "trades");
         }
         
     }
