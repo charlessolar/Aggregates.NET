@@ -47,8 +47,8 @@
       <HintPath>..\packages\Aggregates.NET.Domain.0.7.0\lib\net46\Aggregates.NET.Domain.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Aggregates.NET.GetEventStore, Version=0.6.4.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Aggregates.NET.GetEventStore.0.6.4\lib\net46\Aggregates.NET.GetEventStore.dll</HintPath>
+    <Reference Include="Aggregates.NET.GetEventStore, Version=0.7.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Aggregates.NET.GetEventStore.0.7.0\lib\net46\Aggregates.NET.GetEventStore.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="EventStore.ClientAPI, Version=4.0.0.7, Culture=neutral, processorArchitecture=MSIL">
