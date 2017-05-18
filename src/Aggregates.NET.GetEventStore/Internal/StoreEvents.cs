@@ -110,7 +110,7 @@ namespace Aggregates.Internal
                 if (descriptor.Version == 0)
                     descriptor.Version = e.Event.EventNumber;
 
-                return new WritableEvent
+                return (IFullEvent)new WritableEvent
                 {
                     Descriptor = descriptor,
                     Event = @event,
@@ -207,7 +207,7 @@ namespace Aggregates.Internal
                 if (descriptor.Version == 0)
                     descriptor.Version = e.Event.EventNumber;
 
-                return new WritableEvent
+                return (IFullEvent)new WritableEvent
                 {
                     Descriptor = descriptor,
                     Event = @event,
@@ -315,7 +315,6 @@ namespace Aggregates.Internal
 
         private async Task<long> DoWrite(string stream, IEnumerable<EventData> events, long? expectedVersion = null)
         {
-
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
 
             long nextVersion;

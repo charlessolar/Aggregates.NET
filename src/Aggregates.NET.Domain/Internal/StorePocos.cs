@@ -92,7 +92,7 @@ namespace Aggregates.Internal
             };
 
             Saved.Mark();
-            if (await _store.WriteEvents(streamName, new[] { @event }, commitHeaders, expectedVersion: poco.Item1).ConfigureAwait(false) == 1)
+            if (await _store.WriteEvents(streamName, new IFullEvent[] { @event }, commitHeaders, expectedVersion: poco.Item1).ConfigureAwait(false) == 1)
                 await _store.WriteMetadata(streamName, maxCount: 5).ConfigureAwait(false);
 
             if (_shouldCache)

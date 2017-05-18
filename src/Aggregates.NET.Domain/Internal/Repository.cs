@@ -72,12 +72,11 @@ namespace Aggregates.Internal
         private static OptimisticConcurrencyAttribute _conflictResolution;
 
         private static readonly ILog Logger = LogManager.GetLogger("Repository");
-        protected readonly IStoreStreams _store;
         protected readonly IBuilder _builder;
-        private readonly IStoreSnapshots _snapstore;
+        protected readonly IStoreStreams _store;
 
         private static readonly Meter WriteErrors = Metric.Meter("Event Write Errors", Unit.Errors);
-        private static readonly Meter Conflicts = Metric.Meter("Conflicts", Unit.Items, tags: "debug");
+        private static readonly Meter Conflicts = Metric.Meter("Conflicts", Unit.Items);
         private static readonly Meter ConflictsResolved = Metric.Meter("Conflicts Resolved", Unit.Items, tags: "debug");
         private static readonly Meter ConflictsUnresolved = Metric.Meter("Conflicts Unresolved", Unit.Items, tags: "debug");
         private static readonly Metrics.Timer CommitTime = Metric.Timer("Repository Commit Time", Unit.Items, tags: "debug");
@@ -94,8 +93,7 @@ namespace Aggregates.Internal
         public Repository(IBuilder builder)
         {
             _builder = builder;
-            _snapstore = _builder.Build<IStoreSnapshots>();
-            _store = _builder.Build<IStoreStreams>();
+            _store = builder.Build<IStoreStreams>();
 
             // Conflict resolution is strong by default
             if (_conflictResolution == null)
@@ -112,18 +110,7 @@ namespace Aggregates.Internal
                 Tracked.Values
                     .Where(x => !x.Stream.Dirty)
                     .ToArray()
-                    .WhenAllAsync(async (x) =>
-                    {
-                        try
-                        {
-                            await x.Stream.VerifyVersion(commitId).ConfigureAwait(false);
-                        }
-                        catch (VersionException)
-                        {
-                            await _store.Evict<T>(x.Stream).ConfigureAwait(false);
-                            throw;
-                        }
-                    });
+                    .WhenAllAsync((x) => _store.VerifyVersion<T>(x.Stream));
         }
 
         async Task IRepository.Commit(Guid commitId, IDictionary<string, string> commitHeaders)
@@ -136,7 +123,6 @@ namespace Aggregates.Internal
                     .ToArray()
                     .WhenAllAsync(async (tracked) =>
                     {
-
                         var headers = new Dictionary<string, string>(commitHeaders);
 
                         var stream = tracked.Stream;
@@ -154,7 +140,7 @@ namespace Aggregates.Internal
 
                         try
                         {
-                            await stream.Commit(commitId, headers).ConfigureAwait(false);
+                            await _store.WriteStream<T>(commitId, stream, headers).ConfigureAwait(false);
                         }
                         catch (VersionException e)
                         {
@@ -176,15 +162,12 @@ namespace Aggregates.Internal
                                 using (ConflictResolutionTime.NewContext())
                                 {
                                     var uncommitted = stream.Uncommitted.ToList();
-                                    stream.Flush(false);
                                     // make new clean entity
                                     var clean = await GetUntracked(stream).ConfigureAwait(false);
 
-
                                     Logger.Write(LogLevel.Debug,
                                         () => $"Attempting to resolve conflict with strategy {_conflictResolution.Conflict}");
-                                    var strategy = _conflictResolution.Conflict.Build(_builder,
-                                        _conflictResolution.Resolver);
+                                    var strategy = _conflictResolution.Conflict.Build(_builder, _conflictResolution.Resolver);
                                     await
                                         strategy.Resolve(clean, uncommitted, commitId,
                                             commitHeaders).ConfigureAwait(false);
@@ -295,19 +278,7 @@ namespace Aggregates.Internal
             parents = parents ?? new Id[] { };
 
             Logger.Write(LogLevel.Debug, () => $"Retreiving entity id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName} in store");
-            ISnapshot snapshot = null;
-            if (typeof(ISnapshotting).IsAssignableFrom(typeof(T)))
-            {
-                snapshot = await _snapstore.GetSnapshot<T>(bucket, streamId, parents).ConfigureAwait(false);
-                Logger.Write(LogLevel.Debug, () =>
-                {
-                    if (snapshot != null)
-                        return $"Retreived snapshot for entity id [{streamId}] bucket [{bucket}] version {snapshot.Version}";
-                    return $"No snapshot found for entity id [{streamId}] bucket [{bucket}]";
-                });
-            }
-
-            var stream = await _store.GetStream<T>(bucket, streamId, parents, snapshot).ConfigureAwait(false);
+            var stream = await _store.GetStream<T>(bucket, streamId, parents).ConfigureAwait(false);
 
             return await GetUntracked(stream).ConfigureAwait(false);
         }

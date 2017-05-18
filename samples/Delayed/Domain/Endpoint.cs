@@ -131,7 +131,7 @@ namespace Domain
             config.MaxConflictResolves(2);
             config.EnableFeature<Aggregates.Feature>();
             config.EnableFeature<Aggregates.Domain>();
-            config.EnableFeature<Aggregates.ConsumerFeature>();
+            config.EnableFeature<Aggregates.Consumer>();
             config.EnableFeature<Aggregates.GetEventStore>();
             config.Recoverability().ConfigureForAggregates(5);
             //config.EnableFeature<RoutedFeature>();

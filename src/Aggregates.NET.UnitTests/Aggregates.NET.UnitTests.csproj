@@ -91,12 +91,10 @@
     <Compile Include="Domain\Internal\ConflictResolvers\StrongConflictResolver.cs" />
     <Compile Include="Domain\Internal\ConflictResolvers\WeakConflictMessageHandler.cs" />
     <Compile Include="Domain\Internal\ConflictResolvers\WeakConflictResolver.cs" />
-    <Compile Include="Domain\Internal\DefaultOOBHandler.cs" />
     <Compile Include="Domain\Internal\DefaultRouteResolver.cs" />
     <Compile Include="Domain\Internal\Entity.cs" />
     <Compile Include="Domain\Internal\EventStream.cs" />
     <Compile Include="Domain\Internal\MutateIncomingCommands.cs" />
-    <Compile Include="Domain\Internal\NSBOOBHandler.cs" />
     <Compile Include="Domain\Internal\PocoRepository.cs" />
     <Compile Include="Domain\Internal\Repository.cs" />
     <Compile Include="Domain\Internal\StorePocos.cs" />

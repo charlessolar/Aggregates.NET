@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
+using Aggregates.Internal;
 using NServiceBus.ObjectBuilder;
 using NUnit.Framework;
 
@@ -15,53 +16,57 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
     {
         class Entity : Aggregate<Entity> { }
 
-        class FakeEvent : IFullEvent
+        class EntityWithMemento : AggregateWithMemento<EntityWithMemento, EntityWithMemento.Memento>
         {
-            public Guid? EventId { get; }
-            public object Event { get; }
-            public IEventDescriptor Descriptor { get; }
+            public class Memento : IMemento
+            {
+                public Id EntityId { get; set; }
+            }
+
+            protected override void RestoreSnapshot(Memento memento)
+            {
+            }
+
+            protected override Memento TakeSnapshot()
+            {
+                return new Memento {EntityId = Id};
+            }
+
+            protected override bool ShouldTakeSnapshot()
+            {
+                return false;
+            }
         }
 
-        private Moq.Mock<IBuilder> _builder;
+        class FakeEvent : IFullEvent
+        {
+            public Guid? EventId { get; set; }
+            public object Event { get; set; }
+            public IEventDescriptor Descriptor { get; set; }
+        }
+
+        private Moq.Mock<IMessagePublisher> _publisher;
         private Moq.Mock<IStoreEvents> _store;
+        private Moq.Mock<IStoreSnapshots> _snapstore;
         private Moq.Mock<ICache> _cache;
         private Moq.Mock<IEventStream> _stream;
+        private Moq.Mock<IEventMutator> _mutator;
 
         private Aggregates.Internal.StoreStreams _streamStore;
 
         [SetUp]
         public void Setup()
         {
-            _builder = new Moq.Mock<IBuilder>();
+            _publisher = new Moq.Mock<IMessagePublisher>();
             _store = new Moq.Mock<IStoreEvents>();
+            _snapstore = new Moq.Mock<IStoreSnapshots>();
             _cache = new Moq.Mock<ICache>();
             _stream = new Moq.Mock<IEventStream>();
+            _mutator = new Moq.Mock<IEventMutator>();
 
-            _streamStore = new Aggregates.Internal.StoreStreams(_builder.Object, _store.Object, _cache.Object, true,
-                (a, b, c, d, e) => "test");
+            _streamStore = new Aggregates.Internal.StoreStreams(_cache.Object, _store.Object, _publisher.Object, _snapstore.Object,(a, b, c, d, e) => "test", new IEventMutator[] {});
         }
-
-        [Test]
-        public async Task evict_stream()
-        {
-            _cache.Setup(x => x.Evict(Moq.It.IsAny<string>()));
-
-            await _streamStore.Evict<Entity>(_stream.Object);
-
-            _cache.Verify(x => x.Evict(Moq.It.IsAny<string>()), Moq.Times.Once);
-        }
-
-        [Test]
-        public async Task cache_stream()
-        {
-            _cache.Setup(x => x.Cache(Moq.It.IsAny<string>(), Moq.It.IsAny<object>(), Moq.It.IsAny<bool>(),
-                Moq.It.IsAny<bool>(), Moq.It.IsAny<bool>()));
-
-            await _streamStore.Cache<Entity>(_stream.Object);
-
-            _cache.Verify(x => x.Cache(Moq.It.IsAny<string>(), Moq.It.IsAny<object>(), Moq.It.IsAny<bool>(),
-                Moq.It.IsAny<bool>(), Moq.It.IsAny<bool>()), Moq.Times.Once);
-        }
+        
 
         [Test]
         public void get_stream_is_cached()
@@ -92,7 +97,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         {
             _store.Setup(x => x.GetEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>())).Returns(Task.FromResult(new IFullEvent[] { new FakeEvent() }.AsEnumerable()));
 
-            await _streamStore.GetEvents<Entity>("test", "test");
+            await _streamStore.GetEvents<Entity>(_stream.Object, 0, 1);
 
             _store.Verify(x => x.GetEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()), Moq.Times.Once);
         }
@@ -101,9 +106,39 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         {
             _store.Setup(x => x.GetEventsBackwards(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>())).Returns(Task.FromResult(new IFullEvent[] { new FakeEvent() }.AsEnumerable()));
 
-            await _streamStore.GetEventsBackwards<Entity>("test", "test");
+            await _streamStore.GetEventsBackwards<Entity>(_stream.Object, 0, 1);
 
             _store.Verify(x => x.GetEventsBackwards(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()), Moq.Times.Once);
+        }
+
+
+        [Test]
+        public void write_events_frozen()
+        {
+            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(true));
+
+            Assert.ThrowsAsync<FrozenException>(
+                () => _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object, new Dictionary<string, string>()));
+        }
+
+        [Test]
+        public async Task get_stream_has_snapshot()
+        {
+            _store.Setup(x => x.GetEvents(Moq.It.IsAny<string>(), 2, Moq.It.IsAny<int?>())).Returns(Task.FromResult(new IFullEvent[] { new FakeEvent() }.AsEnumerable()));
+            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
+
+            var snapshot = new Moq.Mock<ISnapshot>();
+            snapshot.Setup(x => x.Version).Returns(1);
+
+            _snapstore.Setup(x => x.GetSnapshot<EntityWithMemento>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
+                Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(snapshot.Object));
+
+            _cache.Setup(x => x.Retreive(Moq.It.IsAny<string>())).Returns((IEventStream)null);
+
+            var entity = await _streamStore.GetStream<EntityWithMemento>("test", "test");
+
+            _store.Verify(x => x.GetEvents(Moq.It.IsAny<string>(), 2, Moq.It.IsAny<int?>()), Moq.Times.Once);
+            Assert.AreEqual(1, entity.CommitVersion);
         }
 
         [Test]
@@ -113,19 +148,93 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
                 Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>())).Returns(Task.FromResult(0L));
 
-            await _streamStore.WriteStream<Entity>(_stream.Object, new Dictionary<string, string>());
+            var @event = new Moq.Mock<IFullEvent>();
+            @event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.Domain);
+
+            _stream.Setup(x => x.Uncommitted).Returns(new IFullEvent[] { @event.Object }.AsEnumerable());
+
+            await _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object, new Dictionary<string, string>());
 
             _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
                 Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>()), Moq.Times.Once);
         }
+        [Test]
+        public async Task write_stream_not_dirty()
+        {
+            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
+            _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>())).Returns(Task.FromResult(0L));
+
+            await _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object, new Dictionary<string, string>());
+
+            _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>()), Moq.Times.Never);
+            _store.Verify(
+                x => x.WriteSnapshot(Moq.It.IsAny<string>(), Moq.It.IsAny<IFullEvent>(),
+                    Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
+        }
 
         [Test]
-        public void write_events_frozen()
+        public async Task write_stream_with_events_with_snapshots()
         {
-            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(true));
+            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
+            _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>())).Returns(Task.FromResult(0L));
+            _snapstore.Setup(x => x.WriteSnapshots<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), 
+                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IMemento>(), Moq.It.IsAny<IDictionary<string,string>>()))
+                .Returns(Task.FromResult(0L));
 
-            Assert.ThrowsAsync<FrozenException>(
-                () => _streamStore.WriteStream<Entity>(_stream.Object, new Dictionary<string, string>()));
+            var @event = new Moq.Mock<IFullEvent>();
+            @event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.Domain);
+            var snapshot = new Moq.Mock<IMemento>();
+            
+            _stream.Setup(x => x.Uncommitted).Returns(new IFullEvent[] { @event.Object }.AsEnumerable());
+            _stream.Setup(x => x.PendingSnapshot).Returns(snapshot.Object);
+
+            await _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object, new Dictionary<string, string>());
+
+            _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>()), Moq.Times.Once);
+            _snapstore.Verify(x => x.WriteSnapshots<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(),
+                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IMemento>(),
+                Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
+        }
+
+        [Test]
+        public async Task write_stream_pending_oobs()
+        {
+            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
+            _store.Setup(x => x.WriteMetadata(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<long?>(),
+                Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<bool?>(), Moq.It.IsAny<Guid?>(),
+                Moq.It.IsAny<bool>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
+
+            _stream.Setup(x => x.PendingOobs).Returns(new[] {new OobDefinition {Id = "test"}});
+            
+            await _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object, new Dictionary<string, string>());
+
+            _store.Verify(x => x.WriteMetadata(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<long?>(),
+                Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<bool?>(), Moq.It.IsAny<Guid?>(),
+                Moq.It.IsAny<bool>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
+        }
+
+        [Test]
+        public async Task write_stream_oob_events()
+        {
+            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
+            _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>())).Returns(Task.FromResult(0L));
+
+            var @event = new Moq.Mock<IFullEvent>();
+            @event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.OOB);
+            @event.Setup(x => x.Descriptor.Headers[Defaults.OobHeaderKey]).Returns("test");
+
+            _stream.Setup(x => x.Uncommitted).Returns(new IFullEvent[] { @event.Object }.AsEnumerable());
+            _stream.Setup(x => x.Oobs).Returns(new[] {new OobDefinition {Id = "test"}});
+
+            await _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object, new Dictionary<string, string>());
+
+            _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
         }
     }
 }

@@ -32,10 +32,7 @@ namespace Aggregates.Internal
         public string Bucket => Stream.Bucket;
         public long Version => Stream.StreamVersion;
         public long CommitVersion => Stream.CommitVersion;
-
-        public Task<long> EventCount => Stream.Size;
-        public Task<long> OobCount => Stream.OobSize;
-
+        
 
         IEventStream INeedStream.Stream { get; set; }
         IEventStream IEventSourced.Stream => (this as INeedStream).Stream;
@@ -59,15 +56,24 @@ namespace Aggregates.Internal
             return uow.Poco<TThis, T>(this as TThis);
         }
 
-        public Task<IEnumerable<IFullEvent>> HistoricalEvents(long start, int count)
+        public Task<long> GetSize(string oob)
         {
-            return Stream.Events(start, count);
-        }
-        public Task<IEnumerable<IFullEvent>> HistoricalOobEvents(long start, int count)
-        {
-            return Stream.OobEvents(start, count);
+            var store = Builder.Build<IStoreStreams>();
+            return store.GetSize<TThis>(Stream, oob);
         }
 
+        public Task<IEnumerable<IFullEvent>> GetEvents(long start, int count, string oob = null)
+        {
+            var store = Builder.Build<IStoreStreams>();
+            return store.GetEvents<TThis>(Stream, start, count, oob);
+        }
+
+        public Task<IEnumerable<IFullEvent>> GetEventsBackwards(long start, int count, string oob = null)
+        {
+            var store = Builder.Build<IStoreStreams>();
+            return store.GetEventsBackwards<TThis>(Stream, start, count, oob);
+        }
+        
 
         public override int GetHashCode()
         {
@@ -99,9 +105,14 @@ namespace Aggregates.Internal
         {
             Apply(@event, metadata);
         }
-        void IEventSourced.Raise(IEvent @event, IDictionary<string, string> metadata)
+        void IEventSourced.Raise(IEvent @event, string id, IDictionary<string, string> metadata)
         {
-            Raise(@event, metadata);
+            Raise(@event, id, metadata);
+        }
+
+        protected void DefineOob(string id, bool transient = false, int? daysToLive = null)
+        {
+            Stream.DefineOob(id, transient, daysToLive);
         }
 
         /// <summary>
@@ -117,16 +128,16 @@ namespace Aggregates.Internal
             Apply(@event, metadata);
         }
         /// <summary>
-        /// Publishes an event, but does not save to object's eventstream.  It will be stored under out of band event stream so as to not pollute object's
+        /// Publishes an event, but does not save to object's eventstream.  It will be stored under out of band event stream so as to not pollute entity's
         /// </summary>
-        protected void Raise<TEvent>(Action<TEvent> action, IDictionary<string, string> metadata = null) where TEvent : IEvent
+        protected void Raise<TEvent>(Action<TEvent> action, string id, IDictionary<string, string> metadata = null) where TEvent : IEvent
         {
             Logger.Write(LogLevel.Debug, () => $"Raising an OOB event {typeof(TEvent).FullName} on entity {GetType().FullName} stream [{Id}] bucket [{Bucket}]");
             var @event = EventFactory.CreateInstance(action);
 
             if (@event == null)
                 throw new ArgumentException($"Failed to build event type {typeof(TEvent).FullName}");
-            Raise(@event, metadata);
+            Raise(@event, id, metadata);
         }
 
         private void Apply(IEvent @event, IDictionary<string, string> metadata = null)
@@ -137,11 +148,10 @@ namespace Aggregates.Internal
             var headers = new Dictionary<string, string>();
             Stream.Add(@event, metadata);
         }
-        private void Raise(IEvent @event, IDictionary<string, string> metadata = null)
+        private void Raise(IEvent @event, string id, IDictionary<string, string> metadata = null)
         {
-            // Todo: Fill with user headers or something
-            var headers = new Dictionary<string, string>();
-            Stream.AddOutOfBand(@event, metadata);
+            // Todo: Fill metadata with user headers or something
+            Stream.AddOob(@event, id, metadata);
         }
 
         

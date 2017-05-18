@@ -17,109 +17,142 @@ using NServiceBus.Settings;
 
 namespace Aggregates.Internal
 {
+    /// <summary>
+    /// Permanently store streams to store using IStoreEvents
+    /// </summary>
     class StoreStreams : IStoreStreams
     {
+        private const string OobMetadataKey = "Aggregates.OOB";
+
         private static readonly Meter Saved = Metric.Meter("Saved Streams", Unit.Items, tags: "debug");
         private static readonly Meter HitMeter = Metric.Meter("Stream Cache Hits", Unit.Events, tags: "debug");
         private static readonly Meter MissMeter = Metric.Meter("Stream Cache Misses", Unit.Events, tags: "debug");
 
         private static readonly ILog Logger = LogManager.GetLogger("StoreStreams");
         private readonly IStoreEvents _store;
-        private readonly IBuilder _builder;
+        private readonly IMessagePublisher _publisher;
+        private readonly IStoreSnapshots _snapstore;
         private readonly ICache _cache;
-        private readonly bool _shouldCache;
         private readonly StreamIdGenerator _streamGen;
-        
+        private readonly IEnumerable<IEventMutator> _mutators;
+        private readonly Random _random;
 
-        public StoreStreams(IBuilder builder, IStoreEvents store, ICache cache, bool cacheStreams, StreamIdGenerator streamGen)
+
+        public StoreStreams(ICache cache, IStoreEvents store, IMessagePublisher publisher, IStoreSnapshots snapstore, StreamIdGenerator streamGen, IEnumerable<IEventMutator> mutators)
         {
-            _store = store;
-            _builder = builder;
             _cache = cache;
-            _shouldCache = cacheStreams;
+            _store = store;
+            _publisher = publisher;
+            _snapstore = snapstore;
             _streamGen = streamGen;
+            _mutators = mutators;
+            _random = new Random();
         }
 
-        public Task Evict<T>(IEventStream stream) where T : class, IEventSource
-        {
-            if (!_shouldCache) return Task.CompletedTask;
 
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
-            _cache.Evict(streamName);
-            return Task.CompletedTask;
-        }
-        public Task Cache<T>(IEventStream stream) where T : class, IEventSource
-        {
-            if (!_shouldCache) return Task.CompletedTask;
-
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
-            _cache.Cache(streamName, stream.Clone());
-            return Task.CompletedTask;
-        }
-
-        public async Task<IEventStream> GetStream<T>(string bucket, Id streamId, IEnumerable<Id> parents = null, ISnapshot snapshot = null) where T : class, IEventSource
+        public async Task<IEventStream> GetStream<T>(string bucket, Id streamId, IEnumerable<Id> parents = null) where T : class, IEventSource
         {
             parents = parents ?? new Id[] { };
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
 
+            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
             Logger.Write(LogLevel.Debug, () => $"Retreiving stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
 
-            if (_shouldCache)
+            var cached = _cache.Retreive(streamName) as IImmutableEventStream;
+            if (cached != null)
             {
-                var cached = _cache.Retreive(streamName) as IEventStream;
-                if (cached != null)
-                {
-                    HitMeter.Mark();
-                    Logger.Write(LogLevel.Debug, () => $"Found stream [{streamName}] in cache");
-                    return new EventStream<T>(cached, _builder, this, snapshot);
-                }
-                MissMeter.Mark();
+                HitMeter.Mark();
+                Logger.Write(LogLevel.Debug, () => $"Found stream [{streamName}] in cache");
+                return new EventStream<T>(cached);
             }
+            MissMeter.Mark();
 
-            while (await CheckFrozen<T>(bucket,streamId, parents).ConfigureAwait(false))
+
+            while (await CheckFrozen<T>(bucket, streamId, parents).ConfigureAwait(false))
             {
-                Logger.Write(LogLevel.Info, () => $"Stream [{streamName}] is frozen - waiting");
+                Logger.Write(LogLevel.Info, () => $"Stream [{streamId}] in bucket [{bucket}] is frozen - waiting");
                 await Task.Delay(100).ConfigureAwait(false);
             }
-            Logger.Write(LogLevel.Debug, () => $"Stream [{streamName}] not in cache - reading from store");
+            Logger.Write(LogLevel.Debug, () => $"Stream [{streamId}] in bucket [{bucket}] not in cache - reading from store");
 
-            var events = await _store.GetEvents(streamName, start: snapshot?.Version).ConfigureAwait(false);
-
-            var eventstream = new EventStream<T>(_builder, this, StreamTypes.Domain, bucket, streamId, parents, streamName, events, snapshot);
+            ISnapshot snapshot = null;
+            if (typeof(ISnapshotting).IsAssignableFrom(typeof(T)))
+            {
+                snapshot = await _snapstore.GetSnapshot<T>(bucket, streamId, parents).ConfigureAwait(false);
+                Logger.Write(LogLevel.Debug, () =>
+                {
+                    if (snapshot != null)
+                        return $"Retreived snapshot for entity id [{streamId}] bucket [{bucket}] version {snapshot.Version}";
+                    return $"No snapshot found for entity id [{streamId}] bucket [{bucket}]";
+                });
+            }
             
-            if(_shouldCache)
-                await Cache<T>(eventstream).ConfigureAwait(false);
+            var events = await _store.GetEvents(streamName, start: snapshot?.Version + 1).ConfigureAwait(false);
+            var oobMetadata = await _store.GetMetadata(streamName, OobMetadataKey).ConfigureAwait(false);
+            IEnumerable<OobDefinition> oobs = null;
+            if (!string.IsNullOrEmpty(oobMetadata))
+                oobs = JsonConvert.DeserializeObject<IEnumerable<OobDefinition>>(oobMetadata);
 
-            Logger.Write(LogLevel.Debug, () => $"Stream [{streamName}] read - version is {eventstream.CommitVersion}");
+            var eventstream = new EventStream<T>(bucket, streamId, parents, oobs, events, snapshot);
+
+            _cache.Cache(streamName, eventstream);
+
+            Logger.Write(LogLevel.Debug, () => $"Stream [{streamId}] in bucket [{bucket}] read - version is {eventstream.CommitVersion}");
             return eventstream;
         }
 
         public Task<IEventStream> NewStream<T>(string bucket, Id streamId, IEnumerable<Id> parents = null) where T : class, IEventSource
         {
             parents = parents ?? new Id[] { };
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
             Logger.Write(LogLevel.Debug, () => $"Creating new stream [{streamId}] in bucket [{bucket}] for type {typeof(T).FullName}");
-            IEventStream stream = new EventStream<T>(_builder, this, StreamTypes.Domain, bucket, streamId, parents, streamName, null, null);
+            IEventStream stream = new EventStream<T>(bucket, streamId, parents, null, null);
 
             return Task.FromResult(stream);
         }
 
-        public Task<IEnumerable<IFullEvent>> GetEvents<T>(string bucket, Id streamId, IEnumerable<Id> parents = null, long? start = null, int? count = null) where T : class, IEventSource
+        public async Task<long> GetSize<T>(IEventStream stream, string oob) where T : class, IEventSource
         {
-            parents = parents ?? new Id[] { };
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
-            return _store.GetEvents(streamName, start: start, count: count);
+            var streamName = _streamGen(typeof(T), StreamTypes.OOB, stream.Bucket, stream.StreamId, stream.Parents);
+            
+            return (await Enumerable.Range(1, 10).ToArray().StartEachAsync(5, (vary) => _store.Size($"{streamName}-{oob}.{vary}")).ConfigureAwait(false)).Sum();
         }
-        public Task<IEnumerable<IFullEvent>> GetEventsBackwards<T>(string bucket, Id streamId, IEnumerable<Id> parents = null, long? start = null, int? count = null) where T : class, IEventSource
+        public async Task<IEnumerable<IFullEvent>> GetEvents<T>(IEventStream stream, long start, int count, string oob = null) where T : class, IEventSource
         {
-            parents = parents ?? new Id[] { };
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
-            return _store.GetEventsBackwards(streamName, start: start, count: count);
+            if (string.IsNullOrEmpty(oob))
+            {
+                var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
+                return await _store.GetEvents(streamName, start: start, count: count).ConfigureAwait(false);
+            }
+
+            var oobName = _streamGen(typeof(T), StreamTypes.OOB, stream.Bucket, stream.StreamId, stream.Parents);
+            count = count / 10;
+            // if take is 100, take 10 from each of 10 streams - see above
+            var events = await Enumerable.Range(1, 10).ToArray()
+                .StartEachAsync(5,
+                    (vary) => _store.GetEvents($"{oobName}-{oob}.{vary}", start, count))
+                .ConfigureAwait(false);
+            return events.SelectMany(x => x);
         }
-        
+        public async Task<IEnumerable<IFullEvent>> GetEventsBackwards<T>(IEventStream stream, long start, int count, string oob = null) where T : class, IEventSource
+        {
+            if (string.IsNullOrEmpty(oob))
+            {
+                var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
+                return await _store.GetEventsBackwards(streamName, start: start, count: count).ConfigureAwait(false);
+            }
+
+            var oobName = _streamGen(typeof(T), StreamTypes.OOB, stream.Bucket, stream.StreamId, stream.Parents);
+            count = count / 10;
+            // if take is 100, take 10 from each of 10 streams - see above
+            var events = await Enumerable.Range(1, 10).ToArray()
+                .StartEachAsync(5,
+                    (vary) => _store.GetEventsBackwards($"{oobName}-{oob}.{vary}", start, count))
+                .ConfigureAwait(false);
+            return events.SelectMany(x => x);
+        }
 
 
-        public async Task WriteStream<T>(IEventStream stream, IDictionary<string, string> commitHeaders) where T : class, IEventSource
+
+        public async Task WriteStream<T>(Guid commitId, IEventStream stream, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
 
@@ -127,7 +160,86 @@ namespace Aggregates.Internal
                 throw new FrozenException();
 
             Saved.Mark();
-            await _store.WriteEvents(streamName, stream.Uncommitted, commitHeaders, expectedVersion: stream.CommitVersion).ConfigureAwait(false);
+
+            var events = stream.Uncommitted.Select(writable =>
+            {
+                if (!_mutators.Any()) return writable;
+
+                IMutating mutated = new Mutating(writable.Event, writable.Descriptor.Headers);
+                foreach (var mutate in _mutators)
+                {
+                    Logger.Write(LogLevel.Debug,
+                        () => $"Mutating outgoing event {writable.Event.GetType()} with mutator {mutate.GetType().FullName}");
+                    mutated = mutate.MutateOutgoing(mutated);
+                }
+
+                foreach (var header in mutated.Headers)
+                    writable.Descriptor.Headers[header.Key] = header.Value;
+                return new WritableEvent
+                {
+                    Descriptor = writable.Descriptor,
+                    Event = writable.Event,
+                    EventId = UnitOfWork.NextEventId(commitId)
+                };
+            });
+
+            var domainEvents = events.Where(x => x.Descriptor.StreamType == StreamTypes.Domain);
+            var oobEvents = events.Where(x => x.Descriptor.StreamType == StreamTypes.OOB);
+
+            if (domainEvents.Any())
+            {
+                _cache.Evict(streamName);
+
+                Logger.Write(LogLevel.Debug,
+                    () => $"Event stream [{stream.StreamId}] in bucket [{stream.Bucket}] committing {domainEvents.Count()} events");
+                await _store.WriteEvents(streamName, domainEvents, commitHeaders, expectedVersion: stream.CommitVersion)
+                    .ConfigureAwait(false);
+            }
+
+            if (stream.PendingSnapshot != null)
+            {
+                Logger.Write(LogLevel.Debug,
+                    () => $"Event stream [{stream.StreamId}] in bucket [{stream.Bucket}] committing snapshot");
+                await _snapstore.WriteSnapshots<T>(stream.Bucket, stream.StreamId, stream.Parents, stream.StreamVersion, stream.PendingSnapshot, commitHeaders).ConfigureAwait(false);
+            }
+            if (stream.PendingOobs.Any())
+            {
+                var oobs = stream.Oobs.Concat(stream.PendingOobs);
+
+                await _store.WriteMetadata(streamName, custom: new Dictionary<string, string>
+                {
+                    [OobMetadataKey] = JsonConvert.SerializeObject(oobs)
+                }).ConfigureAwait(false);
+            }
+            if (oobEvents.Any())
+            {
+                Logger.Write(LogLevel.Debug,
+                    () => $"Event stream [{stream.StreamId}] in bucket [{stream.Bucket}] publishing {oobEvents.Count()} out of band events");
+
+                foreach (var group in oobEvents.GroupBy(x => x.Descriptor.Headers[Defaults.OobHeaderKey]))
+                {
+                    // OOB events of the same stream name don't need to all be written to the same stream
+                    // if we parallelize the events into 10 known streams we can take advantage of internal
+                    // ES optimizations and ES sharding
+                    var vary = _random.Next(10) + 1;
+                    var oobstream = $"{streamName}-{group.Key}.{vary}";
+
+
+                    var definition = stream.Oobs.Single(x => x.Id == group.Key);
+                    if (definition.Transient ?? false)
+                        await _publisher.Publish<T>(oobstream, group, commitHeaders).ConfigureAwait(false);
+                    else if(definition.DaysToLive.HasValue)
+                    {
+                        var version = await _store.WriteEvents(oobstream, group, commitHeaders).ConfigureAwait(false);
+                        // if new stream, write metadata
+                        if(version == (group.Count()-1))
+                            await _store.WriteMetadata(oobstream, maxAge: TimeSpan.FromDays(definition.DaysToLive.Value)).ConfigureAwait(false);
+                    }
+                    else
+                        await _store.WriteEvents(oobstream, group, commitHeaders).ConfigureAwait(false);
+                }
+
+            }
         }
 
         public async Task VerifyVersion<T>(IEventStream stream)
@@ -150,6 +262,9 @@ namespace Aggregates.Internal
                         $"Stream [{streamName}] at the store is version {last.First().Descriptor.Version} - our stream is version {stream.CommitVersion} - which is weird");
                     Logger.Write(LogLevel.Warn, $"Stream [{streamName}] snapshot version is: {stream.Snapshot?.Version} - committed count is: {stream.Committed.Count()} - uncomitted is: {stream.Uncommitted.Count()}");
                 }
+
+                _cache.Evict(streamName);
+
                 throw new VersionException(
                     $"Expected version {stream.CommitVersion} on stream [{streamName}] - but read {last.First().Descriptor.Version}");
             }

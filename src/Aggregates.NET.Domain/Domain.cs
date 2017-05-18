@@ -20,9 +20,7 @@ namespace Aggregates
         {
             Defaults(s =>
             {
-                s.SetDefault("ShouldCacheEntities", false);
                 s.SetDefault("MaxConflictResolves", 3);
-                s.SetDefault("UseNsbForOob", false);
             });
             DependsOn<Aggregates.Feature>();
             DependsOnOptionally("Aggregates.Consumer");
@@ -50,23 +48,12 @@ namespace Aggregates
             }
 
             context.Container.ConfigureComponent(b => 
-                new StoreStreams(b.Build<IBuilder>(), b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
+                new StoreStreams(b.Build<ICache>(), b.Build<IStoreEvents>(), b.Build<IMessagePublisher>(), b.Build<IStoreSnapshots>(), settings.Get<StreamIdGenerator>("StreamGenerator"), b.BuildAll<IEventMutator>()),
                 DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent(b =>
                 new StorePocos(b.Build<IStoreEvents>(), b.Build<ICache>(), settings.Get<bool>("ShouldCacheEntities"), settings.Get<StreamIdGenerator>("StreamGenerator")),
                 DependencyLifecycle.SingleInstance);
-
-            if (settings.Get<bool>("UseNsbForOob"))
-            {
-                context.Container.ConfigureComponent<NsbOobHandler>(DependencyLifecycle.InstancePerCall);
-            }
-            else
-            {
-                context.Container.ConfigureComponent(b =>
-                        new DefaultOobHandler(b.Build<IStoreEvents>(),
-                            settings.Get<StreamIdGenerator>("StreamGenerator")),
-                    DependencyLifecycle.InstancePerCall);
-            }
+            
             context.Container.ConfigureComponent<UnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.SingleInstance);
@@ -101,10 +88,6 @@ namespace Aggregates
             
             context.Pipeline.Register<MutateIncomingCommandRegistration>();
             context.Pipeline.Register<CommandAcceptorRegistration>();
-            
-
-            //context.Pipeline.Register<SafetyNetRegistration>();
-            //context.Pipeline.Register<TesterBehaviorRegistration>();
         }
 
         public class DomainStart : FeatureStartupTask

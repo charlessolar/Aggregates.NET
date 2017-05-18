@@ -1,25 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Aggregates.Internal;
 using NServiceBus;
 
 namespace Aggregates.Contracts
 {
-    public interface IEventStream
+    public interface IImmutableEventStream
     {
         ISnapshot Snapshot { get; }
 
         Id StreamId { get; }
         string Bucket { get; }
-        string StreamType { get; }
         IEnumerable<Id> Parents { get; }
-        string StreamName { get; }
+        IEnumerable<OobDefinition> Oobs { get; }
 
         long StreamVersion { get; }
         long CommitVersion { get; }
-
-        Task<long> Size { get; }
-        Task<long> OobSize { get; }
 
         /// <summary>
         /// Indicates whether the stream has been changed
@@ -38,29 +35,16 @@ namespace Aggregates.Contracts
         /// Events raised but not committed 
         /// </summary>
         IEnumerable<IFullEvent> Uncommitted { get; }
-        /// <summary>
-        /// OOB events raised but not committed 
-        /// </summary>
-        IEnumerable<IFullEvent> OobUncommitted { get; }
-
-        /// <summary>
-        /// Retrieves a slice of the event stream 
-        /// </summary>
-        Task<IEnumerable<IFullEvent>> Events(long start, int count);
-
-        /// <summary>
-        /// Retreives a slice of the oob event stream
-        /// </summary>
-        Task<IEnumerable<IFullEvent>> OobEvents(long start, int count);
-
-        void Add(IEvent @event, IDictionary<string, string> headers);
-        void AddOutOfBand(IEvent @event, IDictionary<string, string> headers);
-        void AddSnapshot(IMemento memento);
-        void Concat(IEnumerable<IFullEvent> events);
-        Task Commit(Guid commitId, IDictionary<string, string> commitHeaders);
-        Task VerifyVersion(Guid commitId);
+        IEnumerable<OobDefinition> PendingOobs { get; }
+        IMemento PendingSnapshot { get; }
 
         IEventStream Clone();
-        void Flush(bool committed);
+    }
+    public interface IEventStream : IImmutableEventStream
+    {
+        void Add(IEvent @event, IDictionary<string, string> headers);
+        void AddSnapshot(IMemento memento);
+        void AddOob(IEvent @event, string id, IDictionary<string, string> metadata);
+        void DefineOob(string id, bool transient = false, int? daysToLive = null);
     }
 }

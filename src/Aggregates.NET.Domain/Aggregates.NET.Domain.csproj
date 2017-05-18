@@ -60,7 +60,7 @@
     <Compile Include="ConcurrencyConflict.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="Contracts\IHaveEntities.cs" />
-    <Compile Include="Contracts\IOOBHandler.cs" />
+    <Compile Include="Contracts\IMessagePublisher.cs" />
     <Compile Include="Contracts\IPocoRepository.cs" />
     <Compile Include="Exceptions\ConflictResolutionFailedException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
@@ -77,10 +77,9 @@
     <Compile Include="Extensions\EntityExtensions.cs" />
     <Compile Include="IHandleComputed.cs" />
     <Compile Include="Internal\Entity.cs" />
-    <Compile Include="Internal\DefaultOOBHandler.cs" />
     <Compile Include="Internal\ConflictResolvers.cs" />
     <Compile Include="Internal\MutateIncomingCommands.cs" />
-    <Compile Include="Internal\NSBOOBHandler.cs" />
+    <Compile Include="Internal\NSBPublisher.cs" />
     <Compile Include="Internal\PocoRepository.cs" />
     <Compile Include="Internal\Processor.cs" />
     <Compile Include="Contracts\IProcessor.cs" />

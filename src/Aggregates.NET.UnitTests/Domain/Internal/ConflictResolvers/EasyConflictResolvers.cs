@@ -60,7 +60,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             fullevent.Setup(x => x.Event).Returns(new Event());
 
             _stream.Setup(x => x.Add(Moq.It.IsAny<IEvent>(), Moq.It.IsAny<IDictionary<string, string>>()));
-            _stream.Setup(x => x.Flush(true));
             store.Setup(
                     x => x.WriteEvents("test", new[] {fullevent.Object}, Moq.It.IsAny<IDictionary<string, string>>(), null))
                 .Returns(Task.FromResult(0L));
@@ -79,7 +78,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             store.Verify(
                 x => x.WriteEvents("test", new[] {fullevent.Object}, Moq.It.IsAny<IDictionary<string, string>>(), null),
                 Moq.Times.Once);
-            _stream.Verify(x => x.Flush(true), Moq.Times.Once);
         }
 
         [Test]
@@ -91,7 +89,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             fullevent.Setup(x => x.Event).Returns(new Event());
 
             _stream.Setup(x => x.Add(Moq.It.IsAny<IEvent>(), Moq.It.IsAny<IDictionary<string, string>>()));
-            _stream.Setup(x => x.Flush(true));
             store.Setup(
                     x => x.WriteEvents("test", new[] { fullevent.Object }, Moq.It.IsAny<IDictionary<string, string>>(), null))
                 .Returns(Task.FromResult(0L));
@@ -109,7 +106,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             store.Verify(
                 x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(), Moq.It.IsAny<IDictionary<string, string>>(), null),
                 Moq.Times.Never);
-            _stream.Verify(x => x.Flush(Moq.It.IsAny<bool>()), Moq.Times.Never);
         }
 
 

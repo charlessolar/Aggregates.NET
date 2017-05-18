@@ -25,6 +25,7 @@ namespace Aggregates
         public static readonly string EventHeader = "Aggregates.NET.Event";
         public static readonly string DelayedId = "Aggregates.NET.DelayedMessageId";
         public static readonly string ChannelKey = "Aggregates.NET.ChannelKey";
+        public static readonly string OobHeaderKey = "Aggregates.OOB";
 
         public static Guid Instance = Guid.NewGuid();
         public static string Bucket = "default";

@@ -81,7 +81,8 @@ namespace Aggregates.Internal
 
                 Tuple<DateTime, ISnapshot> temp;
                 foreach (var key in expired)
-                    Snapshots.TryRemove(key, out temp);
+                    if (Snapshots.TryRemove(key, out temp))
+                        StoredSnapshots.Decrement();
 
                 return Task.CompletedTask;
             }, TimeSpan.FromMinutes(5), "expires snapshots from the cache");
