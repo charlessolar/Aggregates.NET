@@ -35,6 +35,7 @@ namespace Aggregates.Contracts
         /// Events raised but not committed 
         /// </summary>
         IEnumerable<IFullEvent> Uncommitted { get; }
+        IEnumerable<OobDefinition> PendingOobs { get; }
         IMemento PendingSnapshot { get; }
 
         IEventStream Clone();

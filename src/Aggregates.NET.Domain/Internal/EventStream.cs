@@ -30,6 +30,7 @@ namespace Aggregates.Internal
         public IEnumerable<IFullEvent> Committed => _committed;
 
         public IEnumerable<IFullEvent> Uncommitted => _uncommitted;
+        public IEnumerable<OobDefinition> PendingOobs => _newOobs;
         public IMemento PendingSnapshot => _pendingShot;
 
 
@@ -124,6 +125,9 @@ namespace Aggregates.Internal
 
         public void DefineOob(string id, bool transient = false, int? daysToLive = null)
         {
+            if (_oobs.Any(x => x.Id == id) || _newOobs.Any(x => x.Id == id))
+                return;
+
             _newOobs.Add(new OobDefinition
             {
                 Id = id,

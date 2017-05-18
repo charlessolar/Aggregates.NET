@@ -216,7 +216,20 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             Assert.AreEqual(stream.Snapshot.Payload, clone.Snapshot.Payload);
 
         }
-        
+
+        [Test]
+        public void multiple_define_oob()
+        {
+            var stream = new Aggregates.Internal.EventStream<Entity>("test", "test", null, null, _events, null);
+
+            Assert.AreEqual(0, stream.Oobs.Count());
+            Assert.AreEqual(0, stream.PendingOobs.Count());
+
+            stream.DefineOob("test");
+            stream.DefineOob("test");
+
+            Assert.AreEqual(1, stream.PendingOobs.Count());
+        }
         
         
     }

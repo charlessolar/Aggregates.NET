@@ -19,6 +19,7 @@ namespace Domain
             {
                 x.User = this.Id;
             });
+            DefineOob("transient_channel", transient: true);
         }
 
         public void SayHello(String Message)
@@ -27,7 +28,7 @@ namespace Domain
             {
                 x.User = this.Id;
                 x.Message = Message;
-            });
+            }, "transient_channel");
         }
         public void SayHelloALot(String Message)
         {
@@ -35,7 +36,7 @@ namespace Domain
             {
                 x.User = this.Id;
                 x.Message = Message;
-            });
+            }, "transient_channel");
         }
 
         public void StartHello(DateTime Timestamp)

@@ -202,6 +202,15 @@ namespace Aggregates.Internal
                     () => $"Event stream [{stream.StreamId}] in bucket [{stream.Bucket}] committing snapshot");
                 await _snapstore.WriteSnapshots<T>(stream.Bucket, stream.StreamId, stream.Parents, stream.StreamVersion, stream.PendingSnapshot, commitHeaders).ConfigureAwait(false);
             }
+            if (stream.PendingOobs.Any())
+            {
+                var oobs = stream.Oobs.Concat(stream.PendingOobs);
+
+                await _store.WriteMetadata(streamName, custom: new Dictionary<string, string>
+                {
+                    [OobMetadataKey] = JsonConvert.SerializeObject(oobs)
+                }).ConfigureAwait(false);
+            }
             if (oobEvents.Any())
             {
                 Logger.Write(LogLevel.Debug,

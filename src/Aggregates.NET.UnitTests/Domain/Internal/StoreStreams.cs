@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
+using Aggregates.Internal;
 using NServiceBus.ObjectBuilder;
 using NUnit.Framework;
 
@@ -110,23 +111,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _store.Verify(x => x.GetEventsBackwards(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()), Moq.Times.Once);
         }
 
-        [Test]
-        public async Task write_events_not_frozen()
-        {
-            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
-            _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
-                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>())).Returns(Task.FromResult(0L));
-
-            var @event = new Moq.Mock<IFullEvent>();
-            @event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.Domain);
-
-            _stream.Setup(x => x.Uncommitted).Returns(new IFullEvent[] { @event.Object }.AsEnumerable());
-
-            await _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object, new Dictionary<string, string>());
-
-            _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
-                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>()), Moq.Times.Once);
-        }
 
         [Test]
         public void write_events_frozen()
@@ -155,6 +139,102 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
             _store.Verify(x => x.GetEvents(Moq.It.IsAny<string>(), 2, Moq.It.IsAny<int?>()), Moq.Times.Once);
             Assert.AreEqual(1, entity.CommitVersion);
+        }
+
+        [Test]
+        public async Task write_events_not_frozen()
+        {
+            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
+            _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>())).Returns(Task.FromResult(0L));
+
+            var @event = new Moq.Mock<IFullEvent>();
+            @event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.Domain);
+
+            _stream.Setup(x => x.Uncommitted).Returns(new IFullEvent[] { @event.Object }.AsEnumerable());
+
+            await _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object, new Dictionary<string, string>());
+
+            _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>()), Moq.Times.Once);
+        }
+        [Test]
+        public async Task write_stream_not_dirty()
+        {
+            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
+            _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>())).Returns(Task.FromResult(0L));
+
+            await _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object, new Dictionary<string, string>());
+
+            _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>()), Moq.Times.Never);
+            _store.Verify(
+                x => x.WriteSnapshot(Moq.It.IsAny<string>(), Moq.It.IsAny<IFullEvent>(),
+                    Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
+        }
+
+        [Test]
+        public async Task write_stream_with_events_with_snapshots()
+        {
+            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
+            _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>())).Returns(Task.FromResult(0L));
+            _snapstore.Setup(x => x.WriteSnapshots<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), 
+                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IMemento>(), Moq.It.IsAny<IDictionary<string,string>>()))
+                .Returns(Task.FromResult(0L));
+
+            var @event = new Moq.Mock<IFullEvent>();
+            @event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.Domain);
+            var snapshot = new Moq.Mock<IMemento>();
+            
+            _stream.Setup(x => x.Uncommitted).Returns(new IFullEvent[] { @event.Object }.AsEnumerable());
+            _stream.Setup(x => x.PendingSnapshot).Returns(snapshot.Object);
+
+            await _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object, new Dictionary<string, string>());
+
+            _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>()), Moq.Times.Once);
+            _snapstore.Verify(x => x.WriteSnapshots<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(),
+                Moq.It.IsAny<IEnumerable<Id>>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IMemento>(),
+                Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
+        }
+
+        [Test]
+        public async Task write_stream_pending_oobs()
+        {
+            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
+            _store.Setup(x => x.WriteMetadata(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<long?>(),
+                Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<bool?>(), Moq.It.IsAny<Guid?>(),
+                Moq.It.IsAny<bool>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
+
+            _stream.Setup(x => x.PendingOobs).Returns(new[] {new OobDefinition {Id = "test"}});
+            
+            await _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object, new Dictionary<string, string>());
+
+            _store.Verify(x => x.WriteMetadata(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<long?>(),
+                Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<bool?>(), Moq.It.IsAny<Guid?>(),
+                Moq.It.IsAny<bool>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
+        }
+
+        [Test]
+        public async Task write_stream_oob_events()
+        {
+            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
+            _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>())).Returns(Task.FromResult(0L));
+
+            var @event = new Moq.Mock<IFullEvent>();
+            @event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.OOB);
+            @event.Setup(x => x.Descriptor.Headers[Defaults.OobHeaderKey]).Returns("test");
+
+            _stream.Setup(x => x.Uncommitted).Returns(new IFullEvent[] { @event.Object }.AsEnumerable());
+            _stream.Setup(x => x.Oobs).Returns(new[] {new OobDefinition {Id = "test"}});
+
+            await _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object, new Dictionary<string, string>());
+
+            _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
         }
     }
 }
