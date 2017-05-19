@@ -7,7 +7,7 @@ using Shared;
 
 namespace Domain
 {
-    class User : Aggregates.Aggregate<User, String>
+    class User : Aggregates.Aggregate<User>
     {
         private User()
         {
