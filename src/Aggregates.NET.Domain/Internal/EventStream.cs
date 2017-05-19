@@ -98,7 +98,7 @@ namespace Aggregates.Internal
                     Bucket = Bucket,
                     StreamId = StreamId,
                     Timestamp = DateTime.UtcNow,
-                    Version = StreamVersion,
+                    Version = StreamVersion + 1,
                     Headers = headers ?? new Dictionary<string,string>()
                 },
                 Event = @event
