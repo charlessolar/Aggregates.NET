@@ -54,7 +54,7 @@ namespace Aggregates.Internal
             StreamId = streamId;
             Parents = parents?.ToArray() ?? new Id[] {};
             _oobs = oobs?.ToArray() ?? new OobDefinition[] {};
-            _committed = committed;
+            _committed = committed ?? new IFullEvent[] {};
             _snapshot = snapshot;
 
             _uncommitted = new List<IFullEvent>();

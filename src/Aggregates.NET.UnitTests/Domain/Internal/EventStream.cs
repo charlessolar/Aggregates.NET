@@ -77,7 +77,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         [Test]
         public void new_stream_version()
         {
-            var stream = new Aggregates.Internal.EventStream<Entity>("test", "test", null, null, new IFullEvent[] {}, null);
+            var stream = new Aggregates.Internal.EventStream<Entity>("test", "test", null, null, null, null);
 
             Assert.AreEqual(-1, stream.CommitVersion);
             Assert.AreEqual(-1, stream.StreamVersion);
