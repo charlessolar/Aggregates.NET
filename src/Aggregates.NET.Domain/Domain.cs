@@ -58,6 +58,7 @@ namespace Aggregates
             context.Container.ConfigureComponent<DefaultRepositoryFactory>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<DefaultRouteResolver>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<Processor>(DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<NSBPublisher>(DependencyLifecycle.SingleInstance);
 
             context.Container.ConfigureComponent<ResolveStronglyConflictResolver>(DependencyLifecycle.SingleInstance);
             context.Container.ConfigureComponent<ResolveWeaklyConflictResolver>(DependencyLifecycle.SingleInstance);
