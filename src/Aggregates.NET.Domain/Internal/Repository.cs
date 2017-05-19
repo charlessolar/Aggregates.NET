@@ -51,13 +51,29 @@ namespace Aggregates.Internal
             return (T)root;
         }
 
+        private async Task<T> GetUntracked(string bucket, Id streamId, IEnumerable<Id> parents)
+        {
+            parents = parents ?? new Id[] { };
+
+            Logger.Write(LogLevel.Debug, () => $"Retreiving entity id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName} in store");
+            var stream = await _store.GetStream<T>(bucket, streamId, parents).ConfigureAwait(false);
+
+            var entity = Newup(stream);
+            entity.Parent = _parent;
+
+            (entity as IEventSourced).Hydrate(stream.Committed.Select(e => e.Event as IEvent));
+
+            Logger.Write(LogLevel.Debug, () => $"Hydrated aggregate id [{stream.StreamId}] in bucket [{stream.Bucket}] for type {typeof(T).FullName} to version {stream.CommitVersion}");
+            return entity;
+        }
+
         public override async Task<T> New(Id id)
         {
             var parent = (IEventSourced)_parent;
 
             Logger.Write(LogLevel.Debug, () => $"Creating new stream id [{id}] in bucket [{parent.Stream.Bucket}] for type {typeof(T).FullName} in store");
             var stream = await _store.NewStream<T>(parent.Stream.Bucket, id, parent.BuildParents()).ConfigureAwait(false);
-            var root = Newup(stream, _builder);
+            var root = Newup(stream);
 
             root.Parent = _parent;
 
@@ -163,7 +179,7 @@ namespace Aggregates.Internal
                                 {
                                     var uncommitted = stream.Uncommitted.ToList();
                                     // make new clean entity
-                                    var clean = await GetUntracked(stream).ConfigureAwait(false);
+                                    var clean = await GetUntracked(stream.Bucket, stream.StreamId, stream.Parents).ConfigureAwait(false);
 
                                     Logger.Write(LogLevel.Debug,
                                         () => $"Attempting to resolve conflict with strategy {_conflictResolution.Conflict}");
@@ -273,27 +289,19 @@ namespace Aggregates.Internal
 
             return root;
         }
-        protected async Task<T> GetUntracked(string bucket, Id streamId, IEnumerable<Id> parents = null)
+        private async Task<T> GetUntracked(string bucket, Id streamId, IEnumerable<Id> parents = null)
         {
             parents = parents ?? new Id[] { };
 
             Logger.Write(LogLevel.Debug, () => $"Retreiving entity id [{streamId}] bucket [{bucket}] for type {typeof(T).FullName} in store");
             var stream = await _store.GetStream<T>(bucket, streamId, parents).ConfigureAwait(false);
 
-            return await GetUntracked(stream).ConfigureAwait(false);
-        }
-        private Task<T> GetUntracked(IEventStream stream)
-        {
-            // Call the 'private' constructor
-            var root = (IEventSourced)Newup(stream, _builder);
+            var entity = Newup(stream);
 
-            if (stream.Snapshot != null)
-                (root as ISnapshotting)?.RestoreSnapshot(stream.Snapshot.Payload);
-
-            root.Hydrate(stream.Committed.Select(e => e.Event as IEvent));
+            (entity as IEventSourced).Hydrate(stream.Committed.Select(e => e.Event as IEvent));
 
             Logger.Write(LogLevel.Debug, () => $"Hydrated aggregate id [{stream.StreamId}] in bucket [{stream.Bucket}] for type {typeof(T).FullName} to version {stream.CommitVersion}");
-            return Task.FromResult((T)root);
+            return entity;
         }
 
         public virtual Task<T> New(Id id)
@@ -305,14 +313,14 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Creating new stream id [{id}] in bucket [{bucket}] for type {typeof(T).FullName} in store");
             var stream = await _store.NewStream<T>(bucket, id).ConfigureAwait(false);
-            var root = Newup(stream, _builder);
+            var root = Newup(stream);
 
             var cacheId = $"{bucket}.{id}";
             Tracked[cacheId] = root;
             return root;
         }
 
-        protected T Newup(IEventStream stream, IBuilder builder)
+        protected T Newup(IEventStream stream)
         {
             // Call the 'private' constructor
             var tCtor = typeof(T).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { }, null);
@@ -326,11 +334,14 @@ namespace Aggregates.Internal
             if (root is INeedStream)
                 (root as INeedStream).Stream = stream;
             if (root is INeedBuilder)
-                (root as INeedBuilder).Builder = builder;
+                (root as INeedBuilder).Builder = _builder;
             if (root is INeedEventFactory)
-                (root as INeedEventFactory).EventFactory = builder.Build<IMessageCreator>();
+                (root as INeedEventFactory).EventFactory = _builder.Build<IMessageCreator>();
             if (root is INeedRouteResolver)
-                (root as INeedRouteResolver).Resolver = builder.Build<IRouteResolver>();
+                (root as INeedRouteResolver).Resolver = _builder.Build<IRouteResolver>();
+
+            if (stream.Snapshot != null)
+                (root as ISnapshotting)?.RestoreSnapshot(stream.Snapshot.Payload);
 
             return root;
         }

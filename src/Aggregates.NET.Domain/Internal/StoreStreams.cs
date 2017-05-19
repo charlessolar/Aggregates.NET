@@ -94,7 +94,7 @@ namespace Aggregates.Internal
 
             var eventstream = new EventStream<T>(bucket, streamId, parents, oobs, events, snapshot);
 
-            _cache.Cache(streamName, eventstream);
+            _cache.Cache(streamName, eventstream.Clone());
 
             Logger.Write(LogLevel.Debug, () => $"Stream [{streamId}] in bucket [{bucket}] read - version is {eventstream.CommitVersion}");
             return eventstream;
