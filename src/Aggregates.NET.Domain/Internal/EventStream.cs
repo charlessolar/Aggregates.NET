@@ -70,10 +70,11 @@ namespace Aggregates.Internal
             Parents = clone.Parents;
             _committed = clone.Committed;
             _oobs = clone.Oobs;
-            _uncommitted = new List<IFullEvent>();
-            _pendingShot = null;
             _snapshot = clone.Snapshot;
-            
+
+            _uncommitted = new List<IFullEvent>();
+            _newOobs = new List<OobDefinition>();
+            _pendingShot = null;
         }
 
         /// <summary>
