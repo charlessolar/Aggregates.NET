@@ -27,7 +27,7 @@ public class BuildParameters
         get
         {
             return !IsLocalBuild && !IsPullRequest && IsMainRepo
-                && IsReleaseBuild && IsTagged;
+                && IsReleaseBuild;
         }
     }
 

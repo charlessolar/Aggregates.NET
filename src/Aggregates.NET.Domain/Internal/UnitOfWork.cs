@@ -236,7 +236,7 @@ namespace Aggregates.Internal
                 var workHeader = $"{PrefixHeader}.{header}";
                 CurrentHeaders[workHeader] = defaultHeader;
             }
-            CurrentHeaders[$"{PrefixHeader}.OriginatingType"] = command.GetType().FullName;
+            CurrentHeaders[$"{PrefixHeader}.OriginatingType"] = CurrentMessage.GetType().FullName;
 
             // Copy any application headers the user might have included
             var userHeaders = command.Headers.Keys.Where(h =>
@@ -249,8 +249,10 @@ namespace Aggregates.Internal
                             !h.Equals(Defaults.Retries, StringComparison.InvariantCultureIgnoreCase));
 
             foreach (var header in userHeaders)
-                CurrentHeaders[$"{PrefixHeader}.{header}"] = command.Headers[header];
+                CurrentHeaders[header] = command.Headers[header];
+
             CurrentHeaders[Defaults.InstanceHeader] = Defaults.Instance.ToString();
+            CurrentHeaders[Headers.CorrelationId] = command.Headers[Headers.CorrelationId];
 
 
             CommitId = Guid.NewGuid();

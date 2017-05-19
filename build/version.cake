@@ -39,7 +39,7 @@ public class BuildVersion
             });
 
             version = assertedVersions.MajorMinorPatch;
-            semVersion = assertedVersions.LegacySemVerPadded;
+            semVersion = string.Concat(version, ".", assertedVersions.BuildMetaData);
             milestone = string.Concat("v", version);
 
             context.Information("Calculated Semantic Version: {0}", semVersion);

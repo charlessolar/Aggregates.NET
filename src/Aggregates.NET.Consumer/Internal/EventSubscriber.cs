@@ -225,6 +225,10 @@ when({{
                 var numberOfDeliveryAttempts = 0;
 
                 var messageId = Guid.NewGuid().ToString();
+                var corrId = "";
+                if (@event.Descriptor?.Headers?.ContainsKey(Headers.CorrelationId) ?? false)
+                    corrId = @event.Descriptor.Headers[Headers.CorrelationId];
+
                 while (!processed)
                 {
                     var transportTransaction = new TransportTransaction();
@@ -234,6 +238,7 @@ when({{
                         [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
                         [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(messaging, @event.Event.GetType()),
                         [Headers.MessageId] = messageId,
+                        [Headers.CorrelationId] = corrId,
                         [Defaults.EventHeader] = "",
                         ["EventId"] = @event.EventId.ToString(),
                         ["EventStream"] = stream,

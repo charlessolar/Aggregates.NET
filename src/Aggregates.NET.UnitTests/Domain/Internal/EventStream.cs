@@ -72,6 +72,9 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
             Assert.AreEqual(0, stream.CommitVersion);
             Assert.AreEqual(1, stream.StreamVersion);
+
+            var uncommitted = stream.Uncommitted.First();
+            Assert.AreEqual(1, uncommitted.Descriptor.Version);
         }
 
         [Test]
@@ -86,6 +89,9 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
             Assert.AreEqual(-1, stream.CommitVersion);
             Assert.AreEqual(0, stream.StreamVersion);
+
+            var uncommitted = stream.Uncommitted.First();
+            Assert.AreEqual(0, uncommitted.Descriptor.Version);
         }
 
         [Test]
@@ -107,6 +113,9 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
             Assert.AreEqual(2, stream.StreamVersion);
             Assert.AreEqual(1, stream.CommitVersion);
+
+            var uncommitted = stream.Uncommitted.First();
+            Assert.AreEqual(2, uncommitted.Descriptor.Version);
         }
 
         [Test]

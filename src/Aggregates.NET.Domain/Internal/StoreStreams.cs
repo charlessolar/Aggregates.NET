@@ -172,13 +172,13 @@ namespace Aggregates.Internal
                         () => $"Mutating outgoing event {writable.Event.GetType()} with mutator {mutate.GetType().FullName}");
                     mutated = mutate.MutateOutgoing(mutated);
                 }
-
+                
                 foreach (var header in mutated.Headers)
                     writable.Descriptor.Headers[header.Key] = header.Value;
                 return new WritableEvent
                 {
                     Descriptor = writable.Descriptor,
-                    Event = writable.Event,
+                    Event = mutated.Message,
                     EventId = UnitOfWork.NextEventId(commitId)
                 };
             });
