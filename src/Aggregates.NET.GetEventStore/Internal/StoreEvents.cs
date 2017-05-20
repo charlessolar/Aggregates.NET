@@ -341,8 +341,7 @@ namespace Aggregates.Internal
                     else
                     {
                         var result = await
-                            _clients[bucket].AppendToStreamAsync(stream, expectedVersion ?? ExpectedVersion.Any,
-                                    events)
+                            _clients[bucket].AppendToStreamAsync(stream, expectedVersion ?? ExpectedVersion.Any, events)
                                 .ConfigureAwait(false);
 
                         nextVersion = result.NextExpectedVersion;

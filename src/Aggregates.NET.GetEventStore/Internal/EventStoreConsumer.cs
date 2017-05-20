@@ -302,12 +302,12 @@ namespace Aggregates.Internal
 
         private void EventAppeared(ResolvedEvent e, CancellationToken token, Action<string, long, IFullEvent> callback)
         {
-            Logger.Write(LogLevel.Debug,
-                    () => $"Event appeared {e.Event?.EventId ?? Guid.Empty} in subscription stream [{e.Event?.EventStreamId ?? ""}] number {e.Event?.EventNumber ?? -1} projection event number {e.OriginalEventNumber}");
-
             // Don't care about metadata streams
             if (e.Event == null || e.Event.EventStreamId[0] == '$')
                 return;
+
+            Logger.Write(LogLevel.Debug,
+                    () => $"Event appeared {e.Event?.EventId ?? Guid.Empty} in subscription stream [{e.Event?.EventStreamId ?? ""}] number {e.Event?.EventNumber ?? -1} projection {e.OriginalStreamId} event number {e.OriginalEventNumber}");
 
             var metadata = e.Event.Metadata;
             var data = e.Event.Data;

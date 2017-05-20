@@ -14,7 +14,8 @@ namespace Aggregates.Internal
 
     class EventStream<T> : IEventStream where T : class, IEventSource
     {
-        
+        private static readonly ILog Logger = LogManager.GetLogger("EventStream");
+
         public string Bucket { get; }
         public Id StreamId { get; }
         public IEnumerable<Id> Parents { get; }
@@ -129,6 +130,7 @@ namespace Aggregates.Internal
             if (_oobs.Any(x => x.Id == id) || _newOobs.Any(x => x.Id == id))
                 return;
 
+            Logger.Debug($"Defining new OOB on stream {StreamId} bucket {Bucket}");
             _newOobs.Add(new OobDefinition
             {
                 Id = id,

@@ -183,6 +183,7 @@ namespace Aggregates.Internal
                 };
             });
 
+            var oobs = stream.Oobs.Concat(stream.PendingOobs);
             var domainEvents = events.Where(x => x.Descriptor.StreamType == StreamTypes.Domain);
             var oobEvents = events.Where(x => x.Descriptor.StreamType == StreamTypes.OOB);
 
@@ -195,21 +196,20 @@ namespace Aggregates.Internal
                 await _store.WriteEvents(streamName, domainEvents, commitHeaders, expectedVersion: stream.CommitVersion)
                     .ConfigureAwait(false);
             }
+            if (oobs.Any())
+            {
+
+                await _store.WriteMetadata(streamName, custom: new Dictionary<string, string>
+                {
+                    [OobMetadataKey] = JsonConvert.SerializeObject(oobs)
+                }).ConfigureAwait(false);
+            }
 
             if (stream.PendingSnapshot != null)
             {
                 Logger.Write(LogLevel.Debug,
                     () => $"Event stream [{stream.StreamId}] in bucket [{stream.Bucket}] committing snapshot");
                 await _snapstore.WriteSnapshots<T>(stream.Bucket, stream.StreamId, stream.Parents, stream.StreamVersion, stream.PendingSnapshot, commitHeaders).ConfigureAwait(false);
-            }
-            if (stream.PendingOobs.Any())
-            {
-                var oobs = stream.Oobs.Concat(stream.PendingOobs);
-
-                await _store.WriteMetadata(streamName, custom: new Dictionary<string, string>
-                {
-                    [OobMetadataKey] = JsonConvert.SerializeObject(oobs)
-                }).ConfigureAwait(false);
             }
             if (oobEvents.Any())
             {
@@ -225,7 +225,7 @@ namespace Aggregates.Internal
                     var oobstream = $"{streamName}-{group.Key}.{vary}";
 
 
-                    var definition = stream.Oobs.Single(x => x.Id == group.Key);
+                    var definition = oobs.Single(x => x.Id == group.Key);
                     if (definition.Transient ?? false)
                         await _publisher.Publish<T>(oobstream, group, commitHeaders).ConfigureAwait(false);
                     else if(definition.DaysToLive.HasValue)

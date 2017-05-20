@@ -175,12 +175,10 @@ namespace Aggregates.Internal
 
         private async Task Commit()
         {
-            Guid eventId;
-            EventIds.TryRemove(CommitId, out eventId);
+
             var headers = new Dictionary<string, string>
             {
                 [CommitHeader] = CommitId.ToString(),
-                [TerminatingEventIdHeader] = eventId.ToString()
                 // Todo: what else can we put in here?
             };
 
@@ -206,14 +204,22 @@ namespace Aggregates.Internal
             
             Logger.Write(LogLevel.Debug, () => $"Starting commit id {CommitId} with {_repositories.Count + _pocoRepositories.Count} tracked repositories");
 
-
-            using (var ctx = CommitTime.NewContext())
+            try
             {
-                await allRepos.WhenAllAsync(x => x.Commit(CommitId, headers)).ConfigureAwait(false);
+                using (var ctx = CommitTime.NewContext())
+                {
+                    await allRepos.WhenAllAsync(x => x.Commit(CommitId, headers)).ConfigureAwait(false);
 
-                if(ctx.Elapsed > TimeSpan.FromSeconds(1))
-                    SlowLogger.Write(LogLevel.Warn, () => $"Commit id {CommitId} took {ctx.Elapsed.TotalSeconds} seconds!");
-                Logger.Write(LogLevel.Debug, () => $"Commit id {CommitId} took {ctx.Elapsed.TotalMilliseconds} ms");
+                    if (ctx.Elapsed > TimeSpan.FromSeconds(1))
+                        SlowLogger.Write(LogLevel.Warn,
+                            () => $"Commit id {CommitId} took {ctx.Elapsed.TotalSeconds} seconds!");
+                    Logger.Write(LogLevel.Debug, () => $"Commit id {CommitId} took {ctx.Elapsed.TotalMilliseconds} ms");
+                }
+            }
+            finally
+            {
+                Guid eventId;
+                EventIds.TryRemove(CommitId, out eventId);
             }
 
         }
@@ -244,6 +250,8 @@ namespace Aggregates.Internal
                             !h.Equals("WinIdName", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.StartsWith("NServiceBus", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.StartsWith("$", StringComparison.InvariantCultureIgnoreCase) &&
+                            !h.Equals(CommitHeader) &&
+                            !h.Equals(TerminatingEventIdHeader) &&
                             !h.Equals(Defaults.CommitIdHeader, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.RequestResponse, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.Retries, StringComparison.InvariantCultureIgnoreCase));
@@ -270,7 +278,11 @@ namespace Aggregates.Internal
                     CommitId = Guid.Parse(messageId);
             }
             catch (FormatException) { }
-            
+
+            // Helpful log and gets CommitId into the dictionary
+            var firstEventId = UnitOfWork.NextEventId(CommitId);
+            Logger.Debug($"Starting unit of work - first event id {firstEventId}");
+
             return command;
         }
         public IMutating MutateOutgoing(IMutating command)
