@@ -151,8 +151,8 @@ namespace Aggregates.Internal
                     .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readSize)
                     .WithLiveBufferSizeOf(_readSize * 5)
-                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(5))
-                    .CheckPointAfter(TimeSpan.FromMinutes(1))
+                    .DontTimeoutMessages()
+                    .CheckPointAfter(TimeSpan.FromSeconds(30))
                     .MaximumCheckPointCountOf(_readSize*5)
                     .ResolveLinkTos()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
@@ -205,8 +205,8 @@ namespace Aggregates.Internal
                     .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readSize)
                     .WithLiveBufferSizeOf(_readSize * 5)
-                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(5))
-                    .CheckPointAfter(TimeSpan.FromMinutes(1))
+                    .DontTimeoutMessages()
+                    .CheckPointAfter(TimeSpan.FromSeconds(30))
                     .MaximumCheckPointCountOf(_readSize * 5)
                     .ResolveLinkTos()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.RoundRobin);
