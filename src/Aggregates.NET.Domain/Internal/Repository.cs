@@ -45,13 +45,11 @@ namespace Aggregates.Internal
             T root;
             if (!Tracked.TryGetValue(cacheId, out root))
                 Tracked[cacheId] = root = await GetUntracked(_parent.Stream.Bucket, id, _parent.BuildParents()).ConfigureAwait(false);
-
-            root.Parent = _parent;
-
+            
             return (T)root;
         }
 
-        private async Task<T> GetUntracked(string bucket, Id streamId, IEnumerable<Id> parents)
+        protected override async Task<T> GetUntracked(string bucket, Id streamId, IEnumerable<Id> parents)
         {
             parents = parents ?? new Id[] { };
 
@@ -289,7 +287,7 @@ namespace Aggregates.Internal
 
             return root;
         }
-        private async Task<T> GetUntracked(string bucket, Id streamId, IEnumerable<Id> parents = null)
+        protected virtual async Task<T> GetUntracked(string bucket, Id streamId, IEnumerable<Id> parents = null)
         {
             parents = parents ?? new Id[] { };
 

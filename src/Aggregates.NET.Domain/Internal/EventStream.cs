@@ -20,7 +20,7 @@ namespace Aggregates.Internal
         public Id StreamId { get; }
         public IEnumerable<Id> Parents { get; }
 
-        public IEnumerable<OobDefinition> Oobs => _oobs;
+        public IEnumerable<OobDefinition> Oobs => _oobs.Values;
 
         public long StreamVersion => CommitVersion + Uncommitted.Count();
 
@@ -31,7 +31,7 @@ namespace Aggregates.Internal
         public IEnumerable<IFullEvent> Committed => _committed;
 
         public IEnumerable<IFullEvent> Uncommitted => _uncommitted;
-        public IEnumerable<OobDefinition> PendingOobs => _newOobs;
+        public IEnumerable<OobDefinition> PendingOobs => _newOobs.Values;
         public IMemento PendingSnapshot => _pendingShot;
 
 
@@ -42,9 +42,9 @@ namespace Aggregates.Internal
         private readonly ISnapshot _snapshot;
 
         private readonly IEnumerable<IFullEvent> _committed;
-        private readonly IEnumerable<OobDefinition> _oobs;
+        private readonly IDictionary<string, OobDefinition> _oobs;
 
-        private readonly IList<OobDefinition> _newOobs;
+        private readonly IDictionary<string, OobDefinition> _newOobs;
         private readonly IList<IFullEvent> _uncommitted;
 
         private IMemento _pendingShot;
@@ -54,12 +54,12 @@ namespace Aggregates.Internal
             Bucket = bucket;
             StreamId = streamId;
             Parents = parents?.ToArray() ?? new Id[] {};
-            _oobs = oobs?.ToArray() ?? new OobDefinition[] {};
+            _oobs = oobs?.ToDictionary(x => x.Id, x => x) ?? new Dictionary<string, OobDefinition>();
             _committed = committed ?? new IFullEvent[] {};
             _snapshot = snapshot;
 
             _uncommitted = new List<IFullEvent>();
-            _newOobs = new List<OobDefinition>();
+            _newOobs = new Dictionary<string, OobDefinition>();
             _pendingShot = null;
         }
 
@@ -70,11 +70,11 @@ namespace Aggregates.Internal
             StreamId = clone.StreamId;
             Parents = clone.Parents;
             _committed = clone.Committed;
-            _oobs = clone.Oobs;
+            _oobs = clone.Oobs?.ToDictionary(x => x.Id, x => x);
             _snapshot = clone.Snapshot;
 
             _uncommitted = new List<IFullEvent>();
-            _newOobs = new List<OobDefinition>();
+            _newOobs = new Dictionary<string, OobDefinition>();
             _pendingShot = null;
         }
 
@@ -85,7 +85,7 @@ namespace Aggregates.Internal
         /// <returns></returns>
         public IEventStream Clone()
         {
-            return new EventStream<T>(Bucket, StreamId, Parents, _oobs, _committed, _snapshot);
+            return new EventStream<T>(Bucket, StreamId, Parents, _oobs.Values, _committed, _snapshot);
         }
         
         private IFullEvent MakeWritableEvent(string streamType, IEvent @event, IDictionary<string, string> headers)
@@ -118,25 +118,22 @@ namespace Aggregates.Internal
             metadata = metadata ?? new Dictionary<string, string>();
             metadata[Defaults.OobHeaderKey] = id;
 
-            if (_oobs.All(x => x.Id != id) && _newOobs.All(x => x.Id != id))
+            if(!_oobs.ContainsKey(id) && !_newOobs.ContainsKey(id))
                 throw new InvalidOperationException(
                     "Can not add an oob event without defining the oob stream using DefineOob");
-
+            
             _uncommitted.Add(MakeWritableEvent(StreamTypes.OOB, @event, metadata));
         }
 
         public void DefineOob(string id, bool transient = false, int? daysToLive = null)
         {
-            if (_oobs.Any(x => x.Id == id) || _newOobs.Any(x => x.Id == id))
-                return;
-
             Logger.Debug($"Defining new OOB on stream {StreamId} bucket {Bucket}");
-            _newOobs.Add(new OobDefinition
+            _newOobs[id] = new OobDefinition
             {
                 Id = id,
                 Transient = transient,
                 DaysToLive = daysToLive
-            });
+            };
         }
 
         public void AddSnapshot(IMemento memento)

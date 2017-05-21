@@ -183,7 +183,10 @@ namespace Aggregates.Internal
                 };
             });
 
-            var oobs = stream.Oobs.Concat(stream.PendingOobs);
+            var oobs = stream.Oobs.ToDictionary(x => x.Id, x => x);
+            foreach (var oob in stream.PendingOobs)
+                oobs[oob.Id] = oob;
+
             var domainEvents = events.Where(x => x.Descriptor.StreamType == StreamTypes.Domain);
             var oobEvents = events.Where(x => x.Descriptor.StreamType == StreamTypes.OOB);
 
@@ -196,12 +199,12 @@ namespace Aggregates.Internal
                 await _store.WriteEvents(streamName, domainEvents, commitHeaders, expectedVersion: stream.CommitVersion)
                     .ConfigureAwait(false);
             }
-            if (oobs.Any())
+            if (stream.PendingOobs.Any())
             {
 
                 await _store.WriteMetadata(streamName, custom: new Dictionary<string, string>
                 {
-                    [OobMetadataKey] = JsonConvert.SerializeObject(oobs)
+                    [OobMetadataKey] = JsonConvert.SerializeObject(oobs.Values)
                 }).ConfigureAwait(false);
             }
 
@@ -225,7 +228,7 @@ namespace Aggregates.Internal
                     var oobstream = $"{streamName}-{group.Key}.{vary}";
 
 
-                    var definition = oobs.Single(x => x.Id == group.Key);
+                    var definition = oobs[group.Key];
                     if (definition.Transient ?? false)
                         await _publisher.Publish<T>(oobstream, group, commitHeaders).ConfigureAwait(false);
                     else if(definition.DaysToLive.HasValue)
