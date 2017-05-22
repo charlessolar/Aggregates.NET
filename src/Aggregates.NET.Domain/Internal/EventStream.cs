@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
@@ -22,7 +24,7 @@ namespace Aggregates.Internal
 
         public IEnumerable<OobDefinition> Oobs => _oobs.Values;
 
-        public long StreamVersion => CommitVersion + Uncommitted.Count();
+        public long StreamVersion => _streamVersion;
 
         public long CommitVersion => (Snapshot?.Version ?? 0L) + Committed.Count() - 1L;
         
@@ -30,7 +32,7 @@ namespace Aggregates.Internal
 
         public IEnumerable<IFullEvent> Committed => _committed;
 
-        public IEnumerable<IFullEvent> Uncommitted => _uncommitted;
+        public IEnumerable<IFullEvent> Uncommitted => _uncommitted.OrderBy(x => x.Descriptor.Version);
         public IEnumerable<OobDefinition> PendingOobs => _newOobs.Values;
         public IMemento PendingSnapshot => _pendingShot;
 
@@ -47,6 +49,7 @@ namespace Aggregates.Internal
         private readonly IDictionary<string, OobDefinition> _newOobs;
         private readonly IList<IFullEvent> _uncommitted;
 
+        private long _streamVersion;
         private IMemento _pendingShot;
         
         public EventStream(string bucket, Id streamId, IEnumerable<Id> parents, IEnumerable<OobDefinition> oobs, IEnumerable<IFullEvent> committed, ISnapshot snapshot = null)
@@ -57,9 +60,10 @@ namespace Aggregates.Internal
             _oobs = oobs?.ToDictionary(x => x.Id, x => x) ?? new Dictionary<string, OobDefinition>();
             _committed = committed ?? new IFullEvent[] {};
             _snapshot = snapshot;
+            _streamVersion = CommitVersion;
 
             _uncommitted = new List<IFullEvent>();
-            _newOobs = new Dictionary<string, OobDefinition>();
+            _newOobs = new ConcurrentDictionary<string, OobDefinition>();
             _pendingShot = null;
         }
 
@@ -72,6 +76,7 @@ namespace Aggregates.Internal
             _committed = clone.Committed;
             _oobs = clone.Oobs?.ToDictionary(x => x.Id, x => x);
             _snapshot = clone.Snapshot;
+            _streamVersion = CommitVersion;
 
             _uncommitted = new List<IFullEvent>();
             _newOobs = new Dictionary<string, OobDefinition>();
@@ -90,6 +95,7 @@ namespace Aggregates.Internal
         
         private IFullEvent MakeWritableEvent(string streamType, IEvent @event, IDictionary<string, string> headers)
         {
+            var version = Interlocked.Increment(ref _streamVersion);
             var writable = new WritableEvent
             {
                 Descriptor = new EventDescriptor
@@ -98,8 +104,9 @@ namespace Aggregates.Internal
                     StreamType = streamType,
                     Bucket = Bucket,
                     StreamId = StreamId,
+                    Parents = Parents,
                     Timestamp = DateTime.UtcNow,
-                    Version = StreamVersion + 1,
+                    Version = version,
                     Headers = headers ?? new Dictionary<string,string>()
                 },
                 Event = @event

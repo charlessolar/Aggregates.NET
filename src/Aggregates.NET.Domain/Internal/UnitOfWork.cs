@@ -35,7 +35,6 @@ namespace Aggregates.Internal
 
         private const string CommitHeader = "CommitId";
         private const string TerminatingEventIdHeader = "FinalEventId";
-        public static string PrefixHeader = "Originating";
         public static string NotFound = "<NOT FOUND>";
 
         private static readonly ILog Logger = LogManager.GetLogger("UnitOfWork");
@@ -46,7 +45,7 @@ namespace Aggregates.Internal
         private bool _disposed;
         private readonly IDictionary<string, IRepository> _repositories;
         private readonly IDictionary<string, IRepository> _pocoRepositories;
-        
+
         public IBuilder Builder { get; set; }
         public int Retries { get; set; }
         public ContextBag Bag { get; set; }
@@ -239,10 +238,10 @@ namespace Aggregates.Internal
                 if (string.IsNullOrEmpty(defaultHeader))
                     defaultHeader = NotFound;
 
-                var workHeader = $"{PrefixHeader}.{header}";
+                var workHeader = $"{Defaults.PrefixHeader}.{header}";
                 CurrentHeaders[workHeader] = defaultHeader;
             }
-            CurrentHeaders[$"{PrefixHeader}.OriginatingType"] = CurrentMessage.GetType().FullName;
+            CurrentHeaders[$"{Defaults.PrefixHeader}.OriginatingType"] = CurrentMessage.GetType().FullName;
 
             // Copy any application headers the user might have included
             var userHeaders = command.Headers.Keys.Where(h =>
@@ -254,7 +253,8 @@ namespace Aggregates.Internal
                             !h.Equals(TerminatingEventIdHeader) &&
                             !h.Equals(Defaults.CommitIdHeader, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.RequestResponse, StringComparison.InvariantCultureIgnoreCase) &&
-                            !h.Equals(Defaults.Retries, StringComparison.InvariantCultureIgnoreCase));
+                            !h.Equals(Defaults.Retries, StringComparison.InvariantCultureIgnoreCase) &&
+                            !h.Equals(Defaults.EventHeader, StringComparison.InvariantCultureIgnoreCase));
 
             foreach (var header in userHeaders)
                 CurrentHeaders[header] = command.Headers[header];

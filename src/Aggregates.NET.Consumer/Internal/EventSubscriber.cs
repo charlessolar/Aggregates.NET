@@ -240,9 +240,9 @@ when({{
                         [Headers.MessageId] = messageId,
                         [Headers.CorrelationId] = corrId,
                         [Defaults.EventHeader] = "",
-                        ["EventId"] = @event.EventId.ToString(),
-                        ["EventStream"] = stream,
-                        ["EventPosition"] = position.ToString()
+                        [$"{Defaults.EventPrefixHeader}.EventId"] = @event.EventId.ToString(),
+                        [$"{Defaults.EventPrefixHeader}.EventStream"] = stream,
+                        [$"{Defaults.EventPrefixHeader}.EventPosition"] = position.ToString()
                     };
 
                     using (var ctx = EventExecution.NewContext())

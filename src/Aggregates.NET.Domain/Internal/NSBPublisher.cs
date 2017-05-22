@@ -27,12 +27,12 @@ namespace Aggregates.Internal
                     options.SetHeader(header.Key, header.Value);
                 }
 
-                options.SetHeader("EventId", @event.EventId.ToString());
-                options.SetHeader("EntityType", @event.Descriptor.EntityType);
-                options.SetHeader("Timestamp", @event.Descriptor.Timestamp.ToString("s"));
-                options.SetHeader("Version", @event.Descriptor.Version.ToString());
+                options.SetHeader($"{Defaults.PrefixHeader}.EventId", @event.EventId.ToString());
+                options.SetHeader($"{Defaults.PrefixHeader}.EntityType", @event.Descriptor.EntityType);
+                options.SetHeader($"{Defaults.PrefixHeader}.Timestamp", @event.Descriptor.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture));
+                options.SetHeader($"{Defaults.PrefixHeader}.Version", @event.Descriptor.Version.ToString());
 
-                options.SetHeader("StreamName", streamName);
+                options.SetHeader($"{Defaults.PrefixHeader}.EventStream", streamName);
 
                 foreach (var header in @event.Descriptor.Headers)
                     options.SetHeader(header.Key, header.Value);

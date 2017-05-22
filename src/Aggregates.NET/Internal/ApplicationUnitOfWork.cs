@@ -92,11 +92,11 @@ namespace Aggregates.Internal
                                 // Replace all headers with the original headers to preserve CorrId etc.
                                 context.Headers.Clear();
                                 foreach (var header in x.Headers)
-                                    context.Headers[header.Key] = header.Value;
+                                    context.Headers[$"{Defaults.DelayedPrefixHeader}.{header.Key}"] = header.Value;
 
-                                context.Headers[Defaults.BulkHeader] = delayed.Count().ToString();
-                                context.Headers[Defaults.DelayedId] = x.MessageId;
-                                context.Headers[Defaults.ChannelKey] = x.ChannelKey;
+                                context.Headers[$"{Defaults.DelayedPrefixHeader}.{Defaults.BulkHeader}"] = delayed.Count().ToString();
+                                context.Headers[$"{Defaults.DelayedPrefixHeader}.{Defaults.DelayedId}"] = x.MessageId;
+                                context.Headers[$"{Defaults.DelayedPrefixHeader}.{Defaults.ChannelKey}"] = x.ChannelKey;
                                 Logger.Write(LogLevel.Debug, () => $"Processing {index}/{delayed.Count()} message, bulk id {context.MessageId}.  MessageId: {x.MessageId} ChannelKey: {x.ChannelKey}");
 
                                 //context.Extensions.Set(Defaults.ChannelKey, x.ChannelKey);

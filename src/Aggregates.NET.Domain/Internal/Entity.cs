@@ -145,7 +145,6 @@ namespace Aggregates.Internal
             RouteFor(@event);
             
             // Todo: Fill with user headers or something
-            var headers = new Dictionary<string, string>();
             Stream.Add(@event, metadata);
         }
         private void Raise(IEvent @event, string id, IDictionary<string, string> metadata = null)

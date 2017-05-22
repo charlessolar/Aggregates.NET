@@ -91,6 +91,7 @@ namespace Aggregates.Internal
                     StreamType = StreamTypes.Snapshot,
                     Bucket = bucket,
                     StreamId = streamId,
+                    Parents = parents,
                     Timestamp = DateTime.UtcNow,
                     Version = version,
                     Headers = new Dictionary<string, string>(),

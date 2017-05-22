@@ -376,7 +376,7 @@ namespace Aggregates.Internal
 
             if (ex != null)
             {
-                Logger.Write(LogLevel.Debug, () => $"Putting {_inFlightMemCache.Count()} in flight channels back into memcache");
+                Logger.Write(LogLevel.Debug, () => $"UOW exception - putting {_inFlightMemCache.Count()} in flight channels back into memcache");
                 foreach (var inflight in _inFlightMemCache)
                 {
                     MemCache.AddOrUpdate(inflight.Key,

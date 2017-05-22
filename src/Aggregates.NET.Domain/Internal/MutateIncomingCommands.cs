@@ -33,6 +33,7 @@ namespace Aggregates.Internal
                 mutated = mutator.MutateIncoming(mutated);
             }
 
+            // Todo: maybe have a small bool to set if they actually changed headers, save some cycles
             foreach (var header in mutated.Headers)
                 context.Headers[header.Key] = header.Value;
             context.UpdateMessageInstance(mutated.Message);

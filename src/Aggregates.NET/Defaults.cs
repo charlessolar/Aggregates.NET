@@ -18,6 +18,9 @@ namespace Aggregates
 
     public static class Defaults
     {
+        public static readonly string PrefixHeader = "Originating";
+        public static readonly string EventPrefixHeader = "Event";
+        public static readonly string DelayedPrefixHeader = "Delayed";
         public static readonly string SetupCorrectly = "Aggregates.NET.Safe";
         public static readonly string Retries = "Aggregates.NET.Retries";
         public static readonly string RequestResponse = "Aggregates.NET.Request";
@@ -36,7 +39,8 @@ namespace Aggregates
         public static AsyncLocal<LogLevel?> MinimumLogging = new AsyncLocal<LogLevel?>();
 
         // Header information to take from incoming messages
-        public static IList<string> CarryOverHeaders = new List<string> {
+        public static IList<string> CarryOverHeaders = new List<string>
+        {
                                                                           "NServiceBus.MessageId",
                                                                           "NServiceBus.CorrelationId",
                                                                           "NServiceBus.Version",
