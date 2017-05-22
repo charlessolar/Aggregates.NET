@@ -34,7 +34,6 @@ namespace Aggregates.Internal
         private static readonly Metrics.Timer CommitTime = Metric.Timer("UOW Commit Time", Unit.Items, tags: "debug");
 
         private const string CommitHeader = "CommitId";
-        private const string TerminatingEventIdHeader = "FinalEventId";
         public static string NotFound = "<NOT FOUND>";
 
         private static readonly ILog Logger = LogManager.GetLogger("UnitOfWork");
@@ -250,7 +249,6 @@ namespace Aggregates.Internal
                             !h.StartsWith("NServiceBus", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.StartsWith("$", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(CommitHeader) &&
-                            !h.Equals(TerminatingEventIdHeader) &&
                             !h.Equals(Defaults.CommitIdHeader, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.RequestResponse, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.Retries, StringComparison.InvariantCultureIgnoreCase) &&
@@ -260,7 +258,8 @@ namespace Aggregates.Internal
                 CurrentHeaders[header] = command.Headers[header];
 
             CurrentHeaders[Defaults.InstanceHeader] = Defaults.Instance.ToString();
-            CurrentHeaders[Headers.CorrelationId] = command.Headers[Headers.CorrelationId];
+            if(command.Headers.ContainsKey(Headers.CorrelationId))
+                CurrentHeaders[Headers.CorrelationId] = command.Headers[Headers.CorrelationId];
 
 
             CommitId = Guid.NewGuid();

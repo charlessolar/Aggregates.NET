@@ -48,7 +48,7 @@ namespace Aggregates.Internal
 
             var settings = new JsonSerializerSettings
             {
-                TypeNameHandling = TypeNameHandling.Auto,
+                TypeNameHandling = TypeNameHandling.All,
                 SerializationBinder = new EventSerializationBinder(_mapper),
                 ContractResolver = new EventContractResolver(_mapper),
                 Converters = new[] {new Newtonsoft.Json.Converters.StringEnumConverter()}
@@ -127,7 +127,7 @@ namespace Aggregates.Internal
         {
             var settings = new JsonSerializerSettings
             {
-                TypeNameHandling = TypeNameHandling.Auto,
+                TypeNameHandling = TypeNameHandling.All,
                 SerializationBinder = new EventSerializationBinder(_mapper),
                 ContractResolver = new EventContractResolver(_mapper),
                 Converters = new[] { new Newtonsoft.Json.Converters.StringEnumConverter() }
@@ -226,7 +226,7 @@ namespace Aggregates.Internal
 
             var settings = new JsonSerializerSettings
             {
-                TypeNameHandling = TypeNameHandling.Auto,
+                TypeNameHandling = TypeNameHandling.All,
                 SerializationBinder = new EventSerializationBinder(_mapper),
                 //ContractResolver = new EventContractResolver(_mapper)
                 Converters = new[] { new Newtonsoft.Json.Converters.StringEnumConverter() }
@@ -276,7 +276,7 @@ namespace Aggregates.Internal
 
             var settings = new JsonSerializerSettings
             {
-                TypeNameHandling = TypeNameHandling.Auto,
+                TypeNameHandling = TypeNameHandling.All,
                 SerializationBinder = new EventSerializationBinder(_mapper),
                 //ContractResolver = new EventContractResolver(_mapper)
                 Converters = new[] { new Newtonsoft.Json.Converters.StringEnumConverter() }
