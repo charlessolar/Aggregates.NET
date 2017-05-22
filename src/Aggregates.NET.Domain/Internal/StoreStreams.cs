@@ -155,6 +155,9 @@ namespace Aggregates.Internal
         public async Task WriteStream<T>(Guid commitId, IEventStream stream, IDictionary<string, string> commitHeaders) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
+            Logger.Write(LogLevel.Debug,
+                () =>
+                    $"Writing {stream.Uncommitted.Count()} events to stream {stream.StreamId} bucket {stream.Bucket} with commit id {commitId}");
 
             if (await CheckFrozen<T>(stream.Bucket, stream.StreamId, stream.Parents).ConfigureAwait(false))
                 throw new FrozenException();
@@ -163,8 +166,6 @@ namespace Aggregates.Internal
 
             var events = stream.Uncommitted.Select(writable =>
             {
-                if (!_mutators.Any()) return writable;
-
                 IMutating mutated = new Mutating(writable.Event, writable.Descriptor.Headers);
                 foreach (var mutate in _mutators)
                 {
@@ -173,15 +174,17 @@ namespace Aggregates.Internal
                     mutated = mutate.MutateOutgoing(mutated);
                 }
                 
-                foreach (var header in mutated.Headers)
-                    writable.Descriptor.Headers[header.Key] = header.Value;
-                return new WritableEvent
+                // Todo: have some bool that is set true if they modified headers
+                if(_mutators.Any())
+                    foreach (var header in mutated.Headers)
+                        writable.Descriptor.Headers[header.Key] = header.Value;
+                return (IFullEvent)new WritableEvent
                 {
                     Descriptor = writable.Descriptor,
                     Event = mutated.Message,
                     EventId = UnitOfWork.NextEventId(commitId)
                 };
-            });
+            }).ToList();
 
             var oobs = stream.Oobs.ToDictionary(x => x.Id, x => x);
             foreach (var oob in stream.PendingOobs)

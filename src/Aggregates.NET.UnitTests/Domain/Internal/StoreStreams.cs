@@ -8,6 +8,7 @@ using Aggregates.Exceptions;
 using Aggregates.Internal;
 using NServiceBus.ObjectBuilder;
 using NUnit.Framework;
+using Aggregates.Extensions;
 
 namespace Aggregates.NET.UnitTests.Domain.Internal
 {
@@ -150,6 +151,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
             var @event = new Moq.Mock<IFullEvent>();
             @event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.Domain);
+            @event.Setup(x => x.Descriptor.Headers).Returns(new Dictionary<string, string>());
 
             _stream.Setup(x => x.Uncommitted).Returns(new IFullEvent[] { @event.Object }.AsEnumerable());
 
@@ -186,6 +188,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
             var @event = new Moq.Mock<IFullEvent>();
             @event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.Domain);
+            @event.Setup(x => x.Descriptor.Headers).Returns(new Dictionary<string, string>());
             var snapshot = new Moq.Mock<IMemento>();
             
             _stream.Setup(x => x.Uncommitted).Returns(new IFullEvent[] { @event.Object }.AsEnumerable());
@@ -226,7 +229,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
             var @event = new Moq.Mock<IFullEvent>();
             @event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.OOB);
-            @event.Setup(x => x.Descriptor.Headers[Defaults.OobHeaderKey]).Returns("test");
+            @event.Setup(x => x.Descriptor.Headers).Returns(new Dictionary<string, string> {[Defaults.OobHeaderKey] = "test"});
 
             _stream.Setup(x => x.Uncommitted).Returns(new IFullEvent[] { @event.Object }.AsEnumerable());
             _stream.Setup(x => x.Oobs).Returns(new[] {new OobDefinition {Id = "test"}});
@@ -235,6 +238,37 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
             _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
                 Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
+        }
+
+        [Test]
+        public async Task write_events_commit_id_incremented()
+        {
+            IEnumerable<IFullEvent> savedEvents = null;
+
+            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
+            _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>()))
+                .Returns(Task.FromResult(0L))
+                .Callback<string, IEnumerable<IFullEvent>, IDictionary<string,string>, long>((stream, events, headers, version) => savedEvents=events);
+
+            var @event = new Moq.Mock<IFullEvent>();
+            @event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.Domain);
+            @event.Setup(x => x.Descriptor.Headers).Returns(new Dictionary<string, string>());
+
+            _stream.Setup(x => x.Uncommitted).Returns(new IFullEvent[] { @event.Object, @event.Object }.AsEnumerable());
+
+            var commitId = Guid.NewGuid();
+            var expectedEventId1 = commitId;
+            var expectedEventId2 = commitId.Increment();
+
+            await _streamStore.WriteStream<Entity>(commitId, _stream.Object, new Dictionary<string, string>());
+
+            Assert.NotNull(savedEvents);
+            Assert.AreEqual(expectedEventId1, savedEvents.ElementAt(0).EventId);
+            Assert.AreEqual(expectedEventId2, savedEvents.ElementAt(1).EventId);
+
+            _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>()), Moq.Times.Once);
         }
     }
 }
