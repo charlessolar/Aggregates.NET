@@ -76,6 +76,8 @@ namespace Aggregates.Internal
                         }
                     }
 
+                    // Todo: because commit id is used on commit now instead of during processing we can
+                    // once again parallelize event processing (if we want to)
                     using (ProcessTimer.NewContext())
                     {
                         // Stupid hack to get events from ES and messages from NSB into the same pipeline

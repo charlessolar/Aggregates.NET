@@ -229,7 +229,7 @@ namespace Aggregates.Internal
                     catch (ObjectDisposedException)
                     {
                         // NSB transport has been disconnected
-                        break;
+                        throw new OperationCanceledException();
                     }
                     catch (Exception e)
                     {

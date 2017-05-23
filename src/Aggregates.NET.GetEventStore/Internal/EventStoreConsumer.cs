@@ -150,10 +150,10 @@ namespace Aggregates.Internal
                     .StartFromBeginning()
                     .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readSize)
-                    .WithLiveBufferSizeOf(_readSize * 5)
+                    .WithLiveBufferSizeOf(_readSize * 3)
                     .DontTimeoutMessages()
                     .CheckPointAfter(TimeSpan.FromSeconds(30))
-                    .MaximumCheckPointCountOf(_readSize*5)
+                    .MaximumCheckPointCountOf(_readSize)
                     .ResolveLinkTos()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                 if (_extraStats)
@@ -176,7 +176,7 @@ namespace Aggregates.Internal
                         eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
                         subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected),
                         // Let us accept large number of unacknowledged events
-                        bufferSize: _readSize * 3,
+                        bufferSize: _readSize,
                         autoAck: false).ConfigureAwait(false);
 
                     lock (_subLock) _persistentSubs.Add(subscription);
@@ -204,10 +204,10 @@ namespace Aggregates.Internal
                     .StartFromBeginning()
                     .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readSize)
-                    .WithLiveBufferSizeOf(_readSize * 5)
+                    .WithLiveBufferSizeOf(_readSize * 3)
                     .DontTimeoutMessages()
                     .CheckPointAfter(TimeSpan.FromSeconds(30))
-                    .MaximumCheckPointCountOf(_readSize * 5)
+                    .MaximumCheckPointCountOf(_readSize)
                     .ResolveLinkTos()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.RoundRobin);
                 if (_extraStats)
@@ -231,7 +231,7 @@ namespace Aggregates.Internal
                         eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
                         subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected),
                         // Let us accept large number of unacknowledged events
-                        bufferSize: _readSize * 3,
+                        bufferSize: _readSize,
                         autoAck: false).ConfigureAwait(false);
 
                     lock (_subLock) _persistentSubs.Add(subscription);
@@ -277,6 +277,13 @@ namespace Aggregates.Internal
         private void EventAppeared(EventStorePersistentSubscriptionBase sub, ResolvedEvent e, CancellationToken token,
             Action<string, long, IFullEvent> callback)
         {
+            // Don't care about metadata streams
+            if (e.Event == null || e.Event.EventStreamId[0] == '$')
+            {
+                sub.Acknowledge(e.OriginalEvent.EventId);
+                return;
+            }
+
             if (token.IsCancellationRequested)
             {
                 sub.Stop(TimeSpan.FromSeconds(5));
@@ -291,6 +298,10 @@ namespace Aggregates.Internal
         private void EventAppeared(EventStoreCatchUpSubscription sub, ResolvedEvent e, CancellationToken token,
             Action<string, long, IFullEvent> callback)
         {
+            // Don't care about metadata streams
+            if (e.Event == null || e.Event.EventStreamId[0] == '$')
+                return;
+
             if (token.IsCancellationRequested)
             {
                 sub.Stop();
@@ -302,10 +313,6 @@ namespace Aggregates.Internal
 
         private void EventAppeared(ResolvedEvent e, CancellationToken token, Action<string, long, IFullEvent> callback)
         {
-            // Don't care about metadata streams
-            if (e.Event == null || e.Event.EventStreamId[0] == '$')
-                return;
-
             Logger.Write(LogLevel.Debug,
                     () => $"Event appeared {e.Event?.EventId ?? Guid.Empty} in subscription stream [{e.Event?.EventStreamId ?? ""}] number {e.Event?.EventNumber ?? -1} projection {e.OriginalStreamId} event number {e.OriginalEventNumber}");
 
