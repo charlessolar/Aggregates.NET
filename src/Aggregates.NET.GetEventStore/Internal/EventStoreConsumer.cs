@@ -151,9 +151,9 @@ namespace Aggregates.Internal
                     .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readSize)
                     .WithLiveBufferSizeOf(_readSize * 3)
-                    .WithMessageTimeoutOf(TimeSpan.FromSeconds(30))
+                    .DontTimeoutMessages()
                     .CheckPointAfter(TimeSpan.FromSeconds(30))
-                    .MaximumCheckPointCountOf(_readSize)
+                    .MaximumCheckPointCountOf(_readSize * 3)
                     .ResolveLinkTos()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
                 if (_extraStats)
@@ -205,9 +205,9 @@ namespace Aggregates.Internal
                     .WithMaxRetriesOf(10)
                     .WithReadBatchOf(_readSize)
                     .WithLiveBufferSizeOf(_readSize * 3)
-                    .WithMessageTimeoutOf(TimeSpan.FromSeconds(30))
+                    .DontTimeoutMessages()
                     .CheckPointAfter(TimeSpan.FromSeconds(30))
-                    .MaximumCheckPointCountOf(_readSize)
+                    .MaximumCheckPointCountOf(_readSize * 3)
                     .ResolveLinkTos()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.RoundRobin);
                 if (_extraStats)
@@ -286,6 +286,7 @@ namespace Aggregates.Internal
 
             if (token.IsCancellationRequested)
             {
+                Logger.Warn($"Token cancelation requested, stopping persistent subscription");
                 sub.Stop(TimeSpan.FromSeconds(5));
                 lock (_subLock) _persistentSubs.Remove(sub);
                 token.ThrowIfCancellationRequested();
@@ -304,6 +305,7 @@ namespace Aggregates.Internal
 
             if (token.IsCancellationRequested)
             {
+                Logger.Warn($"Token cancelation requested, stopping catchup subscription");
                 sub.Stop();
                 lock (_subLock) _subscriptions.Remove(sub);
                 token.ThrowIfCancellationRequested();
