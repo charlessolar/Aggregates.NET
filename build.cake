@@ -130,8 +130,7 @@ Task("Update-NuGet-Packages")
         .Execute(()=> {
                 // Update all our packages to latest build version
                 NuGetUpdate(parameters.Solution, new NuGetUpdateSettings {
-                    Safe = true,
-                    ArgumentCustomization = args => args.Append("-FileConflictAction Overwrite")
+                    Safe = true
                 });
         });
 });
