@@ -107,8 +107,12 @@ Task("Restore-NuGet-Packages")
                 Verbose("{0}", exception);
             }})
         .Execute(()=> {
-                NuGetRestore(parameters.Solution, new NuGetRestoreSettings {
+            // restore each project
+            foreach(var project in parameters.Paths.Files.Projects) 
+            {
+                NuGetRestore(project.PackagesFile, new NuGetRestoreSettings {
                 });
+            }
         });
 });
 Task("Update-NuGet-Packages")
