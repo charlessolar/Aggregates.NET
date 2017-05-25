@@ -138,7 +138,8 @@ Task("Update-NuGet-Packages")
             foreach(var project in parameters.Paths.Files.Projects) 
             {
                 NuGetUpdate(project.PackagesFile, new NuGetUpdateSettings {
-                    Safe = true
+                    Safe = true,
+                    ArgumentCustomization = args => args.Append("-FileConflictAction Overwrite -ConfigFile ./tools/nuget.config -RepositoryPath " + parameters.Solution.GetDirectory().Combine("packages").ToString())
                 });
             }
 
