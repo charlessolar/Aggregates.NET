@@ -111,7 +111,7 @@ Task("Restore-NuGet-Packages")
             foreach(var project in parameters.Paths.Files.Projects) 
             {
                 NuGetRestore(project.PackagesFile, new NuGetRestoreSettings {
-                    PackagesDirectory = parameters.Solution.GetDirectory().CombineWithFilePath("packages")
+                    PackagesDirectory = parameters.Solution.GetDirectory().Combine("packages")
                 });
             }
         });
