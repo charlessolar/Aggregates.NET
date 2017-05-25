@@ -139,7 +139,7 @@ Task("Update-NuGet-Packages")
             {
                 NuGetUpdate(project.PackagesFile, new NuGetUpdateSettings {
                     Safe = true,
-                    ArgumentCustomization = args => args.Append("-FileConflictAction Overwrite -ConfigFile ./tools/nuget.config -RepositoryPath " + parameters.Solution.GetDirectory().Combine("packages").ToString())
+                    ArgumentCustomization = args => args.Append("-FileConflictAction Overwrite -RepositoryPath " + parameters.Solution.GetDirectory().Combine("packages").ToString())
                 });
             }
 
