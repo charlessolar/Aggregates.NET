@@ -237,8 +237,26 @@ Task("Publish-NuGet")
 {
     // Resolve the API key.
     var apiKey = EnvironmentVariable("NUGET_API_KEY");
-    if(string.IsNullOrEmpty(apiKey)) {
+    if(string.IsNullOrEmpty(apiKey) && !parameters.ShouldPublishToArtifactory) {
         throw new InvalidOperationException("Could not resolve NuGet API key.");
+    }
+
+    if(parameters.ShouldPublishToArtifactory){
+
+        var username = parameters.Artifactory.UserName;
+        var password = parameters.Artifactory.Password;
+
+        if(string.IsNullOrEmpty(username) && parameters.IsLocalBuild)
+        {
+            Console.Write("Artifactory UserName: ");
+            username = Console.ReadLine();
+        }
+        if(string.IsNullOrEmpty(password) && parameters.IsLocalBuild)
+        {
+            Console.Write("Artifactory Password: ");
+            password = Console.ReadLine();
+        }
+        apiKey = string.Concat(username, ":", password);
     }
 
     // Resolve the API url.
