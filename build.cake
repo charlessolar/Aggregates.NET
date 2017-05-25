@@ -260,7 +260,7 @@ Task("Publish-NuGet")
     }
 
     // Resolve the API url.
-    var apiUrl = EnvironmentVariable("NUGET_API_URL");
+    var apiUrl = EnvironmentVariable("NUGET_URL");
     if(string.IsNullOrEmpty(apiUrl)) {
         throw new InvalidOperationException("Could not resolve NuGet API url.");
     }
