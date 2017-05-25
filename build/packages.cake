@@ -5,7 +5,8 @@ public class BuildPackages
     public static BuildPackages GetPackages(
 		DirectoryPath artifactsBinDir,
         DirectoryPath nugetRootPath,
-        string semVersion)
+        string semVersion,
+        bool isOnWindows)
     {
 
 		var SetNuGetNuspecCommonProperties = new Action<NuGetPackSettings> ((nuspec) => {
@@ -101,7 +102,12 @@ public class BuildPackages
 
 		};
 
-		nuspecs.ToList().ForEach(SetNuGetNuspecCommonProperties);
+		nuspecs.ToList().ForEach(x => {
+
+			SetNuGetNuspecCommonProperties(x);
+			if(!isOnWindows)
+				x.Files = x.Files.Where(f => !f.Source.EndsWith("pdb")).ToArray();
+		});
 
 		var packages = nuspecs.Select(x => new BuildPackage( id: x.Id, nuspec: x, packagePath: nugetRootPath.CombineWithFilePath(string.Concat(x.Id, ".", x.Version, ".nupkg"))));
 

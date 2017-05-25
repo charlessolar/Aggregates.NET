@@ -49,7 +49,8 @@ public class BuildParameters
         Packages = BuildPackages.GetPackages(
 			Paths.Directories.ArtifactsBin,
             Paths.Directories.NugetRoot,
-            Version.SemVersion
+            Version.SemVersion,
+            IsRunningOnWindows
             );
     }
 
