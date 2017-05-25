@@ -297,6 +297,12 @@ Task("Publish-NuGet")
     publishingError = true;
 });
 
+Task("Create-GoCD-Artifacts")
+    .IsDependentOn("Zip-Files")
+    .WithCriteria(() => parameters.IsRunningOnGoCD)
+    .Does(() =>
+{
+});
 
 //////////////////////////////////////////////////////////////////////
 // TASK TARGETS
@@ -320,6 +326,7 @@ Task("AppVeyor")
     }
 });
 Task("GoCD")
+  .IsDependentOn("Create-GoCD-Artifacts")
   .IsDependentOn("Publish-NuGet")
   .Finally(() =>
 {
