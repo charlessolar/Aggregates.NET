@@ -33,16 +33,16 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Aggregates.NET, Version=0.7.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Aggregates.NET.0.7.1\lib\net46\Aggregates.NET.dll</HintPath>
+    <Reference Include="Aggregates.NET, Version=0.7.7.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\Aggregates.NET.0.7.7.19\lib\net46\Aggregates.NET.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Aggregates.NET.Consumer, Version=0.7.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Aggregates.NET.Consumer.0.7.1\lib\net46\Aggregates.NET.Consumer.dll</HintPath>
+    <Reference Include="Aggregates.NET.Consumer, Version=0.7.7.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\Aggregates.NET.Consumer.0.7.7.19\lib\net46\Aggregates.NET.Consumer.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Aggregates.NET.GetEventStore, Version=0.7.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Aggregates.NET.GetEventStore.0.7.1\lib\net46\Aggregates.NET.GetEventStore.dll</HintPath>
+    <Reference Include="Aggregates.NET.GetEventStore, Version=0.7.7.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\Aggregates.NET.GetEventStore.0.7.7.19\lib\net46\Aggregates.NET.GetEventStore.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="EventStore.ClientAPI, Version=4.0.0.7, Culture=neutral, processorArchitecture=MSIL">

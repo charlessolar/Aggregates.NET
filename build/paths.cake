@@ -21,7 +21,7 @@ public class BuildPaths
         {
             throw new ArgumentNullException("semVersion");
         }
-        
+
         var projects = context.GetFiles("./**/*.csproj");
         var projectInfos = new List<ProjectInfo>();
 
@@ -66,7 +66,14 @@ public class BuildPaths
             binDirs.Add(binDir);
 
             var filename = project.GetFilename().FullPath;
-            projectInfos.Add(new ProjectInfo(filename.Substring(0,filename.Length-7), info.AssemblyName, output, project, getBinaries));
+            projectInfos.Add(new ProjectInfo(
+                filename.Substring(0,filename.Length-7), 
+                info.AssemblyName, 
+                output, 
+                project, 
+                getBinaries, 
+                project.GetDirectory().CombineWithFilePath("packages.config"))
+                );
         }
 
         var artifactsDir = (DirectoryPath)context.Directory("./artifacts");
@@ -147,6 +154,7 @@ public class ProjectInfo
     public string AssemblyName { get; private set; }
     public string OutputType { get; private set; }
     public FilePath ProjectFile { get; private set; }
+    public FilePath PackagesFile { get; private set; }
     public Func<IEnumerable<FilePath>> GetBinaries { get; private set; }
 
     public ProjectInfo(
@@ -154,7 +162,8 @@ public class ProjectInfo
         string assemblyName,
         string outputType,
         FilePath projectFile,
-        Func<IEnumerable<FilePath>> getBinaries
+        Func<IEnumerable<FilePath>> getBinaries,
+        FilePath packagesFile
     )
     {
         ProjectName = projectName;
@@ -162,5 +171,6 @@ public class ProjectInfo
         OutputType = outputType;
         ProjectFile = projectFile;
         GetBinaries = getBinaries;
+        PackagesFile = packagesFile;
     }
 }

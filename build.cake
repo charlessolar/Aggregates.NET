@@ -128,10 +128,17 @@ Task("Update-NuGet-Packages")
                 Verbose("{0}", exception);
             }})
         .Execute(()=> {
-                // Update all our packages to latest build version
-                NuGetUpdate(parameters.Solution, new NuGetUpdateSettings {
+
+            // Update each project
+            foreach(var project in parameters.Paths.Files.Projects) 
+            {
+                NuGetUpdate(project.PackagesFile, new NuGetUpdateSettings {
                     Safe = true
                 });
+            }
+
+
+
         });
 });
 
