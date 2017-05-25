@@ -176,7 +176,7 @@ namespace Aggregates.Internal
                         eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
                         subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected),
                         // Let us accept large number of unacknowledged events
-                        bufferSize: _readSize,
+                        bufferSize: _readSize * 3,
                         autoAck: false).ConfigureAwait(false);
 
                     lock (_subLock) _persistentSubs.Add(subscription);
@@ -231,7 +231,7 @@ namespace Aggregates.Internal
                         eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
                         subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected),
                         // Let us accept large number of unacknowledged events
-                        bufferSize: _readSize,
+                        bufferSize: _readSize * 3,
                         autoAck: false).ConfigureAwait(false);
 
                     lock (_subLock) _persistentSubs.Add(subscription);
