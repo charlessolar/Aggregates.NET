@@ -20,6 +20,7 @@ public class BuildParameters
     public BuildVersion Version { get; private set; }
     public BuildPaths Paths { get; private set; }
     public BuildPackages Packages { get; private set; }
+    public int BuildNumber { get; private set; }
 
     public bool ShouldPublish
     {
@@ -35,19 +36,6 @@ public class BuildParameters
         get
         {
             return IsRunningOnGoCD && ShouldPublish;
-        }
-    }
-
-    public int BuildNumber
-    {
-        get
-        {
-            if(IsRunningOnGoCD)
-                return buildSystem.GoCD.Environment.Pipeline.Counter;
-            if(IsRunningOnAppVeyor)
-                return buildSystme.AppVeyor.Environment.Build.Number;
-
-            return 0;
         }
     }
 
@@ -82,6 +70,13 @@ public class BuildParameters
         var target = context.Argument("target", "Default");
         var buildSystem = context.BuildSystem();
 
+        var buildNumber = 0;
+        if(buildSystem.GoCD.IsRunningOnGoCD)
+            buildNumber = buildSystem.GoCD.Environment.Pipeline.Counter;
+        if(buildSystem.AppVeyor.IsRunningOnAppVeyor)
+            buildNumber = buildSystem.AppVeyor.Environment.Build.Number;
+
+
         return new BuildParameters {
             Solution = solution,
             Target = target,
@@ -93,7 +88,8 @@ public class BuildParameters
             IsRunningOnAppVeyor = buildSystem.AppVeyor.IsRunningOnAppVeyor,
             GitHub = BuildCredentials.GetGitHubCredentials(context),
             Artifactory = BuildCredentials.GetArtifactoryCredentials(context, buildSystem.IsLocalBuild),
-            IsReleaseBuild = IsReleasing(target)
+            IsReleaseBuild = IsReleasing(target),
+            BuildNumber = buildNumber
         };
     }
 
