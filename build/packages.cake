@@ -39,7 +39,7 @@ public class BuildPackages
 					new NuSpecContent { Source = "Aggregates.NET.dll", Target = "lib/net46" },
 					new NuSpecContent { Source = "Aggregates.NET.pdb", Target = "lib/net46" },
 				},
-				BasePath = artifactsBinDir,
+				BasePath = artifactsBinDir.Combine("Aggregates.NET"),
 				OutputDirectory = nugetRootPath
 			},
 			new NuGetPackSettings()
@@ -57,7 +57,7 @@ public class BuildPackages
 					new NuSpecContent { Source = "Aggregates.NET.Consumer.dll", Target = "lib/net46" },
 					new NuSpecContent { Source = "Aggregates.NET.Consumer.pdb", Target = "lib/net46" },
 				},
-				BasePath = artifactsBinDir,
+				BasePath = artifactsBinDir.Combine("Aggregates.NET.Consumer"),
 				OutputDirectory = nugetRootPath
 			},
 			new NuGetPackSettings()
@@ -75,7 +75,7 @@ public class BuildPackages
 					new NuSpecContent { Source = "Aggregates.NET.Domain.dll", Target = "lib/net46" },
 					new NuSpecContent { Source = "Aggregates.NET.Domain.pdb", Target = "lib/net46" },
 				},
-				BasePath = artifactsBinDir,
+				BasePath = artifactsBinDir.Combine("Aggregates.NET.Domain"),
 				OutputDirectory = nugetRootPath
 			},
 			new NuGetPackSettings()
@@ -94,7 +94,7 @@ public class BuildPackages
 					new NuSpecContent { Source = "Aggregates.NET.GetEventStore.dll", Target = "lib/net46" },
 					new NuSpecContent { Source = "Aggregates.NET.GetEventStore.pdb", Target = "lib/net46" },
 				},
-				BasePath = artifactsBinDir,
+				BasePath = artifactsBinDir.Combine("Aggregates.NET.GetEventStore"),
 				OutputDirectory = nugetRootPath
 			},
 

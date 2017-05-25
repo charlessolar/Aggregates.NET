@@ -1,9 +1,12 @@
 // Install addins.
-#addin "nuget:?package=Polly&version=4.2.0"
-#addin "nuget:?package=Newtonsoft.Json&version=9.0.1"
+#addin "nuget:https://www.nuget.org/api/v2?package=Polly&version=4.2.0"
+#addin "nuget:https://www.nuget.org/api/v2?package=Newtonsoft.Json&version=9.0.1"
+#addin "nuget:https://www.nuget.org/api/v2?package=NuGet.Core&version=2.14"
 
 // Install tools.
-#tool "nuget:?package=NUnit.ConsoleRunner&version=3.4.0"
+#tool "nuget:https://www.nuget.org/api/v2?package=GitVersion.CommandLine"
+#tool "nuget:https://www.nuget.org/api/v2?package=NUnit.ConsoleRunner&version=3.4.0"
+#tool "nuget:https://www.nuget.org/api/v2?package=gitlink"
 
 // Load other scripts.
 #load "./build/parameters.cake"
@@ -36,36 +39,35 @@ Setup(context =>
     Information("==============================================");
     Information("==============================================");
 
-    if (parameters.IsRunningOnAppVeyor)
+    if (parameters.IsRunningOnGoCD)
     {
-        Information("Repository Name: " + BuildSystem.AppVeyor.Environment.Repository.Name);
-        Information("Repository Branch: " + BuildSystem.AppVeyor.Environment.Repository.Branch);
+        Information("Pipeline Name: " + BuildSystem.GoCD.Environment.Pipeline.Name + "{" + BuildSystem.GoCD.Environment.Pipeline.Counter + "}");
+        Information("Stage Name: " + BuildSystem.GoCD.Environment.Stage.Name + "{" + BuildSystem.GoCD.Environment.Stage.Counter + "}");
     }
 
+    Information("Solution: " + parameters.Solution);
     Information("Target: " + parameters.Target);
     Information("Configuration: " + parameters.Configuration);
     Information("IsLocalBuild: " + parameters.IsLocalBuild);
     Information("IsRunningOnUnix: " + parameters.IsRunningOnUnix);
     Information("IsRunningOnWindows: " + parameters.IsRunningOnWindows);
-    Information("IsRunningOnAppVeyor: " + parameters.IsRunningOnAppVeyor);
-    Information("IsPullRequest: " + parameters.IsPullRequest);
-    Information("IsMainRepo: " + parameters.IsMainRepo);
-    Information("IsMasterBranch: " + parameters.IsMasterBranch);
-    Information("IsTagged: " + parameters.IsTagged);
+    Information("IsRunningOnGoCD: " + parameters.IsRunningOnGoCD);
+    Information("IsReleaseBuild: " + parameters.IsReleaseBuild);
     Information("ShouldPublish: " + parameters.ShouldPublish);
 
     // Increase verbosity?
-    if(parameters.IsMasterBranch && (context.Log.Verbosity != Verbosity.Diagnostic)) {
+    if(parameters.IsReleaseBuild && (context.Log.Verbosity != Verbosity.Diagnostic)) {
         Information("Increasing verbosity to diagnostic.");
         context.Log.Verbosity = Verbosity.Diagnostic;
     }
 
-    Information("Building version {0} of Aggregates.NET ({1}, {2}) using version {3} of Cake. (IsTagged: {4})",
+    Information("Building version {0} {5} of {4} ({1}, {2}) using version {3} of Cake",
         parameters.Version.SemVersion,
         parameters.Configuration,
         parameters.Target,
         parameters.Version.CakeVersion,
-        parameters.IsTagged);
+        parameters.Solution,
+        parameters.Version.Sha.Substring(0,8));
 
 });
 
@@ -88,13 +90,11 @@ Task("Clean")
     CleanDirectories(parameters.Paths.Directories.ToClean);
 });
 
-
-
 Task("Restore-NuGet-Packages")
     .IsDependentOn("Clean")
     .Does(() =>
 {
-	var maxRetryCount = 10;
+    var maxRetryCount = 10;
     Policy
         .Handle<Exception>()
         .Retry(maxRetryCount, (exception, retryCount, context) => {
@@ -107,29 +107,54 @@ Task("Restore-NuGet-Packages")
                 Verbose("{0}", exception);
             }})
         .Execute(()=> {
-                NuGetRestore("./src/Aggregates.NET.sln");
+                NuGetRestore(parameters.Solution, new NuGetRestoreSettings {
+                });
+        });
+});
+Task("Update-NuGet-Packages")
+    .IsDependentOn("Restore-NuGet-Packages")
+    .Does(() =>
+{
+    var maxRetryCount = 10;
+    Policy
+        .Handle<Exception>()
+        .Retry(maxRetryCount, (exception, retryCount, context) => {
+            if (retryCount == maxRetryCount)
+            {
+                throw exception;
+            }
+            else
+            {
+                Verbose("{0}", exception);
+            }})
+        .Execute(()=> {
+                // Update all our packages to latest build version
+                NuGetUpdate(parameters.Solution, new NuGetUpdateSettings {
+                    Safe = true,
+                    ArgumentCustomization = args => args.Append("-FileConflictAction Overwrite")
+                });
         });
 });
 
 Task("Build")
-    .IsDependentOn("Restore-NuGet-Packages")
+    .IsDependentOn("Update-NuGet-Packages")
     .Does(() =>
-{	
+{   
     if(IsRunningOnWindows())
     {
       // Use MSBuild
-      MSBuild("./src/Aggregates.NET.sln", settings => {
+      MSBuild(parameters.Solution, settings => {
         settings.SetConfiguration(parameters.Configuration);
         settings.SetVerbosity(Verbosity.Minimal);
-	  });
+      });
     }
     else
     {
       // Use XBuild
-      XBuild("./src/Aggregates.NET.sln", settings => {
+      XBuild(parameters.Solution, settings => {
         settings.SetConfiguration(parameters.Configuration);
         settings.SetVerbosity(Verbosity.Minimal);
-	  });
+      });
     }
 });
 
@@ -146,10 +171,26 @@ Task("Copy-Files")
     .IsDependentOn("Run-Unit-Tests")
     .Does(() =>
 {
-	// Copy files from artifact sources to artifact directory
-	foreach(var sources in parameters.Paths.Directories.ArtifactSources)
-		CopyDirectory(sources, parameters.Paths.Directories.ArtifactsBin);
+    // GitLink
+    if(parameters.IsRunningOnWindows)
+    {
+        Information("Updating PDB files using GitLink");
+        GitLink(
+            Context.Environment.WorkingDirectory.FullPath,
+            new GitLinkSettings {
 
+                SolutionFileName = parameters.Solution.FullPath,
+                ShaHash = parameters.Version.Sha
+            });
+    }
+
+    // Copy files from artifact sources to artifact directory
+    foreach(var project in parameters.Paths.Files.Projects) 
+    {
+        CleanDirectory(parameters.Paths.Directories.ArtifactsBin.Combine(project.AssemblyName));
+        CopyFiles(project.GetBinaries(),
+            parameters.Paths.Directories.ArtifactsBin.Combine(project.AssemblyName));
+    }
     // Copy license
     CopyFileToDirectory("./LICENSE", parameters.Paths.Directories.ArtifactsBin);
 });
@@ -171,7 +212,7 @@ Task("Create-NuGet-Packages")
     // Build libraries
     foreach(var nuget in parameters.Packages.Nuget)
     {
-		Information("Building nuget package: " + nuget.Id);
+        Information("Building nuget package: " + nuget.Id + " Version: " + nuget.Nuspec.Version);
         NuGetPack(nuget.Nuspec);
     }
 });
@@ -252,6 +293,15 @@ Task("Default")
 
 Task("AppVeyor")
   .IsDependentOn("Upload-AppVeyor-Artifacts")
+  .IsDependentOn("Publish-NuGet")
+  .Finally(() =>
+{
+    if(publishingError)
+    {
+        throw new Exception("An error occurred during the publishing of Aggregates.NET.  All publishing tasks have been attempted.");
+    }
+});
+Task("GoCD")
   .IsDependentOn("Publish-NuGet")
   .Finally(() =>
 {

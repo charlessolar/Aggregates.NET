@@ -15,4 +15,10 @@ public class BuildCredentials
             context.EnvironmentVariable("GITHUB_USERNAME"),
             context.EnvironmentVariable("GITHUB_PASSWORD"));
     }
+    public static BuildCredentials GetArtifactoryCredentials(ICakeContext context, bool isLocal) 
+    {
+        return new BuildCredentials(
+            context.EnvironmentVariable("ARTIFACTORY_USERNAME"),
+            context.EnvironmentVariable("ARTIFACTORY_PASSWORD"));
+    }
 }

@@ -35,8 +35,8 @@
       <HintPath>..\packages\EventStore.Client.4.0.0\lib\net40\EventStore.ClientAPI.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Metrics, Version=0.4.7.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Metrics.NET.0.4.7\lib\net45\Metrics.dll</HintPath>
+    <Reference Include="Metrics, Version=0.4.8.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\Metrics.NET.0.4.8\lib\net45\Metrics.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
