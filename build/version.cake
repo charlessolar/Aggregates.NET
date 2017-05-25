@@ -20,7 +20,7 @@ public class BuildVersion
             OutputType = GitVersionOutput.Json
         });
 
-        string version = gitversion.MajorMinorPatch;
+        string version = string.Concat(gitversion.Major, ".", gitversion.Minor);
         string semVersion = string.Concat(version, ".", gitversion.BuildMetaData, ".", parameters.BuildNumber);
         string milestone = string.Concat("v", version);
         string sha = gitversion.Sha;
