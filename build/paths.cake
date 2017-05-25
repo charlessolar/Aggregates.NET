@@ -71,8 +71,7 @@ public class BuildPaths
                 info.AssemblyName, 
                 output, 
                 project, 
-                getBinaries, 
-                project.GetDirectory().CombineWithFilePath("packages.config"))
+                getBinaries)
                 );
         }
 
@@ -154,7 +153,6 @@ public class ProjectInfo
     public string AssemblyName { get; private set; }
     public string OutputType { get; private set; }
     public FilePath ProjectFile { get; private set; }
-    public FilePath PackagesFile { get; private set; }
     public Func<IEnumerable<FilePath>> GetBinaries { get; private set; }
 
     public ProjectInfo(
@@ -162,8 +160,7 @@ public class ProjectInfo
         string assemblyName,
         string outputType,
         FilePath projectFile,
-        Func<IEnumerable<FilePath>> getBinaries,
-        FilePath packagesFile
+        Func<IEnumerable<FilePath>> getBinaries
     )
     {
         ProjectName = projectName;
@@ -171,6 +168,5 @@ public class ProjectInfo
         OutputType = outputType;
         ProjectFile = projectFile;
         GetBinaries = getBinaries;
-        PackagesFile = packagesFile;
     }
 }

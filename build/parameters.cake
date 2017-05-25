@@ -38,6 +38,19 @@ public class BuildParameters
         }
     }
 
+    public int BuildNumber
+    {
+        get
+        {
+            if(IsRunningOnGoCD)
+                return buildSystem.GoCD.Environment.Pipeline.Counter;
+            if(IsRunningOnAppVeyor)
+                return buildSystme.AppVeyor.Environment.Build.Number;
+
+            return 0;
+        }
+    }
+
 
     public void Initialize(ICakeContext context)
     {

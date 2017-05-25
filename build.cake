@@ -107,13 +107,8 @@ Task("Restore-NuGet-Packages")
                 Verbose("{0}", exception);
             }})
         .Execute(()=> {
-            // restore each project
-            foreach(var project in parameters.Paths.Files.Projects) 
-            {
-                NuGetRestore(project.PackagesFile, new NuGetRestoreSettings {
-                    PackagesDirectory = parameters.Solution.GetDirectory().Combine("packages")
+                NuGetRestore(parameters.Solution, new NuGetRestoreSettings {
                 });
-            }
         });
 });
 Task("Update-NuGet-Packages")
@@ -133,23 +128,16 @@ Task("Update-NuGet-Packages")
                 Verbose("{0}", exception);
             }})
         .Execute(()=> {
-
-            // Update each project
-            foreach(var project in parameters.Paths.Files.Projects) 
-            {
-                NuGetUpdate(project.PackagesFile, new NuGetUpdateSettings {
+                // Update all our packages to latest build version
+                NuGetUpdate(parameters.Solution, new NuGetUpdateSettings {
                     Safe = true,
-                    ArgumentCustomization = args => args.Append("-FileConflictAction Overwrite -RepositoryPath " + parameters.Solution.GetDirectory().Combine("packages").ToString())
+                    ArgumentCustomization = args => args.Append("-FileConflictAction Overwrite")
                 });
-            }
-
-
-
         });
 });
 
 Task("Build")
-    .IsDependentOn("Update-NuGet-Packages")
+    .IsDependentOn("Restore-NuGet-Packages")
     .Does(() =>
 {   
     if(IsRunningOnWindows())
