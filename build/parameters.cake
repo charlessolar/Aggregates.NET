@@ -12,6 +12,7 @@ public class BuildParameters
     public bool IsRunningOnUnix { get; private set; }
     public bool IsRunningOnWindows { get; private set; }
     public bool IsRunningOnGoCD { get; private set; }
+    public bool IsRunningOnVSTS { get; private set; }
     public bool IsRunningOnAppVeyor { get; private set; }
     public bool IsReleaseBuild { get; private set; }
     public string Repository { get; private set; }
@@ -35,7 +36,7 @@ public class BuildParameters
     {
         get
         {
-            return IsRunningOnGoCD && ShouldPublish;
+            return (IsRunningOnGoCD || IsRunningOnVSTS)  && ShouldPublish;
         }
     }
 
@@ -76,6 +77,8 @@ public class BuildParameters
             buildNumber = buildSystem.GoCD.Environment.Pipeline.Counter;
         if(buildSystem.AppVeyor.IsRunningOnAppVeyor)
             buildNumber = buildSystem.AppVeyor.Environment.Build.Number;
+        if(buildSystem.TFBuild.IsRunningOnVSTS)
+            buildNumber = buildSystem.TFBuild.Environment.Build.Id;
 
 
         return new BuildParameters {
@@ -86,6 +89,7 @@ public class BuildParameters
             IsRunningOnUnix = context.IsRunningOnUnix(),
             IsRunningOnWindows = context.IsRunningOnWindows(),
             IsRunningOnGoCD = buildSystem.GoCD.IsRunningOnGoCD,
+            IsRunningOnVSTS = buildSystem.TFBuild.IsRunningOnVSTS,
             IsRunningOnAppVeyor = buildSystem.AppVeyor.IsRunningOnAppVeyor,
             GitHub = BuildCredentials.GetGitHubCredentials(context),
             Artifactory = BuildCredentials.GetArtifactoryCredentials(context, buildSystem.IsLocalBuild),

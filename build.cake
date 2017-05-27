@@ -26,7 +26,6 @@ using Polly;
 //////////////////////////////////////////////////////////////////////
 
 BuildParameters parameters = BuildParameters.GetParameters(Context);
-bool publishingError = false;
 
 ///////////////////////////////////////////////////////////////////////////////
 // SETUP / TEARDOWN
@@ -52,6 +51,7 @@ Setup(context =>
     Information("IsRunningOnUnix: " + parameters.IsRunningOnUnix);
     Information("IsRunningOnWindows: " + parameters.IsRunningOnWindows);
     Information("IsRunningOnGoCD: " + parameters.IsRunningOnGoCD);
+    Information("IsRunningOnVSTS: " + parameters.IsRunningOnVSTS);
     Information("IsReleaseBuild: " + parameters.IsReleaseBuild);
     Information("ShouldPublish: " + parameters.ShouldPublish);
 
@@ -71,6 +71,7 @@ Setup(context =>
 
 });
 
+
 ///////////////////////////////////////////////////////////////////////////////
 // TEARDOWN
 ///////////////////////////////////////////////////////////////////////////////
@@ -78,10 +79,44 @@ Setup(context =>
 Teardown(context =>
 {
     Information("Finished running tasks.");
+
+    if(parameters.IsRunningOnVSTS) {
+        var commands = context.TFBuild().Commands;
+        if(!context.Successful)
+            commands.WriteError(string.Format("Exception: {0} Message: {1}\nStack: {2}", context.ThrownException.GetType(), context.ThrownException.Message, context.ThrownException.StackTrace));
+    }
+    else if(!context.Successful)
+    {
+        Error(string.Format("Exception: {0} Message: {1}\nStack: {2}", context.ThrownException.GetType(), context.ThrownException.Message, context.ThrownException.StackTrace));
+    }
 });
 
 //////////////////////////////////////////////////////////////////////
 // TASKS
+//////////////////////////////////////////////////////////////////////
+
+TaskSetup(setupContext =>
+{
+    if(parameters.IsRunningOnVSTS) {
+        var commands = setupContext.TFBuild().Commands;
+        commands.CreateNewRecord(setupContext.Task.Name, "build", 1);
+    }
+});
+
+TaskTeardown(teardownContext =>
+{
+    if(parameters.IsRunningOnVSTS) {
+        var commands = teardownContext.TFBuild().Commands;
+
+        if(teardownContext.Skipped)
+            commands.CompleteCurrentTask(TFBuildTaskResult.Skipped);
+        else
+            commands.CompleteCurrentTask(TFBuildTaskResult.Succeeded);
+    }
+});
+
+//////////////////////////////////////////////////////////////////////
+// DEFINITIONS
 //////////////////////////////////////////////////////////////////////
 
 Task("Clean")
@@ -290,18 +325,25 @@ Task("Publish-NuGet")
 					});
 			});
     }
-})
-.OnError(exception =>
-{
-    Information("Publish-NuGet Task failed, but continuing with next Task...");
-    publishingError = true;
 });
-
 Task("Create-GoCD-Artifacts")
     .IsDependentOn("Zip-Files")
     .WithCriteria(() => parameters.IsRunningOnGoCD)
     .Does(() =>
 {
+});
+Task("Create-VSTS-Artifacts")
+    .IsDependentOn("Zip-Files")
+    .IsDependentOn("Create-NuGet-Packages")
+    .WithCriteria(() => parameters.IsRunningOnVSTS)
+    .Does(context =>
+{
+    var commands = context.BuildSystem().TFBuild.Commands;
+
+    commands.UploadArtifact("source", context.Environment.WorkingDirectory + "/", "source");
+
+    commands.AddBuildTag(parameters.Version.Sha);
+    commands.AddBuildTag(parameters.Version.SemVersion);
 });
 
 //////////////////////////////////////////////////////////////////////
@@ -317,24 +359,15 @@ Task("Default")
 
 Task("AppVeyor")
   .IsDependentOn("Upload-AppVeyor-Artifacts")
-  .IsDependentOn("Publish-NuGet")
-  .Finally(() =>
-{
-    if(publishingError)
-    {
-        throw new Exception("An error occurred during the publishing of Aggregates.NET.  All publishing tasks have been attempted.");
-    }
-});
+  .IsDependentOn("Publish-NuGet");
 Task("GoCD")
   .IsDependentOn("Create-GoCD-Artifacts")
-  .IsDependentOn("Publish-NuGet")
-  .Finally(() =>
-{
-    if(publishingError)
-    {
-        throw new Exception("An error occurred during the publishing of Aggregates.NET.  All publishing tasks have been attempted.");
-    }
-});
+  .IsDependentOn("Publish-NuGet");
+
+Task("VSTS")
+  .IsDependentOn("Create-VSTS-Artifacts");
+Task("VSTS-Publish")
+  .IsDependentOn("Publish-Nuget");
 
 //////////////////////////////////////////////////////////////////////
 // EXECUTION
