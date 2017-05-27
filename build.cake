@@ -303,6 +303,9 @@ Task("Publish-NuGet")
     foreach(var package in parameters.Packages.Nuget)
     {
 		Information("Publish nuget: " + package.PackagePath);
+        var packageDir = apiUrl;
+        if(parameters.ShouldPublishToArtifactory)
+            packageDir = string.Concat(apiUrl, "/", package.Id);
 
 		var maxRetryCount = 10;
 		Policy
@@ -321,7 +324,7 @@ Task("Publish-NuGet")
 					// Push the package.
 					NuGetPush(package.PackagePath, new NuGetPushSettings {
 					  ApiKey = apiKey,
-					  Source = apiUrl
+					  Source = packageDir
 					});
 			});
     }
