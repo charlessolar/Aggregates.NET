@@ -56,6 +56,9 @@ namespace Aggregates.Internal
                     Logger.WriteFormat((retries > _retries / 2) ? LogLevel.Warn : LogLevel.Info,
                         $"Message {context.MessageId} has faulted! {retries}/{_retries} times\nException: {e.GetType().FullName} {e.Message}\nHeaders: {JsonConvert.SerializeObject(context.MessageHeaders, Formatting.None)}\nBody: {Encoding.UTF8.GetString(context.Message.Body)}\nStack: {stackTrace}");
                     RetryRegistry.TryAdd(messageId, retries + 1);
+
+                    // Don't let NSB do an immediate retry, put a small delay
+                    await Task.Delay((retries / 3) * 200).ConfigureAwait(false);
                     throw;
                 }
                 

@@ -286,7 +286,6 @@ when({{
                             if (await Bus.OnError(errorContext).ConfigureAwait(false) ==
                                 ErrorHandleResult.Handled || tokenSource.IsCancellationRequested)
                                 break;
-                            await Task.Delay((numberOfDeliveryAttempts / 5) * 200, token).ConfigureAwait(false);
                         }
                     }
                 }
