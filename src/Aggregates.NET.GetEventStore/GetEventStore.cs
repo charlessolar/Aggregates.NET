@@ -22,6 +22,7 @@ namespace Aggregates
         {
             Defaults(s =>
             {
+                s.Set("FlushSize", 100);
                 s.Set("FlushInterval", TimeSpan.FromSeconds(60));
                 s.Set("DelayedExpiration", TimeSpan.FromMinutes(5));
             });
@@ -39,6 +40,7 @@ namespace Aggregates
                     settings.Get<int>("MaxDelayed"), 
                     settings.Get<int>("ReadSize"), 
                     settings.Get<TimeSpan>("FlushInterval"),
+                    settings.Get<int>("FlushSize"),
                     settings.Get<TimeSpan>("DelayedExpiration"), 
                     settings.Get<StreamIdGenerator>("StreamGenerator")
                     ),

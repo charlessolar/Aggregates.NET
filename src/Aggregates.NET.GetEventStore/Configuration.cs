@@ -7,6 +7,10 @@ namespace Aggregates
 {
     public static class Configuration
     {
+        public static void DelayedFlushSize(this ExposeSettings settings, int size)
+        {
+            settings.GetSettings().Set("FlushSize", size);
+        }
         /// <summary>
         /// Sets the interval to flush delayed messages when using IDelayedChannel
         /// If you don't want to write every delayed event to ES each UOW set this

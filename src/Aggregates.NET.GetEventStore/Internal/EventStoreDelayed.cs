@@ -39,6 +39,7 @@ namespace Aggregates.Internal
         {
             public IStoreEvents Store { get; set; }
             public TimeSpan Interval { get; set; }
+            public int FlushSize { get; set; }
             public TimeSpan Expire { get; set; }
             public StreamIdGenerator StreamGen { get; set; }
             public string Endpoint { get; set; }
@@ -101,10 +102,10 @@ namespace Aggregates.Internal
                     // Just take 500 from the end of the channel to prevent trying to write 20,000 items in 1 go
                     await fromCache.Item2.WaitAsync().ConfigureAwait(false);
                     var overLimit =
-                        fromCache.Item3.GetRange(Math.Max(0, fromCache.Item3.Count - (flushState.ReadSize * 5)),
-                            Math.Min(fromCache.Item3.Count, (flushState.ReadSize*5))).ToList();
-                    fromCache.Item3.RemoveRange(Math.Max(0, fromCache.Item3.Count - (flushState.ReadSize * 5)),
-                        Math.Min(fromCache.Item3.Count, (flushState.ReadSize*5)));
+                        fromCache.Item3.GetRange(Math.Max(0, fromCache.Item3.Count - (flushState.FlushSize)),
+                            Math.Min(fromCache.Item3.Count, (flushState.FlushSize))).ToList();
+                    fromCache.Item3.RemoveRange(Math.Max(0, fromCache.Item3.Count - (flushState.FlushSize)),
+                        Math.Min(fromCache.Item3.Count, (flushState.FlushSize)));
                     fromCache.Item2.Release();
 
                     if (fromCache.Item3.Any())
@@ -214,7 +215,7 @@ namespace Aggregates.Internal
                     {
                         var totalFlushed = 0;
                         // Flush the largest channels
-                        var toFlush = MemCache.Where(x => x.Value.Item3.Count > flushState.ReadSize).Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5)).ToList();
+                        var toFlush = MemCache.Where(x => x.Value.Item3.Count > flushState.FlushSize).Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5)).ToList();
                         // If no large channels, take some of the oldest
                         if(!toFlush.Any())
                             toFlush = MemCache.OrderBy(x => x.Value.Item1).Select(x => x.Key).Take(Math.Max(1, MemCache.Keys.Count / 5)).ToList();
@@ -225,8 +226,8 @@ namespace Aggregates.Internal
                             if (!MemCache.TryRemove(expired, out fromCache))
                                 return;
 
-                            var start = Math.Max(0, fromCache.Item3.Count - (flushState.ReadSize * 5));
-                            var toTake = Math.Min(fromCache.Item3.Count, (flushState.ReadSize * 5));
+                            var start = Math.Max(0, fromCache.Item3.Count - (flushState.FlushSize));
+                            var toTake = Math.Min(fromCache.Item3.Count, (flushState.FlushSize));
                             
                             await fromCache.Item2.WaitAsync().ConfigureAwait(false);
                             // Take from the end of the channel
@@ -347,7 +348,7 @@ namespace Aggregates.Internal
 
         }
 
-        public EventStoreDelayed(IStoreEvents store, string endpoint, int maxSize, int readSize, TimeSpan flushInterval, TimeSpan delayedExpiration, StreamIdGenerator streamGen)
+        public EventStoreDelayed(IStoreEvents store, string endpoint, int maxSize, int readSize, TimeSpan flushInterval, int flushSize, TimeSpan delayedExpiration, StreamIdGenerator streamGen)
         {
             _store = store;
             _streamGen = streamGen;
@@ -357,8 +358,8 @@ namespace Aggregates.Internal
 
             // Add a process exit event handler to flush cached delayed events before exiting the app
             // Not perfect in the case of a fatal app error - but something
-            AppDomain.CurrentDomain.ProcessExit += (sender, e) => Flush(new FlushState { Store = store, StreamGen = streamGen, Endpoint = endpoint, MaxSize = maxSize, ReadSize = readSize, Interval = flushInterval, Expire = delayedExpiration }, all: true).Wait();
-            Timer.Repeat((s) => Flush(s), new FlushState { Store = store, StreamGen = streamGen, Endpoint = endpoint, MaxSize = maxSize, ReadSize = readSize, Interval = flushInterval, Expire = delayedExpiration }, flushInterval, "delayed flusher");
+            AppDomain.CurrentDomain.ProcessExit += (sender, e) => Flush(new FlushState { Store = store, StreamGen = streamGen, Endpoint = endpoint, MaxSize = maxSize, ReadSize = readSize, Interval = flushInterval, FlushSize = flushSize, Expire = delayedExpiration }, all: true).Wait();
+            Timer.Repeat((s) => Flush(s), new FlushState { Store = store, StreamGen = streamGen, Endpoint = endpoint, MaxSize = maxSize, ReadSize = readSize, Interval = flushInterval, FlushSize = flushSize, Expire = delayedExpiration }, flushInterval, "delayed flusher");
         }
 
         public Task Begin()
