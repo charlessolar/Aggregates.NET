@@ -84,7 +84,7 @@ namespace Aggregates.Internal
                         startingNumber,
                         settings,
                         eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
-                        subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected));
+                        subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected, clientsToken.Token));
                     Logger.Write(LogLevel.Info,
                         () => $"Subscribed to stream [{stream}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
                     lock (_subLock) _subscriptions.Add(subscription);
@@ -122,7 +122,7 @@ namespace Aggregates.Internal
                         startingNumber,
                         settings,
                         eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
-                        subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected));
+                        subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected, clientsToken.Token));
                     Logger.Write(LogLevel.Info,
                         () => $"Subscribed to stream [{stream}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
                     lock (_subLock) _subscriptions.Add(subscription);
@@ -175,7 +175,7 @@ namespace Aggregates.Internal
                 {
                     var subscription = await client.ConnectToPersistentSubscriptionAsync(stream, group,
                         eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
-                        subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected),
+                        subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected, clientsToken.Token),
                         // Let us accept large number of unacknowledged events
                         bufferSize: _readSize,
                         autoAck: false).ConfigureAwait(false);
@@ -231,7 +231,7 @@ namespace Aggregates.Internal
                 {
                     var subscription = await client.ConnectToPersistentSubscriptionAsync(stream, group,
                         eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
-                        subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected),
+                        subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected, clientsToken.Token),
                         // Let us accept large number of unacknowledged events
                         bufferSize: _readSize,
                         autoAck: false).ConfigureAwait(false);
@@ -290,7 +290,6 @@ namespace Aggregates.Internal
             {
                 Logger.Warn($"Token cancelation requested, stopping persistent subscription");
                 sub.Stop(TimeSpan.FromSeconds(5));
-                lock (_subLock) _persistentSubs.Remove(sub);
                 token.ThrowIfCancellationRequested();
             }
             _outstandingEvents[e.Event.EventId] = new Tuple<EventStorePersistentSubscriptionBase,Guid>(sub, e.OriginalEvent.EventId);
@@ -309,7 +308,6 @@ namespace Aggregates.Internal
             {
                 Logger.Warn($"Token cancelation requested, stopping catchup subscription");
                 sub.Stop();
-                lock (_subLock) _subscriptions.Remove(sub);
                 token.ThrowIfCancellationRequested();
             }
             EventAppeared(e, token, callback);
@@ -338,22 +336,24 @@ namespace Aggregates.Internal
             });
         }
 
-        private void SubscriptionDropped(EventStoreCatchUpSubscription sub, SubscriptionDropReason reason, Exception ex, Func<Task> disconnected)
+        private void SubscriptionDropped(EventStoreCatchUpSubscription sub, SubscriptionDropReason reason, Exception ex, Func<Task> disconnected, CancellationToken token)
         {
             Logger.Write(LogLevel.Info, () => $"Disconnected from subscription.  Reason: {reason} Exception: {ex}");
 
             lock (_subLock) _subscriptions.Remove(sub);
             if (reason == SubscriptionDropReason.UserInitiated) return;
+            if (token.IsCancellationRequested) return;
 
             // Run via task because we are currently on the thread that would process a reconnect and we shouldn't block it
             Task.Run(disconnected);
         }
-        private void SubscriptionDropped(EventStorePersistentSubscriptionBase sub, SubscriptionDropReason reason, Exception ex, Func<Task> disconnected)
+        private void SubscriptionDropped(EventStorePersistentSubscriptionBase sub, SubscriptionDropReason reason, Exception ex, Func<Task> disconnected, CancellationToken token)
         {
             Logger.Write(LogLevel.Info, () => $"Disconnected from subscription.  Reason: {reason} Exception: {ex}");
 
             lock (_subLock) _persistentSubs.Remove(sub);
             if (reason == SubscriptionDropReason.UserInitiated) return;
+            if (token.IsCancellationRequested) return;
 
             // Run via task because we are currently on the thread that would process a reconnect and we shouldn't block it
             Task.Run(disconnected);

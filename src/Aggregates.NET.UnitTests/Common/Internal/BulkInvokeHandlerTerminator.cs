@@ -28,6 +28,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
         class DelayedMessageNoProps { }
 
         private Moq.Mock<IMessageMapper> _mapper;
+        private Moq.Mock<IDelayedMessage> _message;
         private Aggregates.Internal.BulkInvokeHandlerTerminator _terminator;
 
         [SetUp]
@@ -36,6 +37,9 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             _mapper = new Moq.Mock<IMessageMapper>();
             _terminator = new Aggregates.Internal.BulkInvokeHandlerTerminator(_mapper.Object);
             Aggregates.Internal.BulkInvokeHandlerTerminator.RecentlyInvoked.Clear();
+
+            _message = new Moq.Mock<IDelayedMessage>();
+            _message.Setup(x => x.Message).Returns(new object());
         }
 
         [Test]
@@ -103,6 +107,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             var builder = new Moq.Mock<IBuilder>();
             var channel = new Moq.Mock<IDelayedChannel>();
             var next = new Moq.Mock<Func<PipelineTerminator<IInvokeHandlerContext>.ITerminatingContext, Task>>();
+
             builder.Setup(x => x.Build<IDelayedChannel>()).Returns(channel.Object);
             context.Setup(x => x.MessageHandler).Returns(handler);
             context.Setup(x => x.Builder).Returns(builder.Object);
@@ -131,6 +136,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             var builder = new Moq.Mock<IBuilder>();
             var channel = new Moq.Mock<IDelayedChannel>();
             var next = new Moq.Mock<Func<PipelineTerminator<IInvokeHandlerContext>.ITerminatingContext, Task>>();
+
             builder.Setup(x => x.Build<IDelayedChannel>()).Returns(channel.Object);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
@@ -172,22 +178,24 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             var builder = new Moq.Mock<IBuilder>();
             var channel = new Moq.Mock<IDelayedChannel>();
             var next = new Moq.Mock<Func<PipelineTerminator<IInvokeHandlerContext>.ITerminatingContext, Task>>();
+
             builder.Setup(x => x.Build<IDelayedChannel>()).Returns(channel.Object);
             context.Setup(x => x.MessageHandler).Returns(handler);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.MessageBeingHandled).Returns(new DelayedMessage());
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
+            channel.Setup(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<IDelayedMessage>(), Moq.It.IsAny<string>())).Returns(Task.CompletedTask);
             channel.Setup(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>())).Returns(Task.FromResult(2));
             channel.Setup(x => x.Pull(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IDelayedMessage[] {new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage()}.AsEnumerable()));
+                .Returns(Task.FromResult(new IDelayedMessage[] { _message.Object, _message.Object }.AsEnumerable()));
 
             await _terminator.Invoke(context.Object, next.Object);
             channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<IDelayedMessage>(), Moq.It.IsAny<string>()), Moq.Times.Once);
             // Posibly optional
             channel.Verify(x => x.Age(Moq.It.IsAny<string>(), Moq.It.IsAny<string>()), Moq.Times.Once);
             channel.Verify(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>()), Moq.Times.Once);
-            Assert.AreEqual(2,invoked);
+            Assert.AreEqual(2, invoked);
 
         }
 
@@ -206,6 +214,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             var builder = new Moq.Mock<IBuilder>();
             var channel = new Moq.Mock<IDelayedChannel>();
             var next = new Moq.Mock<Func<PipelineTerminator<IInvokeHandlerContext>.ITerminatingContext, Task>>();
+
             builder.Setup(x => x.Build<IDelayedChannel>()).Returns(channel.Object);
             context.Setup(x => x.MessageHandler).Returns(handler);
             context.Setup(x => x.Builder).Returns(builder.Object);
@@ -214,7 +223,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             channel.Setup(x => x.Age(Moq.It.IsAny<string>(), Moq.It.IsAny<string>())).Returns(Task.FromResult<TimeSpan?>(TimeSpan.FromSeconds(2)));
             channel.Setup(x => x.Pull(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IDelayedMessage[] { new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage() }.AsEnumerable()));
+                .Returns(Task.FromResult(new IDelayedMessage[] { _message.Object, _message.Object }.AsEnumerable()));
 
             await _terminator.Invoke(context.Object, next.Object);
             channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<IDelayedMessage>(), Moq.It.IsAny<string>()), Moq.Times.Once);
@@ -240,6 +249,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             var builder = new Moq.Mock<IBuilder>();
             var channel = new Moq.Mock<IDelayedChannel>();
             var next = new Moq.Mock<Func<PipelineTerminator<IInvokeHandlerContext>.ITerminatingContext, Task>>();
+
             builder.Setup(x => x.Build<IDelayedChannel>()).Returns(channel.Object);
             context.Setup(x => x.MessageHandler).Returns(handler);
             context.Setup(x => x.Builder).Returns(builder.Object);
@@ -248,7 +258,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             channel.Setup(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>())).Returns(Task.FromResult(2));
             channel.Setup(x => x.Pull(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IDelayedMessage[] { new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage() }.AsEnumerable()));
+                .Returns(Task.FromResult(new IDelayedMessage[] { _message.Object, _message.Object }.AsEnumerable()));
 
             await _terminator.Invoke(context.Object, next.Object);
             channel.Verify(x => x.AddToQueue(Moq.It.IsAny<string>(), Moq.It.IsAny<IDelayedMessage>(), Moq.It.IsAny<string>()), Moq.Times.Once);
@@ -276,7 +286,9 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             var builder = new Moq.Mock<IBuilder>();
             var channel = new Moq.Mock<IDelayedChannel>();
             var next = new Moq.Mock<Func<PipelineTerminator<IInvokeHandlerContext>.ITerminatingContext, Task>>();
+
             builder.Setup(x => x.Build<IDelayedChannel>()).Returns(channel.Object);
+            
             context.Setup(x => x.MessageHandler).Returns(handler);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
@@ -284,7 +296,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
             context.Setup(x => x.Headers).Returns(new Dictionary<string, string>());
             channel.Setup(x => x.Size(Moq.It.IsAny<string>(), Moq.It.IsAny<string>())).Returns(Task.FromResult(2));
             channel.Setup(x => x.Pull(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IDelayedMessage[] { new Aggregates.Internal.DelayedMessage(), new Aggregates.Internal.DelayedMessage() }.AsEnumerable()));
+                .Returns(Task.FromResult(new IDelayedMessage[] { _message.Object, _message.Object }.AsEnumerable()));
 
             await _terminator.Invoke(context.Object, next.Object);
             await _terminator.Invoke(context.Object, next.Object);
