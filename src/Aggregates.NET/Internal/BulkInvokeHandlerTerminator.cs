@@ -33,22 +33,10 @@ namespace Aggregates.Internal
         private static readonly Meter InvokesDelayed = Metric.Meter("Delayed Messages", Unit.Items, tags: "debug");
         private static readonly Histogram InvokeSize = Metric.Histogram("Bulk Messages Size", Unit.Items, tags: "debug");
         private static readonly Metrics.Timer InvokeTime = Metric.Timer("Bulk Messages Time", Unit.None, tags: "debug");
-
-        internal static readonly Dictionary<string, DateTime> RecentlyInvoked = new Dictionary<string, DateTime>();
-        private static readonly object RecentLock = new object();
-        private static readonly Task Expiring = Timer.Repeat(() =>
-        {
-            lock (RecentLock)
-            {
-                var expired = RecentlyInvoked.Where(x => x.Value < DateTime.UtcNow).ToList();
-                foreach (var e in expired)
-                    RecentlyInvoked.Remove(e.Key);
-            }
-            return Task.CompletedTask;
-        }, TimeSpan.FromSeconds(5), "recently invoked eviction");
+        
 
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
-        private static readonly object Lock = new Object();
+        private static readonly object Lock = new object();
         private static readonly HashSet<string> IsNotDelayed = new HashSet<string>();
 
         private readonly IMessageMapper _mapper;
@@ -154,16 +142,7 @@ namespace Aggregates.Internal
 
                     return;
                 }
-
-                lock (RecentLock)
-                {
-                    if (RecentlyInvoked.ContainsKey($"{channelKey}.{specificKey}"))
-                    {
-                        Logger.Write(LogLevel.Debug, () => $"Channel [{channelKey}] specific [{specificKey}] was checked by this instance recently - leaving it alone");
-                        return;
-                    }
-                    RecentlyInvoked.Add($"{channelKey}.{specificKey}", DateTime.UtcNow.AddSeconds(10));
-                }
+                
                 context.Extensions.Set<bool>("BulkInvoked", true);
 
                 Logger.Write(LogLevel.Info, () => $"Threshold Count [{delayed.Count}] DelayMs [{delayed.Delay}] Size [{size}] Age [{age?.TotalMilliseconds}] - bulk processing channel [{channelKey}] specific [{specificKey}]");
