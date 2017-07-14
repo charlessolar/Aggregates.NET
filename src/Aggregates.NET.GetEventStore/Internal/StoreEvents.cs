@@ -481,6 +481,8 @@ namespace Aggregates.Internal
             if (existing.StreamMetadata == null)
                 Logger.Write(LogLevel.Debug, () => $"No metadata exists for stream [{stream}]");
 
+            Logger.Write(LogLevel.Debug,
+                () => $"Read metadata from stream [{stream}] - {existing.StreamMetadata.AsJsonString()}");
             string property = "";
             if (!existing.StreamMetadata?.TryGetValue(key, out property) ?? false)
                 property = "";

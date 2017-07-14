@@ -204,7 +204,8 @@ namespace Aggregates.Internal
             }
             if (stream.PendingOobs.Any())
             {
-
+                Logger.Write(LogLevel.Debug,
+                    () => $"Defining oob on stream [{stream.StreamId}] in bucket [{stream.Bucket}] - definition: {JsonConvert.SerializeObject(oobs.Values)}");
                 await _store.WriteMetadata(streamName, custom: new Dictionary<string, string>
                 {
                     [OobMetadataKey] = JsonConvert.SerializeObject(oobs.Values)
