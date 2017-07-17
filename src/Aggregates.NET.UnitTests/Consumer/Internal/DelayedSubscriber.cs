@@ -97,7 +97,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
                         eventCb = onEvent;
                     })
                 .Returns(Task.FromResult(true));
-            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<IEnumerable<IFullEvent>>())).Returns(Task.FromResult(true));
+            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>())).Returns(Task.FromResult(true));
 
             var cts = new CancellationTokenSource();
             await _subscriber.Setup("test", cts.Token, Version.Parse("0.0.0")).ConfigureAwait(false);
@@ -112,7 +112,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
             
             Assert.That(() => _onMessaged, Is.True.After(300));
 
-            _consumer.Verify(x => x.Acknowledge(Moq.It.IsAny<IEnumerable<IFullEvent>>()), Moq.Times.Once);
+            _consumer.Verify(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>()), Moq.Times.Once);
 
             cts.Cancel();
         }
@@ -133,7 +133,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
                         eventCb = onEvent;
                     })
                 .Returns(Task.FromResult(true));
-            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<IEnumerable<IFullEvent>>())).Returns(Task.FromResult(true));
+            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>())).Returns(Task.FromResult(true));
 
             var cts = new CancellationTokenSource();
             await _subscriber.Setup("test", cts.Token, Version.Parse("0.0.0")).ConfigureAwait(false);
@@ -161,7 +161,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             Assert.That(() => called, Is.EqualTo(2).After(1000).PollEvery(100));
 
-            _consumer.Verify(x => x.Acknowledge(Moq.It.IsAny<IEnumerable<IFullEvent>>()), Moq.Times.Once);
+            _consumer.Verify(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>()), Moq.Times.Once);
 
             cts.Cancel();
         }
@@ -182,7 +182,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
                         eventCb = onEvent;
                     })
                 .Returns(Task.FromResult(true));
-            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<IEnumerable<IFullEvent>>())).Returns(Task.FromResult(true));
+            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>())).Returns(Task.FromResult(true));
 
             var cts = new CancellationTokenSource();
             await _subscriber.Setup("test", cts.Token, Version.Parse("0.0.0")).ConfigureAwait(false);
@@ -203,59 +203,61 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             eventCb("test", 0, message.Object);
 
-            Assert.That(() => called, Is.GreaterThan(2).After(1000).PollEvery(100));
+            Assert.That(() => called, Is.GreaterThanOrEqualTo(10).After(10000).PollEvery(200));
 
-            _consumer.Verify(x => x.Acknowledge(Moq.It.IsAny<IEnumerable<IFullEvent>>()), Moq.Times.Never);
+            // Delayed events are acked immediately
+            //_consumer.Verify(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>()), Moq.Times.Never);
 
             cts.Cancel();
 
         }
 
-        [Test]
-        public async Task canceled_event_isnt_retried()
-        {
+        // Delayed subscriber now acknowledges all events it gets immediately
+        //[Test]
+        //public async Task canceled_event_isnt_retried()
+        //{
 
-            Action<string, long, IFullEvent> eventCb = null;
-            _consumer.Setup(
-                    x =>
-                        x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
-                            Moq.It.IsAny<string>(),
-                            Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
-                            Moq.It.IsAny<Func<Task>>()))
-                .Callback<string, string, CancellationToken, Action<string, long, IFullEvent>, Func<Task>>(
-                    (stream, group, token, onEvent, onDisconnect) =>
-                    {
-                        eventCb = onEvent;
-                    })
-                .Returns(Task.FromResult(true));
-            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<IEnumerable<IFullEvent>>())).Returns(Task.FromResult(true));
+        //    Action<string, long, IFullEvent> eventCb = null;
+        //    _consumer.Setup(
+        //            x =>
+        //                x.ConnectRoundRobinPersistentSubscription(Moq.It.Is<string>(m => m.EndsWith(StreamTypes.Delayed)),
+        //                    Moq.It.IsAny<string>(),
+        //                    Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
+        //                    Moq.It.IsAny<Func<Task>>()))
+        //        .Callback<string, string, CancellationToken, Action<string, long, IFullEvent>, Func<Task>>(
+        //            (stream, group, token, onEvent, onDisconnect) =>
+        //            {
+        //                eventCb = onEvent;
+        //            })
+        //        .Returns(Task.FromResult(true));
+        //    _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>())).Returns(Task.FromResult(true));
 
-            var cts = new CancellationTokenSource();
-            await _subscriber.Setup("test", cts.Token, Version.Parse("0.0.0")).ConfigureAwait(false);
+        //    var cts = new CancellationTokenSource();
+        //    await _subscriber.Setup("test", cts.Token, Version.Parse("0.0.0")).ConfigureAwait(false);
 
-            await _subscriber.Connect().ConfigureAwait(false);
+        //    await _subscriber.Connect().ConfigureAwait(false);
 
-            Assert.NotNull(eventCb);
+        //    Assert.NotNull(eventCb);
 
-            var message = new Moq.Mock<IFullEvent>();
-            message.Setup(x => x.Descriptor).Returns(new EventDescriptor());
+        //    var message = new Moq.Mock<IFullEvent>();
+        //    message.Setup(x => x.Descriptor).Returns(new EventDescriptor());
 
-            var called = 0;
-            Bus.OnMessage = (ctx) =>
-            {
-                called++;
-                ctx.ReceiveCancellationTokenSource.Cancel();
-                return Task.CompletedTask;
-            };
+        //    var called = 0;
+        //    Bus.OnMessage = (ctx) =>
+        //    {
+        //        called++;
+        //        ctx.ReceiveCancellationTokenSource.Cancel();
+        //        return Task.CompletedTask;
+        //    };
 
-            eventCb("test", 0, message.Object);
+        //    eventCb("test", 0, message.Object);
 
-            Assert.That(() => called, Is.EqualTo(1).After(1000).PollEvery(100));
+        //    Assert.That(() => called, Is.EqualTo(1).After(1000).PollEvery(100));
 
-            _consumer.Verify(x => x.Acknowledge(Moq.It.IsAny<IEnumerable<IFullEvent>>()), Moq.Times.Never);
+        //    _consumer.Verify(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>()), Moq.Times.Never);
 
-            cts.Cancel();
-        }
+        //    cts.Cancel();
+        //}
         [Test]
         public async Task canceled_thread_stops_retries()
         {
@@ -273,7 +275,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
                         eventCb = onEvent;
                     })
                 .Returns(Task.FromResult(true));
-            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<IEnumerable<IFullEvent>>())).Returns(Task.FromResult(true));
+            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>())).Returns(Task.FromResult(true));
 
             var cts = new CancellationTokenSource();
             await _subscriber.Setup("test", cts.Token, Version.Parse("0.0.0")).ConfigureAwait(false);
@@ -297,7 +299,8 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
 
             Assert.That(() => called, Is.EqualTo(1).After(1000).PollEvery(100));
 
-            _consumer.Verify(x => x.Acknowledge(Moq.It.IsAny<IEnumerable<IFullEvent>>()), Moq.Times.Never);
+            // Delayed acks events immediately
+           // _consumer.Verify(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>()), Moq.Times.Never);
 
             cts.Cancel();
         }
@@ -319,7 +322,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
                         eventCb = onEvent;
                     })
                 .Returns(Task.FromResult(true));
-            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<IEnumerable<IFullEvent>>())).Returns(Task.FromResult(true));
+            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>())).Returns(Task.FromResult(true));
 
             var cts = new CancellationTokenSource();
             await _subscriber.Setup("test", cts.Token, Version.Parse("0.0.0")).ConfigureAwait(false);
@@ -361,7 +364,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
                         eventCb = onEvent;
                     })
                 .Returns(Task.FromResult(true));
-            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<IEnumerable<IFullEvent>>())).Returns(Task.FromResult(true));
+            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>())).Returns(Task.FromResult(true));
 
             var cts = new CancellationTokenSource();
             await _subscriber.Setup("test", cts.Token, Version.Parse("0.0.0")).ConfigureAwait(false);
@@ -411,7 +414,7 @@ namespace Aggregates.NET.UnitTests.Consumer.Internal
                         eventCb = onEvent;
                     })
                 .Returns(Task.FromResult(true));
-            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<IEnumerable<IFullEvent>>())).Returns(Task.FromResult(true));
+            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>())).Returns(Task.FromResult(true));
 
             var cts = new CancellationTokenSource();
             await _subscriber.Setup("test", cts.Token, Version.Parse("0.0.0")).ConfigureAwait(false);

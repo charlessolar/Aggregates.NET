@@ -97,6 +97,8 @@ namespace Aggregates.Internal
                   existing.Add(e);
                   return existing;
               });
+            // Acknowledge delayed event immediately, event will be processed - but if something blows up and it doesn't its just a delayed event no big deal
+            _consumer.Acknowledge(stream, position, e);
         }
 
         private static void Threaded(object state)
@@ -223,7 +225,6 @@ namespace Aggregates.Internal
                         Logger.Write(LogLevel.Debug,
                             () => $"Scheduling acknowledge of {delayed.Count()} bulk events");
                         DelayedHandled.Increment(delayed.Count());
-                        await param.Consumer.Acknowledge(events).ConfigureAwait(false);
                         success = true;
                     }
                     catch (ObjectDisposedException)
@@ -239,9 +240,14 @@ namespace Aggregates.Internal
 
                         DelayedErrors.Mark($"{e.GetType().Name} {e.Message}");
 
-                        if ((retry % param.MaxRetry) == 0)
+                        if ((retry % param.MaxRetry) == 0 && retry < 100)
                             Logger.Warn($"So far, we've received {retry} errors while running {delayed.Count()} bulk events from stream [{events.First().Descriptor.StreamId}] bucket [{events.First().Descriptor.Bucket}] entity [{events.First().Descriptor.EntityType}]", e);
-
+                        else if (retry > 100)
+                        {
+                            Logger.Error(
+                                $"Failed to process delayed events from stream [{events.First().Descriptor.StreamId}] bucket [{events.First().Descriptor.Bucket}] entity [{events.First().Descriptor.EntityType}]",e);
+                            break;
+                        }
                         // Don't burn cpu in case of non-transient errors
                         await Task.Delay((retry / 5) * 200, param.Token).ConfigureAwait(false);
                     }

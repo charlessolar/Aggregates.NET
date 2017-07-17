@@ -14,6 +14,7 @@ using EventStore.ClientAPI;
 using EventStore.ClientAPI.Common;
 using EventStore.ClientAPI.Exceptions;
 using EventStore.ClientAPI.Projections;
+using Metrics;
 using Newtonsoft.Json;
 using NServiceBus.Logging;
 using NServiceBus.MessageInterfaces;
@@ -23,7 +24,8 @@ namespace Aggregates.Internal
     internal class EventStoreConsumer : IEventStoreConsumer, IDisposable
     {
         private static readonly ILog Logger = LogManager.GetLogger("EventStoreConsumer");
-        
+        private static readonly Counter OutstandingEvents = Metric.Counter("Outstanding Events", Unit.Events);
+
         private readonly IEventStoreConnection[] _clients;
         private readonly JsonSerializerSettings _settings;
         private readonly int _readSize;
@@ -31,7 +33,7 @@ namespace Aggregates.Internal
         private readonly object _subLock;
         private readonly List<EventStoreCatchUpSubscription> _subscriptions;
         private readonly List<EventStorePersistentSubscriptionBase> _persistentSubs;
-        private readonly ConcurrentDictionary<Guid, Tuple<EventStorePersistentSubscriptionBase, Guid>> _outstandingEvents;
+        private readonly ConcurrentDictionary<string, Tuple<EventStorePersistentSubscriptionBase, Guid>> _outstandingEvents;
         private bool _disposed;
 
         public EventStoreConsumer(IMessageMapper mapper, IEventStoreConnection[] clients, int readSize, bool extraStats)
@@ -43,7 +45,7 @@ namespace Aggregates.Internal
             _subLock = new object();
             _subscriptions = new List<EventStoreCatchUpSubscription>();
             _persistentSubs = new List<EventStorePersistentSubscriptionBase>();
-            _outstandingEvents = new ConcurrentDictionary<Guid, Tuple<EventStorePersistentSubscriptionBase, Guid>>();
+            _outstandingEvents = new ConcurrentDictionary<string, Tuple<EventStorePersistentSubscriptionBase, Guid>>();
             _settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
@@ -153,6 +155,7 @@ namespace Aggregates.Internal
                     .WithBufferSizeOf(_readSize * 3)
                     .WithLiveBufferSizeOf(_readSize)
                     .DontTimeoutMessages()
+                    //.WithMessageTimeoutOf(TimeSpan.FromMinutes(2))
                     .CheckPointAfter(TimeSpan.FromSeconds(30))
                     .MaximumCheckPointCountOf(_readSize * 3)
                     .ResolveLinkTos()
@@ -208,6 +211,7 @@ namespace Aggregates.Internal
                     .WithBufferSizeOf(_readSize * 3)
                     .WithLiveBufferSizeOf(_readSize)
                     .DontTimeoutMessages()
+                    //.WithMessageTimeoutOf(TimeSpan.FromMinutes(2))
                     .CheckPointAfter(TimeSpan.FromSeconds(30))
                     .MaximumCheckPointCountOf(_readSize * 3)
                     .ResolveLinkTos()
@@ -248,31 +252,18 @@ namespace Aggregates.Internal
             return true;
         }
 
-        public Task Acknowledge(IFullEvent @event)
+        public Task Acknowledge(string stream, long position, IFullEvent @event)
         {
-            return Acknowledge(new[] {@event});
-        }
-        public Task Acknowledge(IEnumerable<IFullEvent> events)
-        {
-            var toAck = new Dictionary<EventStorePersistentSubscriptionBase, List<Guid>>();
-            foreach (var @event in events)
+            var eventId = $"{@event.EventId.Value}:{stream}:{position}";
+            Tuple<EventStorePersistentSubscriptionBase, Guid> outstanding;
+            if (!@event.EventId.HasValue || !_outstandingEvents.TryRemove(eventId, out outstanding))
             {
-                Tuple<EventStorePersistentSubscriptionBase, Guid> outstanding;
-                if (!@event.EventId.HasValue || !_outstandingEvents.TryRemove(@event.EventId.Value, out outstanding))
-                {
-                    Logger.Warn($"Tried to ACK unknown event {@event.EventId}");
-                    continue;
-                }
-                
-                if (!toAck.ContainsKey(outstanding.Item1))
-                    toAck[outstanding.Item1] = new List<Guid>();
-
-                toAck[outstanding.Item1].Add(outstanding.Item2);
+                Logger.Warn($"Tried to ACK unknown event {@event.EventId}");
+                return Task.CompletedTask;
             }
+            OutstandingEvents.Decrement();
 
-            foreach (var ack in toAck)
-                ack.Key.Acknowledge(ack.Value);
-
+            outstanding.Item1.Acknowledge(outstanding.Item2);
             return Task.CompletedTask;
         }
 
@@ -292,8 +283,9 @@ namespace Aggregates.Internal
                 sub.Stop(TimeSpan.FromSeconds(5));
                 token.ThrowIfCancellationRequested();
             }
-            _outstandingEvents[e.Event.EventId] = new Tuple<EventStorePersistentSubscriptionBase,Guid>(sub, e.OriginalEvent.EventId);
 
+            var eventId = $"{e.Event.EventId}:{e.Event.EventStreamId}:{e.Event.EventNumber}";
+            _outstandingEvents[eventId] = new Tuple<EventStorePersistentSubscriptionBase, Guid>(sub, e.OriginalEvent.EventId);
             EventAppeared(e, token, callback);
         }
 
@@ -327,6 +319,8 @@ namespace Aggregates.Internal
                 data = data.Decompress();
 
             var payload = data.Deserialize(e.Event.EventType, _settings);
+
+            OutstandingEvents.Increment();
 
             callback(e.Event.EventStreamId, e.Event.EventNumber, new WritableEvent
             {

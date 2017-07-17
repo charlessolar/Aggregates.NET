@@ -17,8 +17,7 @@ namespace Aggregates.Contracts
         Task<bool> ConnectPinnedPersistentSubscription(string stream, string group, CancellationToken token, Action<string, long, IFullEvent> callback, Func<Task> disconnected);
         Task<bool> ConnectRoundRobinPersistentSubscription(string stream, string group, CancellationToken token, Action<string, long, IFullEvent> callback, Func<Task> disconnected);
 
-        Task Acknowledge(IFullEvent @event);
-        Task Acknowledge(IEnumerable<IFullEvent> events);
+        Task Acknowledge(string stream, long position, IFullEvent @event);
         Task<bool> CreateProjection(string name, string definition);
     }
 }
