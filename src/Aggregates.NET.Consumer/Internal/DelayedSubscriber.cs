@@ -225,6 +225,8 @@ namespace Aggregates.Internal
                         Logger.Write(LogLevel.Debug,
                             () => $"Scheduling acknowledge of {delayed.Count()} bulk events");
                         DelayedHandled.Increment(delayed.Count());
+
+                        Defaults.MinimumLogging.Value = null;
                         success = true;
                     }
                     catch (ObjectDisposedException)
@@ -241,11 +243,20 @@ namespace Aggregates.Internal
                         DelayedErrors.Mark($"{e.GetType().Name} {e.Message}");
 
                         if ((retry % param.MaxRetry) == 0 && retry < 100)
-                            Logger.Warn($"So far, we've received {retry} errors while running {delayed.Count()} bulk events from stream [{events.First().Descriptor.StreamId}] bucket [{events.First().Descriptor.Bucket}] entity [{events.First().Descriptor.EntityType}]", e);
+                        {
+                            Logger.Warn(
+                                $"So far, we've received {retry} errors while running {delayed.Count()} bulk events from stream [{events.First().Descriptor.StreamId}] bucket [{events.First().Descriptor.Bucket}] entity [{events.First().Descriptor.EntityType}]",
+                                e);
+
+                            Defaults.MinimumLogging.Value = LogLevel.Debug;
+                            Logger.Info(
+                                $"Switching to verbose logging, {retry} errors detected while processing {delayed.Count()} bulk events from stream [{events.First().Descriptor.StreamId}] bucket [{events.First().Descriptor.Bucket}] entity [{events.First().Descriptor.EntityType}]");
+                        }
                         else if (retry > 100)
                         {
                             Logger.Error(
-                                $"Failed to process delayed events from stream [{events.First().Descriptor.StreamId}] bucket [{events.First().Descriptor.Bucket}] entity [{events.First().Descriptor.EntityType}]",e);
+                                $"Failed to process delayed events from stream [{events.First().Descriptor.StreamId}] bucket [{events.First().Descriptor.Bucket}] entity [{events.First().Descriptor.EntityType}]",
+                                e);
                             break;
                         }
                         // Don't burn cpu in case of non-transient errors

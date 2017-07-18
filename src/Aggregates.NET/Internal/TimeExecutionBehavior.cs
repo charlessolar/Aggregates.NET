@@ -40,7 +40,7 @@ namespace Aggregates.Internal
                     lock (SlowLock) SlowCommandTypes.Remove(messageTypeIdentifier);
                     Logger.Write(LogLevel.Info,
                         () => $"Message {messageTypeIdentifier} was previously detected as slow, switching to more verbose logging (for this instance)\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}");
-                    Defaults.MinimumLogging.Value = LogLevel.Info;
+                    Defaults.MinimumLogging.Value = LogLevel.Debug;
                     verbose = true;
                 }
                 
