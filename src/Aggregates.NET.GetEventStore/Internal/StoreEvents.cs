@@ -436,10 +436,11 @@ namespace Aggregates.Internal
             if (owner.HasValue)
                 metadata.SetCustomProperty("owner", Defaults.Instance.ToString());
 
+            var customs = existing.StreamMetadata?.CustomKeys.Where(x => x != "frozen" && x != "owner");
             // Make sure custom metadata is preserved
-            if (existing.StreamMetadata?.CustomKeys.Any() ?? false)
+            if (customs != null && customs.Any())
             {
-                foreach (var key in existing.StreamMetadata.CustomKeys)
+                foreach (var key in customs)
                     metadata.SetCustomProperty(key, existing.StreamMetadata.GetValue<string>(key));
             }
 
