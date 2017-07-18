@@ -193,23 +193,35 @@ namespace Aggregates.Internal
             var domainEvents = events.Where(x => x.Descriptor.StreamType == StreamTypes.Domain);
             var oobEvents = events.Where(x => x.Descriptor.StreamType == StreamTypes.OOB);
 
-            if (domainEvents.Any())
+            try
             {
-                _cache.Evict(streamName);
-
-                Logger.Write(LogLevel.Debug,
-                    () => $"Event stream [{stream.StreamId}] in bucket [{stream.Bucket}] committing {domainEvents.Count()} events");
-                await _store.WriteEvents(streamName, domainEvents, commitHeaders, expectedVersion: stream.CommitVersion)
-                    .ConfigureAwait(false);
-            }
-            if (stream.PendingOobs.Any())
-            {
-                Logger.Write(LogLevel.Debug,
-                    () => $"Defining oob on stream [{stream.StreamId}] in bucket [{stream.Bucket}] - definition: {JsonConvert.SerializeObject(oobs.Values)}");
-                await _store.WriteMetadata(streamName, custom: new Dictionary<string, string>
+                if (domainEvents.Any())
                 {
-                    [OobMetadataKey] = JsonConvert.SerializeObject(oobs.Values)
-                }).ConfigureAwait(false);
+                    _cache.Evict(streamName);
+
+                    Logger.Write(LogLevel.Debug,
+                        () =>
+                            $"Event stream [{stream.StreamId}] in bucket [{stream.Bucket}] committing {domainEvents.Count()} events");
+                    await _store.WriteEvents(streamName, domainEvents, commitHeaders,
+                            expectedVersion: stream.CommitVersion)
+                        .ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                // Todo: oob streams need to be reworked to not depend on multiple commits
+                //      issue with internal events is basically snapshoting.  But there can be ways around that
+                // Make sure any pending oobs are always written regardless of failures above
+                if (stream.PendingOobs.Any())
+                {
+                    Logger.Write(LogLevel.Debug,
+                        () =>
+                            $"Defining oob on stream [{stream.StreamId}] in bucket [{stream.Bucket}] - definition: {JsonConvert.SerializeObject(oobs.Values)}");
+                    await _store.WriteMetadata(streamName, custom: new Dictionary<string, string>
+                    {
+                        [OobMetadataKey] = JsonConvert.SerializeObject(oobs.Values)
+                    }).ConfigureAwait(false);
+                }
             }
 
             if (stream.PendingSnapshot != null)

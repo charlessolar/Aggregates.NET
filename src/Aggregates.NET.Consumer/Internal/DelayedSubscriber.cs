@@ -223,7 +223,7 @@ namespace Aggregates.Internal
                         tokenSource.Token.ThrowIfCancellationRequested();
 
                         Logger.Write(LogLevel.Debug,
-                            () => $"Scheduling acknowledge of {delayed.Count()} bulk events");
+                            () => $"Processed {delayed.Count()} bulk events");
                         DelayedHandled.Increment(delayed.Count());
 
                         Defaults.MinimumLogging.Value = null;
