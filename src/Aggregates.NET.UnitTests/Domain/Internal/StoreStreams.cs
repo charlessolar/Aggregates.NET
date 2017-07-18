@@ -270,35 +270,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
                 Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>()), Moq.Times.Once);
         }
-
-        [Test]
-        public async Task write_stream_pending_oobs_event_write_fails()
-        {
-            // Should still write pending oobs even on event failure
-            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
-            _store.Setup(x => x.WriteMetadata(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<long?>(),
-                Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<bool?>(), Moq.It.IsAny<Guid?>(),
-                Moq.It.IsAny<bool>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
-
-            _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
-                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>())).Throws<Exception>();
-
-            var @event = new Moq.Mock<IFullEvent>();
-            @event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.Domain);
-            @event.Setup(x => x.Descriptor.Headers).Returns(new Dictionary<string, string>());
-
-            _stream.Setup(x => x.Uncommitted).Returns(new IFullEvent[] { @event.Object }.AsEnumerable());
-            
-            _stream.Setup(x => x.PendingOobs).Returns(new[] { new OobDefinition { Id = "test" } });
-
-            Assert.ThrowsAsync<Exception>(() => _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object,
-                new Dictionary<string, string>()));
-
-            _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
-                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>()), Moq.Times.Once);
-            _store.Verify(x => x.WriteMetadata(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<long?>(),
-                Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<bool?>(), Moq.It.IsAny<Guid?>(),
-                Moq.It.IsAny<bool>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
-        }
+        
     }
 }

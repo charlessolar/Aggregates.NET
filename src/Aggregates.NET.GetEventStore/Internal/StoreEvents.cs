@@ -381,7 +381,7 @@ namespace Aggregates.Internal
             TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null, bool force = false, IDictionary<string, string> custom = null)
         {
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
-            Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream [{stream}] [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl}, {nameof(frozen)}: {frozen} ]");
+            Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream [{stream}] [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl}, {nameof(frozen)}: {frozen}, {nameof(custom)}: {JsonConvert.SerializeObject(custom)} ]");
 
             var existing = await _clients[bucket].GetStreamMetadataAsync(stream).ConfigureAwait(false);
 
@@ -435,6 +435,13 @@ namespace Aggregates.Internal
                 metadata.SetCustomProperty("frozen", DateTime.UtcNow.ToUnixTime());
             if (owner.HasValue)
                 metadata.SetCustomProperty("owner", Defaults.Instance.ToString());
+
+            // Make sure custom metadata is preserved
+            if (existing.StreamMetadata?.CustomKeys.Any() ?? false)
+            {
+                foreach (var key in existing.StreamMetadata.CustomKeys)
+                    metadata.SetCustomProperty(key, existing.StreamMetadata.GetValue<string>(key));
+            }
 
             if (custom != null)
             {

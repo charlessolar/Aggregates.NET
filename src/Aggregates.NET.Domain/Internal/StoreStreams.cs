@@ -85,7 +85,7 @@ namespace Aggregates.Internal
                     return $"No snapshot found for entity id [{streamId}] bucket [{bucket}]";
                 });
             }
-            
+
             var events = await _store.GetEvents(streamName, start: snapshot?.Version + 1).ConfigureAwait(false);
             var oobMetadata = await _store.GetMetadata(streamName, OobMetadataKey).ConfigureAwait(false);
             IEnumerable<OobDefinition> oobs = null;
@@ -112,7 +112,7 @@ namespace Aggregates.Internal
         public async Task<long> GetSize<T>(IEventStream stream, string oob) where T : class, IEventSource
         {
             var streamName = _streamGen(typeof(T), StreamTypes.OOB, stream.Bucket, stream.StreamId, stream.Parents);
-            
+
             return (await Enumerable.Range(1, 10).ToArray().StartEachAsync(5, (vary) => _store.Size($"{streamName}-{oob}.{vary}")).ConfigureAwait(false)).Sum();
         }
         public async Task<IEnumerable<IFullEvent>> GetEvents<T>(IEventStream stream, long start, int count, string oob = null) where T : class, IEventSource
@@ -173,9 +173,9 @@ namespace Aggregates.Internal
                         () => $"Mutating outgoing event {writable.Event.GetType()} with mutator {mutate.GetType().FullName}");
                     mutated = mutate.MutateOutgoing(mutated);
                 }
-                
+
                 // Todo: have some bool that is set true if they modified headers
-                if(_mutators.Any())
+                if (_mutators.Any())
                     foreach (var header in mutated.Headers)
                         writable.Descriptor.Headers[header.Key] = header.Value;
                 return (IFullEvent)new WritableEvent
@@ -193,36 +193,30 @@ namespace Aggregates.Internal
             var domainEvents = events.Where(x => x.Descriptor.StreamType == StreamTypes.Domain);
             var oobEvents = events.Where(x => x.Descriptor.StreamType == StreamTypes.OOB);
 
-            try
+            if (domainEvents.Any())
             {
-                if (domainEvents.Any())
-                {
-                    _cache.Evict(streamName);
+                _cache.Evict(streamName);
 
-                    Logger.Write(LogLevel.Debug,
-                        () =>
-                            $"Event stream [{stream.StreamId}] in bucket [{stream.Bucket}] committing {domainEvents.Count()} events");
-                    await _store.WriteEvents(streamName, domainEvents, commitHeaders,
-                            expectedVersion: stream.CommitVersion)
-                        .ConfigureAwait(false);
-                }
+                Logger.Write(LogLevel.Debug,
+                    () =>
+                        $"Event stream [{stream.StreamId}] in bucket [{stream.Bucket}] committing {domainEvents.Count()} events");
+                await _store.WriteEvents(streamName, domainEvents, commitHeaders,
+                        expectedVersion: stream.CommitVersion)
+                    .ConfigureAwait(false);
             }
-            finally
+            // Todo: oob streams need to be reworked to not depend on multiple commits
+            //      issue with internal events is basically snapshoting.  But there can be ways around that
+            if (stream.PendingOobs.Any())
             {
-                // Todo: oob streams need to be reworked to not depend on multiple commits
-                //      issue with internal events is basically snapshoting.  But there can be ways around that
-                // Make sure any pending oobs are always written regardless of failures above
-                if (stream.PendingOobs.Any())
+                Logger.Write(LogLevel.Debug,
+                    () =>
+                        $"Defining oob on stream [{stream.StreamId}] in bucket [{stream.Bucket}] - definition: {JsonConvert.SerializeObject(oobs.Values)}");
+                await _store.WriteMetadata(streamName, custom: new Dictionary<string, string>
                 {
-                    Logger.Write(LogLevel.Debug,
-                        () =>
-                            $"Defining oob on stream [{stream.StreamId}] in bucket [{stream.Bucket}] - definition: {JsonConvert.SerializeObject(oobs.Values)}");
-                    await _store.WriteMetadata(streamName, custom: new Dictionary<string, string>
-                    {
-                        [OobMetadataKey] = JsonConvert.SerializeObject(oobs.Values)
-                    }).ConfigureAwait(false);
-                }
+                    [OobMetadataKey] = JsonConvert.SerializeObject(oobs.Values)
+                }).ConfigureAwait(false);
             }
+
 
             if (stream.PendingSnapshot != null)
             {
@@ -247,11 +241,11 @@ namespace Aggregates.Internal
                     var definition = oobs[group.Key];
                     if (definition.Transient ?? false)
                         await _publisher.Publish<T>(oobstream, group, commitHeaders).ConfigureAwait(false);
-                    else if(definition.DaysToLive.HasValue)
+                    else if (definition.DaysToLive.HasValue)
                     {
                         var version = await _store.WriteEvents(oobstream, group, commitHeaders).ConfigureAwait(false);
                         // if new stream, write metadata
-                        if(version == (group.Count()-1))
+                        if (version == (group.Count() - 1))
                             await _store.WriteMetadata(oobstream, maxAge: TimeSpan.FromDays(definition.DaysToLive.Value)).ConfigureAwait(false);
                     }
                     else
