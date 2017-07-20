@@ -36,7 +36,7 @@ namespace Aggregates.Internal
         private static readonly Counter EventsQueued = Metric.Counter("Events Queued", Unit.Items);
         private static readonly Meter EventErrors = Metric.Meter("Event Failures", Unit.Items);
 
-        private static readonly BlockingCollection<Tuple<string, long, IFullEvent>> WaitingEvents = new BlockingCollection<Tuple<string, long, IFullEvent>>();
+        private readonly BlockingCollection<Tuple<string, long, IFullEvent>>[] _waitingEvents;
 
         private class ThreadParam
         {
@@ -44,10 +44,12 @@ namespace Aggregates.Internal
             public int Concurrency { get; set; }
             public CancellationToken Token { get; set; }
             public IMessaging Messaging { get; set; }
+            public int Index { get; set; }
+            public BlockingCollection<Tuple<string, long, IFullEvent>> Queue { get; set; }
         }
 
 
-        private Thread _pinnedThread;
+        private Thread[] _pinnedThreads;
         private CancellationTokenSource _cancelation;
         private string _endpoint;
         private Version _version;
@@ -65,6 +67,11 @@ namespace Aggregates.Internal
             _messaging = messaging;
             _consumer = consumer;
             _concurrency = concurrency;
+
+            // Initiate multiple event queues, 1 for each concurrent eventstream
+            _waitingEvents = new BlockingCollection<Tuple<string, long, IFullEvent>>[_concurrency];
+            for (var i = 0; i < _concurrency; i++)
+                _waitingEvents[i] = new BlockingCollection<Tuple<string, long, IFullEvent>>();
         }
 
         public async Task Setup(string endpoint, CancellationToken cancelToken, Version version)
@@ -119,10 +126,15 @@ when({{
 
             await Reconnect(appStream, group).ConfigureAwait(false);
 
-            _pinnedThread = new Thread(Threaded)
-            { IsBackground = true, Name = $"Main Event Thread" };
-            _pinnedThread.Start(new ThreadParam { Token = _cancelation.Token, Messaging = _messaging, Concurrency = _concurrency, Consumer = _consumer });
+            _pinnedThreads = new Thread[_concurrency];
 
+            for (var i = 0; i < _concurrency; i++)
+            {
+                _pinnedThreads[i] = new Thread(Threaded)
+                { IsBackground = true, Name = $"Event Thread {i}" };
+
+                _pinnedThreads[i].Start(new ThreadParam { Token = _cancelation.Token, Messaging = _messaging, Concurrency = _concurrency, Consumer = _consumer, Index = i, Queue = _waitingEvents[i] });
+            }
         }
 
         private Task Reconnect(string stream, string group)
@@ -133,7 +145,9 @@ when({{
         private void onEvent(string stream, long position, IFullEvent e)
         {
             EventsQueued.Increment();
-            WaitingEvents.Add(new Tuple<string, long, IFullEvent>(stream, position, e));
+
+            var bucket = stream.GetHashCode() % _concurrency;
+            _waitingEvents[bucket].Add(new Tuple<string, long, IFullEvent>(stream, position, e));
         }
 
 
@@ -144,11 +158,8 @@ when({{
             while (!Bus.BusOnline)
             {
                 Logger.Warn($"Could not find NSBs onMessage handler yet - if this persists there is a problem.");
-                Thread.Sleep(500);
+                Thread.Sleep(1000);
             }
-
-            var tasks = new Task[param.Concurrency];
-
 
             try
             {
@@ -156,57 +167,38 @@ when({{
                 {
                     param.Token.ThrowIfCancellationRequested();
 
-                    var noevents = true;
+                    var @event = param.Queue.Take(param.Token);
+                    EventsQueued.Decrement();
 
-                    for (var i = 0; i < param.Concurrency; i++)
+                    try
                     {
-                        if (tasks[i] != null && !tasks[i].IsCompleted)
-                            continue;
+                        ProcessEvent(param.Messaging, @event.Item1, @event.Item2, @event.Item3, param.Token)
+                            .ConfigureAwait(false).GetAwaiter().GetResult();
 
-                        noevents = false;
-
-                        var @event = WaitingEvents.Take(param.Token);
-                        EventsQueued.Decrement();
-
-                        tasks[i] = Task.Run(async () =>
-                        {
-                            try
-                            {
-                                await
-                                    ProcessEvent(param.Messaging, @event.Item1, @event.Item2, @event.Item3, param.Token)
-                                        .ConfigureAwait(false);
-
-                                Logger.Write(LogLevel.Debug,
-                                    () =>
-                                        $"Acknowledge event {@event.Item3.Descriptor.EventId} stream [{@event.Item1}] number {@event.Item2}");
-                                await param.Consumer.Acknowledge(@event.Item1, @event.Item2, @event.Item3).ConfigureAwait(false);
-                            }
-                            catch (OperationCanceledException)
-                            {
-                                throw;
-                            }
-                            catch (Exception e)
-                            {
-                                // If not a canceled exception, just write to log and continue
-                                // we dont want some random unknown exception to kill the whole event loop
-                                Logger.Error(
-                                    $"Received exception in main event thread: {e.GetType()}: {e.Message}",
-                                    e);
-
-                            }
-                        }, param.Token);
+                        Logger.Write(LogLevel.Debug,
+                            () =>
+                                $"Acknowledge event {@event.Item3.Descriptor.EventId} stream [{@event.Item1}] number {@event.Item2}");
+                        param.Consumer.Acknowledge(@event.Item1, @event.Item2, @event.Item3).ConfigureAwait(false)
+                            .GetAwaiter().GetResult();
                     }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception e)
+                    {
+                        // If not a canceled exception, just write to log and continue
+                        // we dont want some random unknown exception to kill the whole event loop
+                        Logger.Error(
+                            $"Received exception in main event thread: {e.GetType()}: {e.Message}",
+                            e);
 
-                    if (noevents)
-                        Thread.Sleep(100);
-
+                    }
                 }
             }
             catch
             {
             }
-
-
         }
 
         // A fake message that will travel through the pipeline in order to process events from the context bag
@@ -299,7 +291,9 @@ when({{
 
             _disposed = true;
             _cancelation?.Cancel();
-            _pinnedThread?.Join();
+
+            if (_pinnedThreads != null)
+                Array.ForEach(_pinnedThreads, x => x.Join());
         }
 
         static string SerializeEnclosedMessageTypes(IMessaging messaging, Type messageType)
