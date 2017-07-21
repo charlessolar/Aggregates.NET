@@ -124,7 +124,6 @@ when({{
             var group = $"{_endpoint}.{_version}";
             var appStream = $"{_endpoint}.{_version}";
 
-            await Reconnect(appStream, group).ConfigureAwait(false);
 
             _pinnedThreads = new Thread[_concurrency];
 
@@ -135,6 +134,9 @@ when({{
 
                 _pinnedThreads[i].Start(new ThreadParam { Token = _cancelation.Token, Messaging = _messaging, Concurrency = _concurrency, Consumer = _consumer, Index = i, Queue = _waitingEvents[i] });
             }
+
+
+            await Reconnect(appStream, group).ConfigureAwait(false);
         }
 
         private Task Reconnect(string stream, string group)
@@ -146,7 +148,7 @@ when({{
         {
             EventsQueued.Increment();
 
-            var bucket = stream.GetHashCode() % _concurrency;
+            var bucket = Math.Abs(stream.GetHashCode() % _concurrency);
             _waitingEvents[bucket].Add(new Tuple<string, long, IFullEvent>(stream, position, e));
         }
 
