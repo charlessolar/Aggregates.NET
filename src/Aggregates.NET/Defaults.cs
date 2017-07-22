@@ -32,7 +32,7 @@ namespace Aggregates
 
         public static Guid Instance = Guid.NewGuid();
         public static string Bucket = "default";
-        public static string MessageIdHeader = "Originating.NServiceBus.MessageId";
+        public static string MessageIdHeader = "NServiceBus.MessageId";
         public static string CommitIdHeader = "CommitId";
         public static string InstanceHeader = "Instance";
         

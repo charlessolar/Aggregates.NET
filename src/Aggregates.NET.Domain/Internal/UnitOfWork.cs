@@ -78,7 +78,7 @@ namespace Aggregates.Internal
             }
 
             _repositories.Clear();
-            
+
 
             foreach (var repo in _pocoRepositories.Values)
             {
@@ -192,14 +192,14 @@ namespace Aggregates.Internal
             if (changedStreams > 1)
             {
                 Logger.Write(LogLevel.Warn, $"Starting prepare for commit id {CommitId} with {_repositories.Count + _pocoRepositories.Count} tracked repositories. You changed {changedStreams} streams.  We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams");
-                
+
                 using (PrepareTime.NewContext())
                 {
                     // First check all streams read but not modified - if the store has a different version a VersionException will be thrown
                     await allRepos.WhenAllAsync(x => x.Prepare(CommitId)).ConfigureAwait(false);
                 }
             }
-            
+
             Logger.Write(LogLevel.Debug, () => $"Starting commit id {CommitId} with {_repositories.Count + _pocoRepositories.Count} tracked repositories");
 
             try
@@ -258,25 +258,28 @@ namespace Aggregates.Internal
                 CurrentHeaders[header] = command.Headers[header];
 
             CurrentHeaders[Defaults.InstanceHeader] = Defaults.Instance.ToString();
-            if(command.Headers.ContainsKey(Headers.CorrelationId))
+            if (command.Headers.ContainsKey(Headers.CorrelationId))
                 CurrentHeaders[Headers.CorrelationId] = command.Headers[Headers.CorrelationId];
 
 
-            CommitId = Guid.NewGuid();
 
-            try
-            {
-                string messageId;
-                // Attempt to get MessageId from NServicebus headers
-                // If we maintain a good CommitId convention it should solve the message idempotentcy issue (assuming the storage they choose supports it)
-                if (CurrentHeaders.TryGetValue(Defaults.MessageIdHeader, out messageId))
-                    CommitId = Guid.Parse(messageId);
+            string messageId;
+            Guid commitId = Guid.NewGuid();
 
-                // Allow the user to send a CommitId along with his message if he wants
-                if (CurrentHeaders.TryGetValue(Defaults.CommitIdHeader, out messageId))
-                    CommitId = Guid.Parse(messageId);
-            }
-            catch (FormatException) { }
+            // Attempt to get MessageId from NServicebus headers
+            // If we maintain a good CommitId convention it should solve the message idempotentcy issue (assuming the storage they choose supports it)
+            if (CurrentHeaders.TryGetValue(Defaults.MessageIdHeader, out messageId))
+                Guid.TryParse(messageId, out commitId);
+            if (CurrentHeaders.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}", out messageId))
+                Guid.TryParse(messageId, out commitId);
+            if (CurrentHeaders.TryGetValue($"{Defaults.DelayedPrefixHeader}.{Defaults.MessageIdHeader}", out messageId))
+                Guid.TryParse(messageId, out commitId);
+
+            // Allow the user to send a CommitId along with his message if he wants
+            if (CurrentHeaders.TryGetValue(Defaults.CommitIdHeader, out messageId))
+                Guid.TryParse(messageId, out commitId);
+
+            CommitId = commitId;
 
             // Helpful log and gets CommitId into the dictionary
             var firstEventId = UnitOfWork.NextEventId(CommitId);
@@ -284,6 +287,19 @@ namespace Aggregates.Internal
 
             return command;
         }
+
+        private bool TryGetGuid(string text, out Guid guid)
+        {
+            try
+            {
+                guid = Guid.Parse(text);
+                return true;
+            }
+            catch (FormatException) { }
+            guid = Guid.Empty;
+            return false;
+        }
+
         public IMutating MutateOutgoing(IMutating command)
         {
             foreach (var header in CurrentHeaders)
@@ -291,7 +307,7 @@ namespace Aggregates.Internal
 
             return command;
         }
-        
+
 
     }
 }
