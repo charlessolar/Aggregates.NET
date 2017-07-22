@@ -230,17 +230,21 @@ when({{
                 {
                     var transportTransaction = new TransportTransaction();
 
-                    var headers = new Dictionary<string, string>(@event.Descriptor.Headers ?? new Dictionary<string, string>())
-                    {
-                        [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
-                        [Headers.EnclosedMessageTypes] = SerializeEnclosedMessageTypes(messaging, @event.Event.GetType()),
-                        [Headers.MessageId] = messageId,
-                        [Headers.CorrelationId] = corrId,
-                        [Defaults.EventHeader] = "",
-                        [$"{Defaults.EventPrefixHeader}.EventId"] = @event.EventId.ToString(),
-                        [$"{Defaults.EventPrefixHeader}.EventStream"] = stream,
-                        [$"{Defaults.EventPrefixHeader}.EventPosition"] = position.ToString()
-                    };
+                    var headers =
+                        new Dictionary<string, string>(@event.Descriptor.Headers ??
+                                                       new Dictionary<string, string>())
+                        {
+                            [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
+                            [Headers.EnclosedMessageTypes] =
+                            SerializeEnclosedMessageTypes(messaging, @event.Event.GetType()),
+                            [Headers.MessageId] = messageId,
+                            [Headers.CorrelationId] = corrId,
+                            [Defaults.EventHeader] = "",
+                            [$"{Defaults.EventPrefixHeader}.EventId"] = @event.EventId.ToString(),
+                            [$"{Defaults.EventPrefixHeader}.EventStream"] = stream,
+                            [$"{Defaults.EventPrefixHeader}.EventPosition"] = position.ToString()
+                        };
+
 
                     using (var ctx = EventExecution.NewContext())
                     {

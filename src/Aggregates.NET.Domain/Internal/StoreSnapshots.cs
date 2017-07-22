@@ -93,7 +93,7 @@ namespace Aggregates.Internal
                     StreamId = streamId,
                     Parents = parents,
                     Timestamp = DateTime.UtcNow,
-                    Version = version,
+                    Version = version + 1,
                     Headers = new Dictionary<string, string>(),
                     CommitHeaders = commitHeaders
                 },

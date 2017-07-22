@@ -129,7 +129,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
 
             var snapshot = new Moq.Mock<ISnapshot>();
-            snapshot.Setup(x => x.Version).Returns(1);
+            snapshot.Setup(x => x.Version).Returns(2);
 
             _snapstore.Setup(x => x.GetSnapshot<EntityWithMemento>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
                 Moq.It.IsAny<IEnumerable<Id>>())).Returns(Task.FromResult(snapshot.Object));
@@ -139,7 +139,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             var entity = await _streamStore.GetStream<EntityWithMemento>("test", "test");
 
             _store.Verify(x => x.GetEvents(Moq.It.IsAny<string>(), 2, Moq.It.IsAny<int?>()), Moq.Times.Once);
-            Assert.AreEqual(1, entity.CommitVersion);
+            Assert.AreEqual(2, entity.CommitVersion);
         }
 
         [Test]

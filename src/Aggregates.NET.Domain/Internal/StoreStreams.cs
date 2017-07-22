@@ -86,7 +86,7 @@ namespace Aggregates.Internal
                 });
             }
 
-            var events = await _store.GetEvents(streamName, start: snapshot?.Version + 1).ConfigureAwait(false);
+            var events = await _store.GetEvents(streamName, start: snapshot?.Version).ConfigureAwait(false);
             var oobMetadata = await _store.GetMetadata(streamName, OobMetadataKey).ConfigureAwait(false);
             IEnumerable<OobDefinition> oobs = null;
             if (!string.IsNullOrEmpty(oobMetadata))
