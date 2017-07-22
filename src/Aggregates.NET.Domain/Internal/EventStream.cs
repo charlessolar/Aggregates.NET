@@ -95,7 +95,10 @@ namespace Aggregates.Internal
         
         private IFullEvent MakeWritableEvent(string streamType, IEvent @event, IDictionary<string, string> headers)
         {
-            var version = Interlocked.Increment(ref _streamVersion);
+            var version = _streamVersion;
+            if(streamType == StreamTypes.Domain)
+                version = Interlocked.Increment(ref _streamVersion);
+
             var writable = new WritableEvent
             {
                 Descriptor = new EventDescriptor
