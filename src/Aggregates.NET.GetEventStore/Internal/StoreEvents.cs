@@ -51,7 +51,7 @@ namespace Aggregates.Internal
                 TypeNameHandling = TypeNameHandling.Auto,
                 SerializationBinder = new EventSerializationBinder(_mapper),
                 ContractResolver = new EventContractResolver(_mapper),
-                Converters = new[] {new Newtonsoft.Json.Converters.StringEnumConverter()}
+                Converters = new[] { new Newtonsoft.Json.Converters.StringEnumConverter() }
             };
 
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
@@ -195,7 +195,7 @@ namespace Aggregates.Internal
             {
                 var metadata = e.Event.Metadata;
                 var data = e.Event.Data;
-                
+
                 var descriptor = metadata.Deserialize(settings);
 
                 if (descriptor.Compressed)
@@ -264,7 +264,7 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Getting the size of stream {stream}");
 
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
-            
+
             var result = await _clients[bucket].ReadStreamEventsBackwardAsync(stream, StreamPosition.End, 1, false).ConfigureAwait(false);
             return result.Status == SliceReadStatus.Success ? result.NextEventNumber : 0;
         }
@@ -415,9 +415,10 @@ namespace Aggregates.Internal
             {
 
                 var time = existing.StreamMetadata.GetValue<long>("frozen");
-                if ((DateTime.UtcNow.ToUnixTime() - time) > 60)
-                    SlowLogger.Write(LogLevel.Warn, () => $"Stream [{stream}] has been frozen for {DateTime.UtcNow.ToUnixTime() - time} seconds!");
-                throw;
+                if ((DateTime.UtcNow.ToUnixTime() - time) < 3)
+                    throw;
+
+                Logger.Write(LogLevel.Warn, () => $"Stream [{stream}] has been frozen for {DateTime.UtcNow.ToUnixTime() - time} seconds - ignoring freeze");
             }
 
             var metadata = StreamMetadata.Build();
@@ -499,6 +500,8 @@ namespace Aggregates.Internal
 
         public async Task<bool> IsFrozen(string stream)
         {
+            // Todo: if an instance crashes after freezing the stream it will remain frozen until timeout
+
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
 
             var streamMeta = await _clients[bucket].GetStreamMetadataAsync(stream).ConfigureAwait(false);
@@ -512,9 +515,9 @@ namespace Aggregates.Internal
 
             // ReSharper disable once PossibleNullReferenceException
             var time = streamMeta.StreamMetadata.GetValue<long>("frozen");
-            if ((DateTime.UtcNow.ToUnixTime() - time) > 60)
+            if ((DateTime.UtcNow.ToUnixTime() - time) > 3)
             {
-                Logger.Warn($"Stream [{stream}] has been frozen for over 60 seconds!  Unfreezing");
+                Logger.Warn($"Stream [{stream}] has been frozen for over 3 seconds!  Unfreezing");
                 await WriteMetadata(stream, force: true).ConfigureAwait(false);
                 return false;
             }
