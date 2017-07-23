@@ -36,7 +36,7 @@ namespace Aggregates.Internal
         private static readonly Meter DelayedErrors = Metric.Meter("Delayed Failures", Unit.Items);
 
 
-        private static readonly ConcurrentDictionary<string, List<IFullEvent>> WaitingEvents = new ConcurrentDictionary<string, List<IFullEvent>>();
+        private static readonly ConcurrentDictionary<string, List<Tuple<long, IFullEvent>>> WaitingEvents = new ConcurrentDictionary<string, List<Tuple<long, IFullEvent>>>();
 
         private class ThreadParam
         {
@@ -92,13 +92,11 @@ namespace Aggregates.Internal
         private void onEvent(string stream, long position, IFullEvent e)
         {
             DelayedQueued.Increment();
-            WaitingEvents.AddOrUpdate(stream, (key) => new List<IFullEvent> { e }, (key, existing) =>
+            WaitingEvents.AddOrUpdate(stream, (key) => new List<Tuple<long, IFullEvent>> { new Tuple<long, IFullEvent>(position, e)}, (key, existing) =>
               {
-                  existing.Add(e);
+                  existing.Add(new Tuple<long, IFullEvent>(position, e));
                   return existing;
               });
-            // Acknowledge delayed event immediately, event will be processed - but if something blows up and it doesn't its just a delayed event no big deal
-            _consumer.Acknowledge(stream, position, e);
         }
 
         private static void Threaded(object state)
@@ -123,13 +121,14 @@ namespace Aggregates.Internal
                         continue;
                     }
 
-                    List<IFullEvent> flushedEvents;
+                    List<Tuple<long, IFullEvent>> flushedEvents;
+                    string stream = "";
                     // Pull a random delayed stream for processing
                     try
                     {
+                        stream = WaitingEvents.Keys.ElementAt(random.Next(WaitingEvents.Keys.Count));
                         if (
-                            !WaitingEvents.TryRemove(
-                                WaitingEvents.Keys.ElementAt(random.Next(WaitingEvents.Keys.Count)),
+                            !WaitingEvents.TryRemove(stream,
                                 out flushedEvents))
                             continue;
                     }
@@ -148,14 +147,16 @@ namespace Aggregates.Internal
                             using (var ctx = DelayedExecution.NewContext())
                             {
                                 // Same stream ids should modify the same models, processing this way reduces write collisions on commit
-                                await ProcessEvents(param, flushedEvents.ToArray()).ConfigureAwait(false);
+                                await ProcessEvents(param, flushedEvents.Select(x => x.Item2).ToArray()).ConfigureAwait(false);
 
                                 if (ctx.Elapsed > TimeSpan.FromSeconds(5))
                                     SlowLogger.Warn(
                                         $"Processing {flushedEvents.Count()} bulked events took {ctx.Elapsed.TotalSeconds} seconds!");
                                 Logger.Write(LogLevel.Info,
                                     () => $"Processing {flushedEvents.Count()} bulked events took {ctx.Elapsed.TotalMilliseconds} ms");
-
+                                foreach (var @event in flushedEvents)
+                                    await param.Consumer.Acknowledge(stream, @event.Item1, @event.Item2)
+                                        .ConfigureAwait(false);
                             }
                         }, param.Token).Wait();
                     }

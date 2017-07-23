@@ -239,6 +239,40 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
 
             Assert.AreEqual(1, stream.PendingOobs.Count());
         }
+
+        [Test]
+        public void domain_event_increments_stream_version()
+        {
+
+            var stream = new Aggregates.Internal.EventStream<Entity>("test", "test", null, null, _events, null);
+
+            Assert.AreEqual(0, stream.CommitVersion);
+            Assert.AreEqual(0, stream.StreamVersion);
+
+            // New domain event
+            stream.Add(new FakeEvent(), new Dictionary<string, string>());
+
+            Assert.AreEqual(0, stream.CommitVersion);
+            Assert.AreEqual(1, stream.StreamVersion);
+            
+        }
+
+        [Test]
+        public void oob_event_doesnt_increment_stream_version()
+        {
+
+            var stream = new Aggregates.Internal.EventStream<Entity>("test", "test", null, null, _events, null);
+            stream.DefineOob("test");
+
+            Assert.AreEqual(0, stream.CommitVersion);
+            Assert.AreEqual(0, stream.StreamVersion);
+
+            // New oob event
+            stream.AddOob(new FakeEvent(), "test", new Dictionary<string, string>());
+
+            Assert.AreEqual(0, stream.CommitVersion);
+            Assert.AreEqual(0, stream.StreamVersion);
+        }
         
         
     }
