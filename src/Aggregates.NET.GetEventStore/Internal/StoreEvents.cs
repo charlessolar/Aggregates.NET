@@ -393,6 +393,7 @@ namespace Aggregates.Internal
                     FrozenExceptions.Mark();
                     throw new VersionException("Stream is frozen - we are not the owner");
                 }
+                // If trying to unfreeze a stream which is not frozen or we're not the owner
                 if (frozen.HasValue && !force && frozen == false && (
                         existing.StreamMetadata == null ||
                         (existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) == false ||
@@ -413,9 +414,15 @@ namespace Aggregates.Internal
             }
             catch (FrozenException)
             {
+                if (existing.StreamMetadata == null || existing.StreamMetadata?.GetValue<string>("owner") !=
+                    Defaults.Instance.ToString())
+                {
+                    Logger.Write(LogLevel.Warn, () => $"Tried to unfreeze stream [{stream}] which is not frozen or we're not the owner");
+                    return;
+                }
 
                 var time = existing.StreamMetadata.GetValue<long>("frozen");
-                if ((DateTime.UtcNow.ToUnixTime() - time) < 3)
+                if ((DateTime.UtcNow.ToUnixTime() - time) < 10)
                     throw;
 
                 Logger.Write(LogLevel.Warn, () => $"Stream [{stream}] has been frozen for {DateTime.UtcNow.ToUnixTime() - time} seconds - ignoring freeze");
@@ -515,7 +522,7 @@ namespace Aggregates.Internal
 
             // ReSharper disable once PossibleNullReferenceException
             var time = streamMeta.StreamMetadata.GetValue<long>("frozen");
-            if ((DateTime.UtcNow.ToUnixTime() - time) > 3)
+            if ((DateTime.UtcNow.ToUnixTime() - time) > 10)
             {
                 Logger.Warn($"Stream [{stream}] has been frozen for over 3 seconds!  Unfreezing");
                 await WriteMetadata(stream, force: true).ConfigureAwait(false);
