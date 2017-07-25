@@ -26,7 +26,12 @@ namespace Aggregates.Internal
                     settings.Get<StreamIdGenerator>("StreamGenerator"));
             });
         public static ConcurrencyStrategy Discard = new ConcurrencyStrategy(ConcurrencyConflict.Discard, "Discard", (b, _) => b.Build<DiscardConflictResolver>());
-        public static ConcurrencyStrategy ResolveStrongly = new ConcurrencyStrategy(ConcurrencyConflict.ResolveStrongly, "ResolveStrongly", (b, _) => b.Build<ResolveStronglyConflictResolver>());
+        public static ConcurrencyStrategy ResolveStrongly = new ConcurrencyStrategy(ConcurrencyConflict.ResolveStrongly, "ResolveStrongly",
+            (b, _) =>
+            {
+                var settings = b.Build<ReadOnlySettings>();
+                return new ResolveStronglyConflictResolver(b.Build<IStoreStreams>(), b.Build<IStoreEvents>(), settings.Get<StreamIdGenerator>("StreamGenerator"));
+            });
         public static ConcurrencyStrategy ResolveWeakly = new ConcurrencyStrategy(ConcurrencyConflict.ResolveWeakly, "ResolveWeakly",
             (b, _) =>
             {
