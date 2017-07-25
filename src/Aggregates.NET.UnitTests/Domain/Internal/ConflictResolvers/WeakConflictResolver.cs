@@ -85,6 +85,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
 
             _event = new Moq.Mock<IFullEvent>();
             _event.Setup(x => x.Event).Returns(new Event());
+            _event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.Domain);
 
             var conflictingEvent = new ConflictingEvents { Events = new[] { _event.Object } };
             _delayedEvent.Setup(x => x.Message).Returns(conflictingEvent);
@@ -238,6 +239,28 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             _store.Verify(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(),
                 Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
         }
-        
+        [Test]
+        public async Task oob_events_not_conflict_resolved()
+        {
+
+            var streamGen = new StreamIdGenerator((type, stream, bucket, id, parents) => "test");
+
+            _event.Setup(x => x.Descriptor.Headers[Defaults.OobHeaderKey]).Returns("test");
+            _event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.OOB);
+
+            // Runs all conflicting events back through a re-hydrated entity
+            var resolver = new Aggregates.Internal.ResolveWeaklyConflictResolver(_store.Object, _eventstore.Object, _channel.Object, streamGen);
+
+            var entity = new Entity(_stream.Object, _resolver.Object);
+
+            await resolver.Resolve(entity, new[] { _event.Object }, Guid.NewGuid(), new Dictionary<string, string>())
+                .ConfigureAwait(false);
+
+            Assert.AreEqual(0, entity.Conflicts);
+
+            _stream.Verify(x => x.AddOob(Moq.It.IsAny<IEvent>(), "test", Moq.It.IsAny<IDictionary<string, string>>()),
+                Moq.Times.Once);
+        }
+
     }
 }

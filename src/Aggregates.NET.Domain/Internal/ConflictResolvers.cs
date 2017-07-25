@@ -144,7 +144,20 @@ namespace Aggregates.Internal
                 try
                 {
                     foreach (var u in uncommitted)
-                        sourced.Conflict(u.Event as IEvent, metadata: new Dictionary<string, string> { { "ConflictResolution", ConcurrencyConflict.ResolveStrongly.ToString() } });
+                    {
+                        if(u.Descriptor.StreamType== StreamTypes.Domain)
+                            sourced.Conflict(u.Event as IEvent,
+                                metadata: new Dictionary<string, string>
+                                {
+                                    {"ConflictResolution", ConcurrencyConflict.ResolveStrongly.ToString()}
+                                });
+                        else if(u.Descriptor.StreamType == StreamTypes.OOB)
+                            sourced.Raise(u.Event as IEvent, u.Descriptor.Headers[Defaults.OobHeaderKey],
+                                metadata: new Dictionary<string, string>
+                                {
+                                    {"ConflictResolution", ConcurrencyConflict.ResolveStrongly.ToString()}
+                                });
+                    }
                 }
                 catch (NoRouteException e)
                 {
@@ -279,12 +292,20 @@ namespace Aggregates.Internal
                 try
                 {
                     foreach (var u in delayed.Select(x => x.Message as ConflictingEvents).SelectMany(x => x.Events))
-                        sourced.Conflict(u.Event as IEvent,
-                            metadata:
-                            new Dictionary<string, string>
-                            {
-                                {"ConflictResolution", ConcurrencyConflict.ResolveWeakly.ToString()}
-                            });
+                    {
+                        if (u.Descriptor.StreamType == StreamTypes.Domain)
+                            sourced.Conflict(u.Event as IEvent,
+                                metadata: new Dictionary<string, string>
+                                {
+                                    {"ConflictResolution", ConcurrencyConflict.ResolveStrongly.ToString()}
+                                });
+                        else if (u.Descriptor.StreamType == StreamTypes.OOB)
+                            sourced.Raise(u.Event as IEvent, u.Descriptor.Headers[Defaults.OobHeaderKey],
+                                metadata: new Dictionary<string, string>
+                                {
+                                    {"ConflictResolution", ConcurrencyConflict.ResolveStrongly.ToString()}
+                                });
+                    }
                 }
                 catch (NoRouteException e)
                 {
