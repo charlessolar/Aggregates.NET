@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -25,8 +26,12 @@ namespace Aggregates.Internal
         private const string OobMetadataKey = "Aggregates.OOB";
 
         private static readonly Meter Saved = Metric.Meter("Saved Streams", Unit.Items, tags: "debug");
-        private static readonly Meter HitMeter = Metric.Meter("Stream Cache Hits", Unit.Events, tags: "debug");
-        private static readonly Meter MissMeter = Metric.Meter("Stream Cache Misses", Unit.Events, tags: "debug");
+        private static readonly Meter HitMeter = Metric.Meter("Stream Cache Hits", Unit.Events);
+        private static readonly Meter MissMeter = Metric.Meter("Stream Cache Misses", Unit.Events);
+
+        // Todo: make a separate "OobDefinitionHandler" interface
+        private static readonly ConcurrentDictionary<string, Tuple<DateTime, IEnumerable<OobDefinition>>> OobDefinitionCache =
+            new ConcurrentDictionary<string, Tuple<DateTime, IEnumerable<OobDefinition>>>();
 
         private static readonly ILog Logger = LogManager.GetLogger("StoreStreams");
         private readonly IStoreEvents _store;
@@ -36,6 +41,7 @@ namespace Aggregates.Internal
         private readonly StreamIdGenerator _streamGen;
         private readonly IEnumerable<IEventMutator> _mutators;
         private readonly Random _random;
+
 
 
         public StoreStreams(ICache cache, IStoreEvents store, IMessagePublisher publisher, IStoreSnapshots snapstore, StreamIdGenerator streamGen, IEnumerable<IEventMutator> mutators)
@@ -66,12 +72,12 @@ namespace Aggregates.Internal
             }
             MissMeter.Mark();
 
-
-            while (await CheckFrozen<T>(bucket, streamId, parents).ConfigureAwait(false))
-            {
-                Logger.Write(LogLevel.Info, () => $"Stream [{streamId}] in bucket [{bucket}] is frozen - waiting");
-                await Task.Delay(100).ConfigureAwait(false);
-            }
+            // checking for frozen is another read we probably don't need to do
+            //while (await CheckFrozen<T>(bucket, streamId, parents).ConfigureAwait(false))
+            //{
+            //    Logger.Write(LogLevel.Info, () => $"Stream [{streamId}] in bucket [{bucket}] is frozen - waiting");
+            //    await Task.Delay(100).ConfigureAwait(false);
+            //}
             Logger.Write(LogLevel.Debug, () => $"Stream [{streamId}] in bucket [{bucket}] not in cache - reading from store");
 
             ISnapshot snapshot = null;
@@ -87,12 +93,22 @@ namespace Aggregates.Internal
             }
 
             var events = await _store.GetEvents(streamName, start: snapshot?.Version).ConfigureAwait(false);
-            var oobMetadata = await _store.GetMetadata(streamName, OobMetadataKey).ConfigureAwait(false);
-            IEnumerable<OobDefinition> oobs = null;
-            if (!string.IsNullOrEmpty(oobMetadata))
-                oobs = JsonConvert.DeserializeObject<IEnumerable<OobDefinition>>(oobMetadata);
 
-            var eventstream = new EventStream<T>(bucket, streamId, parents, oobs, events, snapshot);
+
+            Tuple<DateTime, IEnumerable<OobDefinition>> oobs = null;
+            if (!OobDefinitionCache.TryGetValue(streamName, out oobs) || (DateTime.UtcNow - oobs.Item1).TotalSeconds > 30)
+            {
+                var oobMetadata = await _store.GetMetadata(streamName, OobMetadataKey).ConfigureAwait(false);
+
+                if (!string.IsNullOrEmpty(oobMetadata))
+                    oobs = new Tuple<DateTime, IEnumerable<OobDefinition>>(DateTime.UtcNow,
+                        JsonConvert.DeserializeObject<IEnumerable<OobDefinition>>(oobMetadata));
+                else
+                    oobs = new Tuple<DateTime, IEnumerable<OobDefinition>>(DateTime.UtcNow, null);
+                OobDefinitionCache.TryAdd(streamName, oobs);
+            }
+
+            var eventstream = new EventStream<T>(bucket, streamId, parents, oobs?.Item2, events, snapshot);
 
             _cache.Cache(streamName, eventstream.Clone());
 
@@ -208,6 +224,9 @@ namespace Aggregates.Internal
             //      issue with internal events is basically snapshoting.  But there can be ways around that
             if (stream.PendingOobs.Any())
             {
+                Tuple<DateTime, IEnumerable<OobDefinition>> temp = null;
+                OobDefinitionCache.TryRemove(streamName, out temp);
+
                 Logger.Write(LogLevel.Debug,
                     () =>
                         $"Defining oob on stream [{stream.StreamId}] in bucket [{stream.Bucket}] - definition: {JsonConvert.SerializeObject(oobs.Values)}");

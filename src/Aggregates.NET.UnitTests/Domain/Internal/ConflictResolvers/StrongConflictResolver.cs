@@ -153,7 +153,29 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             _store.Setup(x => x.Freeze<Entity>(Moq.It.IsAny<IEventStream>())).Throws(new VersionException("test"));
 
             Assert.ThrowsAsync<VersionException>(
-                () => resolver.Resolve(entity, new[] { _event.Object }, Guid.NewGuid(), new Dictionary<string, string>()));
+                () => resolver.Resolve(entity, Enumerable.Repeat(_event.Object, 51), Guid.NewGuid(), new Dictionary<string, string>()));
+        }
+        [Test]
+        public async Task dont_freeze_less_than_50_conflicts()
+        {
+            var streamGen = new StreamIdGenerator((type, stream, bucket, id, parents) => "test");
+
+            // Runs all conflicting events back through a re-hydrated entity
+            var resolver = new Aggregates.Internal.ResolveStronglyConflictResolver(_store.Object, _eventstore.Object, streamGen);
+
+            var entity = new Entity(_stream.Object, _resolver.Object);
+
+            _store.Setup(x => x.Freeze<Entity>(Moq.It.IsAny<IEventStream>())).Throws(new VersionException("test"));
+
+            await resolver.Resolve(entity, new[] { _event.Object }, Guid.NewGuid(), new Dictionary<string, string>())
+                .ConfigureAwait(false);
+
+            Assert.AreEqual(1, entity.Conflicts);
+
+            _stream.Verify(x => x.Add(Moq.It.IsAny<IEvent>(), Moq.It.IsAny<IDictionary<string, string>>()),
+                Moq.Times.Once);
+
+            _store.Verify(x => x.Freeze<Entity>(Moq.It.IsAny<IEventStream>()), Moq.Times.Never);
         }
 
         [Test]

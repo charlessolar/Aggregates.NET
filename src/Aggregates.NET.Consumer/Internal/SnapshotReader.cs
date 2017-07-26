@@ -30,7 +30,7 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogManager.GetLogger("SnapshotReader");
         private static readonly Counter SnapshotsSeen = Metric.Counter("Snapshots Seen", Unit.Items, tags: "debug");
-        private static readonly Counter StoredSnapshots = Metric.Counter("Snapshots Stored", Unit.Items, tags: "debug");
+        private static readonly Counter StoredSnapshots = Metric.Counter("Snapshots Stored", Unit.Items);
 
         // Todo: upgrade to LRU cache?
         private static readonly ConcurrentDictionary<string, Tuple<DateTime, ISnapshot>> Snapshots = new ConcurrentDictionary<string, Tuple<DateTime, ISnapshot>>();

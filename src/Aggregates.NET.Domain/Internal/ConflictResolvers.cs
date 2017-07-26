@@ -132,7 +132,9 @@ namespace Aggregates.Internal
 
             try
             {
-                await _store.Freeze<T>(stream).ConfigureAwait(false);
+                // Only need to freeze if resolving takes "long"
+                if(uncommitted.Count() > 50)
+                    await _store.Freeze<T>(stream).ConfigureAwait(false);
                 
                 var latestEvents =
                     await _eventstore.GetEvents(streamName, stream.CommitVersion + 1).ConfigureAwait(false);
@@ -180,7 +182,8 @@ namespace Aggregates.Internal
             }
             finally
             {
-                await _store.Unfreeze<T>(stream).ConfigureAwait(false);
+                if (uncommitted.Count() > 50)
+                    await _store.Unfreeze<T>(stream).ConfigureAwait(false);
             }
         }
     }
