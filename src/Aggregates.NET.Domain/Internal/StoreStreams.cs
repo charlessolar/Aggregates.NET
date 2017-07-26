@@ -32,6 +32,7 @@ namespace Aggregates.Internal
         // Todo: make a separate "OobDefinitionHandler" interface
         private static readonly ConcurrentDictionary<string, Tuple<DateTime, IEnumerable<OobDefinition>>> OobDefinitionCache =
             new ConcurrentDictionary<string, Tuple<DateTime, IEnumerable<OobDefinition>>>();
+        private static Task _cacheExpiration;
 
         private static readonly ILog Logger = LogManager.GetLogger("StoreStreams");
         private readonly IStoreEvents _store;
@@ -53,6 +54,19 @@ namespace Aggregates.Internal
             _streamGen = streamGen;
             _mutators = mutators;
             _random = new Random();
+
+
+            _cacheExpiration = Timer.Repeat(() =>
+            {
+                var expired = OobDefinitionCache.Where(x => (DateTime.UtcNow - x.Value.Item1) > TimeSpan.FromMinutes(5)).Select(x => x.Key)
+                    .ToList();
+
+                Tuple<DateTime, IEnumerable<OobDefinition>> temp;
+                foreach (var key in expired)
+                    OobDefinitionCache.TryRemove(key, out temp);
+
+                return Task.CompletedTask;
+            }, TimeSpan.FromMinutes(5), "expires cached oob definitions from the cache");
         }
 
 
