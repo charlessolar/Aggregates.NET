@@ -143,20 +143,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             Assert.ThrowsAsync<ConflictResolutionFailedException>(
                 () => resolver.Resolve(entity, new[] { _event.Object }, Guid.NewGuid(), new Dictionary<string, string>()));
         }
-
-        [Test]
-        public void dont_catch_frozen_exception()
-        {
-            var streamGen = new StreamIdGenerator((type, stream, bucket, id, parents) => "test");
-
-            // Delayes conflicting events to be resolved later
-            var resolver = new Aggregates.Internal.ResolveWeaklyConflictResolver(_store.Object, _eventstore.Object, _channel.Object, streamGen);
-
-            var entity = new Entity(_stream.Object, _resolver.Object);
-            
-            Assert.ThrowsAsync<VersionException>(
-                () => resolver.Resolve(entity, new[] { _event.Object }, Guid.NewGuid(), new Dictionary<string, string>()));
-        }
+        
 
         [Test]
         public void dont_catch_abandon_resolution()
