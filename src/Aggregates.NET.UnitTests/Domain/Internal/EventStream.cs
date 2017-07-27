@@ -119,11 +119,11 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         }
 
         [Test]
-        public void oob_no_define_throws()
+        public void oob_no_define_does_not_throw()
         {
             var stream = new Aggregates.Internal.EventStream<Entity>("test", "test", null, null, _events, null);
 
-            Assert.Throws<InvalidOperationException>(
+            Assert.DoesNotThrow(
                 () => stream.AddOob(new FakeEvent(), "test", new Dictionary<string, string>()));
             
         }

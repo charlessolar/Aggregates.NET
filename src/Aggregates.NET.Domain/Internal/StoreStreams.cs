@@ -223,6 +223,21 @@ namespace Aggregates.Internal
             var domainEvents = events.Where(x => x.Descriptor.StreamType == StreamTypes.Domain);
             var oobEvents = events.Where(x => x.Descriptor.StreamType == StreamTypes.OOB);
 
+            if (oobEvents.Any())
+            {
+                // Check that any published oob events already have a defined channel - if not clear the channel definition cache and throw
+                foreach (var group in oobEvents.GroupBy(x => x.Descriptor.Headers[Defaults.OobHeaderKey]))
+                {
+                    if (!oobs.ContainsKey(group.Key))
+                    {
+                        Tuple<DateTime, IEnumerable<OobDefinition>> temp = null;
+                        OobDefinitionCache.TryRemove(streamName, out temp);
+                        throw new InvalidOperationException("Stream attempted to raise an oob event without defining the oob stream first");
+                    }
+                }
+            }
+            
+
             if (domainEvents.Any())
             {
                 _cache.Evict(streamName);
@@ -242,8 +257,7 @@ namespace Aggregates.Internal
                 OobDefinitionCache.TryRemove(streamName, out temp);
 
                 Logger.Write(LogLevel.Debug,
-                    () =>
-                        $"Defining oob on stream [{stream.StreamId}] in bucket [{stream.Bucket}] - definition: {JsonConvert.SerializeObject(oobs.Values)}");
+                    () => $"Defining oob on stream [{stream.StreamId}] in bucket [{stream.Bucket}] - definition: {JsonConvert.SerializeObject(oobs.Values)}");
                 await _store.WriteMetadata(streamName, custom: new Dictionary<string, string>
                 {
                     [OobMetadataKey] = JsonConvert.SerializeObject(oobs.Values)

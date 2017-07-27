@@ -270,6 +270,28 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
                 Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>()), Moq.Times.Once);
         }
+
+        [Test]
+        public void oob_stream_not_defined()
+        {
+            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
+            _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>())).Returns(Task.FromResult(0L));
+
+            var @event = new Moq.Mock<IFullEvent>();
+            @event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.OOB);
+            @event.Setup(x => x.Descriptor.Headers).Returns(new Dictionary<string, string> { [Defaults.OobHeaderKey] = "test" });
+
+            _stream.Setup(x => x.Uncommitted).Returns(new IFullEvent[] { @event.Object }.AsEnumerable());
+            //_stream.Setup(x => x.Oobs).Returns(new[] { new OobDefinition { Id = "test" } });
+
+            Assert.ThrowsAsync<InvalidOperationException>(
+                () => _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object,
+                    new Dictionary<string, string>()));
+
+            _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
+                Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Never);
+        }
         
     }
 }

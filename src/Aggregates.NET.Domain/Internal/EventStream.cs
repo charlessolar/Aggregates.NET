@@ -128,9 +128,9 @@ namespace Aggregates.Internal
             metadata = metadata ?? new Dictionary<string, string>();
             metadata[Defaults.OobHeaderKey] = id;
 
-            if(!_oobs.ContainsKey(id) && !_newOobs.ContainsKey(id))
-                throw new InvalidOperationException(
-                    "Can not add an oob event without defining the oob stream using DefineOob");
+            //if(!_oobs.ContainsKey(id) && !_newOobs.ContainsKey(id))
+            //    throw new InvalidOperationException(
+            //        "Can not add an oob event without defining the oob stream using DefineOob");
             
             _uncommitted.Add(MakeWritableEvent(StreamTypes.OOB, @event, metadata));
         }
