@@ -85,7 +85,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
         private Moq.Mock<IStoreStreams> _store;
         private Moq.Mock<IFullEvent> _event;
         private Moq.Mock<IDelayedChannel> _channel;
-        private bool _wasFrozen;
         private Entity _entity;
         private ConflictingEvents _conflicting;
 
@@ -130,8 +129,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
 
             _store.Setup(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(),
                 Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
-            _store.Setup(x => x.Freeze<Entity>(Moq.It.IsAny<IEventStream>())).Returns(Task.CompletedTask).Callback(() => _wasFrozen = true);
-            _store.Setup(x => x.Unfreeze<Entity>(Moq.It.IsAny<IEventStream>())).Returns(Task.CompletedTask);
 
             _conflicting = new ConflictingEvents
             {
@@ -140,14 +137,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
                 Events = new[] { _event.Object }
             };
         }
-
-        [TearDown]
-        public void Teardown()
-        {
-            // Verify stream is always unfrozen
-            if (_wasFrozen)
-                _store.Verify(x => x.Unfreeze<Entity>(Moq.It.IsAny<IEventStream>()), Moq.Times.Once);
-        }
+        
 
         [Test]
         public async Task handle_conflicting_message()

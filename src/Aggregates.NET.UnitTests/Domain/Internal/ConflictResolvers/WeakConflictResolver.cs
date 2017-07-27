@@ -64,7 +64,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
         private Moq.Mock<IFullEvent> _event;
         private Moq.Mock<IDelayedChannel> _channel;
         private Moq.Mock<IDelayedMessage> _delayedEvent;
-        private bool _wasFrozen;
 
         [SetUp]
         public void Setup()
@@ -103,17 +102,8 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
 
             _store.Setup(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(),
                 Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
-            _store.Setup(x => x.Freeze<Entity>(Moq.It.IsAny<IEventStream>())).Returns(Task.CompletedTask).Callback(() => _wasFrozen=true);
-            _store.Setup(x => x.Unfreeze<Entity>(Moq.It.IsAny<IEventStream>())).Returns(Task.CompletedTask);
         }
-
-        [TearDown]
-        public void Teardown()
-        {
-            // Verify stream is always unfrozen
-            if (_wasFrozen)
-                _store.Verify(x => x.Unfreeze<Entity>(Moq.It.IsAny<IEventStream>()), Moq.Times.Once);
-        }
+        
 
 
         [Test]
@@ -163,9 +153,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             var resolver = new Aggregates.Internal.ResolveWeaklyConflictResolver(_store.Object, _eventstore.Object, _channel.Object, streamGen);
 
             var entity = new Entity(_stream.Object, _resolver.Object);
-
-            _store.Setup(x => x.Freeze<Entity>(Moq.It.IsAny<IEventStream>())).Throws(new VersionException("test"));
-
+            
             Assert.ThrowsAsync<VersionException>(
                 () => resolver.Resolve(entity, new[] { _event.Object }, Guid.NewGuid(), new Dictionary<string, string>()));
         }

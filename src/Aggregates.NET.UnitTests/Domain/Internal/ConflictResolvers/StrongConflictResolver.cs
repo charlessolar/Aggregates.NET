@@ -61,7 +61,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
         private Moq.Mock<IStoreEvents> _eventstore;
         private Moq.Mock<IStoreStreams> _store;
         private Moq.Mock<IFullEvent> _event;
-        private bool _wasFrozen;
 
         [SetUp]
         public void Setup()
@@ -88,17 +87,8 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
 
             _store.Setup(x => x.WriteStream<Entity>(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IEventStream>(),
                 Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
-            _store.Setup(x => x.Freeze<Entity>(Moq.It.IsAny<IEventStream>())).Returns(Task.CompletedTask).Callback(() => _wasFrozen = true);
-            _store.Setup(x => x.Unfreeze<Entity>(Moq.It.IsAny<IEventStream>())).Returns(Task.CompletedTask);
         }
-
-        [TearDown]
-        public void Teardown()
-        {
-            // Verify stream is always unfrozen
-            if (_wasFrozen)
-                _store.Verify(x => x.Unfreeze<Entity>(Moq.It.IsAny<IEventStream>()), Moq.Times.Once);
-        }
+        
 
         [Test]
         public async Task strong_resolve_conflict()
@@ -149,9 +139,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             var resolver = new Aggregates.Internal.ResolveStronglyConflictResolver(_store.Object, _eventstore.Object, streamGen);
 
             var entity = new Entity(_stream.Object, _resolver.Object);
-
-            _store.Setup(x => x.Freeze<Entity>(Moq.It.IsAny<IEventStream>())).Throws(new VersionException("test"));
-
+            
             Assert.ThrowsAsync<VersionException>(
                 () => resolver.Resolve(entity, Enumerable.Repeat(_event.Object, 51), Guid.NewGuid(), new Dictionary<string, string>()));
         }
@@ -165,8 +153,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
 
             var entity = new Entity(_stream.Object, _resolver.Object);
 
-            _store.Setup(x => x.Freeze<Entity>(Moq.It.IsAny<IEventStream>())).Throws(new VersionException("test"));
-
             await resolver.Resolve(entity, new[] { _event.Object }, Guid.NewGuid(), new Dictionary<string, string>())
                 .ConfigureAwait(false);
 
@@ -174,8 +160,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
 
             _stream.Verify(x => x.Add(Moq.It.IsAny<IEvent>(), Moq.It.IsAny<IDictionary<string, string>>()),
                 Moq.Times.Once);
-
-            _store.Verify(x => x.Freeze<Entity>(Moq.It.IsAny<IEventStream>()), Moq.Times.Never);
+            
         }
 
         [Test]

@@ -20,7 +20,6 @@ namespace Aggregates.Internal
 {
     class StoreEvents : IStoreEvents
     {
-        private static readonly Meter FrozenExceptions = Metric.Meter("Frozen Exceptions", Unit.Items, tags: "debug");
         private static readonly Histogram WrittenEvents = Metric.Histogram("EventStore Written", Unit.Events, tags: "debug");
         private static readonly Histogram ReadEvents = Metric.Histogram("EventStore Read", Unit.Events, tags: "debug");
         private static readonly Histogram WrittenEventsSize = Metric.Histogram("EventStore Written Size", Unit.Bytes, tags: "debug");
@@ -378,55 +377,13 @@ namespace Aggregates.Internal
         }
 
         public async Task WriteMetadata(string stream, long? maxCount = null, long? truncateBefore = null, TimeSpan? maxAge = null,
-            TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null, bool force = false, IDictionary<string, string> custom = null)
+            TimeSpan? cacheControl = null, bool force = false, IDictionary<string, string> custom = null)
         {
             var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
-            Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream [{stream}] [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl}, {nameof(frozen)}: {frozen}, {nameof(custom)}: {JsonConvert.SerializeObject(custom)} ]");
+            Logger.Write(LogLevel.Debug, () => $"Writing metadata to stream [{stream}] [ {nameof(maxCount)}: {maxCount}, {nameof(maxAge)}: {maxAge}, {nameof(cacheControl)}: {cacheControl}, {nameof(custom)}: {JsonConvert.SerializeObject(custom)} ]");
 
             var existing = await _clients[bucket].GetStreamMetadataAsync(stream).ConfigureAwait(false);
-
-            try
-            {
-                if ((existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) &&
-                    existing.StreamMetadata?.GetValue<string>("owner") != Defaults.Instance.ToString())
-                {
-                    FrozenExceptions.Mark();
-                    throw new VersionException("Stream is frozen - we are not the owner");
-                }
-                // If trying to unfreeze a stream which is not frozen or we're not the owner
-                if (frozen.HasValue && !force && frozen == false && (
-                        existing.StreamMetadata == null ||
-                        (existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) == false ||
-                        existing.StreamMetadata?.GetValue<string>("owner") != Defaults.Instance.ToString()))
-                {
-                    FrozenExceptions.Mark();
-                    throw new FrozenException();
-                }
-
-                // If we are trying to freeze the stream that we've already frozen (to prevent multiple threads from attempting to process the same frozen data)
-                if (frozen.HasValue && frozen == true &&
-                    (existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false) &&
-                    existing.StreamMetadata?.GetValue<string>("owner") == Defaults.Instance.ToString())
-                {
-                    FrozenExceptions.Mark();
-                    throw new FrozenException();
-                }
-            }
-            catch (FrozenException)
-            {
-                if (existing.StreamMetadata == null || existing.StreamMetadata?.GetValue<string>("owner") !=
-                    Defaults.Instance.ToString())
-                {
-                    Logger.Write(LogLevel.Warn, () => $"Tried to unfreeze stream [{stream}] which is not frozen or we're not the owner");
-                    return;
-                }
-
-                var time = existing.StreamMetadata.GetValue<long>("frozen");
-                if ((DateTime.UtcNow.ToUnixTime() - time) < 10)
-                    throw;
-
-                Logger.Write(LogLevel.Warn, () => $"Stream [{stream}] has been frozen for {DateTime.UtcNow.ToUnixTime() - time} seconds - ignoring freeze");
-            }
+            
 
             var metadata = StreamMetadata.Build();
 
@@ -438,13 +395,8 @@ namespace Aggregates.Internal
                 metadata.SetMaxAge((maxAge ?? existing.StreamMetadata?.MaxAge).Value);
             if ((cacheControl ?? existing.StreamMetadata?.CacheControl).HasValue)
                 metadata.SetCacheControl((cacheControl ?? existing.StreamMetadata?.CacheControl).Value);
-
-            if (frozen.HasValue && frozen == true)
-                metadata.SetCustomProperty("frozen", DateTime.UtcNow.ToUnixTime());
-            if (owner.HasValue)
-                metadata.SetCustomProperty("owner", Defaults.Instance.ToString());
-
-            var customs = existing.StreamMetadata?.CustomKeys.Where(x => x != "frozen" && x != "owner");
+            
+            var customs = existing.StreamMetadata?.CustomKeys;
             // Make sure custom metadata is preserved
             if (customs != null && customs.Any())
             {
@@ -488,12 +440,7 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug, () => $"Getting metadata '{key}' from stream [{stream}]");
 
             var existing = await _clients[bucket].GetStreamMetadataAsync(stream).ConfigureAwait(false);
-
-            if ((existing.StreamMetadata?.CustomKeys.Contains("frozen") ?? false))
-            {
-                FrozenExceptions.Mark();
-                throw new FrozenException();
-            }
+            
             if (existing.StreamMetadata == null)
                 Logger.Write(LogLevel.Debug, () => $"No metadata exists for stream [{stream}]");
 
@@ -504,31 +451,6 @@ namespace Aggregates.Internal
                 property = "";
             return property;
         }
-
-        public async Task<bool> IsFrozen(string stream)
-        {
-            // Todo: if an instance crashes after freezing the stream it will remain frozen until timeout
-
-            var bucket = Math.Abs(stream.GetHashCode() % _clients.Count());
-
-            var streamMeta = await _clients[bucket].GetStreamMetadataAsync(stream).ConfigureAwait(false);
-            if (!(streamMeta.StreamMetadata?.CustomKeys.Contains("frozen") ?? false))
-                return false;
-
-            // ReSharper disable once PossibleNullReferenceException
-            var owner = streamMeta.StreamMetadata.GetValue<string>("owner");
-            if (owner == Defaults.Instance.ToString())
-                return false;
-
-            // ReSharper disable once PossibleNullReferenceException
-            var time = streamMeta.StreamMetadata.GetValue<long>("frozen");
-            if ((DateTime.UtcNow.ToUnixTime() - time) > 10)
-            {
-                Logger.Warn($"Stream [{stream}] has been frozen for over 3 seconds!  Unfreezing");
-                await WriteMetadata(stream, force: true).ConfigureAwait(false);
-                return false;
-            }
-            return true;
-        }
+        
     }
 }

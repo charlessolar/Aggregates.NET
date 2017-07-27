@@ -188,10 +188,7 @@ namespace Aggregates.Internal
             Logger.Write(LogLevel.Debug,
                 () =>
                     $"Writing {stream.Uncommitted.Count()} events to stream {stream.StreamId} bucket {stream.Bucket} with commit id {commitId}");
-
-            if (await CheckFrozen<T>(stream.Bucket, stream.StreamId, stream.Parents).ConfigureAwait(false))
-                throw new FrozenException();
-
+            
             Saved.Mark();
 
             var events = stream.Uncommitted.Select(writable =>
@@ -330,43 +327,6 @@ namespace Aggregates.Internal
             }
             Logger.Write(LogLevel.Debug, () => $"Verified version of stream [{stream.StreamId}] in bucket [{stream.Bucket}] for type {typeof(T).FullName}");
         }
-
-        public async Task Freeze<T>(IEventStream stream) where T : class, IEventSource
-        {
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
-            Logger.Write(LogLevel.Info, () => $"Freezing stream [{streamName}]");
-            try
-            {
-                await _store.WriteMetadata(streamName, frozen: true, owner: Defaults.Instance).ConfigureAwait(false);
-            }
-            catch (VersionException)
-            {
-                Logger.Write(LogLevel.Info, () => $"Freeze: stream [{streamName}] someone froze before us");
-                throw new FrozenException();
-            }
-        }
-
-        public async Task Unfreeze<T>(IEventStream stream) where T : class, IEventSource
-        {
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
-            Logger.Write(LogLevel.Info, () => $"Unfreezing stream [{streamName}]");
-
-            try
-            {
-                await _store.WriteMetadata(streamName, frozen: false).ConfigureAwait(false);
-            }
-            catch (VersionException e)
-            {
-                Logger.Write(LogLevel.Info, () => $"Unfreeze failed on stream [{streamName}].  Message: {e.Message}");
-            }
-
-        }
-        private Task<bool> CheckFrozen<T>(string bucket, Id streamId, IEnumerable<Id> parents = null) where T : class, IEventSource
-        {
-            parents = parents ?? new Id[] { };
-            var streamName = _streamGen(typeof(T), StreamTypes.Domain, bucket, streamId, parents);
-            return _store.IsFrozen(streamName);
-        }
-
+        
     }
 }

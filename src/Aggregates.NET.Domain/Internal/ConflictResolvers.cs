@@ -130,64 +130,52 @@ namespace Aggregates.Internal
             var streamName = _streamGen(typeof(T), StreamTypes.Domain, stream.Bucket, stream.StreamId, stream.Parents);
             Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
 
+            var latestEvents =
+                await _eventstore.GetEvents(streamName, stream.CommitVersion + 1).ConfigureAwait(false);
+            Logger.Write(LogLevel.Info, () => $"Stream is {latestEvents.Count()} events behind store");
+
+            sourced.Hydrate(latestEvents.Select(x => x.Event as IEvent));
+
+            Logger.Write(LogLevel.Debug, () => "Merging conflicted events");
             try
             {
-                // Only need to freeze if resolving takes "long"
-                if(uncommitted.Count() > 50)
-                    await _store.Freeze<T>(stream).ConfigureAwait(false);
-                
-                var latestEvents =
-                    await _eventstore.GetEvents(streamName, stream.CommitVersion + 1).ConfigureAwait(false);
-                Logger.Write(LogLevel.Info, () => $"Stream is {latestEvents.Count()} events behind store");
-                
-                sourced.Hydrate(latestEvents.Select(x => x.Event as IEvent));
-
-                Logger.Write(LogLevel.Debug, () => "Merging conflicted events");
-                try
+                foreach (var u in uncommitted)
                 {
-                    foreach (var u in uncommitted)
-                    {
-                        if(u.Descriptor.StreamType== StreamTypes.Domain)
-                            sourced.Conflict(u.Event as IEvent,
-                                metadata: new Dictionary<string, string>
-                                {
+                    if (u.Descriptor.StreamType == StreamTypes.Domain)
+                        sourced.Conflict(u.Event as IEvent,
+                            metadata: new Dictionary<string, string>
+                            {
                                     {"ConflictResolution", ConcurrencyConflict.ResolveStrongly.ToString()}
-                                });
-                        else if(u.Descriptor.StreamType == StreamTypes.OOB)
-                            sourced.Raise(u.Event as IEvent, u.Descriptor.Headers[Defaults.OobHeaderKey],
-                                metadata: new Dictionary<string, string>
-                                {
+                            });
+                    else if (u.Descriptor.StreamType == StreamTypes.OOB)
+                        sourced.Raise(u.Event as IEvent, u.Descriptor.Headers[Defaults.OobHeaderKey],
+                            metadata: new Dictionary<string, string>
+                            {
                                     {"ConflictResolution", ConcurrencyConflict.ResolveStrongly.ToString()}
-                                });
-                    }
+                            });
                 }
-                catch (NoRouteException e)
-                {
-                    Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
-                    throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
-                }
-
-                Logger.Write(LogLevel.Debug, () => "Successfully merged conflicted events");
-
-                if (stream.StreamVersion != stream.CommitVersion && entity is ISnapshotting &&
-                    ((ISnapshotting)entity).ShouldTakeSnapshot())
-                {
-                    Logger.Write(LogLevel.Debug,
-                        () => $"Taking snapshot of {typeof(T).FullName} id [{entity.Id}] version {stream.StreamVersion}");
-                    var memento = ((ISnapshotting)entity).TakeSnapshot();
-                    stream.AddSnapshot(memento);
-                }
-
-                await _store.WriteStream<T>(commitId, stream, commitHeaders).ConfigureAwait(false);
             }
-            finally
+            catch (NoRouteException e)
             {
-                if (uncommitted.Count() > 50)
-                    await _store.Unfreeze<T>(stream).ConfigureAwait(false);
+                Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
+                throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
             }
+
+            Logger.Write(LogLevel.Debug, () => "Successfully merged conflicted events");
+
+            if (stream.StreamVersion != stream.CommitVersion && entity is ISnapshotting &&
+                ((ISnapshotting)entity).ShouldTakeSnapshot())
+            {
+                Logger.Write(LogLevel.Debug,
+                    () => $"Taking snapshot of {typeof(T).FullName} id [{entity.Id}] version {stream.StreamVersion}");
+                var memento = ((ISnapshotting)entity).TakeSnapshot();
+                stream.AddSnapshot(memento);
+            }
+
+            await _store.WriteStream<T>(commitId, stream, commitHeaders).ConfigureAwait(false);
         }
     }
-        
+
     internal class ConflictingEvents : IMessage
     {
         public string EntityType { get; set; }
@@ -223,8 +211,8 @@ namespace Aggregates.Internal
         {
             var results = new List<Tuple<string, Id>>();
             while (entity.Parent != null)
-            { 
-                results.Add( new Tuple<string,Id>(entity.Parent.GetType().AssemblyQualifiedName, entity.Parent.Id));
+            {
+                results.Add(new Tuple<string, Id>(entity.Parent.GetType().AssemblyQualifiedName, entity.Parent.Id));
                 entity = entity.Parent;
             }
             return results;
@@ -269,71 +257,63 @@ namespace Aggregates.Internal
             var stream = sourced.Stream;
             Logger.Write(LogLevel.Info,
                 () => $"Starting weak conflict resolve for stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
+
+            var delayed = await _delay.Pull(streamName, max: 200).ConfigureAwait(false);
+
+            // If someone else pulled while we were waiting
+            if (!delayed.Any())
+                return;
+
+            Logger.Write(LogLevel.Info,
+                () => $"Resolving {delayed.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
+
+            var latestEvents =
+                await _eventstore.GetEvents(streamName, stream.CommitVersion + 1L)
+                    .ConfigureAwait(false);
+            Logger.Write(LogLevel.Info,
+                () => $"Stream [{stream.StreamId}] bucket [{stream.Bucket}] is {latestEvents.Count()} events behind store");
+
+            sourced.Hydrate(latestEvents.Select(x => x.Event as IEvent));
+
+
+            Logger.Write(LogLevel.Debug, () => $"Merging {delayed.Count()} conflicted events");
             try
             {
-                await _store.Freeze<T>(stream).ConfigureAwait(false);
-
-                var delayed = await _delay.Pull(streamName, max: 200).ConfigureAwait(false);
-
-                // If someone else pulled while we were waiting
-                if (!delayed.Any())
-                    return;
-
-                Logger.Write(LogLevel.Info,
-                    () => $"Resolving {delayed.Count()} uncommitted events to stream [{stream.StreamId}] type [{typeof(T).FullName}] bucket [{stream.Bucket}]");
-
-                var latestEvents =
-                    await _eventstore.GetEvents(streamName, stream.CommitVersion + 1L)
-                        .ConfigureAwait(false);
-                Logger.Write(LogLevel.Info,
-                    () => $"Stream [{stream.StreamId}] bucket [{stream.Bucket}] is {latestEvents.Count()} events behind store");
-                
-                sourced.Hydrate(latestEvents.Select(x => x.Event as IEvent));
-
-
-                Logger.Write(LogLevel.Debug, () => $"Merging {delayed.Count()} conflicted events");
-                try
+                foreach (var u in delayed.Select(x => x.Message as ConflictingEvents).SelectMany(x => x.Events))
                 {
-                    foreach (var u in delayed.Select(x => x.Message as ConflictingEvents).SelectMany(x => x.Events))
-                    {
-                        if (u.Descriptor.StreamType == StreamTypes.Domain)
-                            sourced.Conflict(u.Event as IEvent,
-                                metadata: new Dictionary<string, string>
-                                {
+                    if (u.Descriptor.StreamType == StreamTypes.Domain)
+                        sourced.Conflict(u.Event as IEvent,
+                            metadata: new Dictionary<string, string>
+                            {
                                     {"ConflictResolution", ConcurrencyConflict.ResolveStrongly.ToString()}
-                                });
-                        else if (u.Descriptor.StreamType == StreamTypes.OOB)
-                            sourced.Raise(u.Event as IEvent, u.Descriptor.Headers[Defaults.OobHeaderKey],
-                                metadata: new Dictionary<string, string>
-                                {
+                            });
+                    else if (u.Descriptor.StreamType == StreamTypes.OOB)
+                        sourced.Raise(u.Event as IEvent, u.Descriptor.Headers[Defaults.OobHeaderKey],
+                            metadata: new Dictionary<string, string>
+                            {
                                     {"ConflictResolution", ConcurrencyConflict.ResolveStrongly.ToString()}
-                                });
-                    }
+                            });
                 }
-                catch (NoRouteException e)
-                {
-                    Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
-                    throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
-                }
-
-                Logger.Write(LogLevel.Info, () => "Successfully merged conflicted events");
-
-                if (stream.StreamVersion != stream.CommitVersion && entity is ISnapshotting &&
-                    ((ISnapshotting) entity).ShouldTakeSnapshot())
-                {
-                    Logger.Write(LogLevel.Debug,
-                        () =>
-                                $"Taking snapshot of [{typeof(T).FullName}] id [{entity.Id}] version {stream.StreamVersion}");
-                    var memento = ((ISnapshotting) entity).TakeSnapshot();
-                    stream.AddSnapshot(memento);
-                }
-
-                await _store.WriteStream<T>(commitId, stream, commitHeaders).ConfigureAwait(false);
             }
-            finally
+            catch (NoRouteException e)
             {
-                await _store.Unfreeze<T>(stream).ConfigureAwait(false);
+                Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
+                throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
             }
+
+            Logger.Write(LogLevel.Info, () => "Successfully merged conflicted events");
+
+            if (stream.StreamVersion != stream.CommitVersion && entity is ISnapshotting &&
+                ((ISnapshotting)entity).ShouldTakeSnapshot())
+            {
+                Logger.Write(LogLevel.Debug,
+                    () =>
+                            $"Taking snapshot of [{typeof(T).FullName}] id [{entity.Id}] version {stream.StreamVersion}");
+                var memento = ((ISnapshotting)entity).TakeSnapshot();
+                stream.AddSnapshot(memento);
+            }
+
+            await _store.WriteStream<T>(commitId, stream, commitHeaders).ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -365,14 +345,14 @@ namespace Aggregates.Internal
             // We have the type name, hack the generic parameters to build Entity
             if (parent == null)
             {
-                var method = typeof(IUnitOfWork).GetMethod("For", new Type[] {}).MakeGenericMethod(entityType);
+                var method = typeof(IUnitOfWork).GetMethod("For", new Type[] { }).MakeGenericMethod(entityType);
 
                 var repo = method.Invoke(_uow, new object[] { });
-                
-                method = repo.GetType().GetMethod("Get", new Type[] {typeof(string), typeof(Id)});
+
+                method = repo.GetType().GetMethod("Get", new Type[] { typeof(string), typeof(Id) });
                 // Note: we can't just cast method.Invoke into Task<IEventSourced> because Task is not covariant
                 // believe it or not this is the easiest solution
-                var task = (Task)method.Invoke(repo, new object[] {bucket, id});
+                var task = (Task)method.Invoke(repo, new object[] { bucket, id });
                 await task.ConfigureAwait(false);
                 return task.GetType().GetProperty("Result").GetValue(task) as IEventSourced;
             }
@@ -380,9 +360,9 @@ namespace Aggregates.Internal
             {
                 var method =
                     typeof(IUnitOfWork).GetMethods()
-                        .Single(x => x.Name=="For" && x.GetParameters().Length == 1)
+                        .Single(x => x.Name == "For" && x.GetParameters().Length == 1)
                         .MakeGenericMethod(parent.GetType(), entityType);
-                
+
                 var repo = method.Invoke(_uow, new object[] { parent });
 
                 method = repo.GetType().GetMethod("Get", new Type[] { typeof(Id) });
@@ -408,7 +388,7 @@ namespace Aggregates.Internal
             // No need to pull from the delayed channel or hydrate as below because this is called from the Delayed system which means
             // the conflict is not in delayed cache and GetBase above pulls the latest stream
 
-                Logger.Write(LogLevel.Debug, () => $"Merging {conflicts.Events.Count()} conflicted events");
+            Logger.Write(LogLevel.Debug, () => $"Merging {conflicts.Events.Count()} conflicted events");
             try
             {
                 foreach (var u in conflicts.Events)
@@ -435,8 +415,8 @@ namespace Aggregates.Internal
                 var memento = ((ISnapshotting)target).TakeSnapshot();
                 stream.AddSnapshot(memento);
             }
-                // Dont call stream.Commit we are inside a UOW in this method it will do the commit for us
-            
+            // Dont call stream.Commit we are inside a UOW in this method it will do the commit for us
+
         }
 
 

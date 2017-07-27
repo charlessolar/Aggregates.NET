@@ -17,8 +17,7 @@ namespace Aggregates.Contracts
         Task<long> WriteSnapshot(string stream, IFullEvent snapshot, IDictionary<string, string> commitHeaders);
 
         Task<long> Size(string stream);
-        Task WriteMetadata(string stream, long? maxCount = null, long? truncateBefore = null, TimeSpan? maxAge = null, TimeSpan? cacheControl = null, bool? frozen = null, Guid? owner = null, bool force = false, IDictionary<string, string> custom = null);
+        Task WriteMetadata(string stream, long? maxCount = null, long? truncateBefore = null, TimeSpan? maxAge = null, TimeSpan? cacheControl = null, bool force = false, IDictionary<string, string> custom = null);
         Task<string> GetMetadata(string stream, string key);
-        Task<bool> IsFrozen(string stream);
     }
 }

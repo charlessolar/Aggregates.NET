@@ -84,7 +84,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         public async Task get_stream_not_cached()
         {
             _store.Setup(x => x.GetEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>())).Returns(Task.FromResult(new IFullEvent[] {new FakeEvent()}.AsEnumerable()));
-            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
 
             _cache.Setup(x => x.Retreive(Moq.It.IsAny<string>())).Returns((IEventStream)null);
 
@@ -112,21 +111,12 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             _store.Verify(x => x.GetEventsBackwards(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()), Moq.Times.Once);
         }
 
-
-        [Test]
-        public void write_events_frozen()
-        {
-            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(true));
-
-            Assert.ThrowsAsync<FrozenException>(
-                () => _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object, new Dictionary<string, string>()));
-        }
+        
 
         [Test]
         public async Task get_stream_has_snapshot()
         {
             _store.Setup(x => x.GetEvents(Moq.It.IsAny<string>(), 2, Moq.It.IsAny<int?>())).Returns(Task.FromResult(new IFullEvent[] { new FakeEvent() }.AsEnumerable()));
-            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
 
             var snapshot = new Moq.Mock<ISnapshot>();
             snapshot.Setup(x => x.Version).Returns(2);
@@ -145,7 +135,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         [Test]
         public async Task write_events_not_frozen()
         {
-            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
             _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
                 Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>())).Returns(Task.FromResult(0L));
 
@@ -163,7 +152,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         [Test]
         public async Task write_stream_not_dirty()
         {
-            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
             _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
                 Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>())).Returns(Task.FromResult(0L));
 
@@ -179,7 +167,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         [Test]
         public async Task write_stream_with_events_with_snapshots()
         {
-            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
             _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
                 Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>())).Returns(Task.FromResult(0L));
             _snapstore.Setup(x => x.WriteSnapshots<Entity>(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), 
@@ -206,9 +193,8 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         [Test]
         public async Task write_stream_pending_oobs()
         {
-            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
             _store.Setup(x => x.WriteMetadata(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<long?>(),
-                Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<bool?>(), Moq.It.IsAny<Guid?>(),
+                Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<TimeSpan?>(),
                 Moq.It.IsAny<bool>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
 
             _stream.Setup(x => x.PendingOobs).Returns(new[] {new OobDefinition {Id = "test"}});
@@ -216,14 +202,13 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             await _streamStore.WriteStream<Entity>(Guid.NewGuid(), _stream.Object, new Dictionary<string, string>());
 
             _store.Verify(x => x.WriteMetadata(Moq.It.IsAny<string>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<long?>(),
-                Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<bool?>(), Moq.It.IsAny<Guid?>(),
+                Moq.It.IsAny<TimeSpan?>(), Moq.It.IsAny<TimeSpan?>(),
                 Moq.It.IsAny<bool>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
         }
 
         [Test]
         public async Task write_stream_oob_events()
         {
-            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
             _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
                 Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>())).Returns(Task.FromResult(0L));
 
@@ -244,8 +229,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         public async Task write_events_commit_id_incremented()
         {
             IEnumerable<IFullEvent> savedEvents = null;
-
-            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
+            
             _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
                 Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long>()))
                 .Returns(Task.FromResult(0L))
@@ -274,7 +258,6 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
         [Test]
         public void oob_stream_not_defined()
         {
-            _store.Setup(x => x.IsFrozen(Moq.It.IsAny<string>())).Returns(Task.FromResult(false));
             _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IEnumerable<IFullEvent>>(),
                 Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>())).Returns(Task.FromResult(0L));
 

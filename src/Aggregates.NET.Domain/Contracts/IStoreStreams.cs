@@ -16,8 +16,6 @@ namespace Aggregates.Contracts
 
         Task WriteStream<T>(Guid commitId, IEventStream stream, IDictionary<string, string> commitHeaders) where T : class, IEventSource;
         Task VerifyVersion<T>(IEventStream stream) where T : class, IEventSource;
-
-        Task Freeze<T>(IEventStream stream) where T : class, IEventSource;
-        Task Unfreeze<T>(IEventStream stream) where T : class, IEventSource;
+        
     }
 }

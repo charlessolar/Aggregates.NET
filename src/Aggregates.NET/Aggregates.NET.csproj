@@ -98,7 +98,6 @@
     <Compile Include="Exceptions\BusinessException.cs" />
     <Compile Include="Exceptions\CommandRejectedException.cs" />
     <Compile Include="Exceptions\DuplicateCommitException.cs" />
-    <Compile Include="Exceptions\FrozenException.cs" />
     <Compile Include="Exceptions\NotFoundException.cs" />
     <Compile Include="Exceptions\PersistenceException.cs" />
     <Compile Include="Exceptions\VersionException.cs" />
