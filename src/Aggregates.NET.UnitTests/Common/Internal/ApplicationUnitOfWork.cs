@@ -17,12 +17,15 @@ namespace Aggregates.NET.UnitTests.Common.Internal
     {
         private class FakeUnitOfWork : IApplicationUnitOfWork
         {
-            public IBuilder Builder { get; set; }
-            public int Retries { get; set; }
-            public ContextBag Bag { get; set; }
+            private IBuilder _builder { get; set; }
+            public int Retries { get; private set; }
+            public ContextBag Bag { get; private set; }
 
-            public Task Begin()
+            public Task Begin(IBuilder builder, int retries, ContextBag bag)
             {
+                _builder = builder;
+                Retries = retries;
+                Bag = bag;
                 return Task.CompletedTask;
             }
 
@@ -77,7 +80,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
 
             await _uow.Invoke(context.Object, next.Object);
             next.Verify(x => x(), Moq.Times.Once);
-            uow.Verify(x => x.Begin(), Moq.Times.Once);
+            uow.Verify(x => x.Begin(Moq.It.IsAny<IBuilder>(), Moq.It.IsAny<int>(), Moq.It.IsAny<ContextBag>()), Moq.Times.Once);
             uow.Verify(x => x.End(null), Moq.Times.Once);
         }
         [Test]
@@ -162,8 +165,8 @@ namespace Aggregates.NET.UnitTests.Common.Internal
 
             await _uow.Invoke(context.Object, next.Object);
             next.Verify(x => x(), Moq.Times.Once);
-            uow.Verify(x => x.Begin(), Moq.Times.Once);
-            uow2.Verify(x => x.Begin(), Moq.Times.Once);
+            uow.Verify(x => x.Begin(Moq.It.IsAny<IBuilder>(), Moq.It.IsAny<int>(), Moq.It.IsAny<ContextBag>()), Moq.Times.Once);
+            uow2.Verify(x => x.Begin(Moq.It.IsAny<IBuilder>(), Moq.It.IsAny<int>(), Moq.It.IsAny<ContextBag>()), Moq.Times.Once);
             uow.Verify(x => x.End(null), Moq.Times.Once);
             uow2.Verify(x => x.End(null), Moq.Times.Once);
         }
@@ -314,7 +317,7 @@ namespace Aggregates.NET.UnitTests.Common.Internal
 
             await _uow.Invoke(context.Object, next.Object);
             next.Verify(x => x(), Moq.Times.Once);
-            uow.Verify(x => x.Begin(), Moq.Times.Never);
+            uow.Verify(x => x.Begin(Moq.It.IsAny<IBuilder>(), Moq.It.IsAny<int>(), Moq.It.IsAny<ContextBag>()), Moq.Times.Never);
             uow.Verify(x => x.End(null), Moq.Times.Never);
         }
     }

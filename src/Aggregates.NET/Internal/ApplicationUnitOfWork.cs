@@ -29,7 +29,6 @@ namespace Aggregates.Internal
         
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
-            MessagesConcurrent.Increment();
 
             // Only SEND messages deserve a UnitOfWork
             if (context.MessageHeaders[Headers.MessageIntent] != MessageIntentEnum.Send.ToString() && context.MessageHeaders[Headers.MessageIntent] != MessageIntentEnum.Publish.ToString())
@@ -48,6 +47,7 @@ namespace Aggregates.Internal
                 savedBags = new Dictionary<Type, ContextBag>();
             try
             {
+                MessagesConcurrent.Increment();
                 MessagesMeter.Mark();
                 using (MessagesTimer.NewContext())
                 {
@@ -59,19 +59,15 @@ namespace Aggregates.Internal
                         // Trick to put ILastApplicationUnitOfWork at the bottom of the stack to be uow.End'd last
                         foreach (var uow in listOfUows.Where(x => x is ILastApplicationUnitOfWork).Concat(listOfUows.Where(x => !(x is ILastApplicationUnitOfWork))))
                         {
-                            uow.Builder = context.Builder;
-
                             int retries;
                             if (!context.Extensions.TryGet(Defaults.Retries, out retries))
                                 retries = 0;
-                            uow.Retries = retries;
 
-                            if (savedBags.ContainsKey(uow.GetType()))
-                                uow.Bag = savedBags[uow.GetType()];
-                            else
-                                uow.Bag = new ContextBag();
+                            ContextBag bag;
+                            if (!savedBags.TryGetValue(uow.GetType(), out bag))
+                                bag = new ContextBag();
                             Logger.Write(LogLevel.Debug, () => $"Running UOW.Begin for message {context.MessageId} on {uow.GetType().FullName}");
-                            await uow.Begin().ConfigureAwait(false);
+                            await uow.Begin(context.Builder, retries, bag).ConfigureAwait(false);
                             uows.Push(uow);
                         }
                     }

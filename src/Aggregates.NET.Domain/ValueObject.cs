@@ -12,13 +12,6 @@ namespace Aggregates
     {
         private int? _cachedHash;
 
-
-
-
-
-
-
-
         public override bool Equals(object obj)
         {
             if (obj == null)

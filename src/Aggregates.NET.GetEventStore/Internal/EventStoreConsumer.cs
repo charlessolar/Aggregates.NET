@@ -280,7 +280,7 @@ namespace Aggregates.Internal
             if (token.IsCancellationRequested)
             {
                 Logger.Warn($"Token cancelation requested, stopping persistent subscription");
-                sub.Stop(TimeSpan.FromSeconds(5));
+                Task.Run(() => sub.Stop(TimeSpan.FromSeconds(5)));
                 token.ThrowIfCancellationRequested();
             }
 
@@ -299,7 +299,7 @@ namespace Aggregates.Internal
             if (token.IsCancellationRequested)
             {
                 Logger.Warn($"Token cancelation requested, stopping catchup subscription");
-                sub.Stop();
+                Task.Run(() => sub.Stop(TimeSpan.FromSeconds(5)));
                 token.ThrowIfCancellationRequested();
             }
             EventAppeared(e, token, callback);

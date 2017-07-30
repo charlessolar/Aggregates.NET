@@ -17,7 +17,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates.Internal
 {
-    class UnitOfWork : IUnitOfWork, IApplicationUnitOfWork
+    class UnitOfWork : IUnitOfWork, IEventMutator, ICommandMutator, IApplicationUnitOfWork
     {
         private static readonly ConcurrentDictionary<Guid, Guid> EventIds = new ConcurrentDictionary<Guid, Guid>();
 
@@ -40,14 +40,14 @@ namespace Aggregates.Internal
         private static readonly ILog SlowLogger = LogManager.GetLogger("Slow Alarm");
         private readonly IRepositoryFactory _repoFactory;
         private readonly IMessageMapper _mapper;
+        private IBuilder _builder;
 
         private bool _disposed;
         private readonly IDictionary<string, IRepository> _repositories;
         private readonly IDictionary<string, IRepository> _pocoRepositories;
 
-        public IBuilder Builder { get; set; }
-        public int Retries { get; set; }
-        public ContextBag Bag { get; set; }
+        public int Retries { get; private set; }
+        public ContextBag Bag { get; private set; }
 
         public Guid CommitId { get; private set; }
         public object CurrentMessage { get; private set; }
@@ -98,7 +98,7 @@ namespace Aggregates.Internal
             IRepository repository;
             if (_repositories.TryGetValue(key, out repository)) return (IRepository<T>)repository;
 
-            return (IRepository<T>)(_repositories[key] = (IRepository)_repoFactory.ForAggregate<T>(Builder));
+            return (IRepository<T>)(_repositories[key] = (IRepository)_repoFactory.ForAggregate<T>(_builder));
         }
         public IRepository<TParent, TEntity> For<TParent, TEntity>(TParent parent) where TEntity : Entity<TEntity, TParent> where TParent : Entity<TParent>
         {
@@ -109,7 +109,7 @@ namespace Aggregates.Internal
             if (_repositories.TryGetValue(key, out repository))
                 return (IRepository<TParent, TEntity>)repository;
 
-            return (IRepository<TParent, TEntity>)(_repositories[key] = (IRepository)_repoFactory.ForEntity<TParent, TEntity>(parent, Builder));
+            return (IRepository<TParent, TEntity>)(_repositories[key] = (IRepository)_repoFactory.ForEntity<TParent, TEntity>(parent, _builder));
         }
         public IPocoRepository<T> Poco<T>() where T : class, new()
         {
@@ -119,7 +119,7 @@ namespace Aggregates.Internal
             IRepository repository;
             if (_pocoRepositories.TryGetValue(key, out repository)) return (IPocoRepository<T>)repository;
 
-            return (IPocoRepository<T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<T>(Builder));
+            return (IPocoRepository<T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<T>(_builder));
         }
         public IPocoRepository<TParent, T> Poco<TParent, T>(TParent parent) where T : class, new() where TParent : Entity<TParent>
         {
@@ -130,12 +130,12 @@ namespace Aggregates.Internal
             if (_pocoRepositories.TryGetValue(key, out repository))
                 return (IPocoRepository<TParent, T>)repository;
 
-            return (IPocoRepository<TParent, T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<TParent, T>(parent, Builder));
+            return (IPocoRepository<TParent, T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<TParent, T>(parent, _builder));
         }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(TQuery query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
-            var processor = Builder.Build<IProcessor>();
-            return processor.Process<TQuery, TResponse>(Builder, query);
+            var processor = _builder.Build<IProcessor>();
+            return processor.Process<TQuery, TResponse>(_builder, query);
         }
         public Task<IEnumerable<TResponse>> Query<TQuery, TResponse>(Action<TQuery> query) where TResponse : IQueryResponse where TQuery : IQuery<TResponse>
         {
@@ -144,8 +144,8 @@ namespace Aggregates.Internal
         }
         public Task<TResponse> Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>
         {
-            var processor = Builder.Build<IProcessor>();
-            return processor.Compute<TComputed, TResponse>(Builder, computed);
+            var processor = _builder.Build<IProcessor>();
+            return processor.Compute<TComputed, TResponse>(_builder, computed);
         }
         public Task<TResponse> Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>
         {
@@ -154,8 +154,11 @@ namespace Aggregates.Internal
         }
 
 
-        Task IApplicationUnitOfWork.Begin()
+        Task IApplicationUnitOfWork.Begin(IBuilder builder, int retries, ContextBag bag)
         {
+            _builder = builder;
+            Retries = retries;
+            Bag = bag;
             return Task.FromResult(true);
         }
         Task IApplicationUnitOfWork.End(Exception ex)
@@ -286,18 +289,6 @@ namespace Aggregates.Internal
             Logger.Debug($"Starting unit of work - first event id {firstEventId}");
 
             return command;
-        }
-
-        private bool TryGetGuid(string text, out Guid guid)
-        {
-            try
-            {
-                guid = Guid.Parse(text);
-                return true;
-            }
-            catch (FormatException) { }
-            guid = Guid.Empty;
-            return false;
         }
 
         public IMutating MutateOutgoing(IMutating command)

@@ -23,11 +23,11 @@ namespace Aggregates.Internal
 {
     class EventStoreDelayed : IDelayedChannel, ILastApplicationUnitOfWork
     {
-        public IBuilder Builder { get; set; }
+        private IBuilder _builder { get; set; }
         // The number of times the event has been re-run due to error
-        public int Retries { get; set; }
+        public int Retries { get; private set; }
         // Will be persisted across retries
-        public ContextBag Bag { get; set; }
+        public ContextBag Bag { get; private set; }
 
         private class InFlightInfo
         {
@@ -362,8 +362,12 @@ namespace Aggregates.Internal
             Timer.Repeat((s) => Flush(s), new FlushState { Store = store, StreamGen = streamGen, Endpoint = endpoint, MaxSize = maxSize, ReadSize = readSize, Interval = flushInterval, FlushSize = flushSize, Expire = delayedExpiration }, flushInterval, "delayed flusher");
         }
 
-        public Task Begin()
+        public Task Begin(IBuilder builder, int retries, ContextBag bag)
         {
+            _builder = builder;
+            Retries = retries;
+            Bag = bag;
+
             _uncommitted = new Dictionary<Tuple<string, string>, List<IDelayedMessage>>();
             _inFlightMemCache = new Dictionary<Tuple<string, string>, List<IDelayedMessage>>();
             return Task.CompletedTask;

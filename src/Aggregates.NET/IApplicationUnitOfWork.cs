@@ -10,13 +10,16 @@ namespace Aggregates
 {
     public interface IApplicationUnitOfWork
     {
-        IBuilder Builder { get; set; }
-        // The number of times the event has been re-run due to error
-        int Retries { get; set; }
-        // Will be persisted across retries
-        ContextBag Bag { get; set; }
+        ContextBag Bag { get; }
 
-        Task Begin();
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="builder"></param>
+        /// <param name="retry">The number of times the event has been re-run due to error</param>
+        /// <param name="bag">Will be persisted across retries</param>
+        /// <returns></returns>
+        Task Begin(IBuilder builder, int retry, ContextBag bag);
         Task End(Exception ex = null);
     }
     public interface ILastApplicationUnitOfWork : IApplicationUnitOfWork { }

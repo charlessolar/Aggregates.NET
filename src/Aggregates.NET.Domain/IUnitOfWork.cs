@@ -7,7 +7,7 @@ using NServiceBus.ObjectBuilder;
 
 namespace Aggregates
 {
-    public interface IUnitOfWork : IEventMutator, ICommandMutator, IDisposable
+    public interface IUnitOfWork : IDisposable
     {
         IRepository<T> For<T>() where T : Aggregate<T>;
         IRepository<TParent, TEntity> For<TParent, TEntity>(TParent parent) where TEntity : Entity<TEntity, TParent> where TParent : Entity<TParent>;
@@ -21,7 +21,6 @@ namespace Aggregates
         Task<TResponse> Compute<TComputed, TResponse>(TComputed computed) where TComputed : IComputed<TResponse>;
         Task<TResponse> Compute<TComputed, TResponse>(Action<TComputed> computed) where TComputed : IComputed<TResponse>;
         
-        IBuilder Builder { get; set; }
         Guid CommitId { get; }
         object CurrentMessage { get; }
         IDictionary<string, string> CurrentHeaders { get; }
