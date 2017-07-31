@@ -345,7 +345,7 @@ namespace Aggregates.Internal
             // We have the type name, hack the generic parameters to build Entity
             if (parent == null)
             {
-                var method = typeof(IUnitOfWork).GetMethod("For", new Type[] { }).MakeGenericMethod(entityType);
+                var method = typeof(Contracts.IUnitOfWork).GetMethod("For", new Type[] { }).MakeGenericMethod(entityType);
 
                 var repo = method.Invoke(_uow, new object[] { });
 
@@ -359,7 +359,7 @@ namespace Aggregates.Internal
             else
             {
                 var method =
-                    typeof(IUnitOfWork).GetMethods()
+                    typeof(Contracts.IUnitOfWork).GetMethods()
                         .Single(x => x.Name == "For" && x.GetParameters().Length == 1)
                         .MakeGenericMethod(parent.GetType(), entityType);
 
@@ -368,6 +368,7 @@ namespace Aggregates.Internal
                 method = repo.GetType().GetMethod("Get", new Type[] { typeof(Id) });
                 var task = (Task)method.Invoke(repo, new object[] { id });
                 await task.ConfigureAwait(false);
+                var val = task.GetType().GetProperty("Result").GetValue(task);
                 return task.GetType().GetProperty("Result").GetValue(task) as IEventSourced;
             }
         }

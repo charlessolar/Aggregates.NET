@@ -14,7 +14,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
     [TestFixture]
     public class WeakConflictMessageHandler
     {
-        public class Entity : Aggregates.AggregateWithMemento<Entity, Entity.Memento>
+        public class Entity : AggregateWithMemento<Entity, Entity.Memento>
         {
             public int Handles = 0;
             public int Conflicts = 0;
@@ -56,7 +56,7 @@ namespace Aggregates.NET.UnitTests.Domain.Internal.ConflictResolvers
             }
         }
 
-        public class Child : Aggregates.Entity<Child, Entity>
+        public class Child : Entity<Child, Entity>
         {
             public int Handles = 0;
             public int Conflicts = 0;

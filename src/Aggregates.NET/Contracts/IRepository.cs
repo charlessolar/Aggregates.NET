@@ -16,7 +16,7 @@ namespace Aggregates.Contracts
         Task Commit(Guid commitId, IDictionary<string, string> commitHeaders);
     }
 
-    public interface IRepository<T> where T : Entity<T>
+    public interface IRepository<T> where T : State<T>
     {
         /// <summary>
         /// Attempts to get aggregate from store, if stream does not exist it throws
@@ -35,7 +35,7 @@ namespace Aggregates.Contracts
         Task<T> New(Id id);
         Task<T> New(string bucketId, Id id);
     }
-    public interface IRepository<TParent, T> where TParent : Entity<TParent> where T : Entity<T, TParent>
+    public interface IRepository<TParent, T> where TParent : State<TParent> where T : State<T, TParent>
     {
         /// <summary>
         /// Attempts to get aggregate from store, if stream does not exist it throws

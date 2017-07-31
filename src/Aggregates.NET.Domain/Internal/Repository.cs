@@ -17,7 +17,7 @@ using AggregateException = Aggregates.Exceptions.AggregateException;
 
 namespace Aggregates.Internal
 {
-    class Repository<TParent, T> : Repository<T>, IRepository<TParent, T> where TParent : Entity<TParent> where T : Entity<T, TParent>
+    class Repository<TParent, T> : Repository<T>, IRepository<TParent, T> where TParent : State<TParent> where T : State<T, TParent>
     {
         private static readonly ILog Logger = LogManager.GetLogger("Repository");
 
@@ -81,7 +81,7 @@ namespace Aggregates.Internal
         }
     }
 
-    class Repository<T> : IRepository<T>, IRepository where T : Entity<T>
+    class Repository<T> : IRepository<T>, IRepository where T : State<T>
     {
         private static OptimisticConcurrencyAttribute _conflictResolution;
 

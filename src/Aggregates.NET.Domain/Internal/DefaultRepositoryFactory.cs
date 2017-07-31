@@ -10,13 +10,13 @@ namespace Aggregates.Internal
     {
         private static readonly ConcurrentDictionary<Type, Type> RepoCache = new ConcurrentDictionary<Type, Type>();
 
-        public IRepository<T> ForAggregate<T>(IBuilder builder) where T : Aggregate<T>
+        public IRepository<T> ForAggregate<T>(IBuilder builder) where T : State<T>
         {
             var repoType = RepoCache.GetOrAdd(typeof(T), (key) => typeof(Repository<>).MakeGenericType(typeof(T)));
 
             return (IRepository<T>)Activator.CreateInstance(repoType, builder);
         }
-        public IRepository<TParent, T> ForEntity<TParent, T>(TParent parent, IBuilder builder) where T : Entity<T, TParent> where TParent : Entity<TParent>
+        public IRepository<TParent, T> ForEntity<TParent, T>(TParent parent, IBuilder builder) where T : State<T, TParent> where TParent : State<TParent>
         {
             var repoType = RepoCache.GetOrAdd(typeof(T), (key) => typeof(Repository<,>).MakeGenericType(typeof(TParent), typeof(T)));
 
@@ -29,7 +29,7 @@ namespace Aggregates.Internal
 
             return (IPocoRepository<T>)Activator.CreateInstance(repoType, builder);
         }
-        public IPocoRepository<TParent, T> ForPoco<TParent, T>(TParent parent, IBuilder builder) where T : class, new() where TParent : Entity<TParent>
+        public IPocoRepository<TParent, T> ForPoco<TParent, T>(TParent parent, IBuilder builder) where T : class, new() where TParent : State<TParent>
         {
             var repoType = RepoCache.GetOrAdd(typeof(T), (key) => typeof(PocoRepository<,>).MakeGenericType(typeof(TParent), typeof(T)));
 

@@ -9,14 +9,14 @@ namespace Aggregates.Extensions
 {
     static class EventSourceExtensions
     {
-        public static string BuildParentsString(this IEventSourced parent)
+        public static string BuildParentsString(this IEventSource parent)
         {
             var parents = parent.Stream.Parents.ToList();
             parents.Add(parent.Id);
             return parents.BuildParentsString();
         }
 
-        public static IEnumerable<Id> BuildParents(this IEventSourced parent)
+        public static IEnumerable<Id> BuildParents(this IEventSource parent)
         {
             var parents = parent.Stream.Parents.ToList();
             parents.Add(parent.Id);

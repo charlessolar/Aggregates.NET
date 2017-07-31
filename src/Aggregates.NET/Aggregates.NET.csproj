@@ -78,9 +78,17 @@
     <Compile Include="Contracts\IEventSource.cs" />
     <Compile Include="Contracts\IEventStoreConsumer.cs" />
     <Compile Include="Contracts\IEventStream.cs" />
+    <Compile Include="Contracts\INeedBuilder.cs" />
+    <Compile Include="Contracts\INeedRouteResolver.cs" />
+    <Compile Include="Contracts\INeedStream.cs" />
+    <Compile Include="Contracts\IPocoRepository.cs" />
     <Compile Include="Contracts\IQueryResponse.cs" />
+    <Compile Include="Contracts\IRepository.cs" />
+    <Compile Include="Contracts\IRouteResolver.cs" />
+    <Compile Include="Contracts\IUnitOfWork.cs" />
+    <Compile Include="State.cs" />
     <Compile Include="IComputed.cs" />
-    <Compile Include="IEntity.cs" />
+    <Compile Include="Contracts\IEntity.cs" />
     <Compile Include="IMemento.cs" />
     <Compile Include="Contracts\IMessaging.cs" />
     <Compile Include="Contracts\IMutating.cs" />
@@ -114,6 +122,7 @@
     <Compile Include="Id.cs" />
     <Compile Include="Internal\BulkInvokeHandlerTerminator.cs" />
     <Compile Include="Internal\ApplicationUnitOfWork.cs" />
+    <Compile Include="Internal\DefaultRouteResolver.cs" />
     <Compile Include="Internal\ExceptionRejector.cs" />
     <Compile Include="Internal\EventContractResolver.cs" />
     <Compile Include="Internal\EventDescriptor.cs" />

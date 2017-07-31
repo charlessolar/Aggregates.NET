@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Internal;
+using NServiceBus;
 using NUnit.Framework;
 
 namespace Aggregates.NET.UnitTests.Domain.Internal
@@ -17,8 +18,11 @@ namespace Aggregates.NET.UnitTests.Domain.Internal
             public Id Id { get; set; }
             public long Version { get; set; }
             public IEventSource Parent { get; set; }
+            public IEventStream Stream { get; set; }
+
+            public void Hydrate(IEnumerable<IEvent> events) { }
         }
-        
+
 
         private Moq.Mock<IMemento> _snapshot;
         private Moq.Mock<IStoreEvents> _store;
