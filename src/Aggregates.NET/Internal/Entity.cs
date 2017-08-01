@@ -43,7 +43,7 @@ namespace Aggregates.Internal
         IBuilder INeedBuilder.Builder { get; set; }
 
 
-        public IRepository<TThis, TEntity> For<TEntity>() where TEntity : Entity<TEntity, TThis>
+        public IRepository<TThis, TEntity> For<TEntity>() where TEntity : Aggregates.Entity<TEntity, TThis>
         {
             // Get current UOW
             var uow = Builder.Build<IUnitOfWork>();

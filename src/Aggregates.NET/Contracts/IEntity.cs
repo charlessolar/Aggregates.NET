@@ -1,6 +1,5 @@
-﻿using Aggregates.Contracts;
-
-namespace Aggregates
+﻿
+namespace Aggregates.Contracts
 {
     public interface IEntity : IEventSource, IQueryResponse
     {

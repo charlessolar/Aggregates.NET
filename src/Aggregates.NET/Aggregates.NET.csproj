@@ -67,20 +67,35 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="Aggregate.cs" />
     <Compile Include="Attributes\KeyProperty.cs" />
     <Compile Include="Bus.cs" />
     <Compile Include="Attributes\DelayedAttribute.cs" />
     <Compile Include="Configuration.cs" />
-    <Compile Include="Contracts\ICommandMutator.cs" />
+    <Compile Include="Contracts\IHaveEntities.cs" />
+    <Compile Include="Contracts\INeedBuilder.cs" />
+    <Compile Include="Contracts\INeedEventFactory.cs" />
+    <Compile Include="Contracts\INeedRouteResolver.cs" />
+    <Compile Include="Contracts\INeedStream.cs" />
+    <Compile Include="Contracts\IPocoRepository.cs" />
+    <Compile Include="Contracts\IRepository.cs" />
+    <Compile Include="Contracts\IRouteResolver.cs" />
+    <Compile Include="Contracts\ISnapshotting.cs" />
+    <Compile Include="Contracts\IStoreStreams.cs" />
+    <Compile Include="Entity.cs" />
+    <Compile Include="Exceptions\DiscardEventException.cs" />
+    <Compile Include="Exceptions\NoRouteException.cs" />
+    <Compile Include="ICommandMutator.cs" />
     <Compile Include="Contracts\IDelayedChannel.cs" />
     <Compile Include="Contracts\IEventDescriptor.cs" />
-    <Compile Include="Contracts\IEventMutator.cs" />
+    <Compile Include="IEventMutator.cs" />
     <Compile Include="Contracts\IEventSource.cs" />
     <Compile Include="Contracts\IEventStoreConsumer.cs" />
     <Compile Include="Contracts\IEventStream.cs" />
-    <Compile Include="Contracts\IQueryResponse.cs" />
+    <Compile Include="Internal\Entity.cs" />
+    <Compile Include="IQueryResponse.cs" />
     <Compile Include="IComputed.cs" />
-    <Compile Include="IEntity.cs" />
+    <Compile Include="Contracts\IEntity.cs" />
     <Compile Include="IMemento.cs" />
     <Compile Include="Contracts\IMessaging.cs" />
     <Compile Include="Contracts\IMutating.cs" />
@@ -130,6 +145,7 @@
     <Compile Include="Internal\WritableEvent.cs" />
     <Compile Include="IApplicationUnitOfWork.cs" />
     <Compile Include="IQuery.cs" />
+    <Compile Include="IUnitOfWork.cs" />
     <Compile Include="Messages\Accept.cs" />
     <Compile Include="Messages\EndpointAlive.cs" />
     <Compile Include="Messages\EndpointDead.cs" />

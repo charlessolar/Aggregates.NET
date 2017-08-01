@@ -1,9 +1,10 @@
 ﻿using System.Collections.Generic;
+using Aggregates.Contracts;
 using NServiceBus;
 
-namespace Aggregates.Contracts
+namespace Aggregates
 {
-    public interface ICommandMutator
+    public interface IEventMutator
     {
         IMutating MutateIncoming(IMutating mutating);
         IMutating MutateOutgoing(IMutating mutating);

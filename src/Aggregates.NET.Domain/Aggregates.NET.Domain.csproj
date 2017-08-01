@@ -55,13 +55,10 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
-    <Compile Include="Aggregate.cs" />
     <Compile Include="Attributes\OptimisticConcurrencyAttribute.cs" />
     <Compile Include="ConcurrencyConflict.cs" />
     <Compile Include="Configuration.cs" />
-    <Compile Include="Contracts\IHaveEntities.cs" />
     <Compile Include="Contracts\IMessagePublisher.cs" />
-    <Compile Include="Contracts\IPocoRepository.cs" />
     <Compile Include="Exceptions\ConflictResolutionFailedException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
     <Compile Include="Extensions\EventSourceExtensions.cs" />
@@ -72,11 +69,8 @@
     <Compile Include="IResolveConflicts.cs" />
     <Compile Include="Contracts\IStorePocos.cs" />
     <Compile Include="Exceptions\AbandonConflictException.cs" />
-    <Compile Include="Exceptions\DiscardEventException.cs" />
-    <Compile Include="Exceptions\NoRouteException.cs" />
     <Compile Include="Extensions\EntityExtensions.cs" />
     <Compile Include="IHandleComputed.cs" />
-    <Compile Include="Internal\Entity.cs" />
     <Compile Include="Internal\ConflictResolvers.cs" />
     <Compile Include="Internal\MutateIncomingCommands.cs" />
     <Compile Include="Internal\NSBPublisher.cs" />
@@ -85,17 +79,8 @@
     <Compile Include="Contracts\IProcessor.cs" />
     <Compile Include="Contracts\IStoreSnapshots.cs" />
     <Compile Include="IHandleQueries.cs" />
-    <Compile Include="Contracts\INeedBuilder.cs" />
-    <Compile Include="Contracts\INeedEventFactory.cs" />
     <Compile Include="Contracts\INeedRepoFactory.cs" />
-    <Compile Include="Contracts\INeedRouteResolver.cs" />
-    <Compile Include="Contracts\INeedStream.cs" />
-    <Compile Include="Contracts\IRepository.cs" />
     <Compile Include="Contracts\IRepositoryFactory.cs" />
-    <Compile Include="Contracts\IRouteResolver.cs" />
-    <Compile Include="Contracts\ISnapshotting.cs" />
-    <Compile Include="Contracts\IStoreStreams.cs" />
-    <Compile Include="Entity.cs" />
     <Compile Include="Exceptions\StorageException.cs" />
     <Compile Include="Internal\DefaultRepositoryFactory.cs" />
     <Compile Include="Internal\DefaultRouteResolver.cs" />
@@ -103,7 +88,6 @@
     <Compile Include="Internal\Repository.cs" />
     <Compile Include="Internal\UnitOfWork.cs" />
     <Compile Include="Domain.cs" />
-    <Compile Include="IUnitOfWork.cs" />
     <Compile Include="ValueObject.cs" />
   </ItemGroup>
   <ItemGroup>

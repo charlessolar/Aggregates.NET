@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Aggregates.Internal;
 
 namespace Aggregates.Contracts
 {
@@ -16,7 +15,7 @@ namespace Aggregates.Contracts
         Task Commit(Guid commitId, IDictionary<string, string> commitHeaders);
     }
 
-    public interface IRepository<T> where T : Entity<T>
+    public interface IRepository<T> where T : Internal.Entity<T>
     {
         /// <summary>
         /// Attempts to get aggregate from store, if stream does not exist it throws
@@ -35,7 +34,7 @@ namespace Aggregates.Contracts
         Task<T> New(Id id);
         Task<T> New(string bucketId, Id id);
     }
-    public interface IRepository<TParent, T> where TParent : Entity<TParent> where T : Entity<T, TParent>
+    public interface IRepository<TParent, T> where TParent : Internal.Entity<TParent> where T : Aggregates.Entity<T, TParent>
     {
         /// <summary>
         /// Attempts to get aggregate from store, if stream does not exist it throws

@@ -6,7 +6,7 @@
 // Install tools.
 #tool "nuget:https://www.nuget.org/api/v2?package=GitVersion.CommandLine"
 #tool "nuget:https://www.nuget.org/api/v2?package=NUnit.ConsoleRunner&version=3.4.0"
-#tool "nuget:https://www.nuget.org/api/v2?package=gitlink"
+#tool "nuget:https://www.nuget.org/api/v2?package=gitlink&version=2.4.1"
 
 // Load other scripts.
 #load "./build/parameters.cake"

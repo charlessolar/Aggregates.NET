@@ -51,7 +51,7 @@ public class BuildPackages
 					new NuSpecDependency() { Id = "NServiceBus", Version = "[6.1.2,7)" },
 					new NuSpecDependency() { Id = "Metrics.NET", Version = "[0.4,1)" },
 					new NuSpecDependency() { Id = "Newtonsoft.Json", Version = "[9,)" },
-					new NuSpecDependency() { Id = "Aggregates.NET", Version = "[0.7,0.8)" }
+					new NuSpecDependency() { Id = "Aggregates.NET", Version = "[0.9,0.10)" }
 				},
 				Files = new []
 				{
@@ -69,7 +69,7 @@ public class BuildPackages
 					new NuSpecDependency() { Id = "NServiceBus", Version = "[6.1.2,7)" },
 					new NuSpecDependency() { Id = "Metrics.NET", Version = "[0.4,1)" },
 					new NuSpecDependency() { Id = "Newtonsoft.Json", Version = "[9,)" },
-					new NuSpecDependency() { Id = "Aggregates.NET", Version = "[0.7,0.8)" }
+					new NuSpecDependency() { Id = "Aggregates.NET", Version = "[0.9,0.10)" }
 				},
 				Files = new []
 				{
@@ -87,7 +87,7 @@ public class BuildPackages
 					new NuSpecDependency() { Id = "NServiceBus", Version = "[6.1.2,7)" },
 					new NuSpecDependency() { Id = "Metrics.NET", Version = "[0.4,1)" },
 					new NuSpecDependency() { Id = "Newtonsoft.Json", Version = "[9,)" },
-					new NuSpecDependency() { Id = "Aggregates.NET", Version = "[0.7,0.8)" },
+					new NuSpecDependency() { Id = "Aggregates.NET", Version = "[0.9,0.10)" },
 					new NuSpecDependency() { Id = "EventStore.Client", Version = "[4,5)" }
 				},
 				Files = new []

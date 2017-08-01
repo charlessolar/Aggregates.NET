@@ -1,11 +1,10 @@
 ﻿using Aggregates.Contracts;
-using Aggregates.Internal;
 
 namespace Aggregates
 {
 
 
-    public abstract class Entity<TThis, TParent> : Entity<TThis>, IEntity<TParent> where TParent : Entity<TParent>  where TThis : Entity<TThis, TParent>
+    public abstract class Entity<TThis, TParent> : Internal.Entity<TThis>, IEntity<TParent> where TParent : Internal.Entity<TParent>  where TThis : Entity<TThis, TParent>
     {
         IEventSource IEventSource.Parent => Parent;
         
@@ -13,7 +12,7 @@ namespace Aggregates
     }
     
 
-    public abstract class EntityWithMemento<TThis, TParent, TMemento> : Entity<TThis, TParent>, ISnapshotting where TMemento : class, IMemento where TParent : Entity<TParent> where TThis : EntityWithMemento<TThis, TParent, TMemento>
+    public abstract class EntityWithMemento<TThis, TParent, TMemento> : Entity<TThis, TParent>, ISnapshotting where TMemento : class, IMemento where TParent : Internal.Entity<TParent> where TThis : EntityWithMemento<TThis, TParent, TMemento>
     {
         ISnapshot ISnapshotting.Snapshot => Stream.Snapshot;
 

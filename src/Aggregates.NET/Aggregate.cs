@@ -1,10 +1,9 @@
 using Aggregates.Contracts;
-using Aggregates.Internal;
 using NServiceBus.Logging;
 
 namespace Aggregates
 {
-    public abstract class Aggregate<TThis> : Entity<TThis> where TThis : Aggregate<TThis>
+    public abstract class Aggregate<TThis> : Internal.Entity<TThis> where TThis : Aggregate<TThis>
     {
     }
 
