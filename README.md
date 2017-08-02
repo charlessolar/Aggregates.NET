@@ -72,6 +72,8 @@ Nuget packages are published in a pre-release state.  They are available under t
 
 ## Documentation
 
+This is a one man project so documentation is lacking - sorry about that.  If you have any questions about using Aggregates.NET feel free to contact me via email or slack ([the ddd/cqrs slack group](https://ddd-cqrs-es.herokuapp.com/))
+
 * [Wiki](https://github.com/volak/Aggregates.NET/wiki)
 * [Simple Examples](https://github.com/volak/Aggregates.NET/tree/master/samples)
 * [Enterprise Example](https://github.com/volak/DDD.Enterprise.Example/)
