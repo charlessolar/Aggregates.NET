@@ -101,7 +101,7 @@ public class BuildParameters
 
     private static bool IsReleasing(string target)
     {
-        var targets = new [] { "GoCD", "AppVeyor", "Publish", "Publish-NuGet" };
+        var targets = new [] { "GoCD", "AppVeyor", "VSTS-Publish", "Publish", "Publish-NuGet" };
         return targets.Any(t => StringComparer.OrdinalIgnoreCase.Equals(t, target));
     }
 
