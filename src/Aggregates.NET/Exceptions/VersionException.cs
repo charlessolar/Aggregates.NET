@@ -4,6 +4,7 @@ namespace Aggregates.Exceptions
 {
     public class VersionException : Exception
     {
+        public VersionException() { }
         public VersionException(String message) : base(message)
         {
         }

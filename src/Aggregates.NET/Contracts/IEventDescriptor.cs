@@ -6,15 +6,15 @@ namespace Aggregates.Contracts
     public interface IEventDescriptor
     {
         // can be set right before saving
-        Guid EventId { get; set; }
-        IDictionary<string, string> CommitHeaders { get; set; }
-        bool Compressed { get; set; }
+        Guid EventId { get; }
+        IDictionary<string, string> CommitHeaders { get; }
+        bool Compressed { get; }
 
         string EntityType { get; }
         string StreamType { get; }
         string Bucket { get; }
         Id StreamId { get; }
-        IEnumerable<Id> Parents { get; }
+        Id[] Parents { get; }
 
         long Version { get; }
         DateTime Timestamp { get; }

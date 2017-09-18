@@ -9,7 +9,7 @@ namespace Aggregates.Contracts
         Id StreamId { get; }
         long Version { get; }
 
-        IMemento Payload { get; }
+        IState Payload { get; }
 
         DateTime Timestamp { get; }
     }

@@ -1,0 +1,92 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>NServiceBus.Callbacks</name>
+    </assembly>
+    <members>
+        <member name="T:NServiceBus.CallbackExtensions">
+            <summary>
+            Extension methods to configure callbacks on <see cref="T:NServiceBus.EndpointConfiguration" />.
+            </summary>
+        </member>
+        <member name="M:NServiceBus.CallbackExtensions.EnableCallbacks(NServiceBus.EndpointConfiguration,System.Boolean)">
+            <summary>
+            Enables the callbacks feature.
+            </summary>
+            <param name="config">The endpoint configuration.</param>
+            <param name="makesRequests">
+            The value that indicates whether the endpoint can make callback requests. If <c>true</c>, the endpoint must be uniquely
+            addressable.
+            </param>
+        </member>
+        <member name="T:NServiceBus.RequestResponseExtensions">
+            <summary>
+            Request/response extension methods.
+            </summary>
+        </member>
+        <member name="M:NServiceBus.RequestResponseExtensions.Request``1(NServiceBus.IMessageSession,System.Object)">
+            <summary>
+            Sends a <paramref name="requestMessage" /> to the configured destination and returns back a
+            <see cref="T:System.Threading.Tasks.Task`1" /> which can be awaited.
+            </summary>
+            <remarks>
+            The task returned is non durable. When the AppDomain is unloaded or the response task is canceled.
+            Messages can still arrive to the requesting endpoint but in that case no handling code will be attached to consume
+            that response message and therefore the message will be moved to the error queue.
+            </remarks>
+            <typeparam name="TResponse">The response type.</typeparam>
+            <param name="session">The session.</param>
+            <param name="requestMessage">The request message.</param>
+            <returns>A task which contains the response when it is completed.</returns>
+        </member>
+        <member name="M:NServiceBus.RequestResponseExtensions.Request``1(NServiceBus.IMessageSession,System.Object,System.Threading.CancellationToken)">
+            <summary>
+            Sends a <paramref name="requestMessage" /> to the configured destination and returns back a
+            <see cref="T:System.Threading.Tasks.Task`1" /> which can be awaited.
+            </summary>
+            <remarks>
+            The task returned is non durable. When the AppDomain is unloaded or the response task is canceled.
+            Messages can still arrive to the requesting endpoint but in that case no handling code will be attached to consume
+            that response message and therefore the message will be moved to the error queue.
+            </remarks>
+            <typeparam name="TResponse">The response type.</typeparam>
+            <param name="session">The session.</param>
+            <param name="requestMessage">The request message.</param>
+            <param name="cancellationToken">The cancellation token used to cancel the request.</param>
+            <returns>A task which contains the response when it is completed.</returns>
+        </member>
+        <member name="M:NServiceBus.RequestResponseExtensions.Request``1(NServiceBus.IMessageSession,System.Object,NServiceBus.SendOptions)">
+            <summary>
+            Sends a <paramref name="requestMessage" /> to the configured destination and returns back a
+            <see cref="T:System.Threading.Tasks.Task`1" /> which can be awaited.
+            </summary>
+            <remarks>
+            The task returned is non durable. When the AppDomain is unloaded or the response task is canceled.
+            Messages can still arrive to the requesting endpoint but in that case no handling code will be attached to consume
+            that response message and therefore the message will be moved to the error queue.
+            </remarks>
+            <typeparam name="TResponse">The response type.</typeparam>
+            <param name="session">The session.</param>
+            <param name="requestMessage">The request message.</param>
+            <param name="options">The options for the send.</param>
+            <returns>A task which contains the response when it is completed.</returns>
+        </member>
+        <member name="M:NServiceBus.RequestResponseExtensions.Request``1(NServiceBus.IMessageSession,System.Object,NServiceBus.SendOptions,System.Threading.CancellationToken)">
+            <summary>
+            Sends a <paramref name="requestMessage" /> to the configured destination and returns back a
+            <see cref="T:System.Threading.Tasks.Task`1" /> which can be awaited.
+            </summary>
+            <remarks>
+            The task returned is non durable. When the AppDomain is unloaded or the response task is canceled.
+            Messages can still arrive to the requesting endpoint but in that case no handling code will be attached to consume
+            that response message and therefore the message will be moved to the error queue.
+            </remarks>
+            <typeparam name="TResponse">The response type.</typeparam>
+            <param name="session">The session.</param>
+            <param name="requestMessage">The request message.</param>
+            <param name="options">The options for the send.</param>
+            <param name="cancellationToken">The cancellation token used to cancel the request.</param>
+            <returns>A task which contains the response when it is completed.</returns>
+        </member>
+    </members>
+</doc>

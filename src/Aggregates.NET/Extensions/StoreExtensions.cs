@@ -2,8 +2,7 @@
 using System.IO;
 using System.IO.Compression;
 using System.Text;
-using Aggregates.Internal;
-using Newtonsoft.Json;
+using Aggregates.Contracts;
 
 namespace Aggregates.Extensions
 {
@@ -12,6 +11,10 @@ namespace Aggregates.Extensions
         public static byte[] AsByteArray(this string json)
         {
             return Encoding.UTF8.GetBytes(json);
+        }
+        public static string AsString(this byte[] bytes)
+        {
+            return Encoding.UTF8.GetString(bytes);
         }
         public static byte[] Compress(this byte[] bytes)
         {
@@ -43,35 +46,54 @@ namespace Aggregates.Extensions
             }
         }
 
-        public static string Serialize(this object @event, JsonSerializerSettings settings)
-        {
-            return JsonConvert.SerializeObject(@event, settings);
-        }
 
-        public static string Serialize(this EventDescriptor descriptor, JsonSerializerSettings settings)
+        public static object Deserialize(this IMessageSerializer serializer, Type type, byte[] bytes)
         {
-            return JsonConvert.SerializeObject(descriptor, settings);
-        }
+            using (var stream = new MemoryStream())
+            {
+                using (var writer = new BinaryWriter(stream, Encoding.UTF8))
+                {
+                    writer.Write(bytes);
+                }
+                stream.Seek(0L, SeekOrigin.Begin);
 
-        public static object Deserialize(this byte[] bytes, string type, JsonSerializerSettings settings)
+                var deserialized = serializer.Deserialize(stream, new[] { type });
+
+                return deserialized[0];
+            }
+        }
+        public static object Deserialize(this IMessageSerializer serializer, string type, byte[] bytes)
         {
-            var json = Encoding.UTF8.GetString(bytes);
             var resolved = Type.GetType(type, false);
             if (resolved == null) return null;
 
-            return JsonConvert.DeserializeObject(json, resolved, settings);
+            return Deserialize(serializer, resolved, bytes);
         }
 
-        public static EventDescriptor Deserialize(this byte[] bytes, JsonSerializerSettings settings)
+        public static T Deserialize<T>(this IMessageSerializer serializer, byte[] bytes)
         {
-            var json = Encoding.UTF8.GetString(bytes);
-            return JsonConvert.DeserializeObject<EventDescriptor>(json, settings);
+            return (T) Deserialize(serializer, typeof(T), bytes);
         }
+        
 
-        public static T Deserialize<T>(this byte[] bytes, JsonSerializerSettings settings)
+
+
+
+
+        public static byte[] Serialize(this IMessageSerializer serializer, object payload)
         {
-            var json = Encoding.UTF8.GetString(bytes);
-            return JsonConvert.DeserializeObject<T>(json, settings);
+            using (var stream = new MemoryStream())
+            {
+                serializer.Serialize(payload, stream);
+                if (stream.Length > int.MaxValue)
+                    throw new ArgumentException("serialized data too long");
+
+                stream.Seek(0L, SeekOrigin.Begin);
+                using (var reader = new BinaryReader(stream, Encoding.UTF8))
+                {
+                    return reader.ReadBytes((int)stream.Length);
+                }
+            }
         }
 
         public static string ToLowerCamelCase(this string type)

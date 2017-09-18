@@ -1,7 +1,8 @@
 ﻿using System;
 using NUnit.Framework;
+using Aggregates.Internal;
 
-namespace Aggregates.NET.UnitTests.Common
+namespace Aggregates.UnitTests.Common
 {
     [TestFixture]
     public class Enumeration

@@ -1,5 +1,5 @@
 ﻿using System;
-using NServiceBus.Logging;
+using Aggregates.Logging;
 
 namespace Aggregates.Extensions
 {
@@ -8,7 +8,7 @@ namespace Aggregates.Extensions
         public static void WriteFormat(this ILog logger, LogLevel level, string message, params object[] args)
         {
             if (Defaults.MinimumLogging.Value.HasValue)
-                level = level < Defaults.MinimumLogging.Value ? Defaults.MinimumLogging.Value.Value : level;
+                level = level < Defaults.MinimumLogging.Value.Value ? Defaults.MinimumLogging.Value.Value : level;
 
             switch (level)
             {
@@ -34,7 +34,7 @@ namespace Aggregates.Extensions
         public static void Write(this ILog logger, LogLevel level, string message)
         {
             if (Defaults.MinimumLogging.Value.HasValue)
-                level = level < Defaults.MinimumLogging.Value ? Defaults.MinimumLogging.Value.Value : level;
+                level = level < Defaults.MinimumLogging.Value.Value ? Defaults.MinimumLogging.Value.Value : level;
 
             switch (level)
             {
@@ -60,7 +60,7 @@ namespace Aggregates.Extensions
         public static void Write(this ILog logger, LogLevel level, Func<string> message)
         {
             if (Defaults.MinimumLogging.Value.HasValue)
-                level = level < Defaults.MinimumLogging.Value ? Defaults.MinimumLogging.Value.Value : level;
+                level = level < Defaults.MinimumLogging.Value.Value ? Defaults.MinimumLogging.Value.Value : level;
             
             switch (level)
             {

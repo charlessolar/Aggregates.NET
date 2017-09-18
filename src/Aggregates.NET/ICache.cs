@@ -1,4 +1,8 @@
-﻿namespace Aggregates
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Aggregates
 {
     public interface ICache
     {

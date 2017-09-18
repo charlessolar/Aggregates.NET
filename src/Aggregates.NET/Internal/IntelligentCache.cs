@@ -6,15 +6,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Internal;
-using NServiceBus.Logging;
+using Aggregates.Logging;
 
 namespace Aggregates.Internal
 {
     // Only actually caches an item if the item is cached several times without evicting it
     class IntelligentCache : ICache
     {
-        private static readonly ILog Logger = LogManager.GetLogger("IntelligentCache");
+        private static readonly ILog Logger = LogProvider.GetLogger("Cache");
 
         private static readonly Dictionary<string, object> MemCache = new Dictionary<string, object>();
 

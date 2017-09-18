@@ -1,5 +1,4 @@
 ﻿using Aggregates.Exceptions;
-using NServiceBus;
 
 namespace Aggregates.Messages
 {

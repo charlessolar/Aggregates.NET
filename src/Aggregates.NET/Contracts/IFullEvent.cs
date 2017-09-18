@@ -1,5 +1,5 @@
 ﻿using System;
-using NServiceBus;
+using Aggregates.Messages;
 
 namespace Aggregates.Contracts
 {

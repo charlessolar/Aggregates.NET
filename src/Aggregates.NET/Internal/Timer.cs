@@ -4,14 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Aggregates.Extensions;
-using NServiceBus.Logging;
+using Aggregates.Logging;
 
 namespace Aggregates.Internal
 {
     static class Timer
     {
-        private static readonly ILog Logger = LogManager.GetLogger("Timer");
+        private static readonly ILog Logger = LogProvider.GetLogger("Timer");
 
         public static Task Repeat(Func<Task> action, TimeSpan interval, string description)
         {

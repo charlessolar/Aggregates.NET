@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public static class StreamPosition
+    static class StreamPosition
     {
         //
         // Summary:

@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
-using NServiceBus.Logging;
+using Aggregates.Logging;
 
 namespace Aggregates
 {
@@ -14,40 +15,31 @@ namespace Aggregates
         public static string OOB = "OOB";
     }
 
-    public delegate string StreamIdGenerator(Type entityType, string streamType, string bucket, Id id, IEnumerable<Id> parents);
+    public delegate string StreamIdGenerator(Type entityType, string streamType, string bucket, Id id, Id[] parents);
 
     public static class Defaults
     {
         public static readonly string PrefixHeader = "Originating";
         public static readonly string EventPrefixHeader = "Event";
         public static readonly string DelayedPrefixHeader = "Delayed";
-        public static readonly string SetupCorrectly = "Aggregates.NET.Safe";
         public static readonly string Retries = "Aggregates.NET.Retries";
         public static readonly string RequestResponse = "Aggregates.NET.Request";
-        public static readonly string BulkHeader = "Aggregates.NET.Bulk";
         public static readonly string EventHeader = "Aggregates.NET.Event";
         public static readonly string DelayedId = "Aggregates.NET.DelayedMessageId";
         public static readonly string ChannelKey = "Aggregates.NET.ChannelKey";
         public static readonly string OobHeaderKey = "Aggregates.OOB";
+        public static readonly string OobTransientKey = "Aggregates.Transient";
+        public static readonly string OobDaysToLiveKey = "Aggregates.DaysToLive";
+        public static readonly string LocalHeader = "Aggregates.NET.LocalMessage";
+        public static readonly string LocalBulkHeader = "Aggregates.NET.LocalBulkMessage";
+
 
         public static Guid Instance = Guid.NewGuid();
         public static string Bucket = "default";
-        public static string MessageIdHeader = "NServiceBus.MessageId";
         public static string CommitIdHeader = "CommitId";
         public static string InstanceHeader = "Instance";
-        
+
         public static AsyncLocal<LogLevel?> MinimumLogging = new AsyncLocal<LogLevel?>();
 
-        // Header information to take from incoming messages
-        public static IList<string> CarryOverHeaders = new List<string>
-        {
-                                                                          "NServiceBus.MessageId",
-                                                                          "NServiceBus.CorrelationId",
-                                                                          "NServiceBus.Version",
-                                                                          "NServiceBus.TimeSent",
-                                                                          "NServiceBus.ConversationId",
-                                                                          "NServiceBus.OriginatingMachine",
-                                                                          "NServiceBus.OriginatingEndpoint"
-                                                                      };
     }
 }

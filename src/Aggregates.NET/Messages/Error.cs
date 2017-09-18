@@ -1,5 +1,4 @@
-﻿using NServiceBus;
-
+﻿
 namespace Aggregates.Messages
 {
     public interface Error : IMessage

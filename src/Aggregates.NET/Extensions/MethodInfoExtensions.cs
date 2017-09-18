@@ -32,7 +32,6 @@ namespace Aggregates.Extensions
         }
 
 
-
         public static Func<TTarget, TParam1, TReturn> MakeFuncDelegate<TTarget, TParam1, TReturn>(this MethodInfo method)
         {
             var target = Expression.Parameter(typeof(TTarget));
@@ -52,6 +51,17 @@ namespace Aggregates.Extensions
             Expression body = Expression.Call(castTarget, method, param1);
 
             return Expression.Lambda<Func<object, TParam1, TReturn>>(body, target, param1).Compile();
+        }
+        public static Action<object, TParam1> MakeActionDelegateWithTarget<TParam1>(this MethodInfo method, Type targetType)
+        {
+            var target = Expression.Parameter(typeof(object));
+            var param1 = Expression.Parameter(typeof(TParam1));
+
+            var castTarget = Expression.Convert(target, targetType);
+
+            Expression body = Expression.Call(castTarget, method, param1);
+
+            return Expression.Lambda<Action<object, TParam1>>(body, target, param1).Compile();
         }
 
 
