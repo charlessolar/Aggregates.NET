@@ -356,7 +356,7 @@ namespace Aggregates.Internal
 
                 var manager = new ProjectionsManager(connection.Settings.Log,
                     new IPEndPoint(connection.Settings.GossipSeeds[0].EndPoint.Address,
-                        connection.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
+                        connection.Settings.ExternalGossipPort), TimeSpan.FromSeconds(30));
                 try
                 {
                     await manager.EnableAsync(name, connection.Settings.DefaultUserCredentials).ConfigureAwait(false);

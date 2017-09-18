@@ -47,9 +47,10 @@ namespace Aggregates
 
             endpointConfig.EnableFeature<Feature>();
 
-            config.SetupTasks.Add(() =>
+            config.SetupTasks.Add(async () =>
             {
-                return Aggregates.Bus.Start(endpointConfig);
+                var endpoint = await Aggregates.Bus.Start(endpointConfig);
+                Configuration.Settings.Container.RegisterSingleton(endpoint);
             });
 
             return config;

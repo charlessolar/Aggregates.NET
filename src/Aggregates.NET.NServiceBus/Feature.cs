@@ -28,24 +28,12 @@ namespace Aggregates
             var container = Configuration.Settings.Container;
 
             context.Container.ConfigureComponent<NSBUnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
-            context.Container.ConfigureComponent<IRepositoryFactory>(() => container.Resolve<IRepositoryFactory>(), DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<IEventFactory>(() => container.Resolve<IEventFactory>(), DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<IProcessor>(() => container.Resolve<IProcessor>(), DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<IMetrics>(() => container.Resolve<IMetrics>(), DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<IEventFactory>((c) => new EventFactory(c.Build<IMessageCreator>()), DependencyLifecycle.InstancePerUnitOfWork);
+            context.Container.ConfigureComponent<IMessageDispatcher>((c) => new Dispatcher(c.Build<IMetrics>(), c.Build<IMessageSerializer>(), c.Build<IMessageSession>()), DependencyLifecycle.InstancePerUnitOfWork);
+            context.Container.ConfigureComponent<IEventMapper>((c) => new EventMapper(c.Build<IMessageMapper>()), DependencyLifecycle.InstancePerUnitOfWork);
+            context.Container.ConfigureComponent<IMessaging>((c) => new NServiceBusMessaging(c.Build<MessageHandlerRegistry>(), c.Build<MessageMetadataRegistry>()), DependencyLifecycle.InstancePerUnitOfWork);
 
-            context.RegisterStartupTask(builder =>
-            {
-                // use the builder to register certian things in our IoC
-                var tiny = Configuration.Settings.Container;
-
-                tiny.Register<NSBUnitOfWork>((c) => builder.Build<NSBUnitOfWork>());
-                tiny.Register<IEventFactory>((c) => new EventFactory(builder.Build<IMessageCreator>()));
-                tiny.Register<IMessageDispatcher>((c) => new Dispatcher(c.Resolve<IMetrics>(), c.Resolve<IMessageSerializer>(), c.Resolve<IMessageSession>()));
-                tiny.Register<IEventMapper>((c) => new EventMapper(builder.Build<IMessageMapper>()));
-                tiny.Register<IMessaging>((c) => new NServiceBusMessaging(builder.Build<MessageHandlerRegistry>(), builder.Build<MessageMetadataRegistry>()));
-
-                return new EndpointRunner(context.Settings.InstanceSpecificQueue(), Configuration.Settings.StartupTasks, Configuration.Settings.ShutdownTasks);
-            });
+            context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue(), Configuration.Settings.StartupTasks, Configuration.Settings.ShutdownTasks));
 
             context.Pipeline.Register(
                 b => new ExceptionRejector(b.Build<IMetrics>(), settings.Get<int>("Retries")),

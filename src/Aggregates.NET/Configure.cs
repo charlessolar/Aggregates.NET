@@ -96,7 +96,7 @@ namespace Aggregates
                 container.Register<IDelayedChannel, DelayedChannel>();
                 container.Register<IDomainUnitOfWork, UnitOfWork>();
 
-                container.RegisterSingleton<IDelayedCache, DelayedCache>();
+                container.RegisterSingleton<IDelayedCache>((factory) => new DelayedCache(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), FlushInterval, UniqueAddress, MaxDelayed, FlushSize, DelayedExpiration, Generator));
                 container.RegisterSingleton<ICache, IntelligentCache>();
                 container.RegisterSingleton<ISnapshotReader, SnapshotReader>();
 

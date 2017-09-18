@@ -75,7 +75,7 @@ namespace Aggregates.Internal
 
             if (!discoveredEvents.Any())
             {
-                Logger.Warn($"Event consuming is enabled but we did not detect and IEvent handlers");
+                Logger.Warn($"Event consuming is enabled but we did not detect any IEvent handlers");
                 return;
             }
 
