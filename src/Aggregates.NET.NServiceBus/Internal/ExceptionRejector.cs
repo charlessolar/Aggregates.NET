@@ -43,7 +43,6 @@ namespace Aggregates.Internal
                         $"Retrying message {context.MessageId} for the {retries}/{_retries} time");
 
                 await next().ConfigureAwait(false);
-
             }
             catch (Exception e)
             {

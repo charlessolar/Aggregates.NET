@@ -19,15 +19,17 @@ namespace Aggregates.Internal
         private readonly IMetrics _metrics;
         private readonly IMessageSerializer _serializer;
         private readonly IMessageSession _bus;
+        private readonly IEventMapper _mapper;
         
         // A fake message that will travel through the pipeline in order to process events from the context bag
-        private static readonly byte[] Marker = new byte[] { };
+        private static readonly byte[] Marker = new byte[] { 0x7b, 0x7d };
 
-        public Dispatcher(IMetrics metrics, IMessageSerializer serializer, IMessageSession bus)
+        public Dispatcher(IMetrics metrics, IMessageSerializer serializer, IMessageSession bus, IEventMapper mapper)
         {
             _metrics = metrics;
             _serializer = serializer;
             _bus = bus;
+            _mapper = mapper;
         }
 
         public Task Send(IFullMessage message, string destination, IDictionary<string, string> headers = null)
@@ -49,6 +51,8 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Sending local message of type [{message.Message.GetType().FullName}]");
 
+            while (!Bus.BusOnline)
+                await Task.Delay(100).ConfigureAwait(false);
 
             var contextBag = new ContextBag();
             // Hack to get all the events to invoker without NSB deserializing 
@@ -68,7 +72,12 @@ namespace Aggregates.Internal
                 var transportTransaction = new TransportTransaction();
                 var tokenSource = new CancellationTokenSource();
 
+                var messageType = message.Message.GetType();
+                if (!messageType.IsInterface)
+                    messageType = _mapper.GetMappedTypeFor(messageType) ?? messageType;
+
                 var finalHeaders = message.Headers.Merge(headers ?? new Dictionary<string, string>());
+                finalHeaders[Headers.EnclosedMessageTypes] = messageType.AssemblyQualifiedName;
                 finalHeaders[Headers.MessageIntent] = MessageIntentEnum.Send.ToString();
                 finalHeaders[Headers.MessageId] = messageId;
                 finalHeaders[Headers.CorrelationId] = corrId;
@@ -120,6 +129,8 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Sending {messages.Length} bulk local messages");
 
+            while (!Bus.BusOnline)
+                await Task.Delay(100).ConfigureAwait(false);
 
             var contextBag = new ContextBag();
             // Hack to get all the events to invoker without NSB deserializing 
@@ -136,7 +147,12 @@ namespace Aggregates.Internal
                 var transportTransaction = new TransportTransaction();
                 var tokenSource = new CancellationTokenSource();
 
+                var messageType = messages[0].Message.GetType();
+                if (!messageType.IsInterface)
+                    messageType = _mapper.GetMappedTypeFor(messageType) ?? messageType;
+
                 var finalHeaders = headers.Merge(new Dictionary<string, string>() {
+                    [Headers.EnclosedMessageTypes] = messageType.AssemblyQualifiedName,
                     [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
                     [Headers.MessageId] = messageId
                 });

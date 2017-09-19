@@ -13,8 +13,11 @@ namespace Aggregates
         Task End(Exception ex = null);
     }
 
-    public interface IDomainUnitOfWork : IUnitOfWork
+    public interface IDomainUnitOfWork
     {
+        Task Begin();
+        Task End(Exception ex = null);
+
         IRepository<T> For<T>() where T : IEntity;
         IRepository<TParent, TEntity> For<TParent, TEntity>(TParent parent) where TEntity : IChildEntity<TParent> where TParent : IEntity;
         IPocoRepository<T> Poco<T>() where T : class, new();

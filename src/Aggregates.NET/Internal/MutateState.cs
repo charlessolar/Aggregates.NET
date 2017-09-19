@@ -6,6 +6,7 @@ using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Aggregates.Messages;
 using Aggregates.Exceptions;
+using System.Linq;
 
 namespace Aggregates.Internal
 {
@@ -13,7 +14,7 @@ namespace Aggregates.Internal
 
     internal static class StateMutators
     {
-        static readonly ConcurrentDictionary<Type, IMutateState> Mutators;
+        private static readonly ConcurrentDictionary<Type, IMutateState> Mutators;
 
         static StateMutators()
         {
@@ -37,30 +38,42 @@ namespace Aggregates.Internal
     internal class StateMutator<TState> : IMutateState
         where TState : IState
     {
-        readonly Dictionary<string, Action<TState, object>> _mutators;
+        private readonly Dictionary<string, Action<TState, object>> _mutators;
+        private IEventMapper _mapper;
 
         public StateMutator()
         {
             _mutators = ReflectionExtensions.GetStateMutators<TState>();
+
+            // because this type is created from a static class its hard to get injection going right
+            _mapper = Configuration.Settings.Container.Resolve<IEventMapper>();
         }
 
         public void Handle(IState state, IEvent @event)
         {
+            var eventType = @event.GetType();
+            if(!eventType.IsInterface)
+                eventType = _mapper.GetMappedTypeFor(eventType);
+            
             // Todo: can suport "named" events with an attribute here so instead of routing based on object type 
             // route based on event name.
             Action<TState, object> eventMutator;
-            if(!_mutators.TryGetValue($"Handle.{@event.GetType().Name}", out eventMutator))
-                throw new NoRouteException($"State {typeof(TState).Name} does not have handler for event {@event.GetType().Name}");
+            if(!_mutators.TryGetValue($"Handle.{eventType.Name}", out eventMutator))
+                throw new NoRouteException($"State {typeof(TState).Name} does not have handler for event {eventType.Name}");
             eventMutator((TState)state, @event);
         }
         public void Conflict(IState state, IEvent @event)
         {
+            var eventType = @event.GetType();
+            if (!eventType.IsInterface)
+                eventType = _mapper.GetMappedTypeFor(eventType);
+
             // Todo: the "conflict." and "handle." key prefixes are a hack
             // Todo: can suport "named" events with an attribute here so instead of routing based on object type 
             // route based on event name.
             Action<TState, object> eventMutator;
-            if (!_mutators.TryGetValue($"Conflict.{@event.GetType().Name}", out eventMutator))
-                throw new NoRouteException($"State {typeof(TState).Name} does not have handler for event {@event.GetType().Name}");
+            if (!_mutators.TryGetValue($"Conflict.{eventType.Name}", out eventMutator))
+                throw new NoRouteException($"State {typeof(TState).Name} does not have handler for event {eventType.Name}");
             eventMutator((TState)state, @event);
         }
     }

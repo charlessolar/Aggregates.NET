@@ -38,12 +38,20 @@ namespace Aggregates.UnitTests.Common
             }
         }
 
+        private Moq.Mock<IEventMapper> _mapper;
         private FakeState _state;
 
         [SetUp]
         public void Setup()
         {
             _state = new FakeState();
+            _mapper = new Moq.Mock<IEventMapper>();
+
+            _mapper.Setup(x => x.GetMappedTypeFor(typeof(Test))).Returns(typeof(Test));
+
+            var fake = new FakeConfiguration();
+            fake.FakeContainer.Setup(x => x.Resolve<IEventMapper>()).Returns(_mapper.Object);
+            Configuration.Build(fake).Wait();
         }
 
         [Test]

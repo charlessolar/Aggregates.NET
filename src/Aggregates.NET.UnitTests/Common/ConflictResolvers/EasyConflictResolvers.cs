@@ -29,12 +29,20 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
         }
         class Event : IEvent { }
 
+        private Moq.Mock<IEventMapper> _mapper;
         private Moq.Mock<IStoreEvents> _store;
 
         [SetUp]
         public void Setup()
         {
             _store = new Moq.Mock<IStoreEvents>();
+            _mapper = new Moq.Mock<IEventMapper>();
+
+            _mapper.Setup(x => x.GetMappedTypeFor(typeof(Event))).Returns(typeof(Event));
+
+            var fake = new FakeConfiguration();
+            fake.FakeContainer.Setup(x => x.Resolve<IEventMapper>()).Returns(_mapper.Object);
+            Configuration.Build(fake).Wait();
         }
 
         [Test]

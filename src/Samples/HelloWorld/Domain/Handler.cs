@@ -1,10 +1,10 @@
-﻿using Language;
+﻿using Aggregates;
+using Language;
 using NServiceBus;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
-using Aggregates.Extensions;
 
 namespace Domain
 {

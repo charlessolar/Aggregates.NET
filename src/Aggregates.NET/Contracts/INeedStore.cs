@@ -1,12 +1,14 @@
-﻿using System;
+﻿using Aggregates.Contracts;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    public interface IEventMapper
+    interface INeedStore
     {
-        Type GetMappedTypeFor(Type type);
+        IStoreEvents Store { get; set; }
     }
 }

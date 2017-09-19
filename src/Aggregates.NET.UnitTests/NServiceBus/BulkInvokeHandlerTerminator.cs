@@ -28,7 +28,7 @@ namespace Aggregates.UnitTests.NServiceBus
         class DelayedMessageNoProps { }
 
         private Moq.Mock<IMetrics> _metrics;
-        private Moq.Mock<IMessageMapper> _mapper;
+        private Moq.Mock<IEventMapper> _mapper;
         private Moq.Mock<IDelayedMessage> _message;
         private Aggregates.Internal.BulkInvokeHandlerTerminator _terminator;
 
@@ -36,7 +36,7 @@ namespace Aggregates.UnitTests.NServiceBus
         public void Setup()
         {
             _metrics = new Moq.Mock<IMetrics>();
-            _mapper = new Moq.Mock<IMessageMapper>();
+            _mapper = new Moq.Mock<IEventMapper>();
 
             _metrics.Setup(x => x.Begin(Moq.It.IsAny<string>())).Returns(new Moq.Mock<ITimer>().Object);
 

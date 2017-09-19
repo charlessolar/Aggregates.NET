@@ -7,7 +7,7 @@
     <ProjectGuid>{10E3EA3B-1197-4D51-BAE0-E0D150D56767}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Aggregates.NET.EventStore</RootNamespace>
+    <RootNamespace>Aggregates</RootNamespace>
     <AssemblyName>Aggregates.NET.EventStore</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>

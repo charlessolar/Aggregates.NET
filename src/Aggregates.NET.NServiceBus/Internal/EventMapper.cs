@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Text;
 using Aggregates.Contracts;
 using NServiceBus.MessageInterfaces;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace Aggregates.Internal
 {
@@ -17,6 +19,9 @@ namespace Aggregates.Internal
 
         public Type GetMappedTypeFor(Type type)
         {
+            while (!Bus.BusOnline)
+                Thread.Sleep(100);
+
             return _mapper.GetMappedTypeFor(type);
         }
     }

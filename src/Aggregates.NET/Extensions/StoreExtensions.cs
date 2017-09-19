@@ -49,14 +49,8 @@ namespace Aggregates.Extensions
 
         public static object Deserialize(this IMessageSerializer serializer, Type type, byte[] bytes)
         {
-            using (var stream = new MemoryStream())
+            using (var stream = new MemoryStream(bytes))
             {
-                using (var writer = new BinaryWriter(stream, Encoding.UTF8))
-                {
-                    writer.Write(bytes);
-                }
-                stream.Seek(0L, SeekOrigin.Begin);
-
                 var deserialized = serializer.Deserialize(stream, new[] { type });
 
                 return deserialized[0];
@@ -75,11 +69,6 @@ namespace Aggregates.Extensions
             return (T) Deserialize(serializer, typeof(T), bytes);
         }
         
-
-
-
-
-
         public static byte[] Serialize(this IMessageSerializer serializer, object payload)
         {
             using (var stream = new MemoryStream())
@@ -88,7 +77,7 @@ namespace Aggregates.Extensions
                 if (stream.Length > int.MaxValue)
                     throw new ArgumentException("serialized data too long");
 
-                stream.Seek(0L, SeekOrigin.Begin);
+                stream.Position = 0;
                 using (var reader = new BinaryReader(stream, Encoding.UTF8))
                 {
                     return reader.ReadBytes((int)stream.Length);

@@ -20,6 +20,7 @@ namespace Aggregates.UnitTests.Common
         private Moq.Mock<IProcessor> _processor;
         private Moq.Mock<IRepository<FakeEntity>> _repository;
         private Moq.Mock<IPocoRepository<FakePoco>> _pocoRepository;
+        private Moq.Mock<IDomainUnitOfWork> _uow;
 
         private Aggregates.Internal.UnitOfWork _unitofwork;
 
@@ -31,9 +32,10 @@ namespace Aggregates.UnitTests.Common
             _processor = new Moq.Mock<IProcessor>();
             _repository = new Moq.Mock<IRepository<FakeEntity>>();
             _pocoRepository = new Moq.Mock<IPocoRepository<FakePoco>>();
+            _uow = new Moq.Mock<IDomainUnitOfWork>();
 
-            _factory.Setup(x => x.ForEntity<FakeEntity>()).Returns(_repository.Object);
-            _factory.Setup(x => x.ForPoco<FakePoco>()).Returns(_pocoRepository.Object);
+            _factory.Setup(x => x.ForEntity<FakeEntity>(Moq.It.IsAny<IDomainUnitOfWork>())).Returns(_repository.Object);
+            _factory.Setup(x => x.ForPoco<FakePoco>(Moq.It.IsAny<IDomainUnitOfWork>())).Returns(_pocoRepository.Object);
 
             _unitofwork = new Internal.UnitOfWork(_factory.Object, _eventFactory.Object, _processor.Object);
         }
@@ -62,7 +64,7 @@ namespace Aggregates.UnitTests.Common
             _repository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
             _pocoRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
 
-            await (_unitofwork as IUnitOfWork).End();
+            await (_unitofwork as IDomainUnitOfWork).End();
 
             _repository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
             _pocoRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
@@ -80,7 +82,7 @@ namespace Aggregates.UnitTests.Common
             _repository.Setup(x => x.Prepare(Moq.It.IsAny<Guid>())).Returns(Task.CompletedTask);
             _pocoRepository.Setup(x => x.Prepare(Moq.It.IsAny<Guid>())).Returns(Task.CompletedTask);
 
-            await (_unitofwork as IUnitOfWork).End();
+            await (_unitofwork as IDomainUnitOfWork).End();
 
             _repository.Verify(x => x.Prepare(Moq.It.IsAny<Guid>()), Moq.Times.Once);
             _pocoRepository.Verify(x => x.Prepare(Moq.It.IsAny<Guid>()), Moq.Times.Once);
@@ -96,7 +98,7 @@ namespace Aggregates.UnitTests.Common
             _repository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
             _pocoRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
 
-            await(_unitofwork as IUnitOfWork).End(new Exception());
+            await(_unitofwork as IDomainUnitOfWork).End(new Exception());
 
             _repository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
             _pocoRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);

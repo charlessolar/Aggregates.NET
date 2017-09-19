@@ -90,7 +90,7 @@ namespace Aggregates.Internal
             IRepository repository;
             if (_repositories.TryGetValue(key, out repository)) return (IRepository<T>)repository;
 
-            return (IRepository<T>)(_repositories[key] = (IRepository)_repoFactory.ForEntity<T>());
+            return (IRepository<T>)(_repositories[key] = (IRepository)_repoFactory.ForEntity<T>(this));
         }
         public IRepository<TParent, TEntity> For<TParent, TEntity>(TParent parent) where TEntity : IChildEntity<TParent> where TParent : IEntity
         {
@@ -101,7 +101,7 @@ namespace Aggregates.Internal
             if (_repositories.TryGetValue(key, out repository))
                 return (IRepository<TParent, TEntity>)repository;
 
-            return (IRepository<TParent, TEntity>)(_repositories[key] = (IRepository)_repoFactory.ForEntity<TParent, TEntity>(parent));
+            return (IRepository<TParent, TEntity>)(_repositories[key] = (IRepository)_repoFactory.ForEntity<TParent, TEntity>(parent, this));
         }
         public IPocoRepository<T> Poco<T>() where T : class, new()
         {
@@ -111,7 +111,7 @@ namespace Aggregates.Internal
             IRepository repository;
             if (_pocoRepositories.TryGetValue(key, out repository)) return (IPocoRepository<T>)repository;
 
-            return (IPocoRepository<T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<T>());
+            return (IPocoRepository<T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<T>(this));
         }
         public IPocoRepository<TParent, T> Poco<TParent, T>(TParent parent) where T : class, new() where TParent : IEntity
         {
@@ -122,7 +122,7 @@ namespace Aggregates.Internal
             if (_pocoRepositories.TryGetValue(key, out repository))
                 return (IPocoRepository<TParent, T>)repository;
 
-            return (IPocoRepository<TParent, T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<TParent, T>(parent));
+            return (IPocoRepository<TParent, T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<TParent, T>(parent, this));
         }
         public Task<TResponse> Query<TQuery, TResponse>(TQuery query, IUnitOfWork uow) where TQuery : IQuery<TResponse>
         {
@@ -135,15 +135,19 @@ namespace Aggregates.Internal
         }
 
 
-        Task IUnitOfWork.Begin()
+        Task IDomainUnitOfWork.Begin()
         {
             return Task.FromResult(true);
         }
-        Task IUnitOfWork.End(Exception ex)
+        Task IDomainUnitOfWork.End(Exception ex)
         {
             // Todo: If current message is an event, detect if they've modified any entities and warn them.
             if (ex != null || CurrentMessage is IEvent)
             {
+                // On exception Begin and End will run multiple times without a new unit of work instance
+                _repositories.Clear();
+                _pocoRepositories.Clear();
+
                 Guid eventId;
                 EventIds.TryRemove(CommitId, out eventId);
                 Retries++;
@@ -192,8 +196,6 @@ namespace Aggregates.Internal
             }
 
         }
-
-
 
     }
 }

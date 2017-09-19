@@ -15,14 +15,8 @@ namespace Aggregates
             config.SetupTasks.Add(() =>
             {
                 var container = Configuration.Settings.Container;
-
-                var settings = new JsonSerializerSettings
-                {
-                    TypeNameHandling = TypeNameHandling.Auto,
-                    Converters = new JsonConverter[] { new Newtonsoft.Json.Converters.StringEnumConverter(), new Internal.IdJsonConverter() },
-                };
-                
-                container.Register<IMessageSerializer>((factory) => new JsonMessageSerializer(factory.Resolve<IEventMapper>(), null, null, settings, null));
+                                
+                container.RegisterSingleton<IMessageSerializer>((factory) => new JsonMessageSerializer(factory.Resolve<IEventMapper>(), null, null, null, null));
 
                 return Task.CompletedTask;
             });

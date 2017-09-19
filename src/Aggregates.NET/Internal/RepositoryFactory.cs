@@ -3,39 +3,61 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Aggregates.Contracts;
+using Aggregates.Extensions;
 
 namespace Aggregates.Internal
 {
     class RepositoryFactory : IRepositoryFactory
     {
-        private static readonly ConcurrentDictionary<Type, Type> RepoCache = new ConcurrentDictionary<Type, Type>();
+        private static readonly ConcurrentDictionary<Type, object> Factories = new ConcurrentDictionary<Type, object>();
 
-        public IRepository<T> ForEntity<T>() where T : IEntity
+        private readonly IMetrics _metrics;
+        private readonly IStoreEvents _eventstore;
+        private readonly IStoreSnapshots _snapstore;
+        private readonly IStorePocos _pocostore;
+        private readonly IEventFactory _factory;
+
+        public RepositoryFactory(IMetrics metrics, IStoreEvents eventstore, IStoreSnapshots snapstore, IStorePocos pocostore, IEventFactory factory)
         {
-            var stateType = typeof(T).BaseType.GetGenericArguments()[1];
-            var repoType = RepoCache.GetOrAdd(typeof(T), (key) => typeof(Repository<,>).MakeGenericType(typeof(T), stateType));
-
-            return (IRepository<T>)Activator.CreateInstance(repoType);
+            _metrics = metrics;
+            _eventstore = eventstore;
+            _snapstore = snapstore;
+            _pocostore = pocostore;
+            _factory = factory;
         }
-        public IRepository<TParent, T> ForEntity<TParent, T>(TParent parent) where T : IChildEntity<TParent> where TParent : IEntity
-        {
-            var stateType = typeof(T).BaseType.GetGenericArguments()[2];
-            var repoType = RepoCache.GetOrAdd(typeof(T), (key) => typeof(Repository<,,>).MakeGenericType(typeof(TParent), typeof(T), stateType));
 
-            return (IRepository<TParent, T>)Activator.CreateInstance(repoType, parent);
+        public IRepository<TEntity> ForEntity<TEntity>(IDomainUnitOfWork uow) where TEntity : IEntity
+        {
+            var factory = Factories.GetOrAdd(typeof(TEntity), t => ReflectionExtensions.BuildRepositoryFunc<TEntity>()) as Func<IMetrics, IStoreEvents, IStoreSnapshots, IEventFactory, IDomainUnitOfWork, IRepository<TEntity>>;
+            if (factory == null)
+                throw new InvalidOperationException("unknown entity repository");
+
+            return factory(_metrics, _eventstore, _snapstore, _factory, uow);
+        }
+        public IRepository<TParent, TEntity> ForEntity<TParent, TEntity>(TParent parent, IDomainUnitOfWork uow) where TEntity : IChildEntity<TParent> where TParent : IEntity
+        {
+            var factory = Factories.GetOrAdd(typeof(TEntity), t => ReflectionExtensions.BuildParentRepositoryFunc<TParent, TEntity>()) as Func<TParent, IMetrics, IStoreEvents, IStoreSnapshots, IEventFactory, IDomainUnitOfWork, IRepository<TParent, TEntity>>;
+            if (factory == null)
+                throw new InvalidOperationException("unknown entity repository");
+
+            return factory(parent, _metrics, _eventstore, _snapstore, _factory, uow);
 
         }
-        public IPocoRepository<T> ForPoco<T>() where T : class, new()
+        public IPocoRepository<T> ForPoco<T>(IDomainUnitOfWork uow) where T : class, new()
         {
-            var repoType = RepoCache.GetOrAdd(typeof(T), (key) => typeof(PocoRepository<>).MakeGenericType(typeof(T)));
+            var factory = Factories.GetOrAdd(typeof(T), t => ReflectionExtensions.BuildPocoRepositoryFunc<T>()) as Func<IMetrics, IStoreEvents, IStoreSnapshots, IDomainUnitOfWork, IPocoRepository<T>>;
+            if (factory == null)
+                throw new InvalidOperationException("unknown entity repository");
 
-            return (IPocoRepository<T>)Activator.CreateInstance(repoType);
+            return factory(_metrics, _eventstore, _snapstore, uow);
         }
-        public IPocoRepository<TParent, T> ForPoco<TParent, T>(TParent parent) where T : class, new() where TParent : IEntity
+        public IPocoRepository<TParent, T> ForPoco<TParent, T>(TParent parent, IDomainUnitOfWork uow) where T : class, new() where TParent : IEntity
         {
-            var repoType = RepoCache.GetOrAdd(typeof(T), (key) => typeof(PocoRepository<,>).MakeGenericType(typeof(TParent), typeof(T)));
+            var factory = Factories.GetOrAdd(typeof(T), t => ReflectionExtensions.BuildParentPocoRepositoryFunc<TParent, T>()) as Func<TParent, IMetrics, IStoreEvents, IStoreSnapshots, IDomainUnitOfWork, IPocoRepository<TParent, T>>;
+            if (factory == null)
+                throw new InvalidOperationException("unknown entity repository");
 
-            return (IPocoRepository<TParent, T>)Activator.CreateInstance(repoType, parent);
+            return factory(parent, _metrics, _eventstore, _snapstore, uow);
         }
     }
 }

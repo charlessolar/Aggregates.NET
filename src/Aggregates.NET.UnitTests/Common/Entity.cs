@@ -34,12 +34,12 @@ namespace Aggregates.UnitTests.Common
 
         class FakeEntity : Aggregates.Entity<FakeEntity, FakeState>
         {
-            public FakeEntity(IEventFactory factory)
+            public FakeEntity(IEventFactory factory, IStoreEvents store)
             {
                 Id = "test";
                 State = new FakeState();
-                (this as INeedContainer).Container = Configuration.Settings.Container;
                 (this as INeedEventFactory).EventFactory = factory;
+                (this as INeedStore).Store = store;
             }
             
         }
@@ -47,6 +47,7 @@ namespace Aggregates.UnitTests.Common
         private Moq.Mock<IDomainUnitOfWork> _uow;
         private Moq.Mock<IEventFactory> _factory;
         private Moq.Mock<IStoreEvents> _eventstore;
+        private Moq.Mock<IEventMapper> _mapper;
         private FakeEntity _entity;
 
 
@@ -57,13 +58,14 @@ namespace Aggregates.UnitTests.Common
             _uow = new Moq.Mock<IDomainUnitOfWork>();
             _factory = new Moq.Mock<IEventFactory>();
             _eventstore = new Moq.Mock<IStoreEvents>();
+            _mapper = new Moq.Mock<IEventMapper>();
 
+            _mapper.Setup(x => x.GetMappedTypeFor(typeof(Test))).Returns(typeof(Test));
             var fake = new FakeConfiguration();
-            fake.FakeContainer.Setup(x => x.Resolve<IStoreEvents>()).Returns(_eventstore.Object);
-
+            fake.FakeContainer.Setup(x => x.Resolve<IEventMapper>()).Returns(_mapper.Object);
             Configuration.Build(fake).Wait();
 
-            _entity = new FakeEntity(_factory.Object);
+            _entity = new FakeEntity(_factory.Object, _eventstore.Object);
         }
         
 

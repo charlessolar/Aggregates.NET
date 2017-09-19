@@ -16,8 +16,6 @@ using Aggregates.Messages;
 
 namespace Aggregates.Internal
 {
-    class EventMessage : IMessage { }
-
     class EventSubscriber : IEventSubscriber
     {
 
@@ -177,7 +175,6 @@ when({{
                             Headers = @event.Item3.Descriptor.Headers
                         };
 
-
                         var headers =
                             new Dictionary<string, string>()
                             {
@@ -189,8 +186,7 @@ when({{
                         dispatcher.SendLocal(message, headers).ConfigureAwait(false).GetAwaiter().GetResult();
 
                         Logger.Write(LogLevel.Debug,
-                            () =>
-                                $"Acknowledge event {@event.Item3.Descriptor.EventId} stream [{@event.Item1}] number {@event.Item2}");
+                            () => $"Acknowledge event {@event.Item3.Descriptor.EventId} stream [{@event.Item1}] number {@event.Item2}");
                         consumer.Acknowledge(@event.Item1, @event.Item2, @event.Item3).ConfigureAwait(false)
                             .GetAwaiter().GetResult();
                     }

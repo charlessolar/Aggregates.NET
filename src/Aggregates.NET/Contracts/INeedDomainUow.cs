@@ -4,8 +4,8 @@ using System.Text;
 
 namespace Aggregates.Contracts
 {
-    interface INeedContainer
+    interface INeedDomainUow
     {
-        IContainer Container { get; set; }
+        IDomainUnitOfWork Uow { get; set; }
     }
 }

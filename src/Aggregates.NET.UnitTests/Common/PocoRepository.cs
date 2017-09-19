@@ -19,26 +19,28 @@ namespace Aggregates.UnitTests.Common
             public string Foo;
         }
 
+        private Moq.Mock<IMetrics> _metrics;
         private Moq.Mock<IStorePocos> _store;
         private IMessageSerializer _serializer;
+        private Moq.Mock<IDomainUnitOfWork> _uow;
         private Moq.Mock<IEventMapper> _mapper;
         private Aggregates.Internal.PocoRepository<Poco> _repository;
 
         [SetUp]
         public void Setup()
         {
+            _metrics = new Moq.Mock<IMetrics>();
             _store = new Moq.Mock<IStorePocos>();
             _mapper = new Moq.Mock<IEventMapper>();
+            _uow = new Moq.Mock<IDomainUnitOfWork>();
 
             _serializer = new JsonMessageSerializer(_mapper.Object, null, null, null, null);
 
             var fake = new FakeConfiguration();
-            fake.FakeContainer.Setup(x => x.Resolve<IStorePocos>()).Returns(_store.Object);
-            fake.FakeContainer.Setup(x => x.Resolve<IMessageSerializer>()).Returns(_serializer);
 
             Configuration.Build(fake).Wait();
             
-            _repository = new Aggregates.Internal.PocoRepository<Poco>(Configuration.Settings.Container);
+            _repository = new Aggregates.Internal.PocoRepository<Poco>(_metrics.Object, _store.Object, _serializer, _uow.Object);
             
             _store.Setup(
                     x => x.Write<Poco>(Moq.It.IsAny<Tuple<long, Poco>>(), Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),

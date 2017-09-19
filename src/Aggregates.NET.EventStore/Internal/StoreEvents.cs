@@ -93,7 +93,7 @@ namespace Aggregates.Internal
 
                 if (descriptor.Compressed)
                     data = data.Decompress();
-
+                
                 var @event = _serializer.Deserialize(e.Event.EventType, data);
 
                 // Special case if event was written without a version - substitue the position from store
@@ -237,7 +237,6 @@ namespace Aggregates.Internal
         public Task<long> WriteEvents(string stream, IFullEvent[] events,
             IDictionary<string, string> commitHeaders, long? expectedVersion = null)
         {
-
             Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{stream}].  Expected version: {expectedVersion}");
             
             var translatedEvents = events.Select(e =>

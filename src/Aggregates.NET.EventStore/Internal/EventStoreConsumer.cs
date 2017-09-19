@@ -310,7 +310,7 @@ namespace Aggregates.Internal
 
             if (descriptor.Compressed)
                 data = data.Decompress();
-
+            
             var payload = _serializer.Deserialize(e.Event.EventType, data);
 
             _metrics.Increment("Outstanding Events", Unit.Event);
@@ -337,7 +337,7 @@ namespace Aggregates.Internal
         private void SubscriptionDropped(EventStorePersistentSubscriptionBase sub, SubscriptionDropReason reason, Exception ex, Func<Task> disconnected, CancellationToken token)
         {
             Logger.Write(LogLevel.Info, () => $"Disconnected from subscription.  Reason: {reason} Exception: {ex}");
-
+            
             lock (_subLock) _persistentSubs.Remove(sub);
             if (reason == SubscriptionDropReason.UserInitiated) return;
             if (token.IsCancellationRequested) return;

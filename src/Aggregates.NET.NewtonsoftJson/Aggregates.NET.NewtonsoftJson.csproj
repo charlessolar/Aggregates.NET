@@ -7,7 +7,7 @@
     <ProjectGuid>{83714F8F-1112-4948-BACE-3CFD0C30A9FD}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Aggregates.NET.NewtonsoftJson</RootNamespace>
+    <RootNamespace>Aggregates</RootNamespace>
     <AssemblyName>Aggregates.NET.NewtonsoftJson</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>

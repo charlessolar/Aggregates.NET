@@ -27,13 +27,15 @@ namespace Aggregates
             var settings = context.Settings;
             var container = Configuration.Settings.Container;
 
-            context.Container.ConfigureComponent<NSBUnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
-            context.Container.ConfigureComponent<IEventFactory>((c) => new EventFactory(c.Build<IMessageCreator>()), DependencyLifecycle.InstancePerUnitOfWork);
-            context.Container.ConfigureComponent<IMessageDispatcher>((c) => new Dispatcher(c.Build<IMetrics>(), c.Build<IMessageSerializer>(), c.Build<IMessageSession>()), DependencyLifecycle.InstancePerUnitOfWork);
-            context.Container.ConfigureComponent<IEventMapper>((c) => new EventMapper(c.Build<IMessageMapper>()), DependencyLifecycle.InstancePerUnitOfWork);
-            context.Container.ConfigureComponent<IMessaging>((c) => new NServiceBusMessaging(c.Build<MessageHandlerRegistry>(), c.Build<MessageMetadataRegistry>()), DependencyLifecycle.InstancePerUnitOfWork);
+            container.Register<IDomainUnitOfWork, NSBUnitOfWork>();
+            MutationManager.RegisterMutator("domain unit of work", typeof(IDomainUnitOfWork));
 
-            context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue(), Configuration.Settings.StartupTasks, Configuration.Settings.ShutdownTasks));
+            //context.Container.ConfigureComponent<NSBUnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
+            context.Container.ConfigureComponent<IEventFactory>((c) => new EventFactory(c.Build<IMessageCreator>()), DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<IMessageDispatcher>((c) => new Dispatcher(c.Build<IMetrics>(), c.Build<IMessageSerializer>(), c.Build<IMessageSession>(), c.Build<IEventMapper>()), DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<IMessaging>((c) => new NServiceBusMessaging(c.Build<MessageHandlerRegistry>(), c.Build<MessageMetadataRegistry>()), DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<IEventMapper>((c) => new EventMapper(c.Build<IMessageMapper>()), DependencyLifecycle.InstancePerCall);
+
 
             context.Pipeline.Register(
                 b => new ExceptionRejector(b.Build<IMetrics>(), settings.Get<int>("Retries")),
@@ -52,6 +54,7 @@ namespace Aggregates
             foreach (var type in types.Where(IsQueryHandler))
                 container.Register(type);
 
+            context.Pipeline.Register<CommandAcceptorRegistration>();
             context.Pipeline.Register<UowRegistration>();
             context.Pipeline.Register<MutateIncomingRegistration>();
             context.Pipeline.Register<MutateOutgoingRegistration>();
@@ -61,9 +64,11 @@ namespace Aggregates
 
             // bulk invoke only possible with consumer feature because it uses the eventstore as a sink when overloaded
             context.Pipeline.Replace("InvokeHandlers", (b) =>
-                new BulkInvokeHandlerTerminator(container.Resolve<IMetrics>(), b.Build<IMessageMapper>()),
+                new BulkInvokeHandlerTerminator(container.Resolve<IMetrics>(), b.Build<IEventMapper>()),
                 "Replaces default invoke handlers with one that supports our custom delayed invoker");
 
+
+            context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue(), Configuration.Settings.StartupTasks, Configuration.Settings.ShutdownTasks));
         }
         private static bool IsQueryHandler(Type type)
         {

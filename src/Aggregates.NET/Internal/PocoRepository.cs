@@ -15,7 +15,8 @@ namespace Aggregates.Internal
 
         private readonly TParent _parent;
 
-        public PocoRepository(TParent parent, IContainer container) : base(container)
+        public PocoRepository(TParent parent, IMetrics metrics, IStorePocos store, IMessageSerializer serializer, IDomainUnitOfWork uow) 
+            : base(metrics, store, serializer, uow)
         {
             _parent = parent;
         }
@@ -54,10 +55,11 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogProvider.GetLogger("PocoRepository");
 
         protected readonly IDictionary<Tuple<string, Id, Id[]>, Tuple<long, T, string>> Tracked = new Dictionary<Tuple<string, Id, Id[]>, Tuple<long, T, string>>();
-        protected readonly IContainer _container;
 
+        protected readonly IMetrics _metrics;
         private readonly IStorePocos _store;
         private readonly IMessageSerializer _serializer;
+        protected readonly IDomainUnitOfWork _uow;
 
         private bool _disposed;
 
@@ -65,11 +67,12 @@ namespace Aggregates.Internal
                 // Compares the stored serialized poco against the current to determine how many changed
                 Tracked.Values.Count(x => x.Item1 == -1 || _serializer.Serialize(x.Item2).AsString() != x.Item3);
 
-        public PocoRepository(IContainer container)
+        public PocoRepository(IMetrics metrics, IStorePocos store, IMessageSerializer serializer, IDomainUnitOfWork uow)
         {
-            _container = container;
-            _store = _container.Resolve<IStorePocos>();
-            _serializer = _container.Resolve<IMessageSerializer>();
+            _metrics = metrics;
+            _store = store;
+            _serializer = serializer;
+            _uow = uow;
         }
 
         Task IRepository.Prepare(Guid commitId)

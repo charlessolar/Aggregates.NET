@@ -7,7 +7,7 @@
     <ProjectGuid>{CCEC41F0-1150-414D-965A-CAFB40D8C4FA}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Aggregates.NET.StructureMap</RootNamespace>
+    <RootNamespace>Aggregates</RootNamespace>
     <AssemblyName>Aggregates.NET.StructureMap</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>

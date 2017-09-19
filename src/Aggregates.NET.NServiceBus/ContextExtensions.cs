@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Aggregates.Extensions
+namespace Aggregates
 {
     public static class ContextExtensions
     {

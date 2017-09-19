@@ -43,7 +43,7 @@ namespace Client
 
         private static void Main(string[] args)
         {
-            LogManager.GlobalThreshold = LogLevel.Debug;
+            LogManager.GlobalThreshold = LogLevel.Warn;
 
             AppDomain.CurrentDomain.UnhandledException += UnhandledExceptionTrapper;
             AppDomain.CurrentDomain.FirstChanceException += ExceptionTrapper;
@@ -64,8 +64,7 @@ namespace Client
 
 
             NServiceBus.Logging.LogManager.Use<NLogFactory>();
-            //EventStore.Common.Log.LogManager.SetLogFactory((name) => new EmbeddedLogger(name));
-            
+
             _container = new StructureMap.Container(x =>
             {
                 x.Scan(y =>
@@ -108,8 +107,11 @@ namespace Client
 
             Logger.Info("Initializing Service Bus");
 
+            var scanner = config.AssemblyScanner();
+            scanner.ScanAppDomainAssemblies = true;
 
             config.EnableInstallers();
+            config.EnableCallbacks();
             config.LimitMessageProcessingConcurrencyTo(10);
             config.UseTransport<RabbitMQTransport>()
                 //.CallbackReceiverMaxConcurrency(4)

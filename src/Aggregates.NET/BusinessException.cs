@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 
-namespace Aggregates.Exceptions
+namespace Aggregates
 {
     [Serializable]
     public class BusinessException : System.AggregateException

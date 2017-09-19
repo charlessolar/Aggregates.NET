@@ -7,7 +7,7 @@
     <ProjectGuid>{FEC5D03F-5699-4F38-9470-1B915F7482E7}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Aggregates.NET</RootNamespace>
+    <RootNamespace>Aggregates</RootNamespace>
     <AssemblyName>Aggregates.NET</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -69,8 +69,9 @@
     <Compile Include="Contracts\IMetrics.cs" />
     <Compile Include="Contracts\IMutateState.cs" />
     <Compile Include="Contracts\IMutating.cs" />
-    <Compile Include="Contracts\INeedContainer.cs" />
+    <Compile Include="Contracts\INeedDomainUow.cs" />
     <Compile Include="Contracts\INeedEventFactory.cs" />
+    <Compile Include="Contracts\INeedStore.cs" />
     <Compile Include="Contracts\IPocoRepository.cs" />
     <Compile Include="Contracts\IProcessor.cs" />
     <Compile Include="Contracts\IRepository.cs" />
@@ -85,7 +86,7 @@
     <Compile Include="Entity.cs" />
     <Compile Include="Exceptions\AbandonConflictException.cs" />
     <Compile Include="Exceptions\AggregateException.cs" />
-    <Compile Include="Exceptions\BusinessException.cs" />
+    <Compile Include="BusinessException.cs" />
     <Compile Include="Exceptions\CommandRejectedException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
     <Compile Include="Exceptions\ConflictResolutionFailedException.cs" />
@@ -136,6 +137,8 @@
     <Compile Include="Internal\RepositoryFactory.cs" />
     <Compile Include="Internal\Snapshot.cs" />
     <Compile Include="Internal\SnapshotReader.cs" />
+    <Compile Include="Internal\StorePocos.cs" />
+    <Compile Include="Internal\StoreSnapshots.cs" />
     <Compile Include="Internal\StreamPosition.cs" />
     <Compile Include="Internal\Timer.cs" />
     <Compile Include="Internal\UnitOfWork.cs" />

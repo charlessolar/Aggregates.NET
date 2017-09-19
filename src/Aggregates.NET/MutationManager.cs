@@ -17,8 +17,8 @@ namespace Aggregates
 
         public static void RegisterMutator(string id, Type mutator)
         {
-            if (!typeof(IMutate).IsAssignableFrom(mutator))
-                throw new ArgumentException($"Mutator {id} type {mutator.FullName} does not implement IMutate");
+            //if (!typeof(IMutate).IsAssignableFrom(mutator))
+            //    throw new ArgumentException($"Mutator {id} type {mutator.FullName} does not implement IMutate");
 
             Mutators.TryAdd(id, mutator);
         }

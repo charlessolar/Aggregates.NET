@@ -99,8 +99,11 @@ namespace Domain
 
             Logger.Info("Initializing Service Bus");
 
+            var scanner = config.AssemblyScanner();
+            scanner.ScanAppDomainAssemblies = true;
 
             config.EnableInstallers();
+            config.EnableCallbacks();
             config.LimitMessageProcessingConcurrencyTo(10);
             config.UseTransport<RabbitMQTransport>()
                 //.CallbackReceiverMaxConcurrency(4)

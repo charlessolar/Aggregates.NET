@@ -32,10 +32,10 @@ namespace Aggregates.Internal
         private static readonly object Lock = new object();
         private static readonly HashSet<string> IsNotDelayed = new HashSet<string>();
 
-        private readonly IMessageMapper _mapper;
+        private readonly IEventMapper _mapper;
         private readonly IMetrics _metrics;
 
-        public BulkInvokeHandlerTerminator(IMetrics metrics, IMessageMapper mapper)
+        public BulkInvokeHandlerTerminator(IMetrics metrics, IEventMapper mapper)
         {
             _mapper = mapper;
             _metrics = metrics;

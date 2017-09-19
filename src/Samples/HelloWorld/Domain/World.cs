@@ -1,4 +1,4 @@
-﻿using Aggregates.Exceptions;
+﻿using Aggregates;
 using Language;
 using System;
 using System.Collections.Generic;
@@ -8,6 +8,7 @@ namespace Domain
 {
     public class World : Aggregates.Entity<World, WorldState>
     {
+        private World() { }
 
         public void SayHello(string message)
         {

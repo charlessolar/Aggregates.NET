@@ -18,8 +18,7 @@ namespace Aggregates
         public TParent Parent { get; internal set; }
     }
 
-    public abstract class Entity<TThis, TState> : IEntity<TState>, IHaveEntities<TThis>, INeedContainer,
-        INeedEventFactory where TThis : Entity<TThis, TState> where TState : IState, new()
+    public abstract class Entity<TThis, TState> : IEntity<TState>, IHaveEntities<TThis>, INeedDomainUow, INeedEventFactory, INeedStore where TThis : Entity<TThis, TState> where TState : IState, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger(typeof(TThis).Name);
 
@@ -36,55 +35,47 @@ namespace Aggregates
 
         private readonly IList<IFullEvent> _uncommitted = new List<IFullEvent>();
 
-        private IContainer Container => (this as INeedContainer).Container;
+        private IDomainUnitOfWork Uow => (this as INeedDomainUow).Uow;
         private IEventFactory Factory => (this as INeedEventFactory).EventFactory;
-        IContainer INeedContainer.Container { get; set; }
+        private IStoreEvents Store => (this as INeedStore).Store;
+        IDomainUnitOfWork INeedDomainUow.Uow { get; set; }
         IEventFactory INeedEventFactory.EventFactory { get; set; }
+        IStoreEvents INeedStore.Store { get; set; }
 
 
         public IRepository<TThis, TEntity> For<TEntity>() where TEntity : IChildEntity<TThis>
         {
-            // Get current UOW
-            var uow = Container.Resolve<IDomainUnitOfWork>();
-            return uow.For<TThis, TEntity>(this as TThis);
+            return Uow.For<TThis, TEntity>(this as TThis);
         }
         public IPocoRepository<TThis, T> Poco<T>() where T : class, new()
         {
-            // Get current UOW
-            var uow = Container.Resolve<IDomainUnitOfWork>();
-            return uow.Poco<TThis, T>(this as TThis);
+            return Uow.Poco<TThis, T>(this as TThis);
         }
         public Task<long> GetSize(string oob = null)
         {
-            var store = Container.Resolve<IStoreEvents>();
-
             var bucket = Bucket;
             if (!string.IsNullOrEmpty(oob))
                 bucket = $"OOB-{oob}";
 
-            return store.Size<TThis>(bucket, Id, Parents);
+            return Store.Size<TThis>(bucket, Id, Parents);
         }
 
         public Task<IFullEvent[]> GetEvents(long start, int count, string oob = null)
         {
-            var store = Container.Resolve<IStoreEvents>();
-
             var bucket = Bucket;
             if (!string.IsNullOrEmpty(oob))
                 bucket = $"OOB-{oob}";
 
-            return store.GetEvents<TThis>(bucket, Id, Parents, start, count);
+            return Store.GetEvents<TThis>(bucket, Id, Parents, start, count);
         }
 
         public Task<IFullEvent[]> GetEventsBackwards(long start, int count, string oob = null)
         {
-            var store = Container.Resolve<IStoreEvents>();
-
             var bucket = Bucket;
             if (!string.IsNullOrEmpty(oob))
                 bucket = $"OOB-{oob}";
 
-            return store.GetEventsBackwards<TThis>(bucket, Id, Parents, start, count);
+            return Store.GetEventsBackwards<TThis>(bucket, Id, Parents, start, count);
         }
 
         void IEntity<TState>.Conflict(IEvent @event)

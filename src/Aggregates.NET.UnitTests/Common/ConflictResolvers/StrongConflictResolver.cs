@@ -60,17 +60,26 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
         private Moq.Mock<IStoreSnapshots> _snapstore;
         private Moq.Mock<IStoreEvents> _eventstore;
         private Moq.Mock<IFullEvent> _event;
+        private Moq.Mock<IEventMapper> _mapper;
 
         [SetUp]
         public void Setup()
         {
             _snapstore = new Moq.Mock<IStoreSnapshots>();
-            _eventstore = new Moq.Mock<IStoreEvents>();            
+            _eventstore = new Moq.Mock<IStoreEvents>();
+            _mapper = new Moq.Mock<IEventMapper>();
+
+            _mapper.Setup(x => x.GetMappedTypeFor(typeof(FakeEvent))).Returns(typeof(FakeEvent));
+            _mapper.Setup(x => x.GetMappedTypeFor(typeof(FakeUnknownEvent))).Returns(typeof(FakeUnknownEvent));
 
             _event = new Moq.Mock<IFullEvent>();
             _event.Setup(x => x.Event).Returns(new FakeEvent());
             _event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.Domain);
-            
+
+            var fake = new FakeConfiguration();
+            fake.FakeContainer.Setup(x => x.Resolve<IEventMapper>()).Returns(_mapper.Object);
+            Configuration.Build(fake).Wait();
+
             _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
                 .Returns(Task.FromResult(0L));
         }

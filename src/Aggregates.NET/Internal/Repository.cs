@@ -21,7 +21,8 @@ namespace Aggregates.Internal
 
         private readonly TParent _parent;
 
-        public Repository(TParent parent, IContainer container) : base(container)
+        public Repository(TParent parent, IMetrics metrics, IStoreEvents store, IStoreSnapshots snapshots, IEventFactory factory, IDomainUnitOfWork uow)
+            : base(metrics, store, snapshots, factory, uow)
         {
             _parent = parent;
         }
@@ -82,24 +83,25 @@ namespace Aggregates.Internal
         private static readonly IEntityFactory<TEntity> Factory = EntityFactory.For<TEntity>();
 
         private static OptimisticConcurrencyAttribute _conflictResolution;
-                
+
         protected readonly IDictionary<string, TEntity> Tracked = new Dictionary<string, TEntity>();
-        protected readonly IContainer _container;
         protected readonly IMetrics _metrics;
-        protected readonly IStoreEvents _eventstore;
-        protected readonly IStoreSnapshots _snapstore;
+        private readonly IStoreEvents _eventstore;
+        private readonly IStoreSnapshots _snapstore;
+        private readonly IEventFactory _factory;
+        protected readonly IDomainUnitOfWork _uow;
 
         private bool _disposed;
-        
+
         public int ChangedStreams => Tracked.Count(x => x.Value.Dirty);
 
-        // Pass in child container (the current unit of work creates a new container)
-        public Repository(IContainer container)
+        public Repository(IMetrics metrics, IStoreEvents store, IStoreSnapshots snapshots, IEventFactory factory, IDomainUnitOfWork uow)
         {
-            _container = container;
-            _metrics = container.Resolve<IMetrics>();
-            _eventstore = container.Resolve<IStoreEvents>();
-            _snapstore = container.Resolve<IStoreSnapshots>();
+            _metrics = metrics;
+            _eventstore = store;
+            _snapstore = snapshots;
+            _factory = factory;
+            _uow = uow;
 
             // Conflict resolution is strong by default
             if (_conflictResolution == null)
@@ -123,93 +125,93 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Repository {typeof(TEntity).FullName} starting commit {commitId}");
 
-                await Tracked.Values
-                    .ToArray()
-                    .WhenAllAsync(async (tracked) =>
+            await Tracked.Values
+                .ToArray()
+                .WhenAllAsync(async (tracked) =>
+                {
+                    var state = tracked.State;
+
+                    try
                     {
-                        var state = tracked.State;
+                        await _eventstore.WriteEvents<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents, tracked.Uncommitted, commitHeaders, tracked.Version - 1).ConfigureAwait(false);
+
+                        if (tracked.Dirty && state.ShouldSnapshot())
+                            await _snapstore.WriteSnapshots<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents, tracked.Version, state, commitHeaders).ConfigureAwait(false);
+                    }
+                    catch (VersionException e)
+                    {
+                        Logger.Write(LogLevel.Info,
+                            () => $"Stream [{tracked.Id}] entity {tracked.GetType().FullName} stream version {state.Version} commit verison {tracked.Version} has version conflicts with store - Message: {e.Message} Store: {e.InnerException?.Message}");
+
+                        _metrics.Mark("Conflicts", Unit.Items);
+                        // If we expected no stream, no reason to try to resolve the conflict
+                        if (tracked.Version == 0)
+                        {
+                            Logger.Warn(
+                                $"New stream [{tracked.Id}] entity {tracked.GetType().FullName} already exists in store");
+                            throw new ConflictResolutionFailedException(
+                                $"New stream [{tracked.Id}] entity {tracked.GetType().FullName} already exists in store");
+                        }
 
                         try
                         {
-                            await _eventstore.WriteEvents<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents, tracked.Uncommitted, commitHeaders, tracked.Version).ConfigureAwait(false);
+                            var uncommitted = tracked.Uncommitted;
+                            // make new clean entity
+                            var clean = await GetUntracked(tracked.Bucket, tracked.Id, tracked.Parents).ConfigureAwait(false);
 
-                            if(tracked.Dirty && state.ShouldSnapshot())
-                                await _snapstore.WriteSnapshots<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents, tracked.Version, state, commitHeaders).ConfigureAwait(false);
+                            Logger.Write(LogLevel.Debug,
+                                    () => $"Attempting to resolve conflict with strategy {_conflictResolution.Conflict}");
+                            var strategy = _conflictResolution.Conflict.Build(Configuration.Settings.Container, _conflictResolution.Resolver);
+                            await strategy.Resolve<TEntity, TState>(clean, uncommitted, commitId,
+                                        commitHeaders).ConfigureAwait(false);
+
+                            Logger.WriteFormat(LogLevel.Info,
+                                "Stream [{0}] entity {1} version {2} had version conflicts with store - successfully resolved",
+                                tracked.Id, tracked.GetType().FullName, state.Version);
                         }
-                        catch (VersionException e)
+                        catch (AbandonConflictException abandon)
                         {
-                            Logger.Write(LogLevel.Info,
-                                () => $"Stream [{tracked.Id}] entity {tracked.GetType().FullName} stream version {state.Version} commit verison {tracked.Version} has version conflicts with store - Message: {e.Message} Store: {e.InnerException?.Message}");
-
-                            _metrics.Mark("Conflicts", Unit.Items);
-                            // If we expected no stream, no reason to try to resolve the conflict
-                            if (tracked.Version == 0)
-                            {
-                                Logger.Warn(
-                                    $"New stream [{tracked.Id}] entity {tracked.GetType().FullName} already exists in store");
-                                throw new ConflictResolutionFailedException(
-                                    $"New stream [{tracked.Id}] entity {tracked.GetType().FullName} already exists in store");
-                            }
-
-                            try
-                            {
-                                    var uncommitted = tracked.Uncommitted;
-                                    // make new clean entity
-                                    var clean = await GetUntracked(tracked.Bucket, tracked.Id, tracked.Parents).ConfigureAwait(false);
-
-                                    Logger.Write(LogLevel.Debug,
-                                        () => $"Attempting to resolve conflict with strategy {_conflictResolution.Conflict}");
-                                    var strategy = _conflictResolution.Conflict.Build(_container, _conflictResolution.Resolver);
-                                    await strategy.Resolve<TEntity, TState>(clean, uncommitted, commitId,
-                                            commitHeaders).ConfigureAwait(false);
-
-                                Logger.WriteFormat(LogLevel.Info,
-                                    "Stream [{0}] entity {1} version {2} had version conflicts with store - successfully resolved",
-                                    tracked.Id, tracked.GetType().FullName, state.Version);
-                            }
-                            catch (AbandonConflictException abandon)
-                            {
-                                _metrics.Mark("Conflicts Unresolved", Unit.Items);
-                                Logger.WriteFormat(LogLevel.Error,
-                                    "Stream [{0}] entity {1} has version conflicts with store - abandoning resolution",
-                                    tracked.Id, tracked.GetType().FullName);
-                                throw new ConflictResolutionFailedException(
-                                    $"Aborted conflict resolution for stream [{tracked.Id}] entity {tracked.GetType().FullName}",
-                                    abandon);
-                            }
-                            catch (Exception ex)
-                            {
-                                _metrics.Mark("Conflicts Unresolved", Unit.Items);
-                                Logger.WriteFormat(LogLevel.Error,
-                                    "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve due to: {3}: {2}",
-                                    tracked.Id, tracked.GetType().FullName, ex.Message, ex.GetType().Name);
-                                throw new ConflictResolutionFailedException(
-                                    $"Failed to resolve conflict for stream [{tracked.Id}] entity {tracked.GetType().FullName} due to exception",
-                                    ex);
-                            }
-
+                            _metrics.Mark("Conflicts Unresolved", Unit.Items);
+                            Logger.WriteFormat(LogLevel.Error,
+                                "Stream [{0}] entity {1} has version conflicts with store - abandoning resolution",
+                                tracked.Id, tracked.GetType().FullName);
+                            throw new ConflictResolutionFailedException(
+                                $"Aborted conflict resolution for stream [{tracked.Id}] entity {tracked.GetType().FullName}",
+                                abandon);
                         }
-                        catch (PersistenceException e)
+                        catch (Exception ex)
                         {
-                            Logger.WriteFormat(LogLevel.Warn,
-                                "Failed to commit events to store for stream: [{0}] bucket [{1}] Exception: {3}: {2}",
-                                tracked.Id, tracked.Bucket, e.Message, e.GetType().Name);
-                            _metrics.Mark("Event Write Errors", Unit.Items);
-                            throw;
+                            _metrics.Mark("Conflicts Unresolved", Unit.Items);
+                            Logger.WriteFormat(LogLevel.Error,
+                                "Stream [{0}] entity {1} has version conflicts with store - FAILED to resolve due to: {3}: {2}",
+                                tracked.Id, tracked.GetType().FullName, ex.Message, ex.GetType().Name);
+                            throw new ConflictResolutionFailedException(
+                                $"Failed to resolve conflict for stream [{tracked.Id}] entity {tracked.GetType().FullName} due to exception",
+                                ex);
                         }
-                        catch (DuplicateCommitException)
-                        {
-                            Logger.WriteFormat(LogLevel.Warn,
-                                "Detected a double commit for stream: [{0}] bucket [{1}] - discarding changes for this stream",
-                                tracked.Id, tracked.Bucket);
-                            _metrics.Mark("Event Write Errors", Unit.Errors);
-                            // I was throwing this, but if this happens it means the events for this message have already been committed.  Possibly as a partial message failure earlier. 
-                            // Im changing to just discard the changes, perhaps can take a deeper look later if this ever bites me on the ass
-                            //throw;
-                        }
-                    });
 
-            
+                    }
+                    catch (PersistenceException e)
+                    {
+                        Logger.WriteFormat(LogLevel.Warn,
+                            "Failed to commit events to store for stream: [{0}] bucket [{1}] Exception: {3}: {2}",
+                            tracked.Id, tracked.Bucket, e.Message, e.GetType().Name);
+                        _metrics.Mark("Event Write Errors", Unit.Items);
+                        throw;
+                    }
+                    catch (DuplicateCommitException)
+                    {
+                        Logger.WriteFormat(LogLevel.Warn,
+                            "Detected a double commit for stream: [{0}] bucket [{1}] - discarding changes for this stream",
+                            tracked.Id, tracked.Bucket);
+                        _metrics.Mark("Event Write Errors", Unit.Errors);
+                        // I was throwing this, but if this happens it means the events for this message have already been committed.  Possibly as a partial message failure earlier. 
+                        // Im changing to just discard the changes, perhaps can take a deeper look later if this ever bites me on the ass
+                        //throw;
+                    }
+                });
+
+
             Logger.Write(LogLevel.Debug, () => $"Repository {typeof(TEntity).FullName} finished commit {commitId}");
         }
 
@@ -262,14 +264,16 @@ namespace Aggregates.Internal
         protected virtual async Task<TEntity> GetUntracked(string bucket, Id id, Id[] parents = null)
         {
             Logger.Write(LogLevel.Debug, () => $"Retreiving entity id [{id}] bucket [{bucket}] for type {typeof(TEntity).FullName} in store");
-            
+
             // Todo: pass parent instead of Id[]?
             var snapshot = await _snapstore.GetSnapshot<TEntity>(bucket, id, parents).ConfigureAwait(false);
             var events = await _eventstore.GetEvents<TEntity>(bucket, id, parents, start: snapshot?.Version).ConfigureAwait(false);
 
             var entity = Factory.Create(bucket, id, parents, events, snapshot?.Payload);
 
-            (entity as INeedContainer).Container = _container;
+            (entity as INeedDomainUow).Uow = _uow;
+            (entity as INeedEventFactory).EventFactory = _factory;
+            (entity as INeedStore).Store = _eventstore;
 
             Logger.Write(LogLevel.Debug, () => $"Hydrated entity id [{id}] in bucket [{bucket}] for type {typeof(TEntity).FullName} to version {entity.Version}");
             return entity;
@@ -292,12 +296,14 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Creating new stream id [{id}] in bucket [{bucket}] for type {typeof(TEntity).FullName} in store");
 
-            var entity = Factory.Create(id, bucket, parents);
+            var entity = Factory.Create(bucket, id, parents);
 
-            (entity as INeedContainer).Container = _container;
+            (entity as INeedDomainUow).Uow = _uow;
+            (entity as INeedEventFactory).EventFactory = _factory;
+            (entity as INeedStore).Store = _eventstore;
 
             return Task.FromResult(entity);
         }
-        
+
     }
 }

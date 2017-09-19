@@ -7,7 +7,7 @@
     <ProjectGuid>{F552D7A6-BE84-47CF-95BD-FF765358C0AF}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Aggregates.NET.NServiceBus</RootNamespace>
+    <RootNamespace>Aggregates</RootNamespace>
     <AssemblyName>Aggregates.NET.NServiceBus</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -51,10 +51,11 @@
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Bus.cs" />
-    <Compile Include="Extensions\BusExtensions.cs" />
-    <Compile Include="Extensions\ContextExtensions.cs" />
+    <Compile Include="BusExtensions.cs" />
+    <Compile Include="ContextExtensions.cs" />
     <Compile Include="Feature.cs" />
     <Compile Include="Internal\BulkInvokeHandlerTerminator.cs" />
+    <Compile Include="Internal\CommandAcceptor.cs" />
     <Compile Include="Internal\Dispatcher.cs" />
     <Compile Include="Internal\EventFactory.cs" />
     <Compile Include="Internal\EventMapper.cs" />
@@ -64,7 +65,7 @@
     <Compile Include="Internal\MutateOutgoing.cs" />
     <Compile Include="Internal\NServiceBusMessaging.cs" />
     <Compile Include="Internal\TimeExecutionBehavior.cs" />
-    <Compile Include="Internal\UnitOfWork.cs" />
+    <Compile Include="Internal\NSBUnitOfWork.cs" />
     <Compile Include="Internal\UnitOfWorkExecutor.cs" />
     <Compile Include="NSBConfigure.cs" />
     <Compile Include="NSBDefaults.cs" />

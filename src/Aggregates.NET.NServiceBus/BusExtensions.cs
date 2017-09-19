@@ -7,8 +7,9 @@ using Aggregates.Messages;
 using NServiceBus;
 using ICommand = Aggregates.Messages.ICommand;
 using IMessage = Aggregates.Messages.IMessage;
+using Aggregates.Extensions;
 
-namespace Aggregates.Extensions
+namespace Aggregates
 {
     public static class BusExtensions
     {

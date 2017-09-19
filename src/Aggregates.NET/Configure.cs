@@ -95,6 +95,8 @@ namespace Aggregates
                 container.Register<IMetrics, NullMetrics>();
                 container.Register<IDelayedChannel, DelayedChannel>();
                 container.Register<IDomainUnitOfWork, UnitOfWork>();
+                container.Register<IStoreSnapshots>((factory) => new StoreSnapshots(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<ISnapshotReader>(), Generator));
+                container.Register<IStorePocos>((factory) => new StorePocos(factory.Resolve<IStoreEvents>(), factory.Resolve<ICache>(), factory.Resolve<IMessageSerializer>(), true, Generator));
 
                 container.RegisterSingleton<IDelayedCache>((factory) => new DelayedCache(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), FlushInterval, UniqueAddress, MaxDelayed, FlushSize, DelayedExpiration, Generator));
                 container.RegisterSingleton<ICache, IntelligentCache>();

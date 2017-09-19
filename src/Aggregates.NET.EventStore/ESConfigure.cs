@@ -16,7 +16,7 @@ namespace Aggregates
             {
                 var container = Configuration.Settings.Container;
 
-                container.Register<IEventStoreConsumer>((factory) =>
+                container.RegisterSingleton<IEventStoreConsumer>((factory) =>
                     new EventStoreConsumer(
                         factory.Resolve<IMetrics>(),
                         factory.Resolve<IMessageSerializer>(),

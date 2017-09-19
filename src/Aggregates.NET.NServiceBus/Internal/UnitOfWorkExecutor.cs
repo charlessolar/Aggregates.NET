@@ -16,7 +16,7 @@ namespace Aggregates.Internal
     internal class UnitOfWorkExecutor : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogProvider.GetLogger("UOW Executor");
-        
+
         private readonly IMetrics _metrics;
 
         public UnitOfWorkExecutor(IMetrics metrics)
@@ -37,13 +37,20 @@ namespace Aggregates.Internal
             var container = Configuration.Settings.Container;
 
             var domainUOW = container.Resolve<IDomainUnitOfWork>();
-            var appUOW = container.Resolve<IUnitOfWork>();
             var delayed = container.Resolve<IDelayedChannel>();
+            IUnitOfWork appUOW = null;
+            try
+            {
+                // IUnitOfWork might not be defined by user
+                appUOW = container.Resolve<IUnitOfWork>();
+            }
+            catch { }
 
             // Child container with resolved domain and app uow used by downstream
             var child = container.GetChildContainer();
             child.RegisterSingleton(domainUOW);
-            child.RegisterSingleton(appUOW);
+            if(appUOW != null)
+                child.RegisterSingleton(appUOW);
             child.RegisterSingleton(delayed);
 
             context.Extensions.Set(child);
@@ -60,7 +67,8 @@ namespace Aggregates.Internal
 
                     Logger.Write(LogLevel.Debug, () => $"Running UOW.Begin for message {context.MessageId}");
                     await domainUOW.Begin().ConfigureAwait(false);
-                    await appUOW.Begin().ConfigureAwait(false);
+                    if (appUOW != null)
+                        await appUOW.Begin().ConfigureAwait(false);
                     await delayed.Begin().ConfigureAwait(false);
 
 
@@ -109,7 +117,8 @@ namespace Aggregates.Internal
                     Logger.Write(LogLevel.Debug, () => $"Running UOW.End for message {context.MessageId}");
 
                     await domainUOW.End().ConfigureAwait(false);
-                    await appUOW.End().ConfigureAwait(false);
+                    if (appUOW != null)
+                        await appUOW.End().ConfigureAwait(false);
                     await delayed.End().ConfigureAwait(false);
                 }
 
@@ -127,7 +136,8 @@ namespace Aggregates.Internal
                         () => $"Running UOW.End with exception [{e.GetType().Name}] for message {context.MessageId}");
                     // Todo: if one throws an exception (again) the others wont work.  Fix with a loop of some kind
                     await domainUOW.End(e).ConfigureAwait(false);
-                    await appUOW.End(e).ConfigureAwait(false);
+                    if (appUOW != null)
+                        await appUOW.End(e).ConfigureAwait(false);
                     await delayed.End(e).ConfigureAwait(false);
                 }
                 catch (Exception endException)

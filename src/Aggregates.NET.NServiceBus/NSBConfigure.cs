@@ -14,8 +14,6 @@ namespace Aggregates
     {
         public static Configure NServiceBus(this Configure config, EndpointConfiguration endpointConfig)
         {
-            
-            MutationManager.RegisterMutator("domain unit of work", typeof(NSBUnitOfWork));
 
             var settings = endpointConfig.GetSettings();
             var conventions = endpointConfig.Conventions();
