@@ -38,8 +38,8 @@ namespace Aggregates.UnitTests.Common
 
             var fake = new FakeConfiguration();
 
-            Configuration.Build(fake).Wait();
-            
+            Configuration.Settings = fake;
+
             _repository = new Aggregates.Internal.PocoRepository<Poco>(_metrics.Object, _store.Object, _serializer, _uow.Object);
             
             _store.Setup(

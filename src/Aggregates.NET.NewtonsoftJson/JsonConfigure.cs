@@ -12,9 +12,9 @@ namespace Aggregates
     {
         public static Configure NewtonsoftJson(this Configure config)
         {
-            config.SetupTasks.Add(() =>
+            config.SetupTasks.Add((c) =>
             {
-                var container = Configuration.Settings.Container;
+                var container = c.Container;
                                 
                 container.RegisterSingleton<IMessageSerializer>((factory) => new JsonMessageSerializer(factory.Resolve<IEventMapper>(), null, null, null, null));
 

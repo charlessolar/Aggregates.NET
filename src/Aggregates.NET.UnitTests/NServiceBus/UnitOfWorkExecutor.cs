@@ -40,7 +40,7 @@ namespace Aggregates.UnitTests.NServiceBus
             fake.FakeContainer.Setup(x => x.Resolve<IUnitOfWork>()).Returns(_uow.Object);
             fake.FakeContainer.Setup(x => x.Resolve<IDelayedChannel>()).Returns(_channel.Object);
 
-            Configuration.Build(fake).Wait();
+            Configuration.Settings = fake;
             
             _metrics.Setup(x => x.Begin(Moq.It.IsAny<string>())).Returns(new Moq.Mock<ITimer>().Object);
             _context.Setup(x => x.Extensions).Returns(_contextBag);
@@ -100,7 +100,7 @@ namespace Aggregates.UnitTests.NServiceBus
         [Test]
         public async Task event_delivered()
         {
-            _contextBag.Set(Defaults.EventHeader, new object());
+            _contextBag.Set(Defaults.LocalHeader, new object());
 
             await _executor.Invoke(_context.Object, _next.Object);
 

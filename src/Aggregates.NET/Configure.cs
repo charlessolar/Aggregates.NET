@@ -13,19 +13,22 @@ namespace Aggregates
 {
     public class Configuration
     {
-        public static Configure Settings { get; private set; }
+        public static Configure Settings { get; internal set; }
 
-        public static async Task Build(Configure settings)
+        public static async Task Build(Action<Configure> settings)
         {
-            if (settings.Container == null)
+            var config = new Configure();
+            settings(config);
+
+            if (config.Container == null)
                 throw new ArgumentException("Must designate a container implementation");
 
-            Settings = settings;
+            Settings = config;
 
             try
             {
-                foreach (var task in settings.SetupTasks)
-                    await task();
+                foreach (var task in config.SetupTasks)
+                    await task(config);
             }
             catch
             {
@@ -49,6 +52,7 @@ namespace Aggregates
         public Compression Compression { get; private set; }
 
         // Messaging settings
+        public string Endpoint { get; private set; }
         public string UniqueAddress { get; private set; }
         public int Retries { get; private set; }
         public int ParallelMessages { get; private set; }
@@ -61,17 +65,23 @@ namespace Aggregates
         public TimeSpan DelayedExpiration { get; private set; }
         public int MaxDelayed { get; private set; }
 
-        internal List<Func<Task>> SetupTasks;
-        internal List<Func<Task>> StartupTasks;
-        internal List<Func<Task>> ShutdownTasks;
+        internal List<Func<Configure, Task>> SetupTasks;
+        internal List<Func<Configure, Task>> StartupTasks;
+        internal List<Func<Configure, Task>> ShutdownTasks;
         internal IContainer Container;
+
+        public static Configure Start()
+        {
+            return new Configure();
+        }
 
         public Configure()
         {
-            SetupTasks = new List<Func<Task>>();
-            StartupTasks = new List<Func<Task>>();
-            ShutdownTasks = new List<Func<Task>>();
+            SetupTasks = new List<Func<Configure, Task>>();
+            StartupTasks = new List<Func<Configure, Task>>();
+            ShutdownTasks = new List<Func<Configure, Task>>();
 
+            Endpoint = "demo";
             // Set sane defaults
             Generator = new StreamIdGenerator((type, streamType, bucket, stream, parents) => $"{streamType}-{bucket}-[{parents.BuildParentsString()}]-{type.FullName.Replace(".", "")}-{stream}");
             ReadSize = 100;
@@ -86,24 +96,24 @@ namespace Aggregates
             DelayedExpiration = TimeSpan.FromMinutes(5);
             MaxDelayed = 5000;
 
-            SetupTasks.Add(() =>
+            SetupTasks.Add((c) =>
             {
-                var container = Configuration.Settings.Container;
+                var container = c.Container;
 
                 container.Register<IRepositoryFactory, RepositoryFactory>();
                 container.Register<IProcessor, Processor>();
                 container.Register<IMetrics, NullMetrics>();
                 container.Register<IDelayedChannel, DelayedChannel>();
                 container.Register<IDomainUnitOfWork, UnitOfWork>();
-                container.Register<IStoreSnapshots>((factory) => new StoreSnapshots(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<ISnapshotReader>(), Generator));
-                container.Register<IStorePocos>((factory) => new StorePocos(factory.Resolve<IStoreEvents>(), factory.Resolve<ICache>(), factory.Resolve<IMessageSerializer>(), true, Generator));
+                container.Register<IStoreSnapshots>((factory) => new StoreSnapshots(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<ISnapshotReader>(), c.Generator));
+                container.Register<IStorePocos>((factory) => new StorePocos(factory.Resolve<IStoreEvents>(), factory.Resolve<ICache>(), factory.Resolve<IMessageSerializer>(), true, c.Generator));
 
-                container.RegisterSingleton<IDelayedCache>((factory) => new DelayedCache(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), FlushInterval, UniqueAddress, MaxDelayed, FlushSize, DelayedExpiration, Generator));
+                container.RegisterSingleton<IDelayedCache>((factory) => new DelayedCache(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), c.FlushInterval, c.Endpoint, c.MaxDelayed, c.FlushSize, c.DelayedExpiration, c.Generator));
                 container.RegisterSingleton<ICache, IntelligentCache>();
                 container.RegisterSingleton<ISnapshotReader, SnapshotReader>();
 
-                container.RegisterSingleton<IEventSubscriber>((factory) => new EventSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IMessaging>(), factory.Resolve<IEventStoreConsumer>(), ParallelEvents), "eventsubscriber");
-                container.RegisterSingleton<IEventSubscriber>((factory) => new DelayedSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IMessageDispatcher>(), Retries), "delayedsubscriber");
+                container.RegisterSingleton<IEventSubscriber>((factory) => new EventSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IMessaging>(), factory.Resolve<IEventStoreConsumer>(), c.ParallelEvents), "eventsubscriber");
+                container.RegisterSingleton<IEventSubscriber>((factory) => new DelayedSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IMessageDispatcher>(), c.Retries), "delayedsubscriber");
                 container.RegisterSingleton<IEventSubscriber>((factory) => (IEventSubscriber)factory.Resolve<ISnapshotReader>(), "snapshotreader");
 
                 container.RegisterSingleton<Func<Exception, string, Error>>((factory) =>
@@ -148,7 +158,8 @@ namespace Aggregates
 
                         return eventFactory.Create<Error>(e =>
                         {
-                            e.Message = sb.ToString();
+                            e.Message = $"{message} - {exception.GetType().Name}: {exception.Message}";
+                            e.Trace = sb.ToString();
                         });
                     };
                 });
@@ -171,7 +182,8 @@ namespace Aggregates
                     {
                         return eventFactory.Create<Reject>(e =>
                         {
-                            e.Message = "Exception raised";
+                            e.Exception = exception;
+                            e.Message = $"{exception.GetType().Name} - {exception.Message}";
                         });
                     };
                 });
@@ -179,26 +191,30 @@ namespace Aggregates
                 return Task.CompletedTask;
             });
 
-            StartupTasks.Add(async () =>
+            StartupTasks.Add(async (c) =>
             {
-                var subscribers = Configuration.Settings.Container.ResolveAll<IEventSubscriber>();
+                var subscribers = c.Container.ResolveAll<IEventSubscriber>();
 
                 await subscribers.WhenAllAsync(x => x.Setup(
-                    UniqueAddress,
+                    c.Endpoint,
                     Assembly.GetEntryAssembly().GetName().Version)
                 ).ConfigureAwait(false);
 
                 await subscribers.WhenAllAsync(x => x.Connect()).ConfigureAwait(false);
 
             });
-            ShutdownTasks.Add(async () =>
+            ShutdownTasks.Add(async (c) =>
             {
-                var subscribers = Configuration.Settings.Container.ResolveAll<IEventSubscriber>();
+                var subscribers = c.Container.ResolveAll<IEventSubscriber>();
 
                 await subscribers.WhenAllAsync(x => x.Shutdown()).ConfigureAwait(false);
             });
         }
-
+        public Configure SetEndpointName(string endpoint)
+        {
+            Endpoint = endpoint;
+            return this;
+        }
         public Configure SetSlowAlertThreshold(TimeSpan? threshold)
         {
             SlowAlertThreshold = threshold;

@@ -24,7 +24,6 @@ namespace Aggregates
         public static readonly string DelayedPrefixHeader = "Delayed";
         public static readonly string Retries = "Aggregates.NET.Retries";
         public static readonly string RequestResponse = "Aggregates.NET.Request";
-        public static readonly string EventHeader = "Aggregates.NET.Event";
         public static readonly string DelayedId = "Aggregates.NET.DelayedMessageId";
         public static readonly string ChannelKey = "Aggregates.NET.ChannelKey";
         public static readonly string OobHeaderKey = "Aggregates.OOB";

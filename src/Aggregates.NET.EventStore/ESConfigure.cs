@@ -12,9 +12,9 @@ namespace Aggregates
     {
         public static Configure EventStore(this Configure config, IEventStoreConnection[] connections)
         {
-            config.SetupTasks.Add(() =>
+            config.SetupTasks.Add((c) =>
             {
-                var container = Configuration.Settings.Container;
+                var container = c.Container;
 
                 container.RegisterSingleton<IEventStoreConsumer>((factory) =>
                     new EventStoreConsumer(

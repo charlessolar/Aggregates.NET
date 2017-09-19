@@ -63,7 +63,7 @@ namespace Aggregates.UnitTests.Common
             _mapper.Setup(x => x.GetMappedTypeFor(typeof(Test))).Returns(typeof(Test));
             var fake = new FakeConfiguration();
             fake.FakeContainer.Setup(x => x.Resolve<IEventMapper>()).Returns(_mapper.Object);
-            Configuration.Build(fake).Wait();
+            Configuration.Settings = fake;
 
             _entity = new FakeEntity(_factory.Object, _eventstore.Object);
         }

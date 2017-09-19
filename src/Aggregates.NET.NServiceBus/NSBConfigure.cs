@@ -18,14 +18,19 @@ namespace Aggregates
             var settings = endpointConfig.GetSettings();
             var conventions = endpointConfig.Conventions();
 
+            // set the configured endpoint name to the one NSB config was constructed with
+            config.SetEndpointName(settings.Get<string>("NServiceBus.Routing.EndpointName"));
+
             conventions.DefiningCommandsAs(type => typeof(Messages.ICommand).IsAssignableFrom(type));
             conventions.DefiningEventsAs(type => typeof(Messages.IEvent).IsAssignableFrom(type));
             conventions.DefiningMessagesAs(type => typeof(Messages.IMessage).IsAssignableFrom(type));
 
+            endpointConfig.AssemblyScanner().ScanAppDomainAssemblies = true;
+            endpointConfig.EnableCallbacks();
+
             // Todo: have a final .Build() method which does all this stuff so EndpointName is not dependent on ordering
             endpointConfig.MakeInstanceUniquelyAddressable(config.UniqueAddress);
-            endpointConfig.LimitMessageProcessingConcurrencyTo(config.ParallelMessages);
-            
+
             settings.Set("Retries", config.Retries);
 
             // Set immediate retries to our "MaxRetries" setting
@@ -45,8 +50,12 @@ namespace Aggregates
 
             endpointConfig.EnableFeature<Feature>();
 
-            config.SetupTasks.Add(async () =>
+            config.SetupTasks.Add(async (c) =>
             {
+                endpointConfig.LimitMessageProcessingConcurrencyTo(c.ParallelMessages);
+                // NSB doesn't have an endpoint name setter other than the constructor, hack it in
+                settings.Set("NServiceBus.Routing.EndpointName", c.Endpoint);
+
                 var endpoint = await Aggregates.Bus.Start(endpointConfig);
                 Configuration.Settings.Container.RegisterSingleton(endpoint);
             });

@@ -68,7 +68,7 @@ namespace Aggregates
                 "Replaces default invoke handlers with one that supports our custom delayed invoker");
 
 
-            context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue(), Configuration.Settings.StartupTasks, Configuration.Settings.ShutdownTasks));
+            context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue(), Configuration.Settings, Configuration.Settings.StartupTasks, Configuration.Settings.ShutdownTasks));
         }
         private static bool IsQueryHandler(Type type)
         {
@@ -86,12 +86,14 @@ namespace Aggregates
     {
         private static readonly ILog Logger = LogProvider.GetLogger("EndpointRunner");
         private readonly String _instanceQueue;
-        private readonly IEnumerable<Func<Task>> _startupTasks;
-        private readonly IEnumerable<Func<Task>> _shutdownTasks;
+        private readonly Configure _config;
+        private readonly IEnumerable<Func<Configure, Task>> _startupTasks;
+        private readonly IEnumerable<Func<Configure, Task>> _shutdownTasks;
 
-        public EndpointRunner(String instanceQueue, IEnumerable<Func<Task>> startupTasks, IEnumerable<Func<Task>> shutdownTasks)
+        public EndpointRunner(String instanceQueue, Configure config, IEnumerable<Func<Configure, Task>> startupTasks, IEnumerable<Func<Configure, Task>> shutdownTasks)
         {
             _instanceQueue = instanceQueue;
+            _config = config;
             _startupTasks = startupTasks;
             _shutdownTasks = shutdownTasks;
         }
@@ -111,7 +113,7 @@ namespace Aggregates
             }).ConfigureAwait(false);
 
             foreach (var task in _startupTasks)
-                await task();
+                await task(_config);
         }
         protected override async Task OnStop(IMessageSession session)
         {
@@ -123,7 +125,7 @@ namespace Aggregates
             }).ConfigureAwait(false);
 
             foreach (var task in _shutdownTasks)
-                await task();
+                await task(_config);
         }
     }
 }

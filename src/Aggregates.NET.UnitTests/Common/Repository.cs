@@ -95,8 +95,8 @@ namespace Aggregates.UnitTests.Common
             fake.FakeContainer.Setup(x => x.Resolve<IStoreSnapshots>()).Returns(_snapshots.Object);
             fake.FakeContainer.Setup(x => x.Resolve<IStoreEvents>()).Returns(_eventstore.Object);
 
-            Configuration.Build(fake).Wait();
-                        
+            Configuration.Settings = fake;
+
             _snapshots.Setup(x => x.GetSnapshot<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>()))
                 .Returns(Task.FromResult((ISnapshot)null));
 

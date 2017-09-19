@@ -42,7 +42,7 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
 
             var fake = new FakeConfiguration();
             fake.FakeContainer.Setup(x => x.Resolve<IEventMapper>()).Returns(_mapper.Object);
-            Configuration.Build(fake).Wait();
+            Configuration.Settings = fake;
         }
 
         [Test]

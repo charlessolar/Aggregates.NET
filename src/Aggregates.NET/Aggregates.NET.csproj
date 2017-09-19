@@ -87,7 +87,7 @@
     <Compile Include="Exceptions\AbandonConflictException.cs" />
     <Compile Include="Exceptions\AggregateException.cs" />
     <Compile Include="BusinessException.cs" />
-    <Compile Include="Exceptions\CommandRejectedException.cs" />
+    <Compile Include="CommandRejectedException.cs" />
     <Compile Include="Exceptions\ConflictingCommandException.cs" />
     <Compile Include="Exceptions\ConflictResolutionFailedException.cs" />
     <Compile Include="Exceptions\DiscardEventException.cs" />

@@ -78,7 +78,7 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
 
             var fake = new FakeConfiguration();
             fake.FakeContainer.Setup(x => x.Resolve<IEventMapper>()).Returns(_mapper.Object);
-            Configuration.Build(fake).Wait();
+            Configuration.Settings = fake;
 
             _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
                 .Returns(Task.FromResult(0L));

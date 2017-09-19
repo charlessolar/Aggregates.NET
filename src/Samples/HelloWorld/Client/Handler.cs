@@ -12,7 +12,15 @@ namespace Client
     {
         public Task Handle(SaidHello e, IMessageHandlerContext ctx)
         {
-            Console.WriteLine($"Hello received: {e.Message}");
+            var left = Console.CursorLeft;
+            var top = Console.CursorTop;
+            Console.SetCursorPosition(75, 0);
+
+            Console.Write("{0,20}", $"Hello received: {e.Message}");
+
+            Console.SetCursorPosition(left, top - 1);
+
+
             return Task.CompletedTask;
         }
     }

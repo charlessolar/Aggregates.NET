@@ -35,8 +35,8 @@ namespace Aggregates.UnitTests.Common
             fake.FakeContainer.Setup(x => x.Resolve<IEventStoreConsumer>()).Returns(_consumer.Object);
             fake.FakeContainer.Setup(x => x.Resolve<IMessageDispatcher>()).Returns(_dispatcher.Object);
 
-            Configuration.Build(fake).Wait();
-            
+            Configuration.Settings = fake;
+
             _dispatcher.Setup(x => x.SendLocal(Moq.It.IsAny<IFullMessage[]>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
 
             _subscriber = new Aggregates.Internal.DelayedSubscriber(_metrics.Object, _consumer.Object, _dispatcher.Object, 1);

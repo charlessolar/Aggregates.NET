@@ -44,7 +44,8 @@ namespace Aggregates.Internal
                             !h.Equals(Defaults.CommitIdHeader, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.RequestResponse, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.Retries, StringComparison.InvariantCultureIgnoreCase) &&
-                            !h.Equals(Defaults.EventHeader, StringComparison.InvariantCultureIgnoreCase));
+                            !h.Equals(Defaults.LocalHeader, StringComparison.InvariantCultureIgnoreCase) &&
+                            !h.Equals(Defaults.LocalBulkHeader, StringComparison.InvariantCultureIgnoreCase));
 
             foreach (var header in userHeaders)
                 CurrentHeaders[header] = command.Headers[header];

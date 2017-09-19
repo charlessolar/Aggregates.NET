@@ -95,16 +95,10 @@ namespace Domain
             var endpoint = "domain";
 
             var config = new EndpointConfiguration(endpoint);
-            config.MakeInstanceUniquelyAddressable(Guid.NewGuid().ToString("N"));
 
             Logger.Info("Initializing Service Bus");
 
-            var scanner = config.AssemblyScanner();
-            scanner.ScanAppDomainAssemblies = true;
-
-            config.EnableInstallers();
-            config.EnableCallbacks();
-            config.LimitMessageProcessingConcurrencyTo(10);
+            
             config.UseTransport<RabbitMQTransport>()
                 //.CallbackReceiverMaxConcurrency(4)
                 //.UseDirectRoutingTopology()
@@ -134,8 +128,7 @@ namespace Domain
 
             var client = await ConfigureStore();
 
-            await Aggregates.Configuration.Build(
-                new Aggregates.Configure()
+            await Aggregates.Configuration.Build(c => c
                     .StructureMap(_container)
                     .EventStore(new[] { client })
                     .NewtonsoftJson()

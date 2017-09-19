@@ -80,15 +80,32 @@ namespace Client
             var running = true;
 
             Console.WriteLine($"Use 'exit' to stop");
+            Console.SetCursorPosition(Console.CursorLeft, Console.WindowTop + Console.WindowHeight - 2);
+            Console.WriteLine("Please enter a message to send:");
             do
             {
-                Console.WriteLine("Please enter a message to send:");
                 var message = Console.ReadLine();
+
+                // clear input
+                var current = Console.CursorTop - 1;
+                Console.SetCursorPosition(0, Console.CursorTop - 1);
+                Console.Write(new string(' ', Console.WindowWidth));
+                Console.SetCursorPosition(0, current + 1);
+
                 if (message.ToUpper() == "EXIT")
                     running = false;
                 else
                 {
-                    bus.Command("domain", new SayHello { Message = message }).Wait();
+                    try
+                    {
+                        bus.Command("domain", new SayHello { Message = message }).Wait();
+                    }
+                    catch (AggregateException e)
+                    {
+                        var rejection = e.InnerException;
+
+                        Logger.Warn($"Command rejected due to: {rejection.Message}");
+                    }
                 }
 
             } while (running);
@@ -102,17 +119,12 @@ namespace Client
 
             var endpoint = "client";
 
+
             var config = new EndpointConfiguration(endpoint);
-            config.MakeInstanceUniquelyAddressable(Guid.NewGuid().ToString("N"));
 
             Logger.Info("Initializing Service Bus");
 
-            var scanner = config.AssemblyScanner();
-            scanner.ScanAppDomainAssemblies = true;
 
-            config.EnableInstallers();
-            config.EnableCallbacks();
-            config.LimitMessageProcessingConcurrencyTo(10);
             config.UseTransport<RabbitMQTransport>()
                 //.CallbackReceiverMaxConcurrency(4)
                 //.UseDirectRoutingTopology()
@@ -122,7 +134,7 @@ namespace Client
             config.SendFailedMessagesTo("error");
 
             config.UseSerialization<NewtonsoftSerializer>();
-            
+
             config.UsePersistence<InMemoryPersistence>();
             config.UseContainer<StructureMapBuilder>(c => c.ExistingContainer(_container));
 
@@ -139,10 +151,10 @@ namespace Client
             //config.EnableFeature<RoutedFeature>();
             config.DisableFeature<Sagas>();
 
+
             var client = await ConfigureStore();
 
-            await Aggregates.Configuration.Build(
-                new Aggregates.Configure()
+            await Aggregates.Configuration.Build(c => c
                     .StructureMap(_container)
                     .EventStore(new[] { client })
                     .NewtonsoftJson()

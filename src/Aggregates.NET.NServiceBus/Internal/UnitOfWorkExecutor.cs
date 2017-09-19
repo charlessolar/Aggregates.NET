@@ -104,7 +104,7 @@ namespace Aggregates.Internal
                         }
 
                     }
-                    else if (context.Extensions.TryGet(Defaults.EventHeader, out @event))
+                    else if (context.Extensions.TryGet(Defaults.LocalHeader, out @event))
                     {
 
                         context.UpdateMessageInstance(@event);
