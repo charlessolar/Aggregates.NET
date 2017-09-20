@@ -11,31 +11,35 @@ This library contains code to help create and manage domain driven design object
 - [DDD-CQRS-ES-Example](https://github.com/dcomartin/DDD-CQRS-ES-Example)
 - [Eventful](https://github.com/adbrowne/Eventful)
 - [SimpleDomain](https://github.com/froko/SimpleDomain)
+- [NDomain](https://github.com/mfelicio/NDomain)
 
 This project was originally inspired by and still uses many ideas from NES and CommonDomain.  
 
+## Whats New?
+
+I recently bumped the version of the project to v0.11 which involved a rewrite of much of the project.  To better facilitate including other message buses, eventstores, DI, or serialization the project is split into assemblies that include a certain dependency rather than assemblies that perform a certain function.
+
+Also new are State objects and the removal of the aggregate root class type.  In Aggregates.NET aggregate roots were modeled as entities without parents, and entities were children of aggregates.  Now, everything is an entity - the concept of an aggregate root still exists but its not a separate class.
+State objects represent the internal eventsourced state of an entity.  Upon loading an entity the state object is hydrated with the existing events and used by commands to certify commands.  [See it in action](https://github.com/volak/Aggregates.NET/blob/master/src/Samples/HelloWorld/Domain/World.cs)
+
 ## What will Aggregates.NET do for you?
 
-We fill in the gap between EventStore and NServiceBus.  Commands from NServiceBus are applied to aggregate objects via message handlers and events generated via the aggregates are saved to the event stream and published to the bus.
+We fill in the gap between EventStore and NServiceBus.  Commands from NServiceBus are applied to entity objects via message handlers and events generated via the entities are saved to the event stream.  We also maintain consumer projections for read model generation allowing the handling of commands and events using just `IHandleMessages<>`
 
 Current features include -
 
-- Aggregate Roots
 - Entities
 - Children entities of entities (infinite parenthood)
 - Value Objects
 - Snapshotting
-- Computed and query pattern
+- Query pattern
 - Unit of Work and Repository pattern
-- Automatic saving and publishing of domain events
+- Automatic saving and reading of domain events
 - Out of band events (events saved or published which do not affect business logic of entity)
 - Bulk command and event delivery
-- Async!
 - Intelligent and configurable conflict resolution
-- NO internal IOC container (NServiceBus used for resolutions)
 - Automatic configuration of projections and competing consumers for consumers
 - EventStore sharding
-- Specifications
 - Automatic command accept/reject replies
 - Ton of performance counters
 
@@ -72,9 +76,9 @@ Nuget packages are published in a pre-release state.  They are available under t
 
 ## Documentation
 
-This is a one man project so documentation is lacking - sorry about that.  If you have any questions about using Aggregates.NET feel free to contact me via email or slack ([the ddd/cqrs slack group](https://ddd-cqrs-es.herokuapp.com/))
+This is a one man project so documentation is lacking - sorry about that.  If you have any questions about using Aggregates.NET feel free to contact me via email or slack (username charles) ([the ddd/cqrs slack group](https://ddd-cqrs-es.herokuapp.com/))
 
 * [Wiki](https://github.com/volak/Aggregates.NET/wiki)
-* [Simple Examples](https://github.com/volak/Aggregates.NET/tree/master/samples)
+* [Simple Examples](https://github.com/volak/Aggregates.NET/tree/master/src/Samples)
 * [Enterprise Example](https://github.com/volak/DDD.Enterprise.Example/)
 
