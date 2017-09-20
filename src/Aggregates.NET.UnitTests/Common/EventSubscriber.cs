@@ -121,6 +121,8 @@ namespace Aggregates.UnitTests.Common
 
             eventCb("test", 0, message.Object);
 
+            await Task.Delay(500);
+
             _dispatcher.Verify(x => x.SendLocal(Moq.It.IsAny<IFullMessage>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
             
             _consumer.Verify(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>()), Moq.Times.Once);
