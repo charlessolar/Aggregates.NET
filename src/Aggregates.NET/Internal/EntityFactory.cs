@@ -40,23 +40,27 @@ namespace Aggregates.Internal
 
         public TEntity Create(string bucket, Id id, Id[] parents = null, IFullEvent[] events = null, IState snapshot = null)
         {
-            var entity = _factory();
-            var state = new TState();
+            // Todo: Can use a simple duck type helper incase snapshot type != TState due to refactor or something
+            if (snapshot != null && !(snapshot is TState))
+                throw new ArgumentException(
+                    $"Snapshot type {snapshot.GetType().Name} doesn't match {typeof(TState).Name}");
 
-            if (snapshot != null)
-                state.RestoreSnapshot(snapshot);
+            var state = snapshot ?? new TState();
+            state.Id = id;
+            state.Bucket = bucket;
 
-            if(events != null)
+            state.Parents = parents;
+            state.Version = state.Version;
+            state.Snapshot = (TState)snapshot;
+
+            if (events != null)
                 for (var i = 0; i < events.Length; i++)
                     state.Apply(events[i].Event as IEvent);
 
-            entity.Id = id;
-            entity.State = state;
-            entity.Bucket = bucket;
-            
-            entity.Parents = parents;
-            entity.Version = state.Version;
+            var entity = _factory();
+            (entity as IEntity<TState>).Instantiate((TState) state);
 
+            
             return entity;
         }
         

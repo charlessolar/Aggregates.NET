@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Internal;
 using Aggregates.Logging;
 using Aggregates.Messages;
@@ -22,16 +23,16 @@ namespace Aggregates
     {
         private static readonly ILog Logger = LogProvider.GetLogger(typeof(TThis).Name);
 
-        public Id Id { get; internal set; }
-        public string Bucket { get; internal set; }
-        public Id[] Parents { get; internal set; }
-        public long Version { get; internal set; }
+        public Id Id { get; private set; }
+        public string Bucket { get; private set; }
+        public Id[] Parents { get; private set; }
+        public long Version { get; private set; }
+        public TState State { get; private set; }
 
         public bool Dirty => Uncommitted.Any();
 
         public IFullEvent[] Uncommitted => _uncommitted.ToArray();
 
-        public TState State { get; internal set; }
 
         private readonly IList<IFullEvent> _uncommitted = new List<IFullEvent>();
 
@@ -41,6 +42,21 @@ namespace Aggregates
         IDomainUnitOfWork INeedDomainUow.Uow { get; set; }
         IEventFactory INeedEventFactory.EventFactory { get; set; }
         IStoreEvents INeedStore.Store { get; set; }
+
+        void IEntity<TState>.Instantiate(TState state)
+        {
+            Id = state.Id;
+            Bucket = state.Bucket;
+            Parents = state.Parents;
+            Version = state.Version;
+            State = state;
+
+            Instantiate(state);
+        }
+
+        protected virtual void Instantiate(TState state)
+        {
+        }
 
 
         public IRepository<TThis, TEntity> For<TEntity>() where TEntity : IChildEntity<TThis>
@@ -87,7 +103,14 @@ namespace Aggregates
 
         void IEntity<TState>.Apply(IEvent @event)
         {
-            State.Apply(@event);
+            try
+            {
+                State.Apply(@event);
+            }
+            catch (NoRouteException)
+            {
+                Logger.Info($"{typeof(TThis).Name} missing state handler for event {@event.GetType().Name}");
+            }
             _uncommitted.Add(new FullEvent
             {
                 Descriptor = new EventDescriptor

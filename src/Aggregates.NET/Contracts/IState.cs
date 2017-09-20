@@ -7,14 +7,17 @@ namespace Aggregates.Contracts
 {
     public interface IState
     {
-        long Version { get; }
+        Id Id { get; set;  }
+        string Bucket { get; set; }
+        Id[] Parents { get; set; }
 
-        IState Snapshot { get; }
+        long Version { get; set;  }
+
+        IState Snapshot { get; set;  }
         
         void Conflict(IEvent @event);
         void Apply(IEvent @event);
 
         bool ShouldSnapshot();
-        void RestoreSnapshot(IState state);
     }
 }

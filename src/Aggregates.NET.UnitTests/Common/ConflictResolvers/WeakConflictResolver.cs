@@ -20,14 +20,12 @@ namespace Aggregates.UnitTests.Domain.Internal.ConflictResolvers
         {
             public FakeEntity()
             {
-                Id = "test";
-                State = new FakeState();
             }
 
         }
         class FakeState : Aggregates.State<FakeState>
         {
-            public Id EntityId { get; set; }
+            public new Id Id { get; set; }
             public int Handles = 0;
             public int Conflicts = 0;
             public bool TakeASnapshot = false;
@@ -49,9 +47,6 @@ namespace Aggregates.UnitTests.Domain.Internal.ConflictResolvers
 
                 Conflicts++;
             }
-            protected override void RestoreSnapshot(FakeState snapshot)
-            {
-            }
             protected override bool ShouldSnapshot()
             {
                 return TakeASnapshot;
@@ -63,6 +58,7 @@ namespace Aggregates.UnitTests.Domain.Internal.ConflictResolvers
         private Moq.Mock<IFullEvent> _event;
         private Moq.Mock<IDelayedChannel> _channel;
         private Moq.Mock<IDelayedMessage> _delayedEvent;
+        private FakeState _state;
 
         [SetUp]
         public void Setup()
@@ -71,8 +67,9 @@ namespace Aggregates.UnitTests.Domain.Internal.ConflictResolvers
             _eventstore = new Moq.Mock<IStoreEvents>();
             _channel = new Moq.Mock<IDelayedChannel>();
             _delayedEvent = new Moq.Mock<IDelayedMessage>();
-            
-            
+            _state = new FakeState { Id = "test" };
+
+
             _event = new Moq.Mock<IFullEvent>();
             _event.Setup(x => x.Event).Returns(new FakeEvent());
             _event.Setup(x => x.Descriptor.StreamType).Returns(StreamTypes.Domain);
@@ -159,6 +156,7 @@ namespace Aggregates.UnitTests.Domain.Internal.ConflictResolvers
             var resolver = new Aggregates.Internal.ResolveWeaklyConflictResolver(_snapstore.Object, _eventstore.Object, _channel.Object, streamGen);
             
             var entity = new FakeEntity();
+            (entity as IEntity<FakeState>).Instantiate(new FakeState());
             entity.State.TakeASnapshot = true;
 
             return Task.CompletedTask;

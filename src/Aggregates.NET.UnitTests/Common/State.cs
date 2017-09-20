@@ -18,7 +18,6 @@ namespace Aggregates.UnitTests.Common
             public int Handles = 0;
             public int Conflicts = 0;
             public bool Discard = false;
-            public bool SnapshotRestored = false;
 
             private void Handle(Test e)
             {
@@ -31,11 +30,7 @@ namespace Aggregates.UnitTests.Common
                 if (Discard)
                     throw new DiscardEventException();
             }
-
-            protected override void RestoreSnapshot(FakeState snapshot)
-            {
-                SnapshotRestored = snapshot.SnapshotRestored;
-            }
+            
         }
 
         private Moq.Mock<IEventMapper> _mapper;
@@ -75,17 +70,7 @@ namespace Aggregates.UnitTests.Common
 
             Assert.AreEqual(0, _state.Version);
         }
-
-        [Test]
-        public void restore_snapshot()
-        {
-            var snapshot = new FakeState { SnapshotRestored=true };
-
-            (_state as IState).RestoreSnapshot(snapshot);
-
-            Assert.IsTrue(snapshot.SnapshotRestored);
-        }
-
+        
         
     }
 }

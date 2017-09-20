@@ -41,11 +41,7 @@ namespace Aggregates.UnitTests.Common
             public bool TestTakeSnapshot { get; set; }
 
             private void Handle(FakeEvent e) { }
-
-            protected override void RestoreSnapshot(FakeState state)
-            {
-            }
-
+            
             protected override bool ShouldSnapshot()
             {
                 return TestTakeSnapshot;
@@ -55,7 +51,6 @@ namespace Aggregates.UnitTests.Common
         class FakeEntity : Entity<FakeEntity, FakeState>
         {
             private FakeEntity() { }
-
             public string Foo { get; set; }
 
         }

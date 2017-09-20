@@ -19,14 +19,11 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
         {
             public FakeEntity()
             {
-                Id = "test";
-                State = new FakeState();
             }
 
         }
         class FakeState : Aggregates.State<FakeState>
         {
-            public Id EntityId { get; set; }
             public int Handles = 0;
             public int Conflicts = 0;
             public bool TakeASnapshot = false;
@@ -47,9 +44,6 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
                     throw new AbandonConflictException();
 
                 Conflicts++;
-            }
-            protected override void RestoreSnapshot(FakeState snapshot)
-            {
             }
             protected override bool ShouldSnapshot()
             {
@@ -94,6 +88,7 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
             var resolver = new Aggregates.Internal.ResolveStronglyConflictResolver(_snapstore.Object, _eventstore.Object, streamGen);
 
             var entity = new FakeEntity();
+            (entity as IEntity<FakeState>).Instantiate(new FakeState());
 
             await resolver.Resolve<FakeEntity, FakeState>(entity, new[] { _event.Object }, Guid.NewGuid(), new Dictionary<string, string>())
                 .ConfigureAwait(false);
@@ -114,6 +109,7 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
 
             _event.Setup(x => x.Event).Returns(new FakeUnknownEvent());
             var entity = new FakeEntity();
+            (entity as IEntity<FakeState>).Instantiate(new FakeState());
 
             Assert.ThrowsAsync<ConflictResolutionFailedException>(
                 () => resolver.Resolve<FakeEntity, FakeState>(entity, new[] {_event.Object}, Guid.NewGuid(), new Dictionary<string, string>()));
@@ -128,6 +124,7 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
             var resolver = new Aggregates.Internal.ResolveStronglyConflictResolver(_snapstore.Object, _eventstore.Object, streamGen);
 
             var entity = new FakeEntity();
+            (entity as IEntity<FakeState>).Instantiate(new FakeState());
             entity.State.ThrowAbandon = true;
 
             Assert.ThrowsAsync<AbandonConflictException>(
@@ -143,6 +140,7 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
             var resolver = new Aggregates.Internal.ResolveStronglyConflictResolver(_snapstore.Object, _eventstore.Object, streamGen);
             
             var entity = new FakeEntity();
+            (entity as IEntity<FakeState>).Instantiate(new FakeState());
             entity.State.TakeASnapshot = true;
 
             _snapstore.Setup(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()))
@@ -169,6 +167,7 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
             var resolver = new Aggregates.Internal.ResolveStronglyConflictResolver(_snapstore.Object, _eventstore.Object, streamGen);
 
             var entity = new FakeEntity();
+            (entity as IEntity<FakeState>).Instantiate(new FakeState());
 
             await resolver.Resolve<FakeEntity, FakeState>(entity, new[] { _event.Object }, Guid.NewGuid(), new Dictionary<string, string>())
                 .ConfigureAwait(false);

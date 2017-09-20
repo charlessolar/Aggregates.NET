@@ -16,8 +16,9 @@ namespace Aggregates.Contracts
         IFullEvent[] Uncommitted { get; }
     }
 
-    public interface IEntity<out TState> : IEntity where TState : IState, new()
+    public interface IEntity<TState> : IEntity where TState : IState, new()
     {
+        void Instantiate(TState state);
         TState State { get; }
 
         void Conflict(IEvent @event);

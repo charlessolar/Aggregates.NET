@@ -79,10 +79,10 @@ namespace Aggregates.Extensions
         public static Func<TEntity> BuildCreateEntityFunc<TEntity>()
             where TEntity : IEntity
         {
-
             var ctor = typeof(TEntity).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { }, null);
             if (ctor == null)
-                throw new AggregateException("Entity needs a PRIVATE parameterless constructor");
+                throw new AggregateException("Could not find constructor");
+            
 
             var body = Expression.New(ctor);
             var lambda = Expression.Lambda<Func<TEntity>>(body);

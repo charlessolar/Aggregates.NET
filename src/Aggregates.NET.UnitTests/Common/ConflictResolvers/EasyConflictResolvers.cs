@@ -22,8 +22,6 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
         {
             public FakeEntity()
             {
-                Id = "test";
-                State = new FakeState();
             }
         
         }
@@ -55,6 +53,7 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
             fullevent.Setup(x => x.Event).Returns(new Event());
 
             var entity = new FakeEntity();
+            (entity as IEntity<FakeState>).Instantiate(new FakeState());
             Assert.ThrowsAsync<ConflictResolutionFailedException>(
                 () => resolver.Resolve<FakeEntity, FakeState>(entity, new[] { fullevent.Object }, Guid.NewGuid(), new Dictionary<string, string>()));
 
@@ -75,6 +74,7 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
             var resolver = new IgnoreConflictResolver(_store.Object, streamGen);
 
             var entity = new FakeEntity();
+            (entity as IEntity<FakeState>).Instantiate(new FakeState());
 
 
             await resolver.Resolve<FakeEntity, FakeState>(entity, new[] {fullevent.Object}, Guid.NewGuid(), new Dictionary<string, string>())

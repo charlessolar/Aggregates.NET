@@ -36,8 +36,6 @@ namespace Aggregates.UnitTests.Common
         {
             public FakeEntity(IEventFactory factory, IStoreEvents store)
             {
-                Id = "test";
-                State = new FakeState();
                 (this as INeedEventFactory).EventFactory = factory;
                 (this as INeedStore).Store = store;
             }
@@ -66,6 +64,7 @@ namespace Aggregates.UnitTests.Common
             Configuration.Settings = fake;
 
             _entity = new FakeEntity(_factory.Object, _eventstore.Object);
+            (_entity as IEntity<FakeState>).Instantiate(new FakeState());
         }
         
 
@@ -121,11 +120,6 @@ namespace Aggregates.UnitTests.Common
             await _entity.GetEventsBackwards(0, 1, oob: "test").ConfigureAwait(false);
 
             _eventstore.Verify(x => x.GetEventsBackwards<FakeEntity>("OOB-test", Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()), Moq.Times.Once);
-        }
-        [Test]
-        public void get_hash_code()
-        {
-            Assert.AreEqual(new Id("test").GetHashCode(), _entity.GetHashCode());
         }
 
         [Test]
