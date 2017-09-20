@@ -41,7 +41,7 @@ public class BuildPackages
 				Id = "Aggregates.NET.EventStore",
 				Dependencies = new []
 				{
-					new NuSpecDependency() { Id = "EventStore", Version = "[4.1,5)" },
+					new NuSpecDependency() { Id = "EventStore.Client", Version = "[4.0.2,5)" },
 					new NuSpecDependency() { Id = "Aggregates.NET", Version = "[0.11,0.12)" }
 				},
 				Files = new []
