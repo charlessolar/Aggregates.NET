@@ -31,10 +31,11 @@ namespace Aggregates
             var container = context.Extensions.Get<IContainer>();
             return container.Resolve<IDomainUnitOfWork>().Query<TQuery, TResponse>(query, container.Resolve<IUnitOfWork>());
         }
-        public static IUnitOfWork UnitOfWork(this IMessageHandlerContext context)
+
+        public static TUnitOfWork App<TUnitOfWork>(this IMessageHandlerContext context) where TUnitOfWork : class, IUnitOfWork
         {
             var container = context.Extensions.Get<IContainer>();
-            return container.Resolve<IUnitOfWork>();
+            return container.Resolve<TUnitOfWork>();
         }
     }
 }
