@@ -28,9 +28,6 @@ public class BuildPackages
 			new NuGetPackSettings()
 			{
 				Id = "Aggregates.NET",
-				Dependencies = new []
-				{
-				},
 				Files = new []
 				{
 					new NuSpecContent { Source = "Aggregates.NET.dll", Target = "lib/net46" },
