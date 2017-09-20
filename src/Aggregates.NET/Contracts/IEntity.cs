@@ -19,6 +19,7 @@ namespace Aggregates.Contracts
     public interface IEntity<TState> : IEntity where TState : IState, new()
     {
         void Instantiate(TState state);
+        TState SnapshotTaken(TState state);
         TState State { get; }
 
         void Conflict(IEvent @event);

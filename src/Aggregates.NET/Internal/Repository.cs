@@ -136,7 +136,12 @@ namespace Aggregates.Internal
                         await _eventstore.WriteEvents<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents, tracked.Uncommitted, commitHeaders, tracked.Version - 1).ConfigureAwait(false);
 
                         if (tracked.Dirty && state.ShouldSnapshot())
-                            await _snapstore.WriteSnapshots<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents, tracked.Version, state, commitHeaders).ConfigureAwait(false);
+                        {
+                            var snapshot = state;
+                            snapshot = (tracked as IEntity<TState>).SnapshotTaken(snapshot);
+                            await _snapstore.WriteSnapshots<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents, tracked.Version,
+                                    snapshot, commitHeaders).ConfigureAwait(false);
+                        }
                     }
                     catch (VersionException e)
                     {

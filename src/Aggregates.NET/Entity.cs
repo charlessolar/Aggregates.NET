@@ -54,8 +54,26 @@ namespace Aggregates
             Instantiate(state);
         }
 
+        TState IEntity<TState>.SnapshotTaken(TState state)
+        {
+            return SnapshotTaken(state);
+        }
+        /// <summary>
+        /// Allows the entity to perform any kind of initialization they may need to do (rare)
+        /// </summary>
+        /// <param name="state"></param>
         protected virtual void Instantiate(TState state)
         {
+        }
+
+        /// <summary>
+        /// Allows the entity to inject things into a serialized state object before its saved
+        /// </summary>
+        /// <param name="state"></param>
+        /// <returns></returns>
+        protected virtual TState SnapshotTaken(TState state)
+        {
+            return state;
         }
 
 
