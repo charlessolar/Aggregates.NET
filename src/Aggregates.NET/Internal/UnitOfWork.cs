@@ -124,14 +124,14 @@ namespace Aggregates.Internal
 
             return (IPocoRepository<TParent, T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<TParent, T>(parent, this));
         }
-        public Task<TResponse> Query<TQuery, TResponse>(TQuery query, IUnitOfWork uow) where TQuery : IQuery<TResponse>
+        public Task<TResponse> Query<TQuery, TResponse>(TQuery query, IContainer container) where TQuery : IQuery<TResponse>
         {
-            return _processor.Process<TQuery, TResponse>(query, uow);
+            return _processor.Process<TQuery, TResponse>(query, container);
         }
-        public Task<TResponse> Query<TQuery, TResponse>(Action<TQuery> query, IUnitOfWork uow) where TQuery : IQuery<TResponse>
+        public Task<TResponse> Query<TQuery, TResponse>(Action<TQuery> query, IContainer container) where TQuery : IQuery<TResponse>
         {
             var result = _eventFactory.Create(query);
-            return Query<TQuery, TResponse>(result, uow);
+            return Query<TQuery, TResponse>(result, container);
         }
 
 

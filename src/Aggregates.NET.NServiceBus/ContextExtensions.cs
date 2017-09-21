@@ -24,12 +24,12 @@ namespace Aggregates
         public static Task<TResponse> Query<TQuery, TResponse>(this IMessageHandlerContext context, TQuery query) where TQuery : IQuery<TResponse>
         {
             var container = context.Extensions.Get<IContainer>();
-            return container.Resolve<IDomainUnitOfWork>().Query<TQuery, TResponse>(query, container.Resolve<IUnitOfWork>());
+            return container.Resolve<IDomainUnitOfWork>().Query<TQuery, TResponse>(query, container);
         }
         public static Task<TResponse> Query<TQuery, TResponse>(this IMessageHandlerContext context, Action<TQuery> query) where TQuery : IQuery<TResponse>
         {
             var container = context.Extensions.Get<IContainer>();
-            return container.Resolve<IDomainUnitOfWork>().Query<TQuery, TResponse>(query, container.Resolve<IUnitOfWork>());
+            return container.Resolve<IDomainUnitOfWork>().Query<TQuery, TResponse>(query, container);
         }
 
         public static TUnitOfWork App<TUnitOfWork>(this IMessageHandlerContext context) where TUnitOfWork : class, IUnitOfWork

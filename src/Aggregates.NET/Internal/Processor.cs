@@ -15,14 +15,14 @@ namespace Aggregates.Internal
         static readonly ConcurrentDictionary<Type, object> Processors = new ConcurrentDictionary<Type, object>();
 
         [DebuggerStepThrough]
-        public Task<TResponse> Process<TQuery, TResponse>(TQuery query, IUnitOfWork uow) where TQuery : IQuery<TResponse>
+        public Task<TResponse> Process<TQuery, TResponse>(TQuery query, IContainer container) where TQuery : IQuery<TResponse>
         {
             var handlerType = typeof(IHandleQueries<,>).MakeGenericType(typeof(TQuery), typeof(TResponse));
 
-            var handlerFunc = (Func<object, TQuery, IUnitOfWork, Task<TResponse>>)Processors.GetOrAdd(handlerType, t => ReflectionExtensions.MakeQueryHandler<TQuery, TResponse>(handlerType));
-            var handler = Configuration.Settings.Container.Resolve(handlerType);
+            var handlerFunc = (Func<object, TQuery, IDomainUnitOfWork, Task<TResponse>>)Processors.GetOrAdd(handlerType, t => ReflectionExtensions.MakeQueryHandler<TQuery, TResponse>(handlerType));
+            var handler = container.Resolve(handlerType);
 
-            return handlerFunc(handler, query, uow);
+            return handlerFunc(handler, query, container.Resolve<IDomainUnitOfWork>());
         }
     }
 }
