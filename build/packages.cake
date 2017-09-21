@@ -99,6 +99,22 @@ public class BuildPackages
 				},
 				BasePath = artifactsBinDir.Combine("Aggregates.NET.StructureMap"),
 				OutputDirectory = nugetRootPath
+			},
+			new NuGetPackSettings()
+			{
+				Id = "Aggregates.NET.SimpleInjector",
+				Dependencies = new []
+				{
+					new NuSpecDependency() { Id = "SimpleInjector", Version = "[4.0.11,5)" },
+					new NuSpecDependency() { Id = "Aggregates.NET", Version = "[0.11,0.12)" }
+				},
+				Files = new []
+				{
+					new NuSpecContent { Source = "Aggregates.NET.SimpleInjector.dll", Target = "lib/net46" },
+					new NuSpecContent { Source = "Aggregates.NET.SimpleInjector.pdb", Target = "lib/net46" },
+				},
+				BasePath = artifactsBinDir.Combine("Aggregates.NET.SimpleInjector"),
+				OutputDirectory = nugetRootPath
 			}
 
 

@@ -13,3 +13,4 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Aggregates.NET.NServiceBus")]
 [assembly: InternalsVisibleTo("Aggregates.NET.NewtonsoftJson")]
 [assembly: InternalsVisibleTo("Aggregates.NET.StructureMap")]
+[assembly: InternalsVisibleTo("Aggregates.NET.SimpleInjector")]
