@@ -14,7 +14,7 @@ namespace Aggregates
 {
     public static class Bus
     {
-        internal static IEndpointInstance Instance;
+        public static IEndpointInstance Instance;
         internal static Func<MessageContext, Task> OnMessage;
         internal static Func<ErrorContext, Task<ErrorHandleResult>> OnError;
         internal static PushRuntimeSettings PushSettings;

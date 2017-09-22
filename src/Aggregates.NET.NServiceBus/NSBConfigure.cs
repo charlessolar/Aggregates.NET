@@ -57,8 +57,7 @@ namespace Aggregates
                 // NSB doesn't have an endpoint name setter other than the constructor, hack it in
                 settings.Set("NServiceBus.Routing.EndpointName", c.Endpoint);
 
-                var endpoint = await Aggregates.Bus.Start(endpointConfig);
-                Configuration.Settings.Container.RegisterSingleton(endpoint);
+                await Aggregates.Bus.Start(endpointConfig);
             });
 
             return config;

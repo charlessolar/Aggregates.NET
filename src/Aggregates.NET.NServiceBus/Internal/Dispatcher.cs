@@ -18,17 +18,15 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogProvider.GetLogger("Dispatcher");
         private readonly IMetrics _metrics;
         private readonly IMessageSerializer _serializer;
-        private readonly IMessageSession _bus;
         private readonly IEventMapper _mapper;
         
         // A fake message that will travel through the pipeline in order to process events from the context bag
         private static readonly byte[] Marker = new byte[] { 0x7b, 0x7d };
 
-        public Dispatcher(IMetrics metrics, IMessageSerializer serializer, IMessageSession bus, IEventMapper mapper)
+        public Dispatcher(IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper)
         {
             _metrics = metrics;
             _serializer = serializer;
-            _bus = bus;
             _mapper = mapper;
         }
 
@@ -44,7 +42,7 @@ namespace Aggregates.Internal
                     options.SetHeader(header.Key, header.Value);
 
             _metrics.Mark("Dispatched Messages", Unit.Message);
-            return _bus.Send(message.Message, options);
+            return Bus.Instance.Send(message.Message, options);
         }
 
         public async Task SendLocal(IFullMessage message, IDictionary<string, string> headers = null)

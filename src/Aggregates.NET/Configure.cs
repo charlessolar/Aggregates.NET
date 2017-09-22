@@ -102,15 +102,15 @@ namespace Aggregates
 
                 container.Register<IRepositoryFactory, RepositoryFactory>();
                 container.Register<IProcessor, Processor>();
-                container.Register<IMetrics, NullMetrics>();
                 container.Register<IDelayedChannel, DelayedChannel>();
                 container.Register<IDomainUnitOfWork, UnitOfWork>();
                 container.Register<IStoreSnapshots>((factory) => new StoreSnapshots(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<ISnapshotReader>(), c.Generator));
                 container.Register<IStorePocos>((factory) => new StorePocos(factory.Resolve<IStoreEvents>(), factory.Resolve<ICache>(), factory.Resolve<IMessageSerializer>(), true, c.Generator));
+                container.Register<ISnapshotReader, SnapshotReader>();
+                container.Register<ICache, IntelligentCache>();
 
+                container.RegisterSingleton<IMetrics, NullMetrics>();
                 container.RegisterSingleton<IDelayedCache>((factory) => new DelayedCache(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), c.FlushInterval, c.Endpoint, c.MaxDelayed, c.FlushSize, c.DelayedExpiration, c.Generator));
-                container.RegisterSingleton<ICache, IntelligentCache>();
-                container.RegisterSingleton<ISnapshotReader, SnapshotReader>();
 
                 container.RegisterSingleton<IEventSubscriber>((factory) => new EventSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IMessaging>(), factory.Resolve<IEventStoreConsumer>(), c.ParallelEvents), "eventsubscriber");
                 container.RegisterSingleton<IEventSubscriber>((factory) => new DelayedSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IMessageDispatcher>(), c.Retries), "delayedsubscriber");
