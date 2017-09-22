@@ -16,9 +16,9 @@ namespace Aggregates.Internal
         private static readonly ILog SlowLogger = LogProvider.GetLogger("Slow Alarm");
         private static readonly HashSet<string> SlowCommandTypes = new HashSet<string>();
         private static readonly object SlowLock = new object();
-        private readonly int _slowAlert;
+        private readonly TimeSpan _slowAlert;
 
-        public TimeExecutionBehavior(int slowAlertThreshold)
+        public TimeExecutionBehavior(TimeSpan slowAlertThreshold)
         {
             _slowAlert = slowAlertThreshold;
         }
@@ -51,7 +51,7 @@ namespace Aggregates.Internal
                 var end = Stopwatch.GetTimestamp();
                 var elapsed = (end - start) * (1.0 / Stopwatch.Frequency) * 1000;
 
-                if (elapsed > _slowAlert)
+                if (elapsed > _slowAlert.TotalSeconds)
                 {
                     SlowLogger.Write(LogLevel.Warn,
                         () => $" - SLOW ALERT - Processing message {context.MessageId} {messageTypeIdentifier} took {elapsed} ms\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}");

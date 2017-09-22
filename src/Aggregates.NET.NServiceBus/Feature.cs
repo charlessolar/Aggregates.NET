@@ -38,13 +38,13 @@ namespace Aggregates
 
 
             context.Pipeline.Register(
-                b => new ExceptionRejector(b.Build<IMetrics>(), settings.Get<int>("Retries")),
+                b => new ExceptionRejector(b.Build<IMetrics>(), Configuration.Settings.Retries),
                 "Watches message faults, sends error replies to client when message moves to error queue"
                 );
 
             if (Configuration.Settings.SlowAlertThreshold.HasValue)
                 context.Pipeline.Register(
-                    behavior: new TimeExecutionBehavior(settings.Get<int>("SlowAlertThreshold")),
+                    behavior: new TimeExecutionBehavior(Configuration.Settings.SlowAlertThreshold.Value),
                     description: "times the execution of messages and reports anytime they are slow"
                     );
 

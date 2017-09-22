@@ -32,6 +32,7 @@ namespace Aggregates
             endpointConfig.MakeInstanceUniquelyAddressable(config.UniqueAddress);
 
             settings.Set("Retries", config.Retries);
+            settings.Set("SlowAlertThreshold", config.SlowAlertThreshold);
 
             // Set immediate retries to our "MaxRetries" setting
             endpointConfig.Recoverability().Immediate(x =>
