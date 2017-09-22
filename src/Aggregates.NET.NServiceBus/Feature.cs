@@ -99,10 +99,6 @@ namespace Aggregates
         }
         protected override async Task OnStart(IMessageSession session)
         {
-            // Weird place for a registration but NSB doesn't make getting IMessageSession easy.
-            // its never registered in their container so we have to register it ourselves
-            // and since this method is run before Bus.Start is done we can't register IMessageSession later
-            Configuration.Settings.Container.RegisterSingleton(session);
 
             Logger.Write(LogLevel.Info, "Starting endpoint");
 
