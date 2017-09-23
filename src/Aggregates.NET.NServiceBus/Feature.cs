@@ -109,8 +109,7 @@ namespace Aggregates
                 x.Instance = Defaults.Instance;
             }).ConfigureAwait(false);
 
-            foreach (var task in _startupTasks)
-                await task(_config);
+            await _startupTasks.WhenAllAsync(x => x(_config)).ConfigureAwait(false);
         }
         protected override async Task OnStop(IMessageSession session)
         {
@@ -121,8 +120,7 @@ namespace Aggregates
                 x.Instance = Defaults.Instance;
             }).ConfigureAwait(false);
 
-            foreach (var task in _shutdownTasks)
-                await task(_config);
+            await _shutdownTasks.WhenAllAsync(x => x(_config)).ConfigureAwait(false);
         }
     }
 }

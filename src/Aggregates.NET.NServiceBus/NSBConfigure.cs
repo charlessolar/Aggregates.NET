@@ -51,13 +51,13 @@ namespace Aggregates
 
             endpointConfig.EnableFeature<Feature>();
 
-            config.SetupTasks.Add(async (c) =>
+            config.SetupTasks.Add((c) =>
             {
                 endpointConfig.LimitMessageProcessingConcurrencyTo(c.ParallelMessages);
                 // NSB doesn't have an endpoint name setter other than the constructor, hack it in
                 settings.Set("NServiceBus.Routing.EndpointName", c.Endpoint);
 
-                await Aggregates.Bus.Start(endpointConfig);
+                return Aggregates.Bus.Start(endpointConfig);
             });
 
             return config;

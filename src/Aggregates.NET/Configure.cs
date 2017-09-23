@@ -27,8 +27,7 @@ namespace Aggregates
 
             try
             {
-                foreach (var task in config.SetupTasks)
-                    await task(config);
+                await config.SetupTasks.WhenAllAsync(x => x(config)).ConfigureAwait(false);
             }
             catch
             {
