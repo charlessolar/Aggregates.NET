@@ -27,6 +27,7 @@ namespace Aggregates
 
             endpointConfig.AssemblyScanner().ScanAppDomainAssemblies = true;
             endpointConfig.EnableCallbacks();
+            endpointConfig.EnableInstallers();
 
             // Todo: have a final .Build() method which does all this stuff so EndpointName is not dependent on ordering
             endpointConfig.MakeInstanceUniquelyAddressable(config.UniqueAddress);
