@@ -4,11 +4,15 @@ using System.Linq;
 using Aggregates.Contracts;
 using Aggregates.Internal;
 using Aggregates.Messages;
+using Aggregates.Logging;
+using Aggregates.Exceptions;
 
 namespace Aggregates
 {
     public abstract class State<TThis> : IState where TThis : State<TThis>
     {
+        private static readonly ILog Logger = LogProvider.GetLogger(typeof(TThis).Name);
+
         private IMutateState Mutator => StateMutators.For(typeof(TThis));
 
         public Id Id => (this as IState).Id;
@@ -38,8 +42,15 @@ namespace Aggregates
 
         void IState.Apply(IEvent @event)
         {
-            Mutator.Handle(this, @event);
-            (this as IState).Version++;
+            try
+            {
+                Mutator.Handle(this, @event);
+                (this as IState).Version++;
+            }
+            catch (NoRouteException)
+            {
+                Logger.Debug($"{typeof(TThis).Name} missing handler for event {@event.GetType().Name}");
+            }
         }
     }
 }

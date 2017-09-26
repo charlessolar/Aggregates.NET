@@ -121,14 +121,7 @@ namespace Aggregates
 
         void IEntity<TState>.Apply(IEvent @event)
         {
-            try
-            {
-                State.Apply(@event);
-            }
-            catch (NoRouteException)
-            {
-                Logger.Info($"{typeof(TThis).Name} missing state handler for event {@event.GetType().Name}");
-            }
+            State.Apply(@event);
             _uncommitted.Add(new FullEvent
             {
                 Descriptor = new EventDescriptor
