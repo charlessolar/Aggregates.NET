@@ -12,7 +12,7 @@ namespace Aggregates
     {
         public static Configure NewtonsoftJson(this Configure config)
         {
-            config.SetupTasks.Add((c) =>
+            config.RegistrationTasks.Add((c) =>
             {
                 var container = c.Container;
                                 

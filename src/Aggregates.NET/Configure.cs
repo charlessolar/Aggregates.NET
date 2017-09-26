@@ -27,6 +27,7 @@ namespace Aggregates
 
             try
             {
+                await config.RegistrationTasks.WhenAllAsync(x => x(config)).ConfigureAwait(false);
                 await config.SetupTasks.WhenAllAsync(x => x(config)).ConfigureAwait(false);
             }
             catch
@@ -64,6 +65,7 @@ namespace Aggregates
         public TimeSpan DelayedExpiration { get; private set; }
         public int MaxDelayed { get; private set; }
 
+        internal List<Func<Configure, Task>> RegistrationTasks;
         internal List<Func<Configure, Task>> SetupTasks;
         internal List<Func<Configure, Task>> StartupTasks;
         internal List<Func<Configure, Task>> ShutdownTasks;
@@ -76,6 +78,7 @@ namespace Aggregates
 
         public Configure()
         {
+            RegistrationTasks = new List<Func<Configure, Task>>();
             SetupTasks = new List<Func<Configure, Task>>();
             StartupTasks = new List<Func<Configure, Task>>();
             ShutdownTasks = new List<Func<Configure, Task>>();
@@ -95,7 +98,7 @@ namespace Aggregates
             DelayedExpiration = TimeSpan.FromMinutes(5);
             MaxDelayed = 5000;
 
-            SetupTasks.Add((c) =>
+            RegistrationTasks.Add((c) =>
             {
                 var container = c.Container;
 
