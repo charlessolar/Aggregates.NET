@@ -193,24 +193,6 @@ namespace Aggregates
                 return Task.CompletedTask;
             });
 
-            StartupTasks.Add(async (c) =>
-            {
-                var subscribers = c.Container.ResolveAll<IEventSubscriber>();
-
-                await subscribers.WhenAllAsync(x => x.Setup(
-                    c.Endpoint,
-                    Assembly.GetEntryAssembly().GetName().Version)
-                ).ConfigureAwait(false);
-
-                await subscribers.WhenAllAsync(x => x.Connect()).ConfigureAwait(false);
-
-            });
-            ShutdownTasks.Add(async (c) =>
-            {
-                var subscribers = c.Container.ResolveAll<IEventSubscriber>();
-
-                await subscribers.WhenAllAsync(x => x.Shutdown()).ConfigureAwait(false);
-            });
         }
         public Configure SetEndpointName(string endpoint)
         {
