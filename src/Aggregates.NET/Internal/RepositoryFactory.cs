@@ -34,9 +34,9 @@ namespace Aggregates.Internal
 
             return factory(_metrics, _eventstore, _snapstore, _factory, uow);
         }
-        public IRepository<TParent, TEntity> ForEntity<TParent, TEntity>(TParent parent, IDomainUnitOfWork uow) where TEntity : IChildEntity<TParent> where TParent : IEntity
+        public IRepository<TEntity, TParent> ForEntity<TEntity, TParent>(TParent parent, IDomainUnitOfWork uow) where TEntity : IChildEntity<TParent> where TParent : IEntity
         {
-            var factory = Factories.GetOrAdd(typeof(TEntity), t => ReflectionExtensions.BuildParentRepositoryFunc<TParent, TEntity>()) as Func<TParent, IMetrics, IStoreEvents, IStoreSnapshots, IEventFactory, IDomainUnitOfWork, IRepository<TParent, TEntity>>;
+            var factory = Factories.GetOrAdd(typeof(TEntity), t => ReflectionExtensions.BuildParentRepositoryFunc<TEntity, TParent>()) as Func<TParent, IMetrics, IStoreEvents, IStoreSnapshots, IEventFactory, IDomainUnitOfWork, IRepository<TEntity, TParent>>;
             if (factory == null)
                 throw new InvalidOperationException("unknown entity repository");
 
@@ -51,9 +51,9 @@ namespace Aggregates.Internal
 
             return factory(_metrics, _eventstore, _snapstore, uow);
         }
-        public IPocoRepository<TParent, T> ForPoco<TParent, T>(TParent parent, IDomainUnitOfWork uow) where T : class, new() where TParent : IEntity
+        public IPocoRepository<T, TParent> ForPoco<T, TParent>(TParent parent, IDomainUnitOfWork uow) where T : class, new() where TParent : IEntity
         {
-            var factory = Factories.GetOrAdd(typeof(T), t => ReflectionExtensions.BuildParentPocoRepositoryFunc<TParent, T>()) as Func<TParent, IMetrics, IStoreEvents, IStoreSnapshots, IDomainUnitOfWork, IPocoRepository<TParent, T>>;
+            var factory = Factories.GetOrAdd(typeof(T), t => ReflectionExtensions.BuildParentPocoRepositoryFunc<T, TParent>()) as Func<TParent, IMetrics, IStoreEvents, IStoreSnapshots, IDomainUnitOfWork, IPocoRepository<T, TParent>>;
             if (factory == null)
                 throw new InvalidOperationException("unknown entity repository");
 

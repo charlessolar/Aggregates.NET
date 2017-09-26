@@ -15,7 +15,7 @@ using AggregateException = System.AggregateException;
 
 namespace Aggregates.Internal
 {
-    class Repository<TParent, TEntity, TState> : Repository<TEntity, TState>, IRepository<TParent, TEntity> where TParent : IEntity where TEntity : Entity<TEntity, TParent, TState> where TState : IState, new()
+    class Repository<TEntity, TState, TParent> : Repository<TEntity, TState>, IRepository<TEntity, TParent> where TParent : IEntity where TEntity : Entity<TEntity, TState, TParent> where TState : IState, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Repository");
 

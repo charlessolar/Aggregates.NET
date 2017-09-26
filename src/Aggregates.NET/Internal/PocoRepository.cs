@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    class PocoRepository<TParent, T> : PocoRepository<T>, IPocoRepository<TParent, T> where TParent : IEntity where T : class, new()
+    class PocoRepository<T, TParent> : PocoRepository<T>, IPocoRepository<T, TParent> where TParent : IEntity where T : class, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger("PocoRepository");
 

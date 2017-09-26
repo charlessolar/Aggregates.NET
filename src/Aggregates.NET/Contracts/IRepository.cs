@@ -34,7 +34,7 @@ namespace Aggregates.Contracts
         Task<T> New(Id id);
         Task<T> New(string bucketId, Id id);
     }
-    public interface IRepository<TParent, T> : IRepository where TParent : IEntity where T : IChildEntity<TParent>
+    public interface IRepository<T, TParent> : IRepository where TParent : IEntity where T : IChildEntity<TParent>
     {
         /// <summary>
         /// Attempts to get aggregate from store, if stream does not exist it throws

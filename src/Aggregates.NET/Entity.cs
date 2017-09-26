@@ -12,7 +12,7 @@ using Aggregates.Messages;
 
 namespace Aggregates
 {
-    public abstract class Entity<TThis, TParent, TState> : Entity<TThis, TState>, IChildEntity<TParent> where TParent : IEntity where TThis : Entity<TThis, TParent, TState> where TState : IState, new()
+    public abstract class Entity<TThis, TState, TParent> : Entity<TThis, TState>, IChildEntity<TParent> where TParent : IEntity where TThis : Entity<TThis, TState, TParent> where TState : IState, new()
     {
         TParent IChildEntity<TParent>.Parent => Parent;
 
@@ -77,13 +77,13 @@ namespace Aggregates
         }
 
 
-        public IRepository<TThis, TEntity> For<TEntity>() where TEntity : IChildEntity<TThis>
+        public IRepository<TEntity, TThis> For<TEntity>() where TEntity : IChildEntity<TThis>
         {
-            return Uow.For<TThis, TEntity>(this as TThis);
+            return Uow.For<TEntity, TThis>(this as TThis);
         }
-        public IPocoRepository<TThis, T> Poco<T>() where T : class, new()
+        public IPocoRepository<T, TThis> Poco<T>() where T : class, new()
         {
-            return Uow.Poco<TThis, T>(this as TThis);
+            return Uow.Poco<T, TThis>(this as TThis);
         }
         public Task<long> GetSize(string oob = null)
         {
