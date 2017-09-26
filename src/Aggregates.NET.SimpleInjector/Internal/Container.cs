@@ -19,6 +19,9 @@ namespace Aggregates.Internal
             _container = container;
             _child = child;
             _namedCollections = new Dictionary<Type, List<SimpleInjector.Registration>>();
+
+            // No support for child containers, but the scoped lifestyle can kind of due to trick
+            AsyncScopedLifestyle.BeginScope(_container);
         }
 
         public void Dispose()
@@ -141,8 +144,6 @@ namespace Aggregates.Internal
 
         public IContainer GetChildContainer()
         {
-            // No support for child containers, but the scoped lifestyle can kind of due to trick
-            AsyncScopedLifestyle.BeginScope(_container);
             return new Container(_container, child: true);
         }
     }

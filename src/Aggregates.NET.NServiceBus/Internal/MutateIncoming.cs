@@ -31,9 +31,9 @@ namespace Aggregates.Internal
             if (!mutators.Any()) return next();
 
             IContainer container;
-            // If theres a current container in the pipeline, use that
+            // If theres a current container in the pipeline, dont need to mutate
             if (!context.Extensions.TryGet<IContainer>(out container))
-                container = Configuration.Settings.Container;
+                return next();
 
             foreach (var type in mutators)
             {

@@ -27,10 +27,10 @@ namespace Aggregates
             var settings = context.Settings;
             var container = Configuration.Settings.Container;
 
-            container.Register<IDomainUnitOfWork, NSBUnitOfWork>();
+            //container.Register<IDomainUnitOfWork, NSBUnitOfWork>();
             MutationManager.RegisterMutator("domain unit of work", typeof(IDomainUnitOfWork));
 
-            //context.Container.ConfigureComponent<NSBUnitOfWork>(DependencyLifecycle.InstancePerUnitOfWork);
+            context.Container.ConfigureComponent<IDomainUnitOfWork>((c) => new NSBUnitOfWork(c.Build<IRepositoryFactory>(), c.Build<IEventFactory>(), c.Build<IProcessor>()), DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<IEventFactory>((c) => new EventFactory(c.Build<IMessageCreator>()), DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<IMessageDispatcher>((c) => new Dispatcher(c.Build<IMetrics>(), c.Build<IMessageSerializer>(), c.Build<IEventMapper>()), DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<IMessaging>((c) => new NServiceBusMessaging(c.Build<MessageHandlerRegistry>(), c.Build<MessageMetadataRegistry>()), DependencyLifecycle.InstancePerCall);

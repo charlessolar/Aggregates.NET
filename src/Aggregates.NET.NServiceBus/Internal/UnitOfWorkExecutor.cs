@@ -36,6 +36,10 @@ namespace Aggregates.Internal
 
             var container = Configuration.Settings.Container;
 
+
+            // Child container with resolved domain and app uow used by downstream
+            var child = container.GetChildContainer();
+
             var domainUOW = container.Resolve<IDomainUnitOfWork>();
             var delayed = container.Resolve<IDelayedChannel>();
             IUnitOfWork appUOW = null;
@@ -45,9 +49,8 @@ namespace Aggregates.Internal
                 appUOW = container.Resolve<IUnitOfWork>();
             }
             catch { }
-
-            // Child container with resolved domain and app uow used by downstream
-            var child = container.GetChildContainer();
+            
+            // Some containers need this
             child.RegisterSingleton(domainUOW);
             if(appUOW != null)
                 child.RegisterSingleton(appUOW);
