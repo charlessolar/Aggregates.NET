@@ -143,7 +143,7 @@ namespace Aggregates.Internal
         {
             // No support for child containers, but the scoped lifestyle can kind of due to trick
             AsyncScopedLifestyle.BeginScope(_container);
-            return new Container(_container);
+            return new Container(_container, child: true);
         }
     }
 }
