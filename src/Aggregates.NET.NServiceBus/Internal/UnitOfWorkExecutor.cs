@@ -49,12 +49,6 @@ namespace Aggregates.Internal
                 appUOW = child.Resolve<IUnitOfWork>();
             }
             catch { }
-            
-            // Some containers need this
-            //child.RegisterSingleton(domainUOW);
-            //if(appUOW != null)
-            //    child.RegisterSingleton(appUOW);
-            //child.RegisterSingleton(delayed);
 
             context.Extensions.Set(child);
 

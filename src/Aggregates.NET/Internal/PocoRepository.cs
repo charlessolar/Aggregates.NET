@@ -65,7 +65,7 @@ namespace Aggregates.Internal
 
         public int ChangedStreams =>
                 // Compares the stored serialized poco against the current to determine how many changed
-                Tracked.Values.Count(x => x.Item1 == -1 || _serializer.Serialize(x.Item2).AsString() != x.Item3);
+                Tracked.Values.Count(x => x.Item1 == EntityFactory.NewEntityVersion || _serializer.Serialize(x.Item2).AsString() != x.Item3);
 
         public PocoRepository(IMetrics metrics, IStorePocos store, IMessageSerializer serializer, IDomainUnitOfWork uow)
         {
@@ -90,7 +90,7 @@ namespace Aggregates.Internal
                     
                     var serialized = _serializer.Serialize(tracked.Value.Item2).AsString();
                     // Poco didnt change, no need to save
-                    if (tracked.Value.Item1 != -1 && serialized == tracked.Value.Item3)
+                    if (tracked.Value.Item1 != EntityFactory.NewEntityVersion && serialized == tracked.Value.Item3)
                         return;
 
                     try
@@ -185,7 +185,7 @@ namespace Aggregates.Internal
 
             var poco = new T();
 
-            Tracked[cacheId] = new Tuple<long, T, string>(-1, poco, _serializer.Serialize(poco).AsString());
+            Tracked[cacheId] = new Tuple<long, T, string>(EntityFactory.NewEntityVersion, poco, _serializer.Serialize(poco).AsString());
 
             return Task.FromResult(poco);
         }
