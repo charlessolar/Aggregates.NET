@@ -12,7 +12,7 @@ using Aggregates.Messages;
 
 namespace Aggregates.Internal
 {
-    class UnitOfWork : IDomainUnitOfWork
+    class UnitOfWork : IDomainUnitOfWork, IDisposable
     {
         private static readonly ConcurrentDictionary<Guid, Guid> EventIds = new ConcurrentDictionary<Guid, Guid>();
 
@@ -183,7 +183,7 @@ namespace Aggregates.Internal
                 await allRepos.WhenAllAsync(x => x.Prepare(CommitId)).ConfigureAwait(false);
             }
 
-            Logger.Write(LogLevel.Debug, () => $"Starting commit id {CommitId} with {_repositories.Count + _pocoRepositories.Count} tracked repositories");
+            Logger.Write(LogLevel.Debug, () => $"Starting commit id {CommitId} with {allRepos.Length} tracked repositories");
 
             try
             {

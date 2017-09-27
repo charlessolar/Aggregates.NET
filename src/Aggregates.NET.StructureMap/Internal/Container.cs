@@ -14,6 +14,10 @@ namespace Aggregates.Internal
             _container = container;
         }
 
+        public void Dispose()
+        {
+            _container.Dispose();
+        }
 
         public void RegisterSingleton<TInterface>(TInterface instance, string name = null) where TInterface : class
         {

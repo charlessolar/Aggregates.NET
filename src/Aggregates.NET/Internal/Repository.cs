@@ -127,15 +127,16 @@ namespace Aggregates.Internal
 
             await Tracked.Values
                 .ToArray()
+                .Where(x => x.Dirty)
                 .WhenAllAsync(async (tracked) =>
                 {
                     var state = tracked.State;
 
                     try
                     {
-                        await _eventstore.WriteEvents<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents, tracked.Uncommitted, commitHeaders, tracked.Version - 1).ConfigureAwait(false);
+                        await _eventstore.WriteEvents<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents, tracked.Uncommitted, commitHeaders, tracked.Version).ConfigureAwait(false);
 
-                        if (tracked.Dirty && state.ShouldSnapshot())
+                        if (state.ShouldSnapshot())
                         {
                             var snapshot = state;
                             snapshot = (tracked as IEntity<TState>).SnapshotTaken(snapshot);
@@ -150,7 +151,7 @@ namespace Aggregates.Internal
 
                         _metrics.Mark("Conflicts", Unit.Items);
                         // If we expected no stream, no reason to try to resolve the conflict
-                        if (tracked.Version == 0)
+                        if (tracked.Version == EntityFactory.NewEntityVersion)
                         {
                             Logger.Warn(
                                 $"New stream [{tracked.Id}] entity {tracked.GetType().FullName} already exists in store");

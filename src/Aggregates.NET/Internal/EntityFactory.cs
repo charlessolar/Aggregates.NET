@@ -10,6 +10,7 @@ namespace Aggregates.Internal
 {
     static class EntityFactory
     {
+        public static readonly long NewEntityVersion = -1;
         private static readonly ConcurrentDictionary<Type, object> Factories = new ConcurrentDictionary<Type, object>();
 
         public static IEntityFactory<TEntity> For<TEntity>() where TEntity : IEntity
@@ -31,7 +32,8 @@ namespace Aggregates.Internal
 
     class EntityFactory<TEntity, TState> : IEntityFactory<TEntity> where TEntity : Entity<TEntity, TState> where TState : IState, new()
     {
-        readonly Func<TEntity> _factory;
+
+        private readonly Func<TEntity> _factory;
 
         public EntityFactory()
         {
@@ -45,17 +47,18 @@ namespace Aggregates.Internal
                 throw new ArgumentException(
                     $"Snapshot type {snapshot.GetType().Name} doesn't match {typeof(TState).Name}");
 
-            var state = snapshot ?? new TState();
+            var state = snapshot ?? new TState { Version = EntityFactory.NewEntityVersion };
             state.Id = id;
             state.Bucket = bucket;
 
             state.Parents = parents;
-            state.Version = state.Version;
             state.Snapshot = (TState)snapshot;
 
-            if (events != null)
+            if (events != null && events.Length > 0)
+            {
                 for (var i = 0; i < events.Length; i++)
                     state.Apply(events[i].Event as IEvent);
+            }
 
             var entity = _factory();
             (entity as IEntity<TState>).Instantiate((TState) state);

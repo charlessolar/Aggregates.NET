@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Aggregates.Contracts
 {
-    public interface IContainer
+    public interface IContainer : IDisposable
     {
         void RegisterSingleton<TInterface, TConcrete>(string name = null) where TInterface : class where TConcrete : class, TInterface;
         void RegisterSingleton<TInterface>(TInterface instance, string name = null) where TInterface : class;

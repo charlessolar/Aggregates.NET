@@ -40,21 +40,21 @@ namespace Aggregates.Internal
             // Child container with resolved domain and app uow used by downstream
             var child = container.GetChildContainer();
 
-            var domainUOW = container.Resolve<IDomainUnitOfWork>();
-            var delayed = container.Resolve<IDelayedChannel>();
+            var domainUOW = child.Resolve<IDomainUnitOfWork>();
+            var delayed = child.Resolve<IDelayedChannel>();
             IUnitOfWork appUOW = null;
             try
             {
                 // IUnitOfWork might not be defined by user
-                appUOW = container.Resolve<IUnitOfWork>();
+                appUOW = child.Resolve<IUnitOfWork>();
             }
             catch { }
             
             // Some containers need this
-            child.RegisterSingleton(domainUOW);
-            if(appUOW != null)
-                child.RegisterSingleton(appUOW);
-            child.RegisterSingleton(delayed);
+            //child.RegisterSingleton(domainUOW);
+            //if(appUOW != null)
+            //    child.RegisterSingleton(appUOW);
+            //child.RegisterSingleton(delayed);
 
             context.Extensions.Set(child);
 
@@ -159,6 +159,7 @@ namespace Aggregates.Internal
             }
             finally
             {
+                child.Dispose();
                 _metrics.Decrement("Messages Concurrent", Unit.Message);
             }
         }
