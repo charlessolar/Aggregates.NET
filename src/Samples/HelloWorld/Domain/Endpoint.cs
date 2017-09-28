@@ -135,7 +135,7 @@ namespace Domain
                     .NServiceBus(config)
                     );
 
-            return _container.GetInstance<IEndpointInstance>();
+            return Aggregates.Bus.Instance;
         }
 
         public static async Task<IEventStoreConnection> ConfigureStore()
