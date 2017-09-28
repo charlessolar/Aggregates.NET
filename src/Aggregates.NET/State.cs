@@ -45,12 +45,13 @@ namespace Aggregates
             try
             {
                 Mutator.Handle(this, @event);
-                (this as IState).Version++;
             }
             catch (NoRouteException)
             {
                 Logger.Debug($"{typeof(TThis).Name} missing handler for event {@event.GetType().Name}");
             }
+
+            (this as IState).Version++;
         }
     }
 }

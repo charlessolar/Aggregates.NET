@@ -12,6 +12,7 @@ namespace Aggregates.UnitTests.Common
     public class State
     {
         class Test : IEvent { }
+        class TestAgain : IEvent { }
 
         class FakeState : Aggregates.State<FakeState>
         {
@@ -43,6 +44,7 @@ namespace Aggregates.UnitTests.Common
             _mapper = new Moq.Mock<IEventMapper>();
 
             _mapper.Setup(x => x.GetMappedTypeFor(typeof(Test))).Returns(typeof(Test));
+            _mapper.Setup(x => x.GetMappedTypeFor(typeof(TestAgain))).Returns(typeof(TestAgain));
 
             var fake = new FakeConfiguration();
             fake.FakeContainer.Setup(x => x.Resolve<IEventMapper>()).Returns(_mapper.Object);
@@ -56,6 +58,16 @@ namespace Aggregates.UnitTests.Common
 
             (_state as IState).Apply(new Test());
             Assert.AreEqual(1, _state.Handles);
+
+            Assert.AreEqual(1, _state.Version);
+        }
+        [Test]
+        public void apply_no_route_version_increment()
+        {
+            Assert.AreEqual(0, _state.Version);
+
+            (_state as IState).Apply(new TestAgain());
+            Assert.AreEqual(0, _state.Handles);
 
             Assert.AreEqual(1, _state.Version);
         }

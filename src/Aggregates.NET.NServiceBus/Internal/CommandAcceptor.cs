@@ -71,7 +71,7 @@ namespace Aggregates.Internal
             description: "Filters [BusinessException] from processing failures"
         )
         {
-            InsertAfter("UnitOfWorkExecution");
+            InsertBefore("UnitOfWorkExecution");
         }
     }
 }
