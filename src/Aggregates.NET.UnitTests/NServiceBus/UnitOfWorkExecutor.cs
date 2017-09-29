@@ -48,7 +48,7 @@ namespace Aggregates.UnitTests.NServiceBus
             {
                 [Headers.MessageIntent] = MessageIntentEnum.Send.ToString()
             });
-            _context.Setup(x => x.Message).Returns(new LogicalMessage(new global::NServiceBus.Unicast.Messages.MessageMetadata(typeof(int)), 1));
+            _context.Setup(x => x.Message).Returns(new LogicalMessage(new global::NServiceBus.Unicast.Messages.MessageMetadata(typeof(Messages.ICommand)), 1));
 
             _executor = new Internal.UnitOfWorkExecutor(_metrics.Object);
         }
@@ -169,6 +169,19 @@ namespace Aggregates.UnitTests.NServiceBus
             _domainUow.Verify(x => x.End(Moq.It.IsAny<Exception>()), Moq.Times.Once);
             _uow.Verify(x => x.End(Moq.It.IsAny<Exception>()), Moq.Times.Once);
             _next.Verify(x => x(), Moq.Times.Exactly(3));
+        }
+
+        [Test]
+        public async Task no_uow_for_imessage()
+        {
+            _context.Setup(x => x.Message).Returns(new LogicalMessage(new global::NServiceBus.Unicast.Messages.MessageMetadata(typeof(Messages.IMessage)), 1));
+            await _executor.Invoke(_context.Object, _next.Object);
+
+            _domainUow.Verify(x => x.Begin(), Moq.Times.Never);
+            _uow.Verify(x => x.Begin(), Moq.Times.Never);
+            _domainUow.Verify(x => x.End(Moq.It.IsAny<Exception>()), Moq.Times.Never);
+            _uow.Verify(x => x.End(Moq.It.IsAny<Exception>()), Moq.Times.Never);
+            _next.Verify(x => x(), Moq.Times.Once);
         }
     }
 }
