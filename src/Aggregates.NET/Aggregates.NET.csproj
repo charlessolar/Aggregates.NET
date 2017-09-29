@@ -131,6 +131,9 @@
     <Compile Include="Internal\MutateState.cs" />
     <Compile Include="Internal\Mutating.cs" />
     <Compile Include="Internal\NullMetrics.cs" />
+    <Compile Include="Internal\NullStoreEvents.cs" />
+    <Compile Include="Internal\NullStorePocos.cs" />
+    <Compile Include="Internal\NullStoreSnapshots.cs" />
     <Compile Include="Internal\OobDefinition.cs" />
     <Compile Include="Internal\PocoRepository.cs" />
     <Compile Include="Internal\Processor.cs" />
