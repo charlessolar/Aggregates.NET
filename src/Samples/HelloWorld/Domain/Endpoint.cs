@@ -42,7 +42,7 @@ namespace Domain
 
         private static void Main(string[] args)
         {
-            LogManager.GlobalThreshold = LogLevel.Info;
+            LogManager.GlobalThreshold = LogLevel.Debug;
 
             AppDomain.CurrentDomain.UnhandledException += UnhandledExceptionTrapper;
             AppDomain.CurrentDomain.FirstChanceException += ExceptionTrapper;

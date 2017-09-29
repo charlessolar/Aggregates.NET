@@ -33,6 +33,13 @@ namespace Aggregates.Internal
                 await next().ConfigureAwait(false);
                 return;
             }
+            if(!typeof(Messages.ICommand).IsAssignableFrom(context.Message.MessageType) && !typeof(Messages.IEvent).IsAssignableFrom(context.Message.MessageType))
+            {
+                Logger.Write(LogLevel.Debug, "Message is not an ICommand nor IEvent, skipping UnitOfWork");
+
+                await next().ConfigureAwait(false);
+                return;
+            }
 
             var container = Configuration.Settings.Container;
 
