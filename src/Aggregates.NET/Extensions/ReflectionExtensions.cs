@@ -56,7 +56,7 @@ namespace Aggregates.Extensions
 
             var castTarget = Expression.Convert(handlerParam, queryHandler);
 
-            var body = Expression.Call(castTarget, method, queryParam);
+            var body = Expression.Call(castTarget, method, handlerParam, queryParam, uowParam);
 
             return Expression.Lambda<Func<object, TQuery, IDomainUnitOfWork, Task<TResponse>>>(body, handlerParam, queryParam, uowParam).Compile();
         }
