@@ -26,6 +26,11 @@ namespace Aggregates.Internal
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
+            var container = Configuration.Settings.Container;
+
+            // Child container with resolved domain and app uow used by downstream
+            var child = container.GetChildContainer();
+            context.Extensions.Set(child);
 
             // Only SEND messages deserve a UnitOfWork
             if (context.MessageHeaders[Headers.MessageIntent] != MessageIntentEnum.Send.ToString() && context.MessageHeaders[Headers.MessageIntent] != MessageIntentEnum.Publish.ToString())
@@ -40,13 +45,7 @@ namespace Aggregates.Internal
                 await next().ConfigureAwait(false);
                 return;
             }
-
-            var container = Configuration.Settings.Container;
-
-
-            // Child container with resolved domain and app uow used by downstream
-            var child = container.GetChildContainer();
-
+            
             var domainUOW = child.Resolve<IDomainUnitOfWork>();
             var delayed = child.Resolve<IDelayedChannel>();
             IUnitOfWork appUOW = null;
@@ -57,7 +56,6 @@ namespace Aggregates.Internal
             }
             catch { }
 
-            context.Extensions.Set(child);
 
             Logger.Write(LogLevel.Debug,
                 () => $"Starting UOW for message {context.MessageId} type {context.Message.MessageType.FullName}");

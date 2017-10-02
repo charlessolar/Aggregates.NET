@@ -7,12 +7,14 @@ using Aggregates.Contracts;
 using Aggregates.Messages;
 using System.Collections.Concurrent;
 using Aggregates.Extensions;
+using Aggregates.Logging;
 
 namespace Aggregates.Internal
 {
     class Processor : IProcessor
     {
-        static readonly ConcurrentDictionary<Type, object> Processors = new ConcurrentDictionary<Type, object>();
+        private static readonly ILog Logger = LogProvider.GetLogger("Processor");
+        private static readonly ConcurrentDictionary<Type, object> Processors = new ConcurrentDictionary<Type, object>();
 
         [DebuggerStepThrough]
         public Task<TResponse> Process<TQuery, TResponse>(TQuery query, IContainer container) where TQuery : IQuery<TResponse>
@@ -21,6 +23,11 @@ namespace Aggregates.Internal
 
             var handlerFunc = (Func<object, TQuery, IDomainUnitOfWork, Task<TResponse>>)Processors.GetOrAdd(handlerType, t => ReflectionExtensions.MakeQueryHandler<TQuery, TResponse>(handlerType));
             var handler = container.Resolve(handlerType);
+            if (handler == null)
+            {
+                Logger.Error($"No query handler for query type: {typeof(TQuery).FullName} response type: {typeof(TResponse).FullName}");
+                return null;
+            }
 
             return handlerFunc(handler, query, container.Resolve<IDomainUnitOfWork>());
         }
