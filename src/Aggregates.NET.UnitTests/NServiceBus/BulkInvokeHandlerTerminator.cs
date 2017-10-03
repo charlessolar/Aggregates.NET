@@ -112,7 +112,10 @@ namespace Aggregates.UnitTests.NServiceBus
             var channel = new Moq.Mock<IDelayedChannel>();
             var next = new Moq.Mock<Func<PipelineTerminator<IInvokeHandlerContext>.ITerminatingContext, Task>>();
 
-            builder.Setup(x => x.Build<IDelayedChannel>()).Returns(channel.Object);
+            var container = new Moq.Mock<IContainer>();
+            bag.Set(container.Object);
+
+            container.Setup(x => x.Resolve<IDelayedChannel>()).Returns(channel.Object);
             context.Setup(x => x.MessageHandler).Returns(handler);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
@@ -141,7 +144,10 @@ namespace Aggregates.UnitTests.NServiceBus
             var channel = new Moq.Mock<IDelayedChannel>();
             var next = new Moq.Mock<Func<PipelineTerminator<IInvokeHandlerContext>.ITerminatingContext, Task>>();
 
-            builder.Setup(x => x.Build<IDelayedChannel>()).Returns(channel.Object);
+            var container = new Moq.Mock<IContainer>();
+            bag.Set(container.Object);
+
+            container.Setup(x => x.Resolve<IDelayedChannel>()).Returns(channel.Object);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
             context.Setup(x => x.MessageHandler).Returns(handler);
@@ -183,7 +189,10 @@ namespace Aggregates.UnitTests.NServiceBus
             var channel = new Moq.Mock<IDelayedChannel>();
             var next = new Moq.Mock<Func<PipelineTerminator<IInvokeHandlerContext>.ITerminatingContext, Task>>();
 
-            builder.Setup(x => x.Build<IDelayedChannel>()).Returns(channel.Object);
+            var container = new Moq.Mock<IContainer>();
+            bag.Set(container.Object);
+
+            container.Setup(x => x.Resolve<IDelayedChannel>()).Returns(channel.Object);
             context.Setup(x => x.MessageHandler).Returns(handler);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
@@ -206,7 +215,6 @@ namespace Aggregates.UnitTests.NServiceBus
         [Test]
         public async Task is_delayed_age_hit()
         {
-
             var bag = new ContextBag();
             int invoked = 0;
             var handler = new MessageHandler((first, second, ctx) =>
@@ -219,7 +227,10 @@ namespace Aggregates.UnitTests.NServiceBus
             var channel = new Moq.Mock<IDelayedChannel>();
             var next = new Moq.Mock<Func<PipelineTerminator<IInvokeHandlerContext>.ITerminatingContext, Task>>();
 
-            builder.Setup(x => x.Build<IDelayedChannel>()).Returns(channel.Object);
+            var container = new Moq.Mock<IContainer>();
+            bag.Set(container.Object);
+
+            container.Setup(x => x.Resolve<IDelayedChannel>()).Returns(channel.Object);
             context.Setup(x => x.MessageHandler).Returns(handler);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
@@ -254,7 +265,10 @@ namespace Aggregates.UnitTests.NServiceBus
             var channel = new Moq.Mock<IDelayedChannel>();
             var next = new Moq.Mock<Func<PipelineTerminator<IInvokeHandlerContext>.ITerminatingContext, Task>>();
 
-            builder.Setup(x => x.Build<IDelayedChannel>()).Returns(channel.Object);
+            var container = new Moq.Mock<IContainer>();
+            bag.Set(container.Object);
+
+            container.Setup(x => x.Resolve<IDelayedChannel>()).Returns(channel.Object);
             context.Setup(x => x.MessageHandler).Returns(handler);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);
@@ -291,7 +305,10 @@ namespace Aggregates.UnitTests.NServiceBus
             var channel = new Moq.Mock<IDelayedChannel>();
             var next = new Moq.Mock<Func<PipelineTerminator<IInvokeHandlerContext>.ITerminatingContext, Task>>();
 
-            builder.Setup(x => x.Build<IDelayedChannel>()).Returns(channel.Object);
+            var container = new Moq.Mock<IContainer>();
+            bag.Set(container.Object);
+
+            container.Setup(x => x.Resolve<IDelayedChannel>()).Returns(channel.Object);
 
             context.Setup(x => x.MessageHandler).Returns(handler);
             context.Setup(x => x.Builder).Returns(builder.Object);
@@ -323,7 +340,11 @@ namespace Aggregates.UnitTests.NServiceBus
             var builder = new Moq.Mock<IBuilder>();
             var channel = new Moq.Mock<IDelayedChannel>();
             var next = new Moq.Mock<Func<PipelineTerminator<IInvokeHandlerContext>.ITerminatingContext, Task>>();
-            builder.Setup(x => x.Build<IDelayedChannel>()).Returns(channel.Object);
+
+            var container = new Moq.Mock<IContainer>();
+            bag.Set(container.Object);
+
+            container.Setup(x => x.Resolve<IDelayedChannel>()).Returns(channel.Object);
             context.Setup(x => x.MessageHandler).Returns(handler);
             context.Setup(x => x.Builder).Returns(builder.Object);
             context.Setup(x => x.Extensions).Returns(bag);

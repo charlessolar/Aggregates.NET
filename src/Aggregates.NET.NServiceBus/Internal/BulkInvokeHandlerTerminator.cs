@@ -43,10 +43,13 @@ namespace Aggregates.Internal
 
         protected override async Task Terminate(IInvokeHandlerContext context)
         {
+
             IDelayedChannel channel = null;
             try
             {
-                channel = context.Builder.Build<IDelayedChannel>();
+                IContainer container;
+                if (context.Extensions.TryGet<IContainer>(out container))
+                    channel = container.Resolve<IDelayedChannel>();
             }
             // Catch in case IDelayedChannel isn't registered which shouldn't happen unless a user registered Consumer without GetEventStore
             catch (Exception) { }
