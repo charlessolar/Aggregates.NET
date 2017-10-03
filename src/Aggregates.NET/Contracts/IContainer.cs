@@ -18,6 +18,9 @@ namespace Aggregates.Contracts
         TResolve Resolve<TResolve>() where TResolve : class;
         IEnumerable<TResolve> ResolveAll<TResolve>() where TResolve : class;
 
+        object TryResolve(Type resolve);
+        TResolve TryResolve<TResolve>() where TResolve : class;
+
         IContainer GetChildContainer();
     }
 }

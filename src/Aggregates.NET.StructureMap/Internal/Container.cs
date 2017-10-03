@@ -84,6 +84,14 @@ namespace Aggregates.Internal
         {
             return _container.GetAllInstances<TResolve>();
         }
+        public object TryResolve(Type resolve)
+        {
+            return _container.TryGetInstance(resolve);
+        }
+        public TResolve TryResolve<TResolve>() where TResolve : class
+        {
+            return _container.TryGetInstance<TResolve>();
+        }
 
         public IContainer GetChildContainer()
         {

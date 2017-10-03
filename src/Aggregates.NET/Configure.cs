@@ -102,6 +102,7 @@ namespace Aggregates
             {
                 var container = c.Container;
                 
+
                 container.Register<IRepositoryFactory, RepositoryFactory>();
                 container.Register<IProcessor, Processor>();
                 container.Register<IDelayedChannel, DelayedChannel>();

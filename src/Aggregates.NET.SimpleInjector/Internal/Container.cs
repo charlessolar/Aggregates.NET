@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using SimpleInjector.Lifestyles;
+using SimpleInjector;
 
 namespace Aggregates.Internal
 {
@@ -140,6 +141,28 @@ namespace Aggregates.Internal
         public IEnumerable<TResolve> ResolveAll<TResolve>() where TResolve : class
         {
             return _container.GetAllInstances<TResolve>();
+        }
+        public object TryResolve(Type resolve)
+        {
+            try
+            {
+                return _container.GetInstance(resolve);
+            }
+            catch (ActivationException)
+            {
+                return null;
+            }
+        }
+        public TResolve TryResolve<TResolve>() where TResolve : class
+        {
+            try
+            {
+                return _container.GetInstance<TResolve>();
+            }
+            catch (ActivationException)
+            {
+                return null;
+            }
         }
 
         public IContainer GetChildContainer()

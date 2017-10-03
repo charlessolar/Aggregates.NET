@@ -31,13 +31,14 @@ namespace Aggregates.Internal
             if (!mutators.Any()) return next();
 
             IContainer container;
-            // If theres a current container in the pipeline, dont need to mutate
             if (!context.Extensions.TryGet<IContainer>(out container))
-                return next();
+                container = Configuration.Settings.Container;
 
             foreach (var type in mutators)
             {
-                var mutator = (IMutate)container.Resolve(type);
+                var mutator = (IMutate)container.TryResolve(type);
+                if (mutator == null)
+                    continue;
 
                 Logger.Write(LogLevel.Debug, () => $"Mutating incoming message {context.Message.MessageType.FullName} with mutator {type.FullName}");
                 mutated = mutator.MutateIncoming(mutated);

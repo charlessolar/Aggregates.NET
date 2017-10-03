@@ -40,12 +40,11 @@ namespace Aggregates.Extensions
         public static Func<object, TQuery, IDomainUnitOfWork, Task<TResponse>> MakeQueryHandler<TQuery, TResponse>(Type queryHandler) where TQuery : IQuery<TResponse>
         {
             var method = queryHandler
-                .GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
                 .Where(
-                    m => (m.Name == "Handle") && m.GetParameters().Length == 2 && 
+                    m => (m.Name == "Handle") && 
                     m.GetParameters()[0].ParameterType == typeof(TQuery) && 
-                    m.ReturnType == typeof(Task<>) && 
-                    m.ReturnType.GetGenericArguments()[0].DeclaringType == typeof(TResponse))
+                    m.ReturnType == typeof(Task<TResponse>))
                 .SingleOrDefault();
 
             if (method == null) return null;
