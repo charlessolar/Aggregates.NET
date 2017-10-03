@@ -353,8 +353,7 @@ namespace Aggregates.Internal
 
             foreach (var connection in _clients)
             {
-
-                var manager = new ProjectionsManager(connection.Settings.Log,
+                var manager = new ProjectionsManager(connection.Settings.Log, (EndPoint)
                     new IPEndPoint(connection.Settings.GossipSeeds[0].EndPoint.Address,
                         connection.Settings.ExternalGossipPort), TimeSpan.FromSeconds(30));
                 try
@@ -377,7 +376,7 @@ namespace Aggregates.Internal
             foreach (var client in _clients)
             {
 
-                var manager = new ProjectionsManager(client.Settings.Log,
+                var manager = new ProjectionsManager(client.Settings.Log, (EndPoint)
                     new IPEndPoint(client.Settings.GossipSeeds[0].EndPoint.Address,
                         client.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
 
