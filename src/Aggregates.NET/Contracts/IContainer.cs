@@ -4,15 +4,18 @@ using System.Text;
 
 namespace Aggregates.Contracts
 {
+    public enum Lifestyle
+    {
+        PerInstance,
+        Singleton,
+        UnitOfWork
+    }
     public interface IContainer : IDisposable
     {
-        void RegisterSingleton<TInterface, TConcrete>(string name = null) where TInterface : class where TConcrete : class, TInterface;
-        void RegisterSingleton<TInterface>(TInterface instance, string name = null) where TInterface : class;
-        void RegisterSingleton<TInterface>(Func<IContainer, TInterface> factory, string name = null) where TInterface : class;
-
-        void Register(Type concrete);
-        void Register<TInterface, TConcrete>(string name = null) where TInterface : class where TConcrete : class, TInterface;
-        void Register<TInterface>(Func<IContainer, TInterface> factory, string name = null) where TInterface : class;
+        void Register(Type concrete, Lifestyle lifestyle);
+        void Register<TInterface>(TInterface instance, Lifestyle lifestyle) where TInterface : class;
+        void Register<TInterface, TConcrete>(Lifestyle lifestyle, string name = null) where TInterface : class where TConcrete : class, TInterface;
+        void Register<TInterface>(Func<IContainer, TInterface> factory, Lifestyle lifestyle, string name = null) where TInterface : class;
 
         object Resolve(Type resolve);
         TResolve Resolve<TResolve>() where TResolve : class;

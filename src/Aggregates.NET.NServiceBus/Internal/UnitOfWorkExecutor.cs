@@ -83,7 +83,6 @@ namespace Aggregates.Internal
                     // Special case for delayed messages read from delayed stream
                     if (context.Extensions.TryGet(Defaults.LocalBulkHeader, out delayedMessages))
                     {
-
                         Logger.Write(LogLevel.Debug, () => $"Bulk processing {delayedMessages.Count()} messages, bulk id {context.MessageId}");
                         var index = 1;
                         foreach (var x in delayedMessages)
@@ -104,11 +103,9 @@ namespace Aggregates.Internal
                             await next().ConfigureAwait(false);
                             index++;
                         }
-
                     }
                     else if (context.Extensions.TryGet(Defaults.LocalHeader, out @event))
                     {
-
                         context.UpdateMessageInstance(@event);
                         await next().ConfigureAwait(false);
                     }

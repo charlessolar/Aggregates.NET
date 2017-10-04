@@ -25,36 +25,39 @@ namespace Aggregates.Internal
             AsyncScopedLifestyle.BeginScope(_container);
         }
 
+        private SimpleInjector.Lifestyle ConvertLifestyle(Contracts.Lifestyle lifestyle)
+        {
+            switch (lifestyle)
+            {
+                case Contracts.Lifestyle.PerInstance:
+                    return SimpleInjector.Lifestyle.Transient;
+                case Contracts.Lifestyle.Singleton:
+                    return SimpleInjector.Lifestyle.Singleton;
+                case Contracts.Lifestyle.UnitOfWork:
+                    return SimpleInjector.Lifestyle.Scoped;
+            }
+            throw new ArgumentException($"Unknown lifestyle {lifestyle}");
+        }
+
         public void Dispose()
         {
             var scope = SimpleInjector.Lifestyle.Scoped.GetCurrentScope(_container);
             scope?.Dispose();
         }
+        
 
-        // Note child checks are to stop the container from doing a new registration 
-        // Some containers (structuremap) when you make a child container you have to do a new registration
-        // Simpleinjector doesn't need or allow that
-
-        public void RegisterSingleton<TInterface>(TInterface instance, string name = null) where TInterface : class
+        public void Register(Type concrete, Contracts.Lifestyle lifestyle)
         {
             if (_child) return;
-
-            // Trick to accomplish what named instances are meant to - registering multiple of the same interface.
-            if(!string.IsNullOrEmpty(name))
-            {
-                if (!_namedCollections.ContainsKey(typeof(TInterface)))
-                    _namedCollections[typeof(TInterface)] = new List<SimpleInjector.Registration> ();
-
-                _namedCollections[typeof(TInterface)].Add(SimpleInjector.Lifestyle.Singleton.CreateRegistration<TInterface>(() => instance, _container));
-                
-                _container.RegisterCollection<TInterface>(_namedCollections[typeof(TInterface)]);
-                return;
-            }
-
-            _container.RegisterSingleton<TInterface>(instance);
+            _container.Register(concrete, concrete, ConvertLifestyle(lifestyle));
+        }
+        public void Register<TInterface>(TInterface instance, Contracts.Lifestyle lifestyle) where TInterface : class
+        {
+            if (_child) return;
+            _container.Register<TInterface>(() => instance, ConvertLifestyle(lifestyle));
         }
 
-        public void RegisterSingleton<TInterface>(Func<IContainer, TInterface> factory, string name = null) where TInterface : class
+        public void Register<TInterface>(Func<IContainer, TInterface> factory, Contracts.Lifestyle lifestyle, string name = null) where TInterface : class
         {
             if (_child) return;
 
@@ -64,14 +67,14 @@ namespace Aggregates.Internal
                 if (!_namedCollections.ContainsKey(typeof(TInterface)))
                     _namedCollections[typeof(TInterface)] = new List<SimpleInjector.Registration>();
 
-                _namedCollections[typeof(TInterface)].Add(SimpleInjector.Lifestyle.Singleton.CreateRegistration<TInterface>(() => factory(this), _container));
+                _namedCollections[typeof(TInterface)].Add(ConvertLifestyle(lifestyle).CreateRegistration<TInterface>(() => factory(this), _container));
 
                 _container.RegisterCollection<TInterface>(_namedCollections[typeof(TInterface)]);
                 return;
             }
-            _container.RegisterSingleton<TInterface>(() => factory(this));
+            _container.Register(() => factory(this), ConvertLifestyle(lifestyle));
         }
-        public void RegisterSingleton<TInterface, TConcrete>(string name = null) where TInterface : class where TConcrete : class, TInterface
+        public void Register<TInterface, TConcrete>(Contracts.Lifestyle lifestyle, string name = null) where TInterface : class where TConcrete : class, TInterface
         {
             if (_child) return;
 
@@ -81,53 +84,12 @@ namespace Aggregates.Internal
                 if (!_namedCollections.ContainsKey(typeof(TInterface)))
                     _namedCollections[typeof(TInterface)] = new List<SimpleInjector.Registration>();
 
-                _namedCollections[typeof(TInterface)].Add(SimpleInjector.Lifestyle.Singleton.CreateRegistration<TConcrete>( _container));
+                _namedCollections[typeof(TInterface)].Add(ConvertLifestyle(lifestyle).CreateRegistration<TConcrete>( _container));
 
                 _container.RegisterCollection<TInterface>(_namedCollections[typeof(TInterface)]);
                 return;
             }
-            _container.RegisterSingleton<TInterface, TConcrete>();
-        }
-
-        public void Register(Type concrete)
-        {
-            if (_child) return;
-            _container.Register(concrete);
-        }
-
-        public void Register<TInterface>(Func<IContainer, TInterface> factory, string name = null) where TInterface : class
-        {
-            if (_child) return;
-
-            // Trick to accomplish what named instances are meant to - registering multiple of the same interface.
-            if (!string.IsNullOrEmpty(name))
-            {
-                if (!_namedCollections.ContainsKey(typeof(TInterface)))
-                    _namedCollections[typeof(TInterface)] = new List<SimpleInjector.Registration>();
-
-                _namedCollections[typeof(TInterface)].Add(SimpleInjector.Lifestyle.Singleton.CreateRegistration<TInterface>(() => factory(this), _container));
-
-                _container.RegisterCollection<TInterface>(_namedCollections[typeof(TInterface)]);
-                return;
-            }
-            _container.Register(() => factory(this));
-        }
-        public void Register<TInterface, TConcrete>(string name = null) where TInterface : class where TConcrete : class, TInterface
-        {
-            if (_child) return;
-
-            // Trick to accomplish what named instances are meant to - registering multiple of the same interface.
-            if (!string.IsNullOrEmpty(name))
-            {
-                if (!_namedCollections.ContainsKey(typeof(TInterface)))
-                    _namedCollections[typeof(TInterface)] = new List<SimpleInjector.Registration>();
-
-                _namedCollections[typeof(TInterface)].Add(SimpleInjector.Lifestyle.Singleton.CreateRegistration<TConcrete>( _container));
-
-                _container.RegisterCollection<TInterface>(_namedCollections[typeof(TInterface)]);
-                return;
-            }
-            _container.Register<TInterface, TConcrete>();
+            _container.Register<TInterface, TConcrete>(ConvertLifestyle(lifestyle));
         }
 
         public object Resolve(Type resolve)

@@ -53,7 +53,7 @@ namespace Aggregates
 
             // Register all query handlers in my IoC so query processor can use them
             foreach (var type in types.Where(IsQueryHandler))
-                container.Register(type);
+                container.Register(type, Lifestyle.PerInstance);
 
             context.Pipeline.Register<CommandAcceptorRegistration>();
             context.Pipeline.Register<UowRegistration>();

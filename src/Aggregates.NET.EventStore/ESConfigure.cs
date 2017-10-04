@@ -18,14 +18,14 @@ namespace Aggregates
             {
                 var container = c.Container;
 
-                container.RegisterSingleton<IEventStoreConsumer>((factory) =>
+                container.Register<IEventStoreConsumer>((factory) =>
                     new EventStoreConsumer(
                         factory.Resolve<IMetrics>(),
                         factory.Resolve<IMessageSerializer>(),
                         connections,
                         config.ReadSize,
                         config.ExtraStats
-                        ));
+                        ), Lifestyle.Singleton);
                 container.Register<IStoreEvents>((factory) =>
                     new StoreEvents(
                         factory.Resolve<IMetrics>(),
@@ -35,7 +35,7 @@ namespace Aggregates
                         config.ReadSize,
                         config.Compression,
                         connections
-                        ));
+                        ), Lifestyle.Singleton);
 
                 return Task.CompletedTask;
             });

@@ -101,25 +101,26 @@ namespace Aggregates
             RegistrationTasks.Add((c) =>
             {
                 var container = c.Container;
-                
 
-                container.Register<IRepositoryFactory, RepositoryFactory>();
-                container.Register<IProcessor, Processor>();
-                container.Register<IDelayedChannel, DelayedChannel>();
-                container.Register<IDomainUnitOfWork, UnitOfWork>();
-                container.Register<IStoreSnapshots>((factory) => new StoreSnapshots(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<ISnapshotReader>(), c.Generator));
-                container.Register<IStorePocos>((factory) => new StorePocos(factory.Resolve<IStoreEvents>(), factory.Resolve<ICache>(), factory.Resolve<IMessageSerializer>(), true, c.Generator));
-                container.Register<ISnapshotReader, SnapshotReader>();
 
-                container.RegisterSingleton<ICache, IntelligentCache>();
-                container.RegisterSingleton<IMetrics, NullMetrics>();
-                container.RegisterSingleton<IDelayedCache>((factory) => new DelayedCache(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), c.FlushInterval, c.Endpoint, c.MaxDelayed, c.FlushSize, c.DelayedExpiration, c.Generator));
+                container.Register<IDelayedChannel, DelayedChannel>(Lifestyle.UnitOfWork);
+                container.Register<IDomainUnitOfWork, UnitOfWork>(Lifestyle.UnitOfWork);
 
-                container.RegisterSingleton<IEventSubscriber>((factory) => new EventSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IMessaging>(), factory.Resolve<IEventStoreConsumer>(), c.ParallelEvents), "eventsubscriber");
-                container.RegisterSingleton<IEventSubscriber>((factory) => new DelayedSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IMessageDispatcher>(), c.Retries), "delayedsubscriber");
-                container.RegisterSingleton<IEventSubscriber>((factory) => (IEventSubscriber)factory.Resolve<ISnapshotReader>(), "snapshotreader");
+                container.Register<IRepositoryFactory, RepositoryFactory>(Lifestyle.PerInstance);
+                container.Register<IProcessor, Processor>(Lifestyle.PerInstance);
+                container.Register<IStoreSnapshots>((factory) => new StoreSnapshots(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<ISnapshotReader>(), c.Generator), Lifestyle.PerInstance);
+                container.Register<IStorePocos>((factory) => new StorePocos(factory.Resolve<IStoreEvents>(), factory.Resolve<ICache>(), factory.Resolve<IMessageSerializer>(), true, c.Generator), Lifestyle.PerInstance);
+                container.Register<ISnapshotReader, SnapshotReader>(Lifestyle.PerInstance);
 
-                container.RegisterSingleton<Func<Exception, string, Error>>((factory) =>
+                container.Register<ICache, IntelligentCache>(Lifestyle.Singleton);
+                container.Register<IMetrics, NullMetrics>(Lifestyle.Singleton);
+                container.Register<IDelayedCache>((factory) => new DelayedCache(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), c.FlushInterval, c.Endpoint, c.MaxDelayed, c.FlushSize, c.DelayedExpiration, c.Generator), Lifestyle.Singleton);
+
+                container.Register<IEventSubscriber>((factory) => new EventSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IMessaging>(), factory.Resolve<IEventStoreConsumer>(), c.ParallelEvents), Lifestyle.Singleton, "eventsubscriber");
+                container.Register<IEventSubscriber>((factory) => new DelayedSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IMessageDispatcher>(), c.Retries), Lifestyle.Singleton, "delayedsubscriber");
+                container.Register<IEventSubscriber>((factory) => (IEventSubscriber)factory.Resolve<ISnapshotReader>(), Lifestyle.Singleton, "snapshotreader");
+
+                container.Register<Func<Exception, string, Error>>((factory) =>
                 {
                     var eventFactory = factory.Resolve<IEventFactory>();
                     return (exception, message) =>
@@ -165,20 +166,20 @@ namespace Aggregates
                             e.Trace = sb.ToString();
                         });
                     };
-                });
+                }, Lifestyle.Singleton);
 
-                container.RegisterSingleton<Func<Accept>>((factory) =>
+                container.Register<Func<Accept>>((factory) =>
                 {
                     var eventFactory = factory.Resolve<IEventFactory>();
                     return () => eventFactory.Create<Accept>(x => { });
-                });
+                }, Lifestyle.Singleton);
 
-                container.RegisterSingleton<Func<string, Reject>>((factory) =>
+                container.Register<Func<string, Reject>>((factory) =>
                 {
                     var eventFactory = factory.Resolve<IEventFactory>();
                     return message => { return eventFactory.Create<Reject>(e => { e.Message = message; }); };
-                });
-                container.RegisterSingleton<Func<BusinessException, Reject>>((factory) =>
+                }, Lifestyle.Singleton);
+                container.Register<Func<BusinessException, Reject>>((factory) =>
                 {
                     var eventFactory = factory.Resolve<IEventFactory>();
                     return exception =>
@@ -189,7 +190,7 @@ namespace Aggregates
                             e.Message = $"{exception.GetType().Name} - {exception.Message}";
                         });
                     };
-                });
+                }, Lifestyle.Singleton);
 
                 return Task.CompletedTask;
             });
