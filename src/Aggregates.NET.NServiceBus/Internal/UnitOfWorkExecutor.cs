@@ -45,6 +45,13 @@ namespace Aggregates.Internal
                 await next().ConfigureAwait(false);
                 return;
             }
+            if(context.Message.MessageType == typeof(Messages.Accept) || context.Message.MessageType == typeof(Messages.Reject))
+            {
+                // If this happens the callback for the message took too long (likely due to a timeout)
+                // normall NSB will report an exception for "No Handlers" - this will just log a warning and ignore
+                Logger.Write(LogLevel.Warn, $"Received overdue {context.Message.MessageType.Name} callback - your timeouts might be too short");
+                return;
+            }
             
             var domainUOW = child.Resolve<IDomainUnitOfWork>();
             var delayed = child.Resolve<IDelayedChannel>();

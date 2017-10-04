@@ -29,8 +29,6 @@ namespace Aggregates
             endpointConfig.EnableCallbacks();
             endpointConfig.EnableInstallers();
 
-            // Todo: have a final .Build() method which does all this stuff so EndpointName is not dependent on ordering
-            endpointConfig.MakeInstanceUniquelyAddressable(config.UniqueAddress);
 
             settings.Set("Retries", config.Retries);
             settings.Set("SlowAlertThreshold", config.SlowAlertThreshold);
@@ -54,6 +52,7 @@ namespace Aggregates
 
             config.SetupTasks.Add((c) =>
             {
+                endpointConfig.MakeInstanceUniquelyAddressable(c.UniqueAddress);
                 endpointConfig.LimitMessageProcessingConcurrencyTo(c.ParallelMessages);
                 // NSB doesn't have an endpoint name setter other than the constructor, hack it in
                 settings.Set("NServiceBus.Routing.EndpointName", c.Endpoint);
