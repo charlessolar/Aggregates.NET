@@ -42,10 +42,49 @@ namespace Aggregates.Internal
         }
         class CachedList
         {
-            public long Created { get; set; }
-            public long Modified { get; set; }
-            public object Lock { get; set; }
-            public Queue<IDelayedMessage> Messages { get; set; }
+            private object _lock { get; set; }
+            private Queue<IDelayedMessage> _messages;
+
+            public long Created { get; private set; }
+            public long Modified { get; private set; }
+
+            public int Count
+            {
+                get
+                {
+                    return _messages.Count;
+                }
+            }
+
+            public CachedList()
+            {
+                _lock = new object();
+                _messages = new Queue<IDelayedMessage>();
+                Created = DateTime.UtcNow.Ticks;
+                Modified = DateTime.UtcNow.Ticks;
+            }
+
+            public void AddRange(IDelayedMessage[] messages)
+            {
+                Modified = DateTime.UtcNow.Ticks;
+                lock (_lock)
+                {
+                    foreach (var m in messages)
+                        _messages.Enqueue(m);
+                }
+            }
+            public IDelayedMessage[] Dequeue(int? count)
+            {
+                Modified = DateTime.UtcNow.Ticks;
+
+                count = Math.Min(count ?? _messages.Count, _messages.Count);
+
+                var discovered = new List<IDelayedMessage>();
+                for (var i = 0; i < count; i++)
+                    discovered.Add(_messages.Dequeue());
+
+                return discovered.ToArray();
+            }
         }
 
         private static readonly ILog Logger = LogProvider.GetLogger("DelayedCache");
@@ -62,8 +101,8 @@ namespace Aggregates.Internal
         private readonly Thread _thread;
         private readonly CancellationTokenSource _cts;
 
-
-        private readonly ConcurrentDictionary<CacheKey, CachedList> _memCache;
+        private readonly object _cacheLock;
+        private readonly Dictionary<CacheKey, CachedList> _memCache;
 
         private int _tooLarge = 0;
         private bool _disposed;
@@ -79,7 +118,9 @@ namespace Aggregates.Internal
             _expiration = delayedExpiration;
             _streamGen = streamGen;
             _cts = new CancellationTokenSource();
-            _memCache = new ConcurrentDictionary<CacheKey, CachedList>(new CacheKey.EqualityComparer());
+
+            _cacheLock = new object();
+            _memCache = new Dictionary<CacheKey, CachedList>(new CacheKey.EqualityComparer());
 
             _thread = new Thread(Threaded)
             { IsBackground = true, Name = $"Delayed Cache Thread" };
@@ -100,8 +141,8 @@ namespace Aggregates.Internal
                 {
                     cache._cts.Token.ThrowIfCancellationRequested();
 
-                    Thread.Sleep(cache._flushInterval);
-                    cache.Flush().Wait();
+                    Task.Delay(cache._flushInterval, cache._cts.Token).Wait();
+                    cache.Flush().Wait(cache._cts.Token);
                 }
             }
             catch { }
@@ -155,24 +196,22 @@ namespace Aggregates.Internal
                 }
             }
 
-            var cacheKey = new CacheKey(channel, key);
-            _memCache.AddOrUpdate(cacheKey,
-                           (k) => new CachedList { Created = DateTime.UtcNow.Ticks, Modified = DateTime.UtcNow.Ticks, Lock = new object(), Messages = new Queue<IDelayedMessage>(messages) },
-                           (k, existing) =>
-                           {
-                               lock (existing.Lock)
-                               {
-                                   foreach (var m in messages)
-                                       existing.Messages.Enqueue(m);
-                               }
-                               existing.Modified = DateTime.UtcNow.Ticks;
-
-                               return existing;
-                           }
-                       );
-
+            addToMemCache(channel, key, messages);
         }
 
+        private void addToMemCache(string channel, string key, IDelayedMessage[] messages)
+        {
+
+            var cacheKey = new CacheKey(channel, key);
+            CachedList list;
+            lock (_cacheLock)
+            {
+                if (!_memCache.TryGetValue(cacheKey, out list))
+                    _memCache[cacheKey] = list = new CachedList();
+            }
+
+            list.AddRange(messages);
+        }
 
         public Task<IDelayedMessage[]> Pull(string channel, string key = null, int? max = null)
         {
@@ -220,12 +259,12 @@ namespace Aggregates.Internal
             var specificKey = new CacheKey(channel, key);
             CachedList temp;
             if (_memCache.TryGetValue(specificKey, out temp))
-                specificSize = temp.Messages.Count;
+                specificSize = temp.Count;
 
             CachedList temp2;
             var channelKey = new CacheKey(channel, null);
             if (_memCache.TryGetValue(channelKey, out temp2))
-                specificSize += temp2.Messages.Count;
+                specificSize += temp2.Count;
 
             return Task.FromResult(specificSize);
         }
@@ -236,42 +275,15 @@ namespace Aggregates.Internal
 
             CachedList fromCache;
             // Check memcache even if key == null because messages failing to save to ES are put in memcache
-            if (!_memCache.TryRemove(cacheKey, out fromCache))
-                fromCache = null;
-
-            var discovered = new LinkedList<IDelayedMessage>();
-            if (fromCache != null)
-            {
-                lock (fromCache.Lock)
-                {
-                    for (var i = 0; i <= Math.Min(max ?? int.MaxValue, fromCache.Messages.Count); i++)
-                        discovered.AddLast(fromCache.Messages.Dequeue());
-                }
-            }
-            // Add back into memcache if Max was used and some elements remain
-            if (fromCache != null && fromCache.Messages.Any())
-            {
-                fromCache.Modified = DateTime.UtcNow.Ticks;
-
-                _memCache.AddOrUpdate(cacheKey,
-                               (k) => fromCache,
-                               (k, existing) =>
-                               {
-                                   lock (existing.Lock)
-                                   {
-                                       foreach (var m in fromCache.Messages)
-                                           existing.Messages.Enqueue(m);
-                                   }
-                                   return existing;
-                               }
-                           );
-            }
-            return discovered.ToArray();
+            if (!_memCache.TryGetValue(cacheKey, out fromCache))
+                return new IDelayedMessage[] { };
+                        
+            return fromCache.Dequeue(max);
         }
 
         private async Task Flush()
         {
-            var memCacheTotalSize = _memCache.Values.Sum(x => x.Messages.Count);
+            var memCacheTotalSize = _memCache.Values.Sum(x => x.Count);
             _metrics.Update("Delayed Cache Size", Unit.Items, memCacheTotalSize);
 
             Logger.Write(LogLevel.Info,
@@ -336,7 +348,7 @@ namespace Aggregates.Internal
                         () => $"Failed to write to channel [{expired.Channel}].  Exception: {e.GetType().Name}: {e.Message}");
 
                     // Failed to write to ES - put object back in memcache
-                    await Add(expired.Channel, expired.Key, messages).ConfigureAwait(false);
+                    addToMemCache(expired.Channel, expired.Key, messages);
 
                 }
             }).ConfigureAwait(false);
@@ -359,7 +371,7 @@ namespace Aggregates.Internal
                     }
 
                     // Flush the largest channels
-                    var toFlush = _memCache.Where(x => x.Value.Messages.Count > _flushSize || (x.Value.Messages.Count > (_maxSize / 5))).Select(x => x.Key).Take(Math.Max(1, _memCache.Keys.Count / 5)).ToArray();
+                    var toFlush = _memCache.Where(x => x.Value.Count > _flushSize || (x.Value.Count > (_maxSize / 5))).Select(x => x.Key).Take(Math.Max(1, _memCache.Keys.Count / 5)).ToArray();
                     // If no large channels, take some of the oldest
                     if (!toFlush.Any())
                         toFlush = _memCache.OrderBy(x => x.Value.Modified).Select(x => x.Key).Take(Math.Max(1, _memCache.Keys.Count / 5)).ToArray();
@@ -409,7 +421,7 @@ namespace Aggregates.Internal
                                 () => $"Failed to write to channel [{expired.Channel}].  Exception: {e.GetType().Name}: {e.Message}");
 
                             // Failed to write to ES - put object back in memcache
-                            await Add(expired.Channel, expired.Key, messages).ConfigureAwait(false);
+                            addToMemCache(expired.Channel, expired.Key, messages);
                             throw;
                         }
 
