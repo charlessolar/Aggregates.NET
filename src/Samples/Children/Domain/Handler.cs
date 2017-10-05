@@ -1,0 +1,33 @@
+﻿using Aggregates;
+using Language;
+using NServiceBus;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Domain
+{
+    public class Handler :
+        IHandleMessages<SayHello>
+    {
+        // Typically from some external storage
+        private readonly static List<Guid> MessageIds = new List<Guid>();
+
+        public async Task Handle(SayHello command, IMessageHandlerContext ctx)
+        {
+            var world = await ctx.For<World>().TryGet("World");
+            if (world == null)
+            {
+                world = await ctx.For<World>().New("World");
+                world.Create();
+            }
+
+            var message = await world.For<Message>().New(Guid.NewGuid());
+            message.SayHello(command.Message);
+
+        }
+
+    }
+}

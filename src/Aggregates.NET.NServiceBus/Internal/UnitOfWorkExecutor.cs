@@ -164,6 +164,7 @@ namespace Aggregates.Internal
             {
                 child.Dispose();
                 _metrics.Decrement("Messages Concurrent", Unit.Message);
+                context.Extensions.Remove<IContainer>();
             }
         }
     }
