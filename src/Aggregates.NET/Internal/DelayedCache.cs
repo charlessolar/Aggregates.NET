@@ -77,11 +77,21 @@ namespace Aggregates.Internal
             {
                 Modified = DateTime.UtcNow.Ticks;
 
-                count = Math.Min(count ?? _messages.Count, _messages.Count);
+                count = count ?? int.MaxValue;
 
                 var discovered = new List<IDelayedMessage>();
-                for (var i = 0; i < count; i++)
-                    discovered.Add(_messages.Dequeue());
+                lock (_lock)
+                {
+                    try
+                    {
+                        while (count > 0)
+                        {
+                            discovered.Add(_messages.Dequeue());
+                            count--;
+                        }
+                    }
+                    catch (InvalidOperationException) { }
+                }
 
                 return discovered.ToArray();
             }
@@ -173,11 +183,17 @@ namespace Aggregates.Internal
                     Descriptor = new EventDescriptor
                     {
                         EntityType = "DELAY",
-                        StreamType = StreamTypes.Delayed,
+                        StreamType = $"{_endpoint}.{StreamTypes.Delayed}",
                         Bucket = Assembly.GetEntryAssembly()?.FullName ?? "UNKNOWN",
                         StreamId = channel,
                         Timestamp = DateTime.UtcNow,
                         Headers = new Dictionary<string, string>()
+                        {
+                            ["Expired"] = "true",
+                            ["FlushTime"] = DateTime.UtcNow.ToString("s"),
+                            ["Instance"] = Defaults.Instance.ToString(),
+                            ["Machine"] = Environment.MachineName,
+                        }
                     },
                     Event = x,
                 }).ToArray();

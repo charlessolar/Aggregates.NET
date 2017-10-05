@@ -24,7 +24,7 @@ namespace Aggregates.Extensions
             {
                 using (var zip = new GZipStream(stream, CompressionMode.Compress))
                 {
-                    using (var writer = new BinaryWriter(zip, Encoding.UTF8))
+                    using (var writer = new BinaryWriter(zip, Utf8NoBom))
                     {
                         writer.Write(bytes.Length);
                         writer.Write(bytes, 0, bytes.Length);
@@ -39,7 +39,7 @@ namespace Aggregates.Extensions
             {
                 using (var gz = new GZipStream(stream, CompressionMode.Decompress))
                 {
-                    using (var reader = new BinaryReader(gz, Encoding.UTF8))
+                    using (var reader = new BinaryReader(gz, Utf8NoBom))
                     {
                         var length = reader.ReadInt32();
                         return reader.ReadBytes(length);
@@ -80,7 +80,7 @@ namespace Aggregates.Extensions
                     throw new ArgumentException("serialized data too long");
 
                 stream.Position = 0;
-                using (var reader = new BinaryReader(stream, Encoding.UTF8))
+                using (var reader = new BinaryReader(stream, Utf8NoBom))
                 {
                     return reader.ReadBytes((int)stream.Length);
                 }

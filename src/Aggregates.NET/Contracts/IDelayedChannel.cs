@@ -5,7 +5,7 @@ using Aggregates.Messages;
 
 namespace Aggregates.Contracts
 {
-    public interface IDelayedMessage : IEvent
+    public interface IDelayedMessage : IMessage
     {
         string MessageId { get; }
         IDictionary<string, string> Headers { get; }
