@@ -170,114 +170,21 @@ namespace Aggregates.Internal
 
                         // If not a canceled exception, just write to log and continue
                         // we dont want some random unknown exception to kill the whole event loop
-                        Logger.Error(
-                            $"Received exception in main event thread: {e.InnerException.GetType()}: {e.InnerException.Message}", e);
+                        Logger.Error(e, 
+                            $"Received exception in main event thread: {e.InnerException.GetType()}: {e.InnerException.Message}");
                     }
                 }
             }
-            catch (OperationCanceledException) { }
+            catch(Exception e)
+            {
+                if (e is System.AggregateException)
+                    e = (e as System.AggregateException).Flatten();
+
+                Logger.Error(e, $"Delayed subscriber thread terminated due to exception: {e.GetType()}: {e.Message}");
+            }
 
         }
-
-        //// A fake message that will travel through the pipeline in order to bulk process messages from the context bag
-        //private static readonly byte[] Marker = new BulkMessage().Serialize(new JsonSerializerSettings()).AsByteArray();
-
-        //private static async Task ProcessEvents(ThreadParam state, IFullEvent[] events)
-        //{
-        //    var param = (ThreadParam)state;
-            
-
-
-        //    var delayed = events.Select(x => x.Event as IDelayedMessage).ToArray();
-
-        //    Logger.Write(LogLevel.Debug, () => $"Processing {delayed.Count()} bulk events from stream [{events.First().Descriptor.StreamId}] bucket [{events.First().Descriptor.Bucket}] entity [{events.First().Descriptor.EntityType}]");
-
-        //    var contextBag = new ContextBag();
-        //    // Hack to get all the delayed messages to bulk invoker without NSB deserializing and processing each one
-        //    contextBag.Set(Defaults.BulkHeader, delayed);
-
-        //    // Run bulk process on this thread
-        //    using (var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(param.Token))
-        //    {
-        //        var success = false;
-        //        var retry = 0;
-        //        var messageId = Guid.NewGuid().ToString();
-        //        do
-        //        {
-        //            var transportTransaction = new TransportTransaction();
-
-        //            // Need to supply EnclosedMessageTypes to trick NSB pipeline into processing our fake message
-        //            var headers = new Dictionary<string, string>()
-        //            {
-        //                [Headers.EnclosedMessageTypes] = typeof(BulkMessage).AssemblyQualifiedName,
-        //                [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
-        //                [Headers.MessageId] = messageId,
-        //                [Defaults.BulkHeader] = delayed.Count().ToString(),
-        //            };
-
-        //            try
-        //            {
-        //                // If canceled, this will throw the number of time immediate retry requires to send the message to the error queue
-        //                param.Token.ThrowIfCancellationRequested();
-
-        //                // Don't re-use the event id for the message id
-        //                var messageContext = new NServiceBus.Transport.MessageContext(messageId,
-        //                    headers,
-        //                    Marker, transportTransaction, tokenSource,
-        //                    contextBag);
-        //                await Bus.OnMessage(messageContext).ConfigureAwait(false);//param.Token);
-
-        //                tokenSource.Token.ThrowIfCancellationRequested();
-
-        //                Logger.Write(LogLevel.Debug,
-        //                    () => $"Processed {delayed.Count()} bulk events");
-        //                DelayedHandled.Increment(delayed.Count());
-
-        //                Defaults.MinimumLogging.Value = null;
-        //                success = true;
-        //            }
-        //            catch (ObjectDisposedException)
-        //            {
-        //                // NSB transport has been disconnected
-        //                throw new OperationCanceledException();
-        //            }
-        //            catch (Exception e)
-        //            {
-        //                // Don't retry a cancelation
-        //                if (tokenSource.IsCancellationRequested)
-        //                    throw;
-
-        //                DelayedErrors.Mark($"{e.GetType().Name} {e.Message}");
-
-        //                if ((retry % param.MaxRetry) == 0 && retry < 100)
-        //                {
-        //                    Logger.Warn(
-        //                        $"So far, we've received {retry} errors while running {delayed.Count()} bulk events from stream [{events.First().Descriptor.StreamId}] bucket [{events.First().Descriptor.Bucket}] entity [{events.First().Descriptor.EntityType}]",
-        //                        e);
-
-        //                    Defaults.MinimumLogging.Value = LogLevel.Debug;
-        //                    Logger.Info(
-        //                        $"Switching to verbose logging, {retry} errors detected while processing {delayed.Count()} bulk events from stream [{events.First().Descriptor.StreamId}] bucket [{events.First().Descriptor.Bucket}] entity [{events.First().Descriptor.EntityType}]");
-        //                }
-        //                else if (retry > 100)
-        //                {
-        //                    Logger.Error(
-        //                        $"Failed to process delayed events from stream [{events.First().Descriptor.StreamId}] bucket [{events.First().Descriptor.Bucket}] entity [{events.First().Descriptor.EntityType}]",
-        //                        e);
-        //                    break;
-        //                }
-        //                // Don't burn cpu in case of non-transient errors
-        //                await Task.Delay((retry / 5) * 200, param.Token).ConfigureAwait(false);
-        //            }
-
-        //            retry++;
-        //            // Keep retrying forever but print warn messages once MaxRetry exceeded
-        //        } while (!success);
-
-        //    }
-        //}
-
-
+        
         public void Dispose()
         {
             if (_disposed)

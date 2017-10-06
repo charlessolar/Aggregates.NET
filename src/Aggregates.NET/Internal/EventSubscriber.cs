@@ -190,122 +190,28 @@ when({{
                         consumer.Acknowledge(@event.Item1, @event.Item2, @event.Item3).ConfigureAwait(false)
                             .GetAwaiter().GetResult();
                     }
-                    catch (OperationCanceledException)
-                    {
-                        throw;
-                    }
                     catch (Exception e)
                     {
+                        if (e.InnerException is OperationCanceledException)
+                            throw e.InnerException;
+
                         // If not a canceled exception, just write to log and continue
                         // we dont want some random unknown exception to kill the whole event loop
-                        Logger.Error(
-                            $"Received exception in main event thread: {e.GetType()}: {e.Message}",
-                            e);
+                        Logger.Error(e,
+                            $"Received exception in main event thread: {e.InnerException.GetType()}: {e.InnerException.Message}");
 
                     }
                 }
             }
-            catch
+            catch(Exception e)
             {
+                if (e is System.AggregateException)
+                    e = (e as System.AggregateException).Flatten();
+
+                Logger.Error(e, $"Event subscriber thread terminated due to exception: {e.GetType()}: {e.Message}");
             }
         }
-
-        //// A fake message that will travel through the pipeline in order to process events from the context bag
-        //private static readonly byte[] Marker = new EventMessage().Serialize(new JsonSerializerSettings()).AsByteArray();
-
-        //private static async Task ProcessEvent(IMessaging messaging, string stream, long position, IFullEvent @event, CancellationToken token)
-        //{
-        //    Logger.Write(LogLevel.Debug, () => $"Processing event from stream [{@event.Descriptor.StreamId}] bucket [{@event.Descriptor.Bucket}] entity [{@event.Descriptor.EntityType}] event id {@event.EventId}");
-
-
-        //    var contextBag = new ContextBag();
-        //    // Hack to get all the events to invoker without NSB deserializing 
-        //    contextBag.Set(Defaults.EventHeader, @event.Event);
-
-
-        //    using (var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(token))
-        //    {
-        //        var processed = false;
-        //        var numberOfDeliveryAttempts = 0;
-
-        //        var messageId = Guid.NewGuid().ToString();
-        //        var corrId = "";
-        //        if (@event.Descriptor?.Headers?.ContainsKey(Headers.CorrelationId) ?? false)
-        //            corrId = @event.Descriptor.Headers[Headers.CorrelationId];
-
-        //        while (!processed)
-        //        {
-        //            var transportTransaction = new TransportTransaction();
-
-        //            var headers =
-        //                new Dictionary<string, string>(@event.Descriptor.Headers ??
-        //                                               new Dictionary<string, string>())
-        //                {
-        //                    [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
-        //                    [Headers.EnclosedMessageTypes] =
-        //                    SerializeEnclosedMessageTypes(messaging, @event.Event.GetType()),
-        //                    [Headers.MessageId] = messageId,
-        //                    [Headers.CorrelationId] = corrId,
-        //                    [Defaults.EventHeader] = "",
-        //                    [$"{Defaults.EventPrefixHeader}.EventId"] = @event.EventId.ToString(),
-        //                    [$"{Defaults.EventPrefixHeader}.EventStream"] = stream,
-        //                    [$"{Defaults.EventPrefixHeader}.EventPosition"] = position.ToString()
-        //                };
-
-
-        //            using (var ctx = EventExecution.NewContext())
-        //            {
-        //                try
-        //                {
-        //                    // If canceled, this will throw the number of time immediate retry requires to send the message to the error queue
-        //                    token.ThrowIfCancellationRequested();
-
-        //                    // Don't re-use the event id for the message id
-        //                    var messageContext = new MessageContext(messageId,
-        //                        headers,
-        //                        Marker, transportTransaction, tokenSource,
-        //                        contextBag);
-        //                    await Bus.OnMessage(messageContext).ConfigureAwait(false);
-        //                    EventsHandled.Increment();
-        //                    processed = true;
-        //                }
-        //                catch (ObjectDisposedException)
-        //                {
-        //                    // NSB transport has been disconnected
-        //                    throw new OperationCanceledException();
-        //                }
-        //                catch (Exception ex)
-        //                {
-
-        //                    EventErrors.Mark($"{ex.GetType().Name} {ex.Message}");
-        //                    ++numberOfDeliveryAttempts;
-
-        //                    // Don't retry a cancelation
-        //                    if (tokenSource.IsCancellationRequested)
-        //                        numberOfDeliveryAttempts = Int32.MaxValue;
-
-        //                    var errorContext = new ErrorContext(ex, headers,
-        //                        messageId,
-        //                        Marker, transportTransaction,
-        //                        numberOfDeliveryAttempts);
-        //                    if (await Bus.OnError(errorContext).ConfigureAwait(false) ==
-        //                        ErrorHandleResult.Handled || tokenSource.IsCancellationRequested)
-        //                        break;
-        //                }
-        //            }
-        //        }
-        //    }
-        //}
-        static string SerializeEnclosedMessageTypes(IMessaging messaging, Type messageType)
-        {
-            var assemblyQualifiedNames = new HashSet<string>();
-            foreach (var type in messaging.GetMessageHierarchy(messageType))
-            {
-                assemblyQualifiedNames.Add(type.AssemblyQualifiedName);
-            }
-
-            return string.Join(";", assemblyQualifiedNames);
-        }
+        
 
         public void Dispose()
         {
