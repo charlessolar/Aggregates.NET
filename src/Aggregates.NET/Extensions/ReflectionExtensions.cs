@@ -96,7 +96,7 @@ namespace Aggregates.Extensions
             var repoType = typeof(Repository<,>).MakeGenericType(typeof(TEntity), stateType);
 
             // doing my own open-generics implementation so I don't have to depend on an IoC container supporting it
-            var ctor = repoType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(IMetrics), typeof(IStoreEvents), typeof(IStoreSnapshots), typeof(IEventFactory), typeof(IDomainUnitOfWork) }, null);
+            var ctor = repoType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(IMetrics), typeof(IStoreEvents), typeof(IStoreSnapshots), typeof(IOobWriter), typeof(IEventFactory), typeof(IDomainUnitOfWork) }, null);
             if (ctor == null)
                 throw new AggregateException("No constructor found for repository");
 
@@ -119,7 +119,7 @@ namespace Aggregates.Extensions
             var repoType = typeof(Repository<,,>).MakeGenericType(typeof(TEntity), stateType, typeof(TParent));
 
             // doing my own open-generics implementation so I don't have to depend on an IoC container supporting it
-            var ctor = repoType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(TParent), typeof(IMetrics), typeof(IStoreEvents), typeof(IStoreSnapshots), typeof(IEventFactory), typeof(IDomainUnitOfWork) }, null);
+            var ctor = repoType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(TParent), typeof(IMetrics), typeof(IStoreEvents), typeof(IStoreSnapshots), typeof(IOobWriter), typeof(IEventFactory), typeof(IDomainUnitOfWork) }, null);
             if (ctor == null)
                 throw new AggregateException("No constructor found for repository");
 
