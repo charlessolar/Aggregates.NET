@@ -21,8 +21,8 @@ namespace Aggregates.Internal
 
         private readonly TParent _parent;
 
-        public Repository(TParent parent, IMetrics metrics, IStoreEvents store, IStoreSnapshots snapshots, IEventFactory factory, IDomainUnitOfWork uow)
-            : base(metrics, store, snapshots, factory, uow)
+        public Repository(TParent parent, IMetrics metrics, IStoreEvents store, IStoreSnapshots snapshots, IOobWriter oobStore, IEventFactory factory, IDomainUnitOfWork uow)
+            : base(metrics, store, snapshots, oobStore, factory, uow)
         {
             _parent = parent;
         }
@@ -88,6 +88,7 @@ namespace Aggregates.Internal
         protected readonly IMetrics _metrics;
         private readonly IStoreEvents _eventstore;
         private readonly IStoreSnapshots _snapstore;
+        private readonly IOobWriter _oobStore;
         private readonly IEventFactory _factory;
         protected readonly IDomainUnitOfWork _uow;
 
@@ -95,11 +96,13 @@ namespace Aggregates.Internal
 
         public int ChangedStreams => Tracked.Count(x => x.Value.Dirty);
 
-        public Repository(IMetrics metrics, IStoreEvents store, IStoreSnapshots snapshots, IEventFactory factory, IDomainUnitOfWork uow)
+        // Todo: too many operations on this class, make a "EntityWriter" contract which does event, oob, and snapshot writing
+        public Repository(IMetrics metrics, IStoreEvents store, IStoreSnapshots snapshots, IOobWriter oobStore, IEventFactory factory, IDomainUnitOfWork uow)
         {
             _metrics = metrics;
             _eventstore = store;
             _snapstore = snapshots;
+            _oobStore = oobStore;
             _factory = factory;
             _uow = uow;
 
@@ -134,7 +137,13 @@ namespace Aggregates.Internal
 
                     try
                     {
-                        await _eventstore.WriteEvents<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents, tracked.Uncommitted, commitHeaders, tracked.Version).ConfigureAwait(false);
+                        var domainEvents = tracked.Uncommitted.Where(x => x.Descriptor.StreamType == StreamTypes.Domain).ToArray();
+                        var oobEvents = tracked.Uncommitted.Where(x => x.Descriptor.StreamType == StreamTypes.OOB).ToArray();
+
+                        if(domainEvents.Any())
+                            await _eventstore.WriteEvents<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents, domainEvents, commitHeaders, tracked.Version).ConfigureAwait(false);
+                        if(oobEvents.Any())
+                            await _oobStore.WriteEvents<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents, oobEvents, commitHeaders).ConfigureAwait(false);
 
                         if (state.ShouldSnapshot())
                         {
@@ -280,6 +289,7 @@ namespace Aggregates.Internal
             (entity as INeedDomainUow).Uow = _uow;
             (entity as INeedEventFactory).EventFactory = _factory;
             (entity as INeedStore).Store = _eventstore;
+            (entity as INeedStore).OobWriter = _oobStore;
 
             Logger.Write(LogLevel.Debug, () => $"Hydrated entity id [{id}] in bucket [{bucket}] for type {typeof(TEntity).FullName} to version {entity.Version}");
             return entity;
@@ -307,6 +317,7 @@ namespace Aggregates.Internal
             (entity as INeedDomainUow).Uow = _uow;
             (entity as INeedEventFactory).EventFactory = _factory;
             (entity as INeedStore).Store = _eventstore;
+            (entity as INeedStore).OobWriter = _oobStore;
 
             return Task.FromResult(entity);
         }

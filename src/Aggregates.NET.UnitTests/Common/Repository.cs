@@ -64,6 +64,7 @@ namespace Aggregates.UnitTests.Common
         private Moq.Mock<IMetrics> _metrics;
         private Moq.Mock<IStoreSnapshots> _snapshots;
         private Moq.Mock<IStoreEvents> _eventstore;
+        private Moq.Mock<IOobWriter> _oobStore;
         private Moq.Mock<IEventFactory> _factory;
         private Moq.Mock<IDomainUnitOfWork> _uow;
         private Moq.Mock<IFullEvent> _event;
@@ -76,6 +77,7 @@ namespace Aggregates.UnitTests.Common
             _metrics = new Moq.Mock<IMetrics>();
             _snapshots = new Moq.Mock<IStoreSnapshots>();
             _eventstore = new Moq.Mock<IStoreEvents>();
+            _oobStore = new Moq.Mock<IOobWriter>();
             _factory = new Moq.Mock<IEventFactory>();
             _uow = new Moq.Mock<IDomainUnitOfWork>();
             _event = new Moq.Mock<IFullEvent>();
@@ -97,7 +99,7 @@ namespace Aggregates.UnitTests.Common
                 .Returns(Task.FromResult((ISnapshot)null));
 
             _event.Setup(x => x.Event).Returns(new FakeEvent());
-            _repository = new Aggregates.Internal.Repository<FakeEntity, FakeState>(_metrics.Object, _eventstore.Object, _snapshots.Object, _factory.Object, _uow.Object);
+            _repository = new Aggregates.Internal.Repository<FakeEntity, FakeState>(_metrics.Object, _eventstore.Object, _snapshots.Object, _oobStore.Object, _factory.Object, _uow.Object);
         }
 
         [Test]

@@ -103,15 +103,16 @@ namespace Aggregates.Extensions
             var metricsParam = Expression.Parameter(typeof(IMetrics), "metrics");
             var eventstoreParam = Expression.Parameter(typeof(IStoreEvents), "eventstore");
             var snapshotParam = Expression.Parameter(typeof(IStoreSnapshots), "snapstore");
+            var oobParam = Expression.Parameter(typeof(IOobWriter), "oobStore");
             var factoryParam = Expression.Parameter(typeof(IEventFactory), "factory");
             var uowParam = Expression.Parameter(typeof(IDomainUnitOfWork), "uow");
 
-            var body = Expression.New(ctor, metricsParam, eventstoreParam, snapshotParam, factoryParam, uowParam);
-            var lambda = Expression.Lambda<Func<IMetrics, IStoreEvents, IStoreSnapshots, IEventFactory, IDomainUnitOfWork, IRepository<TEntity>>>(body, metricsParam, eventstoreParam, snapshotParam, factoryParam, uowParam);
+            var body = Expression.New(ctor, metricsParam, eventstoreParam, snapshotParam, oobParam, factoryParam, uowParam);
+            var lambda = Expression.Lambda<Func<IMetrics, IStoreEvents, IStoreSnapshots, IEventFactory, IDomainUnitOfWork, IRepository<TEntity>>>(body, metricsParam, eventstoreParam, snapshotParam, oobParam, factoryParam, uowParam);
 
             return lambda.Compile();
         }
-        public static Func<TParent, IMetrics, IStoreEvents, IStoreSnapshots, IEventFactory, IDomainUnitOfWork, IRepository<TEntity, TParent>> BuildParentRepositoryFunc<TEntity, TParent>()
+        public static Func<TParent, IMetrics, IStoreEvents, IStoreSnapshots, IOobWriter, IEventFactory, IDomainUnitOfWork, IRepository<TEntity, TParent>> BuildParentRepositoryFunc<TEntity, TParent>()
             where TEntity : IChildEntity<TParent> where TParent : IEntity
         {
             var stateType = typeof(TEntity).BaseType.GetGenericArguments()[1];
@@ -126,11 +127,12 @@ namespace Aggregates.Extensions
             var metricsParam = Expression.Parameter(typeof(IMetrics), "metrics");
             var eventstoreParam = Expression.Parameter(typeof(IStoreEvents), "eventstore");
             var snapshotParam = Expression.Parameter(typeof(IStoreSnapshots), "snapstore");
+            var oobParam = Expression.Parameter(typeof(IOobWriter), "oobStore");
             var factoryParam = Expression.Parameter(typeof(IEventFactory), "factory");
             var uowParam = Expression.Parameter(typeof(IDomainUnitOfWork), "uow");
 
-            var body = Expression.New(ctor, parentParam, metricsParam, eventstoreParam, snapshotParam, factoryParam, uowParam);
-            var lambda = Expression.Lambda<Func<TParent, IMetrics, IStoreEvents, IStoreSnapshots, IEventFactory, IDomainUnitOfWork, IRepository<TEntity, TParent>>>(body, parentParam, metricsParam, eventstoreParam, snapshotParam, factoryParam, uowParam);
+            var body = Expression.New(ctor, parentParam, metricsParam, eventstoreParam, snapshotParam, oobParam, factoryParam, uowParam);
+            var lambda = Expression.Lambda<Func<TParent, IMetrics, IStoreEvents, IStoreSnapshots, IOobWriter, IEventFactory, IDomainUnitOfWork, IRepository<TEntity, TParent>>>(body, parentParam, metricsParam, eventstoreParam, snapshotParam, oobParam, factoryParam, uowParam);
 
             return lambda.Compile();
         }

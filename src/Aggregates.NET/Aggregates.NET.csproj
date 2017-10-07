@@ -73,6 +73,7 @@
     <Compile Include="Contracts\INeedDomainUow.cs" />
     <Compile Include="Contracts\INeedEventFactory.cs" />
     <Compile Include="Contracts\INeedStore.cs" />
+    <Compile Include="Contracts\IOobWriter.cs" />
     <Compile Include="Contracts\IPocoRepository.cs" />
     <Compile Include="Contracts\IProcessor.cs" />
     <Compile Include="Contracts\IRepository.cs" />
@@ -132,7 +133,7 @@
     <Compile Include="Internal\MutateState.cs" />
     <Compile Include="Internal\Mutating.cs" />
     <Compile Include="Internal\NullMetrics.cs" />
-    <Compile Include="Internal\OobDefinition.cs" />
+    <Compile Include="Internal\OobWriter.cs" />
     <Compile Include="Internal\PocoRepository.cs" />
     <Compile Include="Internal\Processor.cs" />
     <Compile Include="Internal\Repository.cs" />

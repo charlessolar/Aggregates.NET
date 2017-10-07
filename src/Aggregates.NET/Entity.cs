@@ -39,9 +39,11 @@ namespace Aggregates
         private IDomainUnitOfWork Uow => (this as INeedDomainUow).Uow;
         private IEventFactory Factory => (this as INeedEventFactory).EventFactory;
         private IStoreEvents Store => (this as INeedStore).Store;
+        private IOobWriter OobWriter => (this as INeedStore).OobWriter;
         IDomainUnitOfWork INeedDomainUow.Uow { get; set; }
         IEventFactory INeedEventFactory.EventFactory { get; set; }
         IStoreEvents INeedStore.Store { get; set; }
+        IOobWriter INeedStore.OobWriter { get; set; }
 
         void IEntity<TState>.Instantiate(TState state)
         {
@@ -87,29 +89,26 @@ namespace Aggregates
         }
         public Task<long> GetSize(string oob = null)
         {
-            var bucket = Bucket;
             if (!string.IsNullOrEmpty(oob))
-                bucket = $"OOB-{oob}";
+                return OobWriter.GetSize<TThis>(Bucket, Id, Parents, oob);
 
-            return Store.Size<TThis>(bucket, Id, Parents);
+            return Store.Size<TThis>(Bucket, Id, Parents);
         }
 
         public Task<IFullEvent[]> GetEvents(long start, int count, string oob = null)
         {
-            var bucket = Bucket;
             if (!string.IsNullOrEmpty(oob))
-                bucket = $"OOB-{oob}";
+                return OobWriter.GetEvents<TThis>(Bucket, Id, Parents, oob, start, count);
 
-            return Store.GetEvents<TThis>(bucket, Id, Parents, start, count);
+            return Store.GetEvents<TThis>(Bucket, Id, Parents, start, count);
         }
 
         public Task<IFullEvent[]> GetEventsBackwards(long start, int count, string oob = null)
         {
-            var bucket = Bucket;
             if (!string.IsNullOrEmpty(oob))
-                bucket = $"OOB-{oob}";
+                return OobWriter.GetEventsBackwards<TThis>(Bucket, Id, Parents, oob, start, count);
 
-            return Store.GetEventsBackwards<TThis>(bucket, Id, Parents, start, count);
+            return Store.GetEventsBackwards<TThis>(Bucket, Id, Parents, start, count);
         }
 
         void IEntity<TState>.Conflict(IEvent @event)

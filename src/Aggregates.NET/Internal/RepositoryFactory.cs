@@ -15,32 +15,34 @@ namespace Aggregates.Internal
         private readonly IStoreEvents _eventstore;
         private readonly IStoreSnapshots _snapstore;
         private readonly IStorePocos _pocostore;
+        private readonly IOobWriter _oobStore;
         private readonly IEventFactory _factory;
 
-        public RepositoryFactory(IMetrics metrics, IStoreEvents eventstore, IStoreSnapshots snapstore, IStorePocos pocostore, IEventFactory factory)
+        public RepositoryFactory(IMetrics metrics, IStoreEvents eventstore, IStoreSnapshots snapstore, IStorePocos pocostore, IOobWriter oobStore, IEventFactory factory)
         {
             _metrics = metrics;
             _eventstore = eventstore;
             _snapstore = snapstore;
             _pocostore = pocostore;
+            _oobStore = oobStore;
             _factory = factory;
         }
 
         public IRepository<TEntity> ForEntity<TEntity>(IDomainUnitOfWork uow) where TEntity : IEntity
         {
-            var factory = Factories.GetOrAdd(typeof(TEntity), t => ReflectionExtensions.BuildRepositoryFunc<TEntity>()) as Func<IMetrics, IStoreEvents, IStoreSnapshots, IEventFactory, IDomainUnitOfWork, IRepository<TEntity>>;
+            var factory = Factories.GetOrAdd(typeof(TEntity), t => ReflectionExtensions.BuildRepositoryFunc<TEntity>()) as Func<IMetrics, IStoreEvents, IStoreSnapshots, IOobWriter, IEventFactory, IDomainUnitOfWork, IRepository<TEntity>>;
             if (factory == null)
                 throw new InvalidOperationException("unknown entity repository");
 
-            return factory(_metrics, _eventstore, _snapstore, _factory, uow);
+            return factory(_metrics, _eventstore, _snapstore, _oobStore, _factory, uow);
         }
         public IRepository<TEntity, TParent> ForEntity<TEntity, TParent>(TParent parent, IDomainUnitOfWork uow) where TEntity : IChildEntity<TParent> where TParent : IEntity
         {
-            var factory = Factories.GetOrAdd(typeof(TEntity), t => ReflectionExtensions.BuildParentRepositoryFunc<TEntity, TParent>()) as Func<TParent, IMetrics, IStoreEvents, IStoreSnapshots, IEventFactory, IDomainUnitOfWork, IRepository<TEntity, TParent>>;
+            var factory = Factories.GetOrAdd(typeof(TEntity), t => ReflectionExtensions.BuildParentRepositoryFunc<TEntity, TParent>()) as Func<TParent, IMetrics, IStoreEvents, IStoreSnapshots, IOobWriter, IEventFactory, IDomainUnitOfWork, IRepository<TEntity, TParent>>;
             if (factory == null)
                 throw new InvalidOperationException("unknown entity repository");
 
-            return factory(parent, _metrics, _eventstore, _snapstore, _factory, uow);
+            return factory(parent, _metrics, _eventstore, _snapstore, _oobStore, _factory, uow);
 
         }
         public IPocoRepository<T> ForPoco<T>(IDomainUnitOfWork uow) where T : class, new()
