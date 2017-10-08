@@ -168,10 +168,11 @@ namespace Aggregates.Internal
                         if (e.InnerException is OperationCanceledException)
                             throw e.InnerException;
 
+                        e = e.Flatten();
                         // If not a canceled exception, just write to log and continue
                         // we dont want some random unknown exception to kill the whole event loop
                         Logger.Error(e, 
-                            $"Received exception in main event thread: {e.InnerException.GetType()}: {e.InnerException.Message}");
+                            $"Received exception in delayed message thread: {e.GetType()}: {e.Message}");
                     }
                 }
             }
