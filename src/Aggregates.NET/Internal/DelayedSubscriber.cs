@@ -167,21 +167,17 @@ namespace Aggregates.Internal
                     {
                         if (e.InnerException is OperationCanceledException)
                             throw e.InnerException;
-
-                        e = e.Flatten();
+                        
                         // If not a canceled exception, just write to log and continue
                         // we dont want some random unknown exception to kill the whole event loop
-                        Logger.Error(e, 
-                            $"Received exception in delayed message thread: {e.GetType()}: {e.Message}");
+                        Logger.Error(
+                            $"Received exception in delayed message thread: {e.GetType()}: {e.Message}\n{e.AsString()}");
                     }
                 }
             }
             catch(Exception e)
             {
-                if (e is System.AggregateException)
-                    e = (e as System.AggregateException).Flatten();
-
-                Logger.Error(e, $"Delayed subscriber thread terminated due to exception: {e.GetType()}: {e.Message}");
+                Logger.Error($"Delayed subscriber thread terminated due to exception: {e.GetType()}: {e.Message}\n{e.AsString()}");
             }
 
         }
