@@ -65,6 +65,8 @@ namespace Aggregates
         public TimeSpan DelayedExpiration { get; private set; }
         public int MaxDelayed { get; private set; }
 
+        public bool Passive { get; private set; }
+
         internal List<Func<Configure, Task>> RegistrationTasks;
         internal List<Func<Configure, Task>> SetupTasks;
         internal List<Func<Configure, Task>> StartupTasks;
@@ -234,6 +236,15 @@ namespace Aggregates
         public Configure SetMaxDelayed(int max)
         {
             MaxDelayed = max;
+            return this;
+        }
+        /// <summary>
+        /// Passive means the endpoint doesn't need a unit of work, it won't process events or commands
+        /// </summary>
+        /// <returns></returns>
+        public Configure SetPassive()
+        {
+            Passive = true;
             return this;
         }
 

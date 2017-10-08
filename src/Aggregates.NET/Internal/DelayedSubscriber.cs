@@ -133,11 +133,7 @@ namespace Aggregates.Internal
                         // Keys.Count is not thread safe and this can throw very occasionally
                         continue;
                     }
-
-                    if (!flushedEvents.Any())
-                        continue;
-
-                    metrics.Decrement("Delayed Queued", Unit.Event);
+                    
 
                     try
                     {
@@ -148,6 +144,8 @@ namespace Aggregates.Internal
 
                             foreach (var nullEvent in flushedEvents.Where(x => x.Item2.Event == null))
                                 Logger.Write(LogLevel.Warn, $"Received null event from delayed stream \"{stream}\" position {nullEvent.Item1}");
+
+                            metrics.Decrement("Delayed Queued", Unit.Event, flushedEvents.Where(x => x.Item2.Event != null).Count());
 
                             var messages = flushedEvents.Where(x => x.Item2.Event != null).Select(x => new FullMessage
                             {

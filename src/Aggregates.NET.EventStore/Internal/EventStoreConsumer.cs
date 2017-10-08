@@ -318,7 +318,7 @@ namespace Aggregates.Internal
             callback(e.Event.EventStreamId, e.Event.EventNumber, new FullEvent
             {
                 Descriptor = descriptor,
-                Event = payload as IEvent,
+                Event = payload,
                 EventId = e.Event.EventId
             });
         }

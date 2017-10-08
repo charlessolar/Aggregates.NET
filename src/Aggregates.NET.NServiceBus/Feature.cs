@@ -37,11 +37,22 @@ namespace Aggregates
 
             context.Container.ConfigureComponent<IEventMapper>((c) => new EventMapper(c.Build<IMessageMapper>()), DependencyLifecycle.SingleInstance);
 
+            if (!Configuration.Settings.Passive)
+            {
+                context.Pipeline.Register(
+                    b => new ExceptionRejector(b.Build<IMetrics>(), Configuration.Settings.Retries),
+                    "Watches message faults, sends error replies to client when message moves to error queue"
+                    );
 
-            context.Pipeline.Register(
-                b => new ExceptionRejector(b.Build<IMetrics>(), Configuration.Settings.Retries),
-                "Watches message faults, sends error replies to client when message moves to error queue"
-                );
+                context.Pipeline.Register<UowRegistration>();
+                context.Pipeline.Register<CommandAcceptorRegistration>();
+
+                // bulk invoke only possible with consumer feature because it uses the eventstore as a sink when overloaded
+                context.Pipeline.Replace("InvokeHandlers", (b) =>
+                    new BulkInvokeHandlerTerminator(container.Resolve<IMetrics>(), b.Build<IEventMapper>()),
+                    "Replaces default invoke handlers with one that supports our custom delayed invoker");
+            }
+
 
             if (Configuration.Settings.SlowAlertThreshold.HasValue)
                 context.Pipeline.Register(
@@ -55,19 +66,11 @@ namespace Aggregates
             foreach (var type in types.Where(IsQueryHandler))
                 container.Register(type, Lifestyle.PerInstance);
 
-            context.Pipeline.Register<CommandAcceptorRegistration>();
-            context.Pipeline.Register<UowRegistration>();
             context.Pipeline.Register<MutateIncomingRegistration>();
             context.Pipeline.Register<MutateOutgoingRegistration>();
 
             // We are sending IEvents, which NSB doesn't like out of the box - so turn that check off
             context.Pipeline.Remove("EnforceSendBestPractices");
-
-            // bulk invoke only possible with consumer feature because it uses the eventstore as a sink when overloaded
-            context.Pipeline.Replace("InvokeHandlers", (b) =>
-                new BulkInvokeHandlerTerminator(container.Resolve<IMetrics>(), b.Build<IEventMapper>()),
-                "Replaces default invoke handlers with one that supports our custom delayed invoker");
-
 
             context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue(), Configuration.Settings, Configuration.Settings.StartupTasks, Configuration.Settings.ShutdownTasks));
         }

@@ -19,11 +19,11 @@ namespace Aggregates.Internal
             return new Timer();
         }
 
-        public void Decrement(string name, Unit unit)
+        public void Decrement(string name, Unit unit, long? value = null)
         {
         }
 
-        public void Increment(string name, Unit unit)
+        public void Increment(string name, Unit unit, long? value = null)
         {
         }
 

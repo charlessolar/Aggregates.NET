@@ -38,13 +38,6 @@ namespace Aggregates.Internal
                 await next().ConfigureAwait(false);
                 return;
             }
-            if(!typeof(Messages.ICommand).IsAssignableFrom(context.Message.MessageType) && !typeof(Messages.IEvent).IsAssignableFrom(context.Message.MessageType))
-            {
-                Logger.Write(LogLevel.Debug, "Message is not an ICommand nor IEvent, skipping UnitOfWork");
-
-                await next().ConfigureAwait(false);
-                return;
-            }
             if(context.Message.MessageType == typeof(Messages.Accept) || context.Message.MessageType == typeof(Messages.Reject))
             {
                 // If this happens the callback for the message took too long (likely due to a timeout)

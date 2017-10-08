@@ -17,8 +17,8 @@ namespace Aggregates.Contracts
     {
         void Mark(string name, Unit unit, long? value = null);
 
-        void Increment(string name, Unit unit);
-        void Decrement(string name, Unit unit);
+        void Increment(string name, Unit unit, long? value = null);
+        void Decrement(string name, Unit unit, long? value = null);
 
         void Update(string name, Unit unit, long value);
 
