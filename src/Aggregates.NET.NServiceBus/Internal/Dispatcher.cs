@@ -19,7 +19,7 @@ namespace Aggregates.Internal
         private readonly IMetrics _metrics;
         private readonly IMessageSerializer _serializer;
         private readonly IEventMapper _mapper;
-        
+
         // A fake message that will travel through the pipeline in order to process events from the context bag
         private static readonly byte[] Marker = new byte[] { 0x7b, 0x7d };
 
@@ -30,7 +30,7 @@ namespace Aggregates.Internal
             _mapper = mapper;
         }
 
-        public Task Publish(IFullMessage message, IDictionary<string,string> headers = null)
+        public Task Publish(IFullMessage message, IDictionary<string, string> headers = null)
         {
             Logger.Write(LogLevel.Debug, () => $"Publishing message of type [{message.Message.GetType().FullName}]");
 
@@ -156,77 +156,84 @@ namespace Aggregates.Internal
             while (!Bus.BusOnline)
                 await Task.Delay(100).ConfigureAwait(false);
 
-            var contextBag = new ContextBag();
-            // Hack to get all the events to invoker without NSB deserializing 
-            contextBag.Set(Defaults.LocalBulkHeader, messages);
 
-
-            var processed = false;
-            var numberOfDeliveryAttempts = 0;
-
-            var messageId = Guid.NewGuid().ToString();
-
-            while (!processed)
+            await messages.GroupBy(x => x.Message.GetType()).ToArray().StartEachAsync(3, async (group) =>
             {
-                var transportTransaction = new TransportTransaction();
-                var tokenSource = new CancellationTokenSource();
+                var groupedMessages = group.ToArray();
 
-                var messageType = messages[0].Message.GetType();
-                if (!messageType.IsInterface)
-                    messageType = _mapper.GetMappedTypeFor(messageType) ?? messageType;
-
-                var finalHeaders = headers.Merge(new Dictionary<string, string>() {
-                    [Headers.EnclosedMessageTypes] = messageType.AssemblyQualifiedName,
-                    [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
-                    [Headers.MessageId] = messageId
-                });
+                var contextBag = new ContextBag();
+                // Hack to get all the events to invoker without NSB deserializing 
+                contextBag.Set(Defaults.LocalBulkHeader, groupedMessages);
 
 
-                try
+                var processed = false;
+                var numberOfDeliveryAttempts = 0;
+
+                var messageId = Guid.NewGuid().ToString();
+
+                while (!processed)
                 {
+                    var transportTransaction = new TransportTransaction();
+                    var tokenSource = new CancellationTokenSource();
 
-                    // Don't re-use the event id for the message id
-                    var messageContext = new MessageContext(messageId,
-                        finalHeaders,
-                        Marker, transportTransaction, tokenSource,
-                        contextBag);
-                    await Bus.OnMessage(messageContext).ConfigureAwait(false);
-                    _metrics.Mark("Dispatched Messages", Unit.Message, messages.Length);
-                    processed = true;
-                }
-                catch (ObjectDisposedException)
-                {
-                    // NSB transport has been disconnected
-                    throw new OperationCanceledException();
-                }
-                catch (Exception ex)
-                {
-                    _metrics.Mark("Dispatched Errors", Unit.Errors, messages.Length);
+                    var messageType = group.Key;
+                    if (!messageType.IsInterface)
+                        messageType = _mapper.GetMappedTypeFor(messageType) ?? messageType;
 
-                    ++numberOfDeliveryAttempts;
-
-                    // Don't retry a cancelation
-                    if (tokenSource.IsCancellationRequested)
-                        numberOfDeliveryAttempts = Int32.MaxValue;
-
-                    var messageList = messages.ToList();
-                    foreach (var message in messages)
+                    var finalHeaders = headers.Merge(new Dictionary<string, string>()
                     {
-                        var messageBytes = _serializer.Serialize(message.Message);
-                        var errorContext = new ErrorContext(ex, message.Headers.Merge(finalHeaders),
-                            messageId,
-                            messageBytes, transportTransaction,
-                            numberOfDeliveryAttempts);
-                        if (await Bus.OnError(errorContext).ConfigureAwait(false) == ErrorHandleResult.Handled)
-                            messageList.Remove(message);
+                        [Headers.EnclosedMessageTypes] = messageType.AssemblyQualifiedName,
+                        [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
+                        [Headers.MessageId] = messageId
+                    });
+
+
+                    try
+                    {
+
+                        // Don't re-use the event id for the message id
+                        var messageContext = new MessageContext(messageId,
+                            finalHeaders,
+                            Marker, transportTransaction, tokenSource,
+                            contextBag);
+                        await Bus.OnMessage(messageContext).ConfigureAwait(false);
+                        _metrics.Mark("Dispatched Messages", Unit.Message, groupedMessages.Length);
+                        processed = true;
                     }
-                    messages = messageList.ToArray();
-                    if (messages.Length == 0)
-                        break;
+                    catch (ObjectDisposedException)
+                    {
+                        // NSB transport has been disconnected
+                        throw new OperationCanceledException();
+                    }
+                    catch (Exception ex)
+                    {
+                        _metrics.Mark("Dispatched Errors", Unit.Errors, groupedMessages.Length);
+
+                        ++numberOfDeliveryAttempts;
+
+                        // Don't retry a cancelation
+                        if (tokenSource.IsCancellationRequested)
+                            numberOfDeliveryAttempts = Int32.MaxValue;
+
+                        var messageList = groupedMessages.ToList();
+                        foreach (var message in groupedMessages)
+                        {
+                            var messageBytes = _serializer.Serialize(message.Message);
+                            var errorContext = new ErrorContext(ex, message.Headers.Merge(finalHeaders),
+                                messageId,
+                                messageBytes, transportTransaction,
+                                numberOfDeliveryAttempts);
+                            if (await Bus.OnError(errorContext).ConfigureAwait(false) == ErrorHandleResult.Handled)
+                                messageList.Remove(message);
+                        }
+                        if (messageList.Count == 0)
+                            break;
+                        groupedMessages = messageList.ToArray();
+                    }
+
                 }
+            }).ConfigureAwait(false);
 
-
-            }
         }
     }
 }

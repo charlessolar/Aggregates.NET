@@ -125,9 +125,7 @@ namespace Aggregates.Internal
                     try
                     {
                         stream = WaitingEvents.Keys.ElementAt(random.Next(WaitingEvents.Keys.Count));
-                        if (
-                            !WaitingEvents.TryRemove(stream,
-                                out flushedEvents))
+                        if (!WaitingEvents.TryRemove(stream, out flushedEvents))
                             continue;
                     }
                     catch (ArgumentOutOfRangeException)
@@ -135,6 +133,9 @@ namespace Aggregates.Internal
                         // Keys.Count is not thread safe and this can throw very occasionally
                         continue;
                     }
+
+                    if (!flushedEvents.Any())
+                        continue;
 
                     metrics.Decrement("Delayed Queued", Unit.Event);
 
