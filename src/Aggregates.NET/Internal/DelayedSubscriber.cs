@@ -146,8 +146,10 @@ namespace Aggregates.Internal
                             Logger.Write(LogLevel.Info,
                                 () => $"Processing {flushedEvents.Count()} bulked events");
 
+                            foreach (var nullEvent in flushedEvents.Where(x => x.Item2.Event == null))
+                                Logger.Write(LogLevel.Warn, $"Received null event from delayed stream \"{stream}\" position {nullEvent.Item1}");
 
-                            var messages = flushedEvents.Select(x => new FullMessage
+                            var messages = flushedEvents.Where(x => x.Item2.Event != null).Select(x => new FullMessage
                             {
                                 Message = x.Item2.Event,
                                 Headers = x.Item2.Descriptor.Headers
