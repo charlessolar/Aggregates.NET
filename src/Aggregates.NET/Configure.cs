@@ -248,5 +248,14 @@ namespace Aggregates
             return this;
         }
 
+        public Configure AddMetrics<TImplementation>() where TImplementation : class, IMetrics
+        {
+            RegistrationTasks.Add((c) =>
+            {
+                c.Container.Register<IMetrics, TImplementation>(Lifestyle.Singleton);
+                return Task.CompletedTask;
+            });
+            return this;
+        }
     }
 }
