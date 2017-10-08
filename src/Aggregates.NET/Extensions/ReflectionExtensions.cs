@@ -89,7 +89,7 @@ namespace Aggregates.Extensions
             return lambda.Compile();
         }
 
-        public static Func<IMetrics, IStoreEvents, IStoreSnapshots, IEventFactory, IDomainUnitOfWork, IRepository<TEntity>> BuildRepositoryFunc<TEntity>()
+        public static Func<IMetrics, IStoreEvents, IStoreSnapshots, IOobWriter, IEventFactory, IDomainUnitOfWork, IRepository<TEntity>> BuildRepositoryFunc<TEntity>()
             where TEntity : IEntity
         {
             var stateType = typeof(TEntity).BaseType.GetGenericArguments()[1];
@@ -108,7 +108,7 @@ namespace Aggregates.Extensions
             var uowParam = Expression.Parameter(typeof(IDomainUnitOfWork), "uow");
 
             var body = Expression.New(ctor, metricsParam, eventstoreParam, snapshotParam, oobParam, factoryParam, uowParam);
-            var lambda = Expression.Lambda<Func<IMetrics, IStoreEvents, IStoreSnapshots, IEventFactory, IDomainUnitOfWork, IRepository<TEntity>>>(body, metricsParam, eventstoreParam, snapshotParam, oobParam, factoryParam, uowParam);
+            var lambda = Expression.Lambda<Func<IMetrics, IStoreEvents, IStoreSnapshots, IOobWriter, IEventFactory, IDomainUnitOfWork, IRepository<TEntity>>>(body, metricsParam, eventstoreParam, snapshotParam, oobParam, factoryParam, uowParam);
 
             return lambda.Compile();
         }
