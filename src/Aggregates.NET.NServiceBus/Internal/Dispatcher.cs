@@ -78,6 +78,8 @@ namespace Aggregates.Internal
             while (!Bus.BusOnline)
                 await Task.Delay(100).ConfigureAwait(false);
 
+            headers = headers ?? new Dictionary<string, string>();
+
             var contextBag = new ContextBag();
             // Hack to get all the events to invoker without NSB deserializing 
             contextBag.Set(Defaults.LocalHeader, message.Message);
@@ -100,7 +102,7 @@ namespace Aggregates.Internal
                 if (!messageType.IsInterface)
                     messageType = _mapper.GetMappedTypeFor(messageType) ?? messageType;
 
-                var finalHeaders = message.Headers.Merge(headers ?? new Dictionary<string, string>());
+                var finalHeaders = message.Headers.Merge(headers);
                 finalHeaders[Headers.EnclosedMessageTypes] = messageType.AssemblyQualifiedName;
                 finalHeaders[Headers.MessageIntent] = MessageIntentEnum.Send.ToString();
                 finalHeaders[Headers.MessageId] = messageId;
@@ -156,6 +158,7 @@ namespace Aggregates.Internal
             while (!Bus.BusOnline)
                 await Task.Delay(100).ConfigureAwait(false);
 
+            headers = headers ?? new Dictionary<string, string>();
 
             await messages.GroupBy(x => x.Message.GetType()).ToArray().StartEachAsync(3, async (group) =>
             {
