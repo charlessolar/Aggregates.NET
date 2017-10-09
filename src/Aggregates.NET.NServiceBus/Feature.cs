@@ -26,9 +26,7 @@ namespace Aggregates
         {
             var settings = context.Settings;
             var container = Configuration.Settings.Container;
-
-            //container.Register<IDomainUnitOfWork, NSBUnitOfWork>();
-            MutationManager.RegisterMutator("domain unit of work", typeof(IDomainUnitOfWork));
+            
 
             context.Container.ConfigureComponent<IDomainUnitOfWork>((c) => new NSBUnitOfWork(c.Build<IRepositoryFactory>(), c.Build<IEventFactory>(), c.Build<IProcessor>()), DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<IEventFactory>((c) => new EventFactory(c.Build<IMessageCreator>()), DependencyLifecycle.InstancePerCall);
@@ -39,6 +37,9 @@ namespace Aggregates
 
             if (!Configuration.Settings.Passive)
             {
+                //container.Register<IDomainUnitOfWork, NSBUnitOfWork>();
+                MutationManager.RegisterMutator("domain unit of work", typeof(IDomainUnitOfWork));
+
                 context.Pipeline.Register(
                     b => new ExceptionRejector(b.Build<IMetrics>(), Configuration.Settings.Retries),
                     "Watches message faults, sends error replies to client when message moves to error queue"

@@ -48,6 +48,7 @@
     </Compile>
     <Compile Include="Internal\IdJsonConverter.cs" />
     <Compile Include="Internal\JsonMessageSerializer.cs" />
+    <Compile Include="Internal\PrivateSetterContractResolver.cs" />
     <Compile Include="JsonConfigure.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

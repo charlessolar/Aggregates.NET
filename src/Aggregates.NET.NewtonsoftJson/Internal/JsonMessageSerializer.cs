@@ -29,7 +29,8 @@ namespace Aggregates.Internal
             settings = settings ?? new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
-                Converters = new JsonConverter[] { new Newtonsoft.Json.Converters.StringEnumConverter(), new IdJsonConverter() }
+                Converters = new JsonConverter[] { new Newtonsoft.Json.Converters.StringEnumConverter(), new IdJsonConverter() },
+                ContractResolver = new PrivateSetterContractResolver()
             };
 
             this.writerCreator = writerCreator ?? (stream =>
