@@ -16,7 +16,7 @@ namespace Aggregates
             {
                 var container = c.Container;
                                 
-                container.Register<IMessageSerializer>((factory) => new JsonMessageSerializer(factory.Resolve<IEventMapper>(), null, null, null, null), Lifestyle.Singleton);
+                container.Register<IMessageSerializer>((factory) => new JsonMessageSerializer(factory.Resolve<IEventMapper>()), Lifestyle.Singleton);
 
                 return Task.CompletedTask;
             });

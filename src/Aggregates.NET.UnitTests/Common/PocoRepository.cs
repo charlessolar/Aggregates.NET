@@ -34,7 +34,7 @@ namespace Aggregates.UnitTests.Common
             _mapper = new Moq.Mock<IEventMapper>();
             _uow = new Moq.Mock<IDomainUnitOfWork>();
 
-            _serializer = new JsonMessageSerializer(_mapper.Object, null, null, null, null);
+            _serializer = new JsonMessageSerializer(_mapper.Object);
 
             var fake = new FakeConfiguration();
 
