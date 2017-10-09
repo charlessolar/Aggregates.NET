@@ -166,7 +166,7 @@ namespace Aggregates.Internal
 
                 var contextBag = new ContextBag();
                 // Hack to get all the events to invoker without NSB deserializing 
-                contextBag.Set(Defaults.LocalBulkHeader, groupedMessages);
+                contextBag.Set(Defaults.LocalBulkHeader, groupedMessages.Select(x => x.Message as IDelayedMessage).ToArray());
 
 
                 var processed = false;
