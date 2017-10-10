@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Aggregates
 {
-
     public class Id : IEquatable<Id>
     {
         internal object Value { get; set; }

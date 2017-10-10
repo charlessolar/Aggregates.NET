@@ -29,11 +29,11 @@ namespace Aggregates.Internal
             {
                 TypeNameHandling = TypeNameHandling.Auto,
                 Converters = new JsonConverter[] { new Newtonsoft.Json.Converters.StringEnumConverter(), new IdJsonConverter() },
-                Error = new EventHandler<Newtonsoft.Json.Serialization.ErrorEventArgs>(HandleDeserializationError),
+                Error = new EventHandler<Newtonsoft.Json.Serialization.ErrorEventArgs>(HandleError),
                 ContractResolver = new PrivateSetterContractResolver(),
-                TraceWriter = new TraceWriter(),
+                //TraceWriter = new TraceWriter(),
                 MissingMemberHandling = MissingMemberHandling.Ignore,
-                NullValueHandling = NullValueHandling.Ignore
+                NullValueHandling = NullValueHandling.Include
             };
 
             this.writerCreator = (stream =>
@@ -56,37 +56,9 @@ namespace Aggregates.Internal
             jsonSerializer = NewtonSerializer.Create(settings);
         }
 
-        private static void HandleDeserializationError(object sender, Newtonsoft.Json.Serialization.ErrorEventArgs errorArgs)
+        private static void HandleError(object sender, Newtonsoft.Json.Serialization.ErrorEventArgs args)
         {
-            if (errorArgs != null && errorArgs.ErrorContext != null && errorArgs.ErrorContext.Error != null && errorArgs.ErrorContext.Error.GetType() == typeof(JsonSerializationException))
-            {
-                Logger.Error(errorArgs.ErrorContext.Error, $"HandleDeserializationError :{(errorArgs.ErrorContext.OriginalObject == null ? "null" : errorArgs.ErrorContext.OriginalObject.GetType().FullName)} member: {errorArgs.ErrorContext.Member} path: {errorArgs.ErrorContext.Path}");
-            }
-            else
-            {
-                if (errorArgs != null)
-                {
-                    if (errorArgs.ErrorContext != null)
-                    {
-                        if (errorArgs.ErrorContext.Error != null)
-                        {
-                            Logger.Error(errorArgs.ErrorContext.Error, $"HandleDeserializationError2 :{(errorArgs.ErrorContext.OriginalObject == null ? "null" : errorArgs.ErrorContext.OriginalObject.GetType().FullName)} member: {errorArgs.ErrorContext.Member} path: {errorArgs.ErrorContext.Path}");
-                        }
-                        else
-                        {
-                            Logger.Error("json error ErrorContext.Error null");
-                            Logger.Error("json error path: " + errorArgs.ErrorContext.Path);
-                        }
-                    }
-                    else
-                        Logger.Error("json error ErrorContext null");
-
-                }
-                else
-                    Logger.Error("json error null");
-            }
-            errorArgs.ErrorContext.Handled = true;
-
+            throw args.ErrorContext.Error;
         }
 
         public void Serialize(object message, Stream stream)
