@@ -45,7 +45,7 @@ namespace Aggregates.Internal
         }
 
         public async Task<IFullEvent[]> GetEvents(string stream, long? start = null, int? count = null)
-        { 
+        {
             var shard = Math.Abs(stream.GetHashCode() % _clients.Count());
 
             var sliceStart = start ?? StreamPosition.Start;
@@ -83,7 +83,7 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Info, () => $"Stream [{stream}] does not exist!");
                 throw new NotFoundException($"Stream [{stream}] does not exist!");
             }
-            
+
             var translatedEvents = events.Select(e =>
             {
                 var metadata = e.Event.Metadata;
@@ -93,7 +93,7 @@ namespace Aggregates.Internal
 
                 if (descriptor.Compressed)
                     data = data.Decompress();
-                
+
                 var @event = _serializer.Deserialize(e.Event.EventType, data);
 
                 // Special case if event was written without a version - substitue the position from store
@@ -238,7 +238,7 @@ namespace Aggregates.Internal
             IDictionary<string, string> commitHeaders, long? expectedVersion = null)
         {
             Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events to stream id [{stream}].  Expected version: {expectedVersion}");
-            
+
             var translatedEvents = events.Select(e =>
             {
                 var descriptor = new EventDescriptor
@@ -293,61 +293,43 @@ namespace Aggregates.Internal
             long nextVersion;
             using (var ctx = _metrics.Begin("EventStore Write Time"))
             {
-                EventStoreTransaction transaction = null;
                 try
                 {
-                    if (events.Count() > _readsize)
-                        transaction = await _clients[shard].StartTransactionAsync(stream, expectedVersion ?? ExpectedVersion.Any).ConfigureAwait(false);
+                    var result = await
+                        _clients[shard].AppendToStreamAsync(stream, expectedVersion ?? ExpectedVersion.Any, events)
+                            .ConfigureAwait(false);
 
-                    if (transaction != null)
-                    {
-                        Logger.Write(LogLevel.Debug, () => $"Using transaction {events.Count()} is over max {_readsize} to write stream id [{stream}]");
-                        var page = 0;
-                        while (page < events.Count())
-                        {
-                            await transaction.WriteAsync(events.Skip(page).Take(_readsize)).ConfigureAwait(false);
-                            page += _readsize;
-                        }
-                        var result = await transaction.CommitAsync().ConfigureAwait(false);
-                        nextVersion = result.NextExpectedVersion;
-                    }
-                    else
-                    {
-                        var result = await
-                            _clients[shard].AppendToStreamAsync(stream, expectedVersion ?? ExpectedVersion.Any, events)
-                                .ConfigureAwait(false);
+                    nextVersion = result.NextExpectedVersion;
 
-                        nextVersion = result.NextExpectedVersion;
-                    }
                 }
                 catch (WrongExpectedVersionException e)
                 {
-                    transaction?.Rollback();
                     throw new VersionException($"We expected version {expectedVersion ?? ExpectedVersion.Any}", e);
                 }
                 catch (CannotEstablishConnectionException e)
                 {
-                    transaction?.Rollback();
                     throw new PersistenceException(e.Message, e);
                 }
                 catch (OperationTimedOutException e)
                 {
-                    transaction?.Rollback();
                     throw new PersistenceException(e.Message, e);
                 }
                 catch (EventStoreConnectionException e)
                 {
-                    transaction?.Rollback();
                     throw new PersistenceException(e.Message, e);
                 }
-                
+                catch (InvalidOperationException e)
+                {
+                    throw new PersistenceException(e.Message, e);
+                }
+
                 if (ctx.Elapsed > TimeSpan.FromSeconds(1))
                     SlowLogger.Write(LogLevel.Warn, () => $"Writing {events.Count()} events of total size {events.Sum(x => x.Data.Length)} to stream [{stream}] version {expectedVersion} took {ctx.Elapsed.TotalSeconds} seconds!");
                 Logger.Write(LogLevel.Debug, () => $"Writing {events.Count()} events of total size {events.Sum(x => x.Data.Length)} to stream [{stream}] version {expectedVersion} took {ctx.Elapsed.TotalMilliseconds} ms");
             }
             return nextVersion;
         }
-        
+
         public async Task WriteMetadata(string stream, long? maxCount = null, long? truncateBefore = null,
             TimeSpan? maxAge = null,
             TimeSpan? cacheControl = null, bool force = false, IDictionary<string, string> custom = null)
@@ -438,6 +420,6 @@ namespace Aggregates.Internal
             var stream = _generator(typeof(TEntity), StreamTypes.Domain, bucket, streamId, parents);
             return GetMetadata(stream, key);
         }
-        
+
     }
 }
