@@ -103,7 +103,7 @@ namespace Aggregates.Internal
                 return (IFullEvent)new FullEvent
                 {
                     Descriptor = descriptor,
-                    Event = @event as IEvent,
+                    Event = @event,
                     EventId = e.Event.EventId
                 };
             }).ToArray();
@@ -191,7 +191,7 @@ namespace Aggregates.Internal
                 return (IFullEvent)new FullEvent
                 {
                     Descriptor = descriptor,
-                    Event = @event as IEvent,
+                    Event = @event,
                     EventId = e.Event.EventId
                 };
             }).ToArray();
