@@ -30,7 +30,7 @@ namespace Aggregates.Internal
         }
     }
 
-    class EntityFactory<TEntity, TState> : IEntityFactory<TEntity> where TEntity : Entity<TEntity, TState> where TState : IState, new()
+    class EntityFactory<TEntity, TState> : IEntityFactory<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
 
         private readonly Func<TEntity> _factory;
@@ -52,7 +52,7 @@ namespace Aggregates.Internal
             state.Bucket = bucket;
 
             state.Parents = parents;
-            state.Snapshot = (TState)snapshot;
+            state.Snapshot = snapshot as TState;
 
             if (events != null && events.Length > 0)
             {

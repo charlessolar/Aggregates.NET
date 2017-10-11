@@ -14,26 +14,31 @@ namespace Aggregates.Internal
     {
         private readonly IMessageDispatcher _dispatcher;
         private readonly IStoreEvents _store;
+        private readonly StreamIdGenerator _generator;
 
         private static ConcurrentDictionary<string, int> DaysToLiveKnowns = new ConcurrentDictionary<string, int>();
 
-        public OobWriter(IMessageDispatcher dispatcher, IStoreEvents store)
+        public OobWriter(IMessageDispatcher dispatcher, IStoreEvents store, StreamIdGenerator generator)
         {
             _dispatcher = dispatcher;
             _store = store;
+            _generator = generator;
         }
 
         public Task<long> GetSize<TEntity>(string bucket, Id streamId, Id[] parents, string oobId) where TEntity : IEntity
         {
-            return _store.Size<TEntity>($"OOB-{oobId}-{bucket}", streamId, parents);
+            var stream = _generator(typeof(TEntity), StreamTypes.OOB, $"{oobId}.{bucket}", streamId, parents);
+            return _store.Size(stream);
         }
         public Task<IFullEvent[]> GetEvents<TEntity>(string bucket, Id streamId, Id[] parents, string oobId, long? start = null, int? count = null) where TEntity : IEntity
         {
-            return _store.GetEvents<TEntity>($"OOB-{oobId}-{bucket}", streamId, parents, start, count);
+            var stream = _generator(typeof(TEntity), StreamTypes.OOB, $"{oobId}.{bucket}", streamId, parents);
+            return _store.GetEvents(stream, start, count);
         }
         public Task<IFullEvent[]> GetEventsBackwards<TEntity>(string bucket, Id streamId, Id[] parents, string oobId, long? start = null, int? count = null) where TEntity : IEntity
         {
-            return _store.GetEventsBackwards<TEntity>($"OOB-{oobId}-{bucket}", streamId, parents, start, count);
+            var stream = _generator(typeof(TEntity), StreamTypes.OOB, $"{oobId}.{bucket}", streamId, parents);
+            return _store.GetEventsBackwards(stream, start, count);
         }
 
         public async Task WriteEvents<TEntity>(string bucket, Id streamId, Id[] parents, IFullEvent[] events, IDictionary<string, string> commitHeaders) where TEntity : IEntity
@@ -72,7 +77,8 @@ namespace Aggregates.Internal
 
                 if (!transient)
                 {
-                    var version = await _store.WriteEvents<TEntity>($"OOB-{id}-{bucket}", streamId, parents, new[] { @event }, headers).ConfigureAwait(false);
+                    var stream = _generator(typeof(TEntity), StreamTypes.OOB, $"{id}.{bucket}", streamId, parents);
+                    var version = await _store.WriteEvents(stream, new[] { @event }, headers).ConfigureAwait(false);
                     if (daysToLive != -1)
                     {
                         var key = $"{bucket}.{id}.{streamId}.{parentsStr}";
@@ -81,7 +87,7 @@ namespace Aggregates.Internal
                         if (!DaysToLiveKnowns.ContainsKey(key) || DaysToLiveKnowns[key] != daysToLive)
                         {
                             DaysToLiveKnowns[key] = daysToLive;
-                            await _store.WriteMetadata<TEntity>($"OOB-{id}-{bucket}", streamId, parents, maxAge: TimeSpan.FromDays(daysToLive)).ConfigureAwait(false);
+                            await _store.WriteMetadata(stream, maxAge: TimeSpan.FromDays(daysToLive)).ConfigureAwait(false);
                         }
                     }
                 }

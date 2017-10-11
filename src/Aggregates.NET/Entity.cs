@@ -12,14 +12,14 @@ using Aggregates.Messages;
 
 namespace Aggregates
 {
-    public abstract class Entity<TThis, TState, TParent> : Entity<TThis, TState>, IChildEntity<TParent> where TParent : IEntity where TThis : Entity<TThis, TState, TParent> where TState : IState, new()
+    public abstract class Entity<TThis, TState, TParent> : Entity<TThis, TState>, IChildEntity<TParent> where TParent : IEntity where TThis : Entity<TThis, TState, TParent> where TState : class, IState, new()
     {
         TParent IChildEntity<TParent>.Parent => Parent;
 
         public TParent Parent { get; internal set; }
     }
 
-    public abstract class Entity<TThis, TState> : IEntity<TState>, IHaveEntities<TThis>, INeedDomainUow, INeedEventFactory, INeedStore where TThis : Entity<TThis, TState> where TState : IState, new()
+    public abstract class Entity<TThis, TState> : IEntity<TState>, IHaveEntities<TThis>, INeedDomainUow, INeedEventFactory, INeedStore where TThis : Entity<TThis, TState> where TState : class, IState, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger(typeof(TThis).Name);
 
@@ -53,29 +53,25 @@ namespace Aggregates
             Version = state.Version;
             State = state;
 
-            Instantiate(state);
+            Instantiate();
         }
 
-        TState IEntity<TState>.SnapshotTaken(TState state)
+        void IEntity<TState>.Snapshotting()
         {
-            return SnapshotTaken(state);
+            Snapshotting();
         }
         /// <summary>
         /// Allows the entity to perform any kind of initialization they may need to do (rare)
         /// </summary>
-        /// <param name="state"></param>
-        protected virtual void Instantiate(TState state)
+        protected virtual void Instantiate()
         {
         }
 
         /// <summary>
         /// Allows the entity to inject things into a serialized state object before its saved
         /// </summary>
-        /// <param name="state"></param>
-        /// <returns></returns>
-        protected virtual TState SnapshotTaken(TState state)
+        protected virtual void Snapshotting()
         {
-            return state;
         }
 
 
@@ -169,7 +165,7 @@ namespace Aggregates
             (this as IEntity<TState>).Apply(instance);
         }
 
-        protected void Raise<TEvent>(Action<TEvent> @event, string id, bool transient = false, int? daysToLive = null) where TEvent : IEvent
+        protected void Raise<TEvent>(Action<TEvent> @event, string id, bool transient = true, int? daysToLive = null) where TEvent : IEvent
         {
             var instance = Factory.Create(@event);
 

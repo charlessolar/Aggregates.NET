@@ -445,6 +445,27 @@ namespace Aggregates.UnitTests.Common
             _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
             
         }
+        [Test]
+        public async Task commit_oob_events_handled()
+        {
+            _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+                .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
 
+            var entity = await _repository.Get("test");
+            // make entity dirty
+            (entity as IEntity<FakeState>).Apply(new FakeEvent());
+            (entity as IEntity<FakeState>).Raise(new FakeEvent(), "test");
+
+            _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
+                .Returns(Task.FromResult(0L));
+            _oobStore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>()))
+                .Returns(Task.CompletedTask);
+
+            await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
+
+            _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
+
+            _oobStore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
+        }
     }
 }

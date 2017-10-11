@@ -15,7 +15,7 @@ using AggregateException = System.AggregateException;
 
 namespace Aggregates.Internal
 {
-    class Repository<TEntity, TState, TParent> : Repository<TEntity, TState>, IRepository<TEntity, TParent> where TParent : IEntity where TEntity : Entity<TEntity, TState, TParent> where TState : IState, new()
+    class Repository<TEntity, TState, TParent> : Repository<TEntity, TState>, IRepository<TEntity, TParent> where TParent : IEntity where TEntity : Entity<TEntity, TState, TParent> where TState : class, IState, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Repository");
 
@@ -77,7 +77,7 @@ namespace Aggregates.Internal
             return entity;
         }
     }
-    class Repository<TEntity, TState> : IRepository<TEntity>, IRepository where TEntity : Entity<TEntity, TState> where TState : IState, new()
+    class Repository<TEntity, TState> : IRepository<TEntity>, IRepository where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Repository");
         private static readonly IEntityFactory<TEntity> Factory = EntityFactory.For<TEntity>();
@@ -147,10 +147,9 @@ namespace Aggregates.Internal
 
                         if (state.ShouldSnapshot())
                         {
-                            var snapshot = state;
-                            snapshot = (tracked as IEntity<TState>).SnapshotTaken(snapshot);
+                            (tracked as IEntity<TState>).Snapshotting();
                             await _snapstore.WriteSnapshots<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents, tracked.Version,
-                                    snapshot, commitHeaders).ConfigureAwait(false);
+                                    state, commitHeaders).ConfigureAwait(false);
                         }
                     }
                     catch (VersionException e)
