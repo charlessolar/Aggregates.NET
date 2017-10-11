@@ -46,14 +46,15 @@ namespace Aggregates.Internal
             if (snapshot != null && !(snapshot is TState))
                 throw new ArgumentException(
                     $"Snapshot type {snapshot.GetType().Name} doesn't match {typeof(TState).Name}");
-            
-            var state = new TState();
+
+            var snapshotState = snapshot as TState;
+
+            var state = snapshotState?.Copy<TState>() ?? new TState() { Version = EntityFactory.NewEntityVersion };
             state.Id = id;
             state.Bucket = bucket;
 
             state.Parents = parents;
-            state.Version = snapshot?.Version ?? EntityFactory.NewEntityVersion;
-            state.Snapshot = snapshot as TState;
+            state.Snapshot = snapshotState;
 
             if (events != null && events.Length > 0)
             {
@@ -62,7 +63,7 @@ namespace Aggregates.Internal
             }
 
             var entity = _factory();
-            (entity as IEntity<TState>).Instantiate((TState) state);
+            (entity as IEntity<TState>).Instantiate(state);
 
             
             return entity;

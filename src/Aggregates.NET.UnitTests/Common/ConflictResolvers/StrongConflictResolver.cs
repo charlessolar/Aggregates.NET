@@ -132,7 +132,7 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
         }
 
         [Test]
-        public async Task takes_snapshot()
+        public async Task doesnt_take_snapshot()
         {
             var streamGen = new StreamIdGenerator((type, stream, bucket, id, parents) => "test");
 
@@ -151,7 +151,7 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
 
             Assert.AreEqual(1, entity.State.Conflicts);
 
-            _snapstore.Verify(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
+            _snapstore.Verify(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
             
         }
 

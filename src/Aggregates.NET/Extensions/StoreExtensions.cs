@@ -3,13 +3,14 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 using Aggregates.Contracts;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace Aggregates.Extensions
 {
     static class StoreExtensions
     {
         public static readonly UTF8Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-
+        
         public static byte[] AsByteArray(this string json)
         {
             return Utf8NoBom.GetBytes(json);

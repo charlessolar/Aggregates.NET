@@ -163,6 +163,7 @@ namespace Aggregates.Internal
             var headers = new Dictionary<string, string>
             {
                 [CommitHeader] = CommitId.ToString(),
+                ["Instance"] = Defaults.Instance.ToString()
                 // Todo: what else can we put in here?
             };
 

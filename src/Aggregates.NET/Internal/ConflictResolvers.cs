@@ -128,7 +128,21 @@ namespace Aggregates.Internal
                     if (u.Descriptor.StreamType == StreamTypes.Domain)
                         entity.Conflict(u.Event as IEvent);
                     else if (u.Descriptor.StreamType == StreamTypes.OOB)
-                        entity.Raise(u.Event as IEvent, u.Descriptor.Headers[Defaults.OobHeaderKey]);
+                    {
+                        // Todo: small hack
+                        string id = "";
+                        bool transient = true;
+                        int daysToLive = -1;
+
+                        id = u.Descriptor.Headers[Defaults.OobHeaderKey];
+
+                        if (u.Descriptor.Headers.ContainsKey(Defaults.OobTransientKey))
+                            bool.TryParse(u.Descriptor.Headers[Defaults.OobTransientKey], out transient);
+                        if (u.Descriptor.Headers.ContainsKey(Defaults.OobDaysToLiveKey))
+                            int.TryParse(u.Descriptor.Headers[Defaults.OobDaysToLiveKey], out daysToLive);
+
+                        entity.Raise(u.Event as IEvent, id, transient, daysToLive);
+                    }
                 }
             }
             catch (NoRouteException e)
@@ -141,14 +155,7 @@ namespace Aggregates.Internal
 
 
             await _eventstore.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.Parents, entity.Uncommitted, commitHeaders).ConfigureAwait(false);
-
-            if (state.ShouldSnapshot())
-            {
-                Logger.Write(LogLevel.Debug,
-                    () => $"Taking snapshot of {typeof(TEntity).FullName} id [{entity.Id}] version {entity.Version}");
-                await _snapstore.WriteSnapshots<TEntity>(entity.Bucket, entity.Id, entity.Parents, state.Version, state, commitHeaders)
-                    .ConfigureAwait(false);
-            }
+            
         }
     }
 

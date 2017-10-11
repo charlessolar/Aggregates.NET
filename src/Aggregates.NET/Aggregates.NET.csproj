@@ -111,6 +111,7 @@
     <Compile Include="Extensions\LoggerExtensions.cs" />
     <Compile Include="Extensions\MessageExtensions.cs" />
     <Compile Include="Extensions\MethodInfoExtensions.cs" />
+    <Compile Include="Extensions\ObjectExtensions.cs" />
     <Compile Include="Extensions\ReflectionExtensions.cs" />
     <Compile Include="Extensions\StackExtensions.cs" />
     <Compile Include="Extensions\StoreExtensions.cs" />
