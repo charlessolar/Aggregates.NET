@@ -46,12 +46,13 @@ namespace Aggregates.Internal
             if (snapshot != null && !(snapshot is TState))
                 throw new ArgumentException(
                     $"Snapshot type {snapshot.GetType().Name} doesn't match {typeof(TState).Name}");
-
-            var state = snapshot ?? new TState { Version = EntityFactory.NewEntityVersion };
+            
+            var state = new TState();
             state.Id = id;
             state.Bucket = bucket;
 
             state.Parents = parents;
+            state.Version = snapshot?.Version ?? EntityFactory.NewEntityVersion;
             state.Snapshot = snapshot as TState;
 
             if (events != null && events.Length > 0)

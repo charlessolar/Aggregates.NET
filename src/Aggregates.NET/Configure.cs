@@ -111,7 +111,7 @@ namespace Aggregates
                 container.Register<IProcessor, Processor>(Lifestyle.PerInstance);
                 container.Register<IStoreSnapshots>((factory) => new StoreSnapshots(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<ISnapshotReader>(), c.Generator), Lifestyle.PerInstance);
                 container.Register<IStorePocos>((factory) => new StorePocos(factory.Resolve<IStoreEvents>(), factory.Resolve<ICache>(), factory.Resolve<IMessageSerializer>(), true, c.Generator), Lifestyle.PerInstance);
-                container.Register<IOobWriter, OobWriter>(Lifestyle.PerInstance);
+                container.Register<IOobWriter>((factory) => new OobWriter(factory.Resolve<IMessageDispatcher>(), factory.Resolve<IStoreEvents>(), c.Generator), Lifestyle.PerInstance);
                 container.Register<ISnapshotReader, SnapshotReader>(Lifestyle.PerInstance);
 
                 container.Register<ICache, IntelligentCache>(Lifestyle.Singleton);

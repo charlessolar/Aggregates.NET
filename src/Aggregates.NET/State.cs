@@ -15,10 +15,30 @@ namespace Aggregates
 
         private IMutateState Mutator => StateMutators.For(typeof(TThis));
 
-        public Id Id => (this as IState).Id;
-        public string Bucket => (this as IState).Bucket;
-        public Id[] Parents => (this as IState).Parents;
-        public long Version => (this as IState).Version;
+        // set is for deserialization
+        public Id Id
+        {
+            get => (this as IState).Id;
+            set => (this as IState).Id = value;
+        }
+        public string Bucket
+        {
+            get => (this as IState).Bucket;
+            set => (this as IState).Bucket = value;
+        }
+        public Id[] Parents
+        {
+            get => (this as IState).Parents;
+            set => (this as IState).Parents = value;
+        }
+        public long Version
+        {
+            get => (this as IState).Version;
+            set => (this as IState).Version = value;
+        }
+
+        // Don't need / want previous snapshots to be deserialized
+        // will lead to infinite Snapshot.Snapshot.Snapshot.Snapshot
         public TThis Snapshot => (this as IState).Snapshot as TThis;
 
         // Trick so we can set these fields ourselves without a constructor

@@ -80,6 +80,10 @@ namespace Aggregates.Internal
             var streamName = _streamGen(typeof(T), StreamTypes.Snapshot, bucket, streamId, parents);
             Logger.Write(LogLevel.Debug, () => $"Writing snapshot to stream [{streamName}]");
 
+            // We don't need snapshots to store the previous snapshot
+            // ideally this field would be [JsonIgnore] but we have no dependency on json.net
+            snapshot.Snapshot = null;
+
             var e = new FullEvent
             {
                 Descriptor = new EventDescriptor
