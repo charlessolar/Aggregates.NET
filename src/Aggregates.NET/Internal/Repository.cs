@@ -213,7 +213,9 @@ namespace Aggregates.Internal
 
                         if (state.ShouldSnapshot())
                         {
+                            // Notify the entity and state that we are taking a snapshot
                             (tracked as IEntity<TState>).Snapshotting();
+                            state.Snapshotting();
                             await _snapstore.WriteSnapshots<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents, tracked.Version,
                                     state, commitHeaders).ConfigureAwait(false);
                         }

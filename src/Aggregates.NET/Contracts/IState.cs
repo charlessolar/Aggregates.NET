@@ -18,6 +18,8 @@ namespace Aggregates.Contracts
         void Conflict(IEvent @event);
         void Apply(IEvent @event);
 
+        void SnapshotRestored();
+        void Snapshotting();
         bool ShouldSnapshot();
     }
 }

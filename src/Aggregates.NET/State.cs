@@ -48,8 +48,23 @@ namespace Aggregates
         long IState.Version { get; set; }
         IState IState.Snapshot { get; set; }
 
+        // Allow user to perform and needed initial tasks with the snapshot info
+        protected virtual void SnapshotRestored() { }
+        protected virtual void Snapshotting() { }
+
         protected virtual bool ShouldSnapshot() { return false; }
         
+
+
+        void IState.SnapshotRestored()
+        {
+            SnapshotRestored();
+        }
+        void IState.Snapshotting()
+        {
+            Snapshotting();
+        }
+
         bool IState.ShouldSnapshot()
         {
             return ShouldSnapshot();

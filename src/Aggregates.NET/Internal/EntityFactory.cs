@@ -56,6 +56,9 @@ namespace Aggregates.Internal
             state.Parents = parents;
             state.Snapshot = snapshotState;
 
+            if (snapshotState != null)
+                state.SnapshotRestored();
+
             if (events != null && events.Length > 0)
             {
                 for (var i = 0; i < events.Length; i++)
