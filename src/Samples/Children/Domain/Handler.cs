@@ -12,9 +12,6 @@ namespace Domain
     public class Handler :
         IHandleMessages<SayHello>
     {
-        // Typically from some external storage
-        private readonly static List<Guid> MessageIds = new List<Guid>();
-
         public async Task Handle(SayHello command, IMessageHandlerContext ctx)
         {
             var world = await ctx.For<World>().TryGet("World");

@@ -22,26 +22,25 @@ namespace Aggregates.Internal
         }
 
 
-        private static readonly ILog Logger = LogProvider.GetLogger("EventStoreDelayed");
+        private static readonly ILog Logger = LogProvider.GetLogger("DelayedChannel");
         private static readonly ILog SlowLogger = LogProvider.GetLogger("Slow Alarm");
-        
+
         private readonly IDelayedCache _cache;
-        
-        private readonly object _lock = new object();
-        private Dictionary<Tuple<string, string>, List<IDelayedMessage>> _inFlightMemCache;
-        private Dictionary<Tuple<string, string>, List<IDelayedMessage>> _uncommitted;
+
+        private ConcurrentDictionary<Tuple<string, string>, List<IDelayedMessage>> _inFlightMemCache;
+        private ConcurrentDictionary<Tuple<string, string>, List<IDelayedMessage>> _uncommitted;
 
 
         public DelayedChannel(IDelayedCache cache)
         {
             _cache = cache;
         }
-        
+
 
         public Task Begin()
         {
-            _uncommitted = new Dictionary<Tuple<string, string>, List<IDelayedMessage>>();
-            _inFlightMemCache = new Dictionary<Tuple<string, string>, List<IDelayedMessage>>();
+            _uncommitted = new ConcurrentDictionary<Tuple<string, string>, List<IDelayedMessage>>();
+            _inFlightMemCache = new ConcurrentDictionary<Tuple<string, string>, List<IDelayedMessage>>();
             return Task.CompletedTask;
         }
 
@@ -53,7 +52,7 @@ namespace Aggregates.Internal
                 Logger.Write(LogLevel.Debug, () => $"UOW exception - putting {_inFlightMemCache.Count()} in flight channels back into memcache");
                 foreach (var inflight in _inFlightMemCache)
                 {
-                    await _cache.Add(inflight.Key.Item1, inflight.Key.Item2, inflight.Value.ToArray()).ConfigureAwait(false);                    
+                    await _cache.Add(inflight.Key.Item1, inflight.Key.Item2, inflight.Value.ToArray()).ConfigureAwait(false);
                 }
             }
 
@@ -63,7 +62,7 @@ namespace Aggregates.Internal
 
                 _inFlightMemCache.Clear();
 
-                foreach( var kv in _uncommitted)
+                foreach (var kv in _uncommitted)
                 {
                     if (!kv.Value.Any())
                         return;
@@ -80,7 +79,7 @@ namespace Aggregates.Internal
             var specificAge = await _cache.Age(channel, key).ConfigureAwait(false);
             
             if (specificAge > TimeSpan.FromMinutes(5))
-                SlowLogger.Write(LogLevel.Warn, () => $"Delayed channel [{channel}] specific [{key}] is {specificAge?.TotalMinutes} minutes old!");
+                SlowLogger.Write(LogLevel.Info, () => $"Delayed channel [{channel}] specific [{key}] is {specificAge?.TotalMinutes} minutes old!");
 
             return specificAge;
         }
@@ -94,9 +93,9 @@ namespace Aggregates.Internal
             var specificKey = new Tuple<string, string>(channel, key);
             if (_uncommitted.ContainsKey(specificKey))
                 specificSize += _uncommitted[specificKey].Count;
-            
+
             if (specificSize > 5000)
-                SlowLogger.Write(LogLevel.Warn, () => $"Delayed channel [{channel}] specific [{key}] size is {specificSize}!");
+                SlowLogger.Write(LogLevel.Info, () => $"Delayed channel [{channel}] specific [{key}] size is {specificSize}!");
 
             return specificSize;
         }
@@ -105,19 +104,12 @@ namespace Aggregates.Internal
         {
             Logger.Write(LogLevel.Debug, () => $"Appending delayed object to channel [{channel}] key [{key}]");
 
-            if (queued == null)
-            {
-                Logger.Write(LogLevel.Warn, () => $"Adding NULL queued object! Stack: {Environment.StackTrace}");
-                return Task.CompletedTask;
-            }
-
             var specificKey = new Tuple<string, string>(channel, key);
-            lock (_lock)
-            {
-                if (!_uncommitted.ContainsKey(specificKey))
-                    _uncommitted[specificKey] = new List<IDelayedMessage>();
-                _uncommitted[specificKey].Add(queued);
-            }
+
+            _uncommitted.AddOrUpdate(specificKey, new List<IDelayedMessage> { queued }, (k, existing) => {
+                existing.Add(queued);
+                return existing;
+            });
 
 
             return Task.CompletedTask;
@@ -134,11 +126,12 @@ namespace Aggregates.Internal
             List<IDelayedMessage> discovered = new List<IDelayedMessage>(fromCache);
 
             List<IDelayedMessage> fromUncommitted;
-            if (_uncommitted.TryGetValue(specificKey, out fromUncommitted))
+            if (_uncommitted.TryRemove(specificKey, out fromUncommitted))
                 discovered.AddRange(fromUncommitted);
-            
-            lock (_lock) _inFlightMemCache.Add(specificKey, discovered);
-            
+
+            if(discovered.Any())
+                _inFlightMemCache.TryAdd(specificKey, discovered);
+
             Logger.Write(LogLevel.Info, () => $"Pulled {discovered.Count} from delayed channel [{channel}] key [{key}]");
             return discovered;
         }

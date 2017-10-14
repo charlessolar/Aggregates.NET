@@ -31,5 +31,11 @@ namespace Domain
         {
             LastMessage = e.Message;
         }
+
+        protected override bool ShouldSnapshot()
+        {
+            // Take snapshot every 5 events
+            return (Version - (Snapshot?.Version ?? 0)) > 5;
+        }
     }
 }

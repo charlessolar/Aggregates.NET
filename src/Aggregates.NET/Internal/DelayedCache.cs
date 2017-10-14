@@ -46,7 +46,7 @@ namespace Aggregates.Internal
             private Queue<IDelayedMessage> _messages;
 
             public long Created { get; private set; }
-            public long Modified { get; private set; }
+            public long Pulled { get; private set; }
 
             public int Count
             {
@@ -61,12 +61,11 @@ namespace Aggregates.Internal
                 _lock = new object();
                 _messages = new Queue<IDelayedMessage>();
                 Created = DateTime.UtcNow.Ticks;
-                Modified = DateTime.UtcNow.Ticks;
+                Pulled = DateTime.UtcNow.Ticks;
             }
 
             public void AddRange(IDelayedMessage[] messages)
             {
-                Modified = DateTime.UtcNow.Ticks;
                 lock (_lock)
                 {
                     foreach (var m in messages)
@@ -75,7 +74,7 @@ namespace Aggregates.Internal
             }
             public IDelayedMessage[] Dequeue(int? count)
             {
-                Modified = DateTime.UtcNow.Ticks;
+                Pulled = DateTime.UtcNow.Ticks;
 
                 count = count ?? int.MaxValue;
 
@@ -231,8 +230,6 @@ namespace Aggregates.Internal
 
         public Task<IDelayedMessage[]> Pull(string channel, string key = null, int? max = null)
         {
-            Logger.Write(LogLevel.Debug, () => $"Pulling delayed channel [{channel}] key [{key}] max [{max}]");
-
             var discovered = pullFromMemCache(channel, key, max);
 
             // Check empty key store too
@@ -242,13 +239,12 @@ namespace Aggregates.Internal
                 discovered = discovered.Concat(nonSpecific).ToArray();
             }
 
-            Logger.Write(LogLevel.Info, () => $"Pulled {discovered.Length} from delayed channel [{channel}] key [{key}]");
+            Logger.Write(LogLevel.Debug, () => $"Pulled {discovered.Length} from delayed channel [{channel}] key [{key}] max [{max}]");
             return Task.FromResult(discovered);
         }
 
         public Task<TimeSpan?> Age(string channel, string key)
         {
-            Logger.Write(LogLevel.Debug, () => $"Getting age of delayed channel [{channel}] key [{key}]");
 
             var specificAge = TimeSpan.Zero;
 
@@ -256,12 +252,16 @@ namespace Aggregates.Internal
             var specificKey = new CacheKey(channel, key);
             CachedList temp;
             if (_memCache.TryGetValue(specificKey, out temp))
-                specificAge = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - temp.Modified);
+                specificAge = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - temp.Pulled);
+            Logger.Write(LogLevel.Debug, () => $"Age of delayed channel [{channel}] key [{key}] is {specificAge.TotalMilliseconds}");
 
             CachedList temp2;
             var channelKey = new CacheKey(channel, null);
-            if (_memCache.TryGetValue(channelKey, out temp2) && TimeSpan.FromTicks(DateTime.UtcNow.Ticks - temp2.Modified) > specificAge)
-                specificAge = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - temp2.Modified);
+            if (_memCache.TryGetValue(channelKey, out temp2) &&
+                TimeSpan.FromTicks(DateTime.UtcNow.Ticks - temp2.Pulled) > specificAge)
+                specificAge = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - temp2.Pulled);
+            if(temp2 != null)
+                Logger.Write(LogLevel.Debug, () => $"Age of delayed channel [{channel}] empty key is {TimeSpan.FromTicks(DateTime.UtcNow.Ticks - temp2.Pulled)}");
 
             return Task.FromResult<TimeSpan?>(specificAge);
         }
@@ -289,12 +289,21 @@ namespace Aggregates.Internal
         {
             var cacheKey = new CacheKey(channel, key);
 
-            CachedList fromCache;
             // Check memcache even if key == null because messages failing to save to ES are put in memcache
-            if (!_memCache.TryGetValue(cacheKey, out fromCache))
-                return new IDelayedMessage[] { };
-                        
-            return fromCache.Dequeue(max);
+            var messages = new IDelayedMessage[] { };
+            lock (_cacheLock)
+            {
+                if (_memCache.TryGetValue(cacheKey, out var fromCache))
+                    _memCache.Remove(cacheKey);
+
+                if (fromCache == null)
+                    return messages;
+
+                messages = fromCache.Dequeue(max);
+                if (fromCache.Count != 0)
+                    _memCache[cacheKey] = fromCache;
+            }
+            return messages;
         }
 
         private async Task Flush()
@@ -309,7 +318,7 @@ namespace Aggregates.Internal
 
             // A list of channels who have expired or have more than 1/5 the max total cache size
             var expiredSpecificChannels =
-                _memCache.Where(x => TimeSpan.FromTicks(DateTime.UtcNow.Ticks - x.Value.Modified) > _expiration)
+                _memCache.Where(x => TimeSpan.FromTicks(DateTime.UtcNow.Ticks - x.Value.Pulled) > _expiration)
                     .Select(x => x.Key).Take(Math.Max(1, _memCache.Keys.Count / 5))
                     .ToArray();
 
@@ -361,7 +370,7 @@ namespace Aggregates.Internal
                 catch (Exception e)
                 {
                     Logger.Write(LogLevel.Warn,
-                        () => $"Failed to write to channel [{expired.Channel}].  Exception: {e.GetType().Name}: {e.Message}");
+                        () => $"Failed to write to channel [{expired.Channel}] key [{expired.Key}].  Exception: {e.GetType().Name}: {e.Message}");
 
                     // Failed to write to ES - put object back in memcache
                     addToMemCache(expired.Channel, expired.Key, messages);
@@ -390,14 +399,14 @@ namespace Aggregates.Internal
                     var toFlush = _memCache.Where(x => x.Value.Count > _flushSize || (x.Value.Count > (_maxSize / 5))).Select(x => x.Key).Take(Math.Max(1, _memCache.Keys.Count / 5)).ToArray();
                     // If no large channels, take some of the oldest
                     if (!toFlush.Any())
-                        toFlush = _memCache.OrderBy(x => x.Value.Modified).Select(x => x.Key).Take(Math.Max(1, _memCache.Keys.Count / 5)).ToArray();
+                        toFlush = _memCache.OrderBy(x => x.Value.Pulled).Select(x => x.Key).Take(Math.Max(1, _memCache.Keys.Count / 5)).ToArray();
 
                     await toFlush.StartEachAsync(3, async (expired) =>
                     {
                         var messages = pullFromMemCache(expired.Channel, expired.Key, max: _flushSize);
 
-                        Logger.Write(LogLevel.Info,
-                            () => $"Flushing {messages.Length} messages from large channel {expired.Channel} key {expired.Key}");
+                        Logger.Write(LogLevel.Warn,
+                            () => $"Flushing {messages.Length} messages from large channel [{expired.Channel}] key [{expired.Key}]");
                         var translatedEvents = messages.Select(x => (IFullEvent)new FullEvent
                         {
                             Descriptor = new EventDescriptor
@@ -434,7 +443,7 @@ namespace Aggregates.Internal
                         {
                             limit--;
                             Logger.Write(LogLevel.Warn,
-                                () => $"Failed to write to channel [{expired.Channel}].  Exception: {e.GetType().Name}: {e.Message}");
+                                () => $"Failed to write to channel [{expired.Channel}] key [{expired.Key}].  Exception: {e.GetType().Name}: {e.Message}");
 
                             // Failed to write to ES - put object back in memcache
                             addToMemCache(expired.Channel, expired.Key, messages);
