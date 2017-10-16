@@ -48,13 +48,7 @@ namespace Aggregates.Internal
             public long Created { get; private set; }
             public long Pulled { get; private set; }
 
-            public int Count
-            {
-                get
-                {
-                    return _messages.Count;
-                }
-            }
+            public int Count => _messages.Count;
 
             public CachedList()
             {
@@ -112,8 +106,9 @@ namespace Aggregates.Internal
 
         private readonly object _cacheLock;
         private readonly Dictionary<CacheKey, CachedList> _memCache;
+        private readonly Random _rand;
 
-        private int _tooLarge = 0;
+        private int _tooLarge;
         private bool _disposed;
 
         public DelayedCache(IMetrics metrics, IStoreEvents store, TimeSpan flushInterval, string endpoint, int maxSize, int flushSize, TimeSpan delayedExpiration, StreamIdGenerator streamGen)
@@ -130,6 +125,7 @@ namespace Aggregates.Internal
 
             _cacheLock = new object();
             _memCache = new Dictionary<CacheKey, CachedList>(new CacheKey.EqualityComparer());
+            _rand = new Random();
 
             _thread = new Thread(Threaded)
             { IsBackground = true, Name = $"Delayed Cache Thread" };
@@ -231,9 +227,9 @@ namespace Aggregates.Internal
         public Task<IDelayedMessage[]> Pull(string channel, string key = null, int? max = null)
         {
             var discovered = pullFromMemCache(channel, key, max);
-
-            // Check empty key store too
-            if (!string.IsNullOrEmpty(key))
+            
+            // Check empty key store too, 10% of the time
+            if (_rand.Next(10) == 0 && !string.IsNullOrEmpty(key))
             {
                 var nonSpecific = pullFromMemCache(channel, null, max);
                 discovered = discovered.Concat(nonSpecific).ToArray();
@@ -254,15 +250,7 @@ namespace Aggregates.Internal
             if (_memCache.TryGetValue(specificKey, out temp))
                 specificAge = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - temp.Pulled);
             Logger.Write(LogLevel.Debug, () => $"Age of delayed channel [{channel}] key [{key}] is {specificAge.TotalMilliseconds}");
-
-            CachedList temp2;
-            var channelKey = new CacheKey(channel, null);
-            if (_memCache.TryGetValue(channelKey, out temp2) &&
-                TimeSpan.FromTicks(DateTime.UtcNow.Ticks - temp2.Pulled) > specificAge)
-                specificAge = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - temp2.Pulled);
-            if(temp2 != null)
-                Logger.Write(LogLevel.Debug, () => $"Age of delayed channel [{channel}] empty key is {TimeSpan.FromTicks(DateTime.UtcNow.Ticks - temp2.Pulled)}");
-
+            
             return Task.FromResult<TimeSpan?>(specificAge);
         }
 
@@ -276,12 +264,7 @@ namespace Aggregates.Internal
             CachedList temp;
             if (_memCache.TryGetValue(specificKey, out temp))
                 specificSize = temp.Count;
-
-            CachedList temp2;
-            var channelKey = new CacheKey(channel, null);
-            if (_memCache.TryGetValue(channelKey, out temp2))
-                specificSize += temp2.Count;
-
+            
             return Task.FromResult(specificSize);
         }
 

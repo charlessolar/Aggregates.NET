@@ -91,13 +91,13 @@ namespace Aggregates.Internal
                             context.Headers.Clear();
                             foreach (var header in x.Headers)
                                 context.Headers[$"{Defaults.DelayedPrefixHeader}.{header.Key}"] = header.Value;
-
+                            
                             context.Headers[Defaults.LocalBulkHeader] = delayedMessages.Count().ToString();
                             context.Headers[Defaults.DelayedId] = x.MessageId;
-                            context.Headers[Defaults.ChannelKey] = x.ChannelKey;
                             Logger.Write(LogLevel.Debug, () => $"Processing {index}/{delayedMessages.Count()} message, bulk id {context.MessageId}.  MessageId: {x.MessageId} ChannelKey: {x.ChannelKey}");
 
-                            //context.Extensions.Set(Defaults.ChannelKey, x.ChannelKey);
+                            // Don't set on headers because headers are kept with the message through retries, could lead to unexpected results
+                            context.Extensions.Set(Defaults.ChannelKey, x.ChannelKey);
 
                             context.UpdateMessageInstance(x.Message);
                             await next().ConfigureAwait(false);

@@ -69,9 +69,7 @@ namespace Aggregates.Internal
             bool contains = false;
             lock (Lock) contains = IsNotDelayed.Contains(channelKey);
 
-            var contextChannelKey = "";
-            if (context.Headers.ContainsKey(Defaults.ChannelKey))
-                contextChannelKey = context.Headers[Defaults.ChannelKey];
+            context.Extensions.TryGet(Defaults.ChannelKey, out string contextChannelKey);
 
             // Special case for when we are bulk processing messages from DelayedSubscriber, simply process it and return dont check for more bulk
             if (channel == null || contains || contextChannelKey == channelKey)
@@ -82,7 +80,11 @@ namespace Aggregates.Internal
             }
             // If we are bulk processing and the above check fails it means the current message handler shouldn't be called
             if (!string.IsNullOrEmpty(contextChannelKey))
+            {
+                Logger.Warn(
+                    $"Received channel [{channelKey}] while bulk processing [{contextChannelKey}] - will not execute message");
                 return;
+            }
 
             if (IsDelayed.ContainsKey(channelKey))
             {

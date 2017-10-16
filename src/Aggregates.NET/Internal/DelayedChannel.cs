@@ -132,6 +132,7 @@ namespace Aggregates.Internal
             if(discovered.Any())
                 _inFlightMemCache.TryAdd(specificKey, discovered);
 
+
             Logger.Write(LogLevel.Info, () => $"Pulled {discovered.Count} from delayed channel [{channel}] key [{key}]");
             return discovered;
         }

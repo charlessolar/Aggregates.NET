@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Aggregates.Extensions
 {
     // from https://github.com/Burtsev-Alexey/net-object-deep-copy/blob/master/ObjectExtensions.cs
-    public static class ObjectExtensions
+    static class ObjectExtensions
     {
         private static readonly MethodInfo CloneMethod = typeof(Object).GetMethod("MemberwiseClone", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -73,7 +73,7 @@ namespace Aggregates.Extensions
         }
     }
 
-    public class ReferenceEqualityComparer : EqualityComparer<Object>
+    class ReferenceEqualityComparer : EqualityComparer<Object>
     {
         public override bool Equals(object x, object y)
         {
@@ -87,7 +87,7 @@ namespace Aggregates.Extensions
     }
     namespace ArrayExtensions
     {
-        public static class ArrayExtensions
+        static class ArrayExtensions
         {
             public static void ForEach(this Array array, Action<Array, int[]> action)
             {

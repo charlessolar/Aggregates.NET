@@ -5,8 +5,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Aggregates.Extensions;
 
-namespace Aggregates.Extensions
+namespace Aggregates
 {
     public static class MessageExtensions
     {

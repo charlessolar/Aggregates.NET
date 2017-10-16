@@ -23,7 +23,7 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogProvider.GetLogger("DelaySubscriber");
         private static readonly ILog SlowLogger = LogProvider.GetLogger("Slow Alarm");
         
-        private static readonly ConcurrentDictionary<string, List<Tuple<long, IFullEvent>>> WaitingEvents = new ConcurrentDictionary<string, List<Tuple<long, IFullEvent>>>();
+        private static readonly ConcurrentDictionary<string, LinkedList<Tuple<long, IFullEvent>>> WaitingEvents = new ConcurrentDictionary<string, LinkedList<Tuple<long, IFullEvent>>>();
 
         private class ThreadParam
         {
@@ -89,9 +89,9 @@ namespace Aggregates.Internal
         private void onEvent(string stream, long position, IFullEvent e)
         {
             _metrics.Increment("Delayed Queued", Unit.Event);
-            WaitingEvents.AddOrUpdate(stream, (key) => new List<Tuple<long, IFullEvent>> { new Tuple<long, IFullEvent>(position, e)}, (key, existing) =>
+            WaitingEvents.AddOrUpdate(stream, (key) => new LinkedList<Tuple<long, IFullEvent>>( new[]{ new Tuple<long, IFullEvent>(position, e)}.AsEnumerable()), (key, existing) =>
               {
-                  existing.Add(new Tuple<long, IFullEvent>(position, e));
+                  existing.AddLast(new Tuple<long, IFullEvent>(position, e));
                   return existing;
               });
         }
@@ -119,7 +119,7 @@ namespace Aggregates.Internal
                         continue;
                     }
 
-                    List<Tuple<long, IFullEvent>> flushedEvents;
+                    LinkedList<Tuple<long, IFullEvent>> flushedEvents;
                     string stream = "";
                     // Pull a random delayed stream for processing
                     try
@@ -145,7 +145,7 @@ namespace Aggregates.Internal
                             foreach (var nullEvent in flushedEvents.Where(x => x.Item2.Event == null))
                                 Logger.Write(LogLevel.Warn, $"Received null event from delayed stream \"{stream}\" position {nullEvent.Item1}");
 
-                            metrics.Decrement("Delayed Queued", Unit.Event, flushedEvents.Where(x => x.Item2.Event != null).Count());
+                            metrics.Decrement("Delayed Queued", Unit.Event, flushedEvents.Count(x => x.Item2.Event != null));
 
                             var messages = flushedEvents.Where(x => x.Item2.Event != null).Select(x => new FullMessage
                             {

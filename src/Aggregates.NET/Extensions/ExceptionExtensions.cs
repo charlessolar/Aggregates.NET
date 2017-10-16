@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Extensions
 {
-    public static class ExceptionExtensions
+    static class ExceptionExtensions
     {
         public static string AsString(this Exception exception)
         {
