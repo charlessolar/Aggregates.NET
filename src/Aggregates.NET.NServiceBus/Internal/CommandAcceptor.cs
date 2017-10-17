@@ -56,6 +56,9 @@ namespace Aggregates.Internal
                     // Tell the sender the command was rejected due to a business exception
                     var rejection = context.Builder.Build<Func<BusinessException, Reject>>();
                     await context.Reply(rejection(e)).ConfigureAwait(false);
+
+                    // ExceptionRejector will filter out BusinessException, throw is just to cancel the UnitOfWork
+                    throw;
                 }
                 return;
             }
@@ -71,7 +74,8 @@ namespace Aggregates.Internal
             description: "Filters [BusinessException] from processing failures"
         )
         {
-            InsertBefore("UnitOfWorkExecution");
+            // Needs to be after message unpack so Message.Instance is correct
+            InsertAfter("LocalMessageUnpack");
         }
     }
 }

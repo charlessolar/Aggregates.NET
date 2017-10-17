@@ -76,6 +76,7 @@
     <Compile Include="EventStore\StoreEvents.cs" />
     <Compile Include="FakeConfiguration.cs" />
     <Compile Include="NServiceBus\BulkInvokeHandlerTerminator.cs" />
+    <Compile Include="NServiceBus\LocalMessageUnpack.cs" />
     <Compile Include="NServiceBus\UnitOfWorkExecutor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

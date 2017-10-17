@@ -47,6 +47,9 @@ namespace Aggregates
 
                 context.Pipeline.Register<UowRegistration>();
                 context.Pipeline.Register<CommandAcceptorRegistration>();
+                context.Pipeline.Register<LocalMessageUnpackRegistration>();
+                // Remove NSBs unit of work since we do it ourselves
+                context.Pipeline.Remove("ExecuteUnitOfWork");
 
                 // bulk invoke only possible with consumer feature because it uses the eventstore as a sink when overloaded
                 context.Pipeline.Replace("InvokeHandlers", (b) =>

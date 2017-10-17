@@ -38,14 +38,14 @@ namespace Aggregates.Internal
                 await next().ConfigureAwait(false);
                 return;
             }
-            if(context.Message.MessageType == typeof(Messages.Accept) || context.Message.MessageType == typeof(Messages.Reject))
+            if (context.Message.MessageType == typeof(Messages.Accept) || context.Message.MessageType == typeof(Messages.Reject))
             {
                 // If this happens the callback for the message took too long (likely due to a timeout)
                 // normall NSB will report an exception for "No Handlers" - this will just log a warning and ignore
                 Logger.Write(LogLevel.Warn, $"Received overdue {context.Message.MessageType.Name} callback - your timeouts might be too short");
                 return;
             }
-            
+
             var domainUOW = child.Resolve<IDomainUnitOfWork>();
             var delayed = child.Resolve<IDelayedChannel>();
             IUnitOfWork appUOW = null;
@@ -56,6 +56,9 @@ namespace Aggregates.Internal
             }
             catch { }
 
+            // Set into the context because DI can be slow
+            context.Extensions.Set(domainUOW);
+            context.Extensions.Set(appUOW);
 
             Logger.Write(LogLevel.Debug,
                 () => $"Starting UOW for message {context.MessageId} type {context.Message.MessageType.FullName}");
@@ -63,7 +66,6 @@ namespace Aggregates.Internal
             try
             {
                 _metrics.Increment("Messages Concurrent", Unit.Message);
-                _metrics.Mark("Messages", Unit.Message);
                 using (_metrics.Begin("Message Duration"))
                 {
 
@@ -72,46 +74,8 @@ namespace Aggregates.Internal
                     if (appUOW != null)
                         await appUOW.Begin().ConfigureAwait(false);
                     await delayed.Begin().ConfigureAwait(false);
-
-
-                    // Todo: because commit id is used on commit now instead of during processing we can
-                    // once again parallelize event processing (if we want to)
-
-                    // Stupid hack to get events from ES and messages from NSB into the same pipeline
-                    IDelayedMessage[] delayedMessages;
-                    object @event;
-                    // Special case for delayed messages read from delayed stream
-                    if (context.Extensions.TryGet(Defaults.LocalBulkHeader, out delayedMessages))
-                    {
-                        Logger.Write(LogLevel.Debug, () => $"Bulk processing {delayedMessages.Count()} messages, bulk id {context.MessageId}");
-                        var index = 1;
-                        foreach (var x in delayedMessages)
-                        {
-                            // Replace all headers with the original headers to preserve CorrId etc.
-                            context.Headers.Clear();
-                            foreach (var header in x.Headers)
-                                context.Headers[$"{Defaults.DelayedPrefixHeader}.{header.Key}"] = header.Value;
-                            
-                            context.Headers[Defaults.LocalBulkHeader] = delayedMessages.Count().ToString();
-                            context.Headers[Defaults.DelayedId] = x.MessageId;
-                            Logger.Write(LogLevel.Debug, () => $"Processing {index}/{delayedMessages.Count()} message, bulk id {context.MessageId}.  MessageId: {x.MessageId} ChannelKey: {x.ChannelKey}");
-
-                            // Don't set on headers because headers are kept with the message through retries, could lead to unexpected results
-                            context.Extensions.Set(Defaults.ChannelKey, x.ChannelKey);
-
-                            context.UpdateMessageInstance(x.Message);
-                            await next().ConfigureAwait(false);
-                            index++;
-                        }
-                    }
-                    else if (context.Extensions.TryGet(Defaults.LocalHeader, out @event))
-                    {
-                        context.UpdateMessageInstance(@event);
-                        await next().ConfigureAwait(false);
-                    }
-                    else
-                        await next().ConfigureAwait(false);
-
+                    
+                    await next().ConfigureAwait(false);
 
                     Logger.Write(LogLevel.Debug, () => $"Running UOW.End for message {context.MessageId}");
 
@@ -169,7 +133,7 @@ namespace Aggregates.Internal
             description: "Begins and Ends unit of work for your application"
         )
         {
-            InsertAfterIfExists("ExecuteUnitOfWork");
+            //InsertAfterIfExists("ExecuteUnitOfWork");
         }
     }
 }
