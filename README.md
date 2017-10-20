@@ -22,6 +22,8 @@ I recently bumped the version of the project to v0.11 which involved a rewrite o
 Also new are State objects and the removal of the aggregate root class type.  In Aggregates.NET aggregate roots were modeled as entities without parents, and entities were children of aggregates.  Now, everything is an entity - the concept of an aggregate root still exists but its not a separate class.
 State objects represent the internal eventsourced state of an entity.  Upon loading an entity the state object is hydrated with the existing events and used by commands to certify commands.  [See it in action](https://github.com/volak/Aggregates.NET/blob/master/src/Samples/HelloWorld/Domain/World.cs)
 
+## [Samples](https://github.com/volak/Aggregates.NET/tree/master/src/Samples)
+
 ## What will Aggregates.NET do for you?
 
 We fill in the gap between EventStore and NServiceBus.  Commands from NServiceBus are applied to entity objects via message handlers and events generated via the entities are saved to the event stream.  We also maintain consumer projections for read model generation allowing the handling of commands and events using just `IHandleMessages<>`

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -43,7 +44,11 @@ namespace Aggregates.Internal
             var cacheId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{id}";
             TEntity root;
             if (!Tracked.TryGetValue(cacheId, out root))
-                Tracked[cacheId] = root = await GetUntracked(_parent.Bucket, id, _parent.BuildParents()).ConfigureAwait(false);
+            {
+                root = await GetUntracked(_parent.Bucket, id, _parent.BuildParents()).ConfigureAwait(false);
+                if (!Tracked.TryAdd(cacheId, root))
+                    throw new InvalidOperationException($"Could not add cache key [{cacheId}] to repo tracked");
+            }
 
             return root;
         }
@@ -54,7 +59,11 @@ namespace Aggregates.Internal
 
             TEntity root;
             if (!Tracked.TryGetValue(cacheId, out root))
-                Tracked[cacheId] = root = await NewUntracked(_parent.Bucket, id, _parent.BuildParents()).ConfigureAwait(false);
+            {
+                root = await NewUntracked(_parent.Bucket, id, _parent.BuildParents()).ConfigureAwait(false);
+                if (!Tracked.TryAdd(cacheId, root))
+                    throw new InvalidOperationException($"Could not add cache key [{cacheId}] to repo tracked");
+            }
 
             return root;
         }
@@ -84,7 +93,7 @@ namespace Aggregates.Internal
 
         private static OptimisticConcurrencyAttribute _conflictResolution;
 
-        protected readonly IDictionary<string, TEntity> Tracked = new Dictionary<string, TEntity>();
+        protected readonly ConcurrentDictionary<string, TEntity> Tracked = new ConcurrentDictionary<string, TEntity>();
         protected readonly IMetrics _metrics;
         private readonly IStoreEvents _eventstore;
         private readonly IStoreSnapshots _snapstore;
@@ -272,7 +281,11 @@ namespace Aggregates.Internal
             var cacheId = $"{bucket}.{id}";
             TEntity root;
             if (!Tracked.TryGetValue(cacheId, out root))
-                Tracked[cacheId] = root = await GetUntracked(bucket, id).ConfigureAwait(false);
+            {
+                root = await GetUntracked(bucket, id).ConfigureAwait(false);
+                if (!Tracked.TryAdd(cacheId, root))
+                    throw new InvalidOperationException($"Could not add cache key [{cacheId}] to repo tracked");
+            }
 
             return root;
         }
@@ -305,7 +318,11 @@ namespace Aggregates.Internal
             TEntity root;
             var cacheId = $"{bucket}.{id}";
             if (!Tracked.TryGetValue(cacheId, out root))
-                Tracked[cacheId] = root = await NewUntracked(bucket, id).ConfigureAwait(false);
+            {
+                root = await NewUntracked(bucket, id).ConfigureAwait(false);
+                if (!Tracked.TryAdd(cacheId, root))
+                    throw new InvalidOperationException($"Could not add cache key [{cacheId}] to repo tracked");
+            }
             return root;
         }
         protected virtual Task<TEntity> NewUntracked(string bucket, Id id, Id[] parents = null)

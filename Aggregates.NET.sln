@@ -19,21 +19,21 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.StructureMap
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.UnitTests", "src\Aggregates.NET.UnitTests\Aggregates.NET.UnitTests.csproj", "{8C37F0E4-7C6C-41EC-9499-D330B5B8E61A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "src\Samples\HelloWorld\Client\Client.csproj", "{F32F0869-7F2C-45BD-A29D-69F068965DDE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "src\Samples\1. HelloWorld\Client\Client.csproj", "{F32F0869-7F2C-45BD-A29D-69F068965DDE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "src\Samples\HelloWorld\Domain\Domain.csproj", "{719D3C7A-1A22-42D5-AB50-03DDFBED4277}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "src\Samples\1. HelloWorld\Domain\Domain.csproj", "{719D3C7A-1A22-42D5-AB50-03DDFBED4277}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Language", "src\Samples\HelloWorld\Language\Language.csproj", "{67E85000-F22C-47F3-AA9A-14A38EC6FF55}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Language", "src\Samples\1. HelloWorld\Language\Language.csproj", "{67E85000-F22C-47F3-AA9A-14A38EC6FF55}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.SimpleInjector", "src\Aggregates.NET.SimpleInjector\Aggregates.NET.SimpleInjector.csproj", "{71B8C7B4-2E80-497C-A3ED-8A18BEFC8C92}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2. Snapshots", "2. Snapshots", "{0697586E-2361-4276-9FEE-DD8B90BCA87E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "src\Samples\Snapshots\Client\Client.csproj", "{F32F0869-7F2C-45BD-A29D-69F068965DDF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "src\Samples\2. Snapshots\Client\Client.csproj", "{F32F0869-7F2C-45BD-A29D-69F068965DDF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "src\Samples\Snapshots\Domain\Domain.csproj", "{719D3C7A-1A22-42D5-AB50-03DDFBED4278}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "src\Samples\2. Snapshots\Domain\Domain.csproj", "{719D3C7A-1A22-42D5-AB50-03DDFBED4278}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Language", "src\Samples\Snapshots\Language\Language.csproj", "{67E85000-F22C-47F3-AA9A-14A38EC6FF56}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Language", "src\Samples\2. Snapshots\Language\Language.csproj", "{67E85000-F22C-47F3-AA9A-14A38EC6FF56}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3. Children", "3. Children", "{993E84BE-5FCD-4FEE-B1DE-A28B4820FDAA}"
 EndProject
@@ -43,17 +43,17 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "5. OutOfBand", "5. OutOfBan
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4. Queries", "4. Queries", "{7796CB1D-2B69-4628-A8BD-1B660AF3299E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "src\Samples\Queries\Client\Client.csproj", "{F32F0869-7F2C-45BD-A29D-64F068965DDE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "src\Samples\4. Queries\Client\Client.csproj", "{F32F0869-7F2C-45BD-A29D-64F068965DDE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "src\Samples\Queries\Domain\Domain.csproj", "{719D3C7A-1A22-42D5-AB50-01DDFBED4277}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "src\Samples\4. Queries\Domain\Domain.csproj", "{719D3C7A-1A22-42D5-AB50-01DDFBED4277}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Language", "src\Samples\Queries\Language\Language.csproj", "{67E85000-F22C-47F3-AA9A-14A32EC6FF55}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Language", "src\Samples\4. Queries\Language\Language.csproj", "{67E85000-F22C-47F3-AA9A-14A32EC6FF55}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "src\Samples\Children\Client\Client.csproj", "{F32F0869-7F2C-45BD-A28D-64F068965DDE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "src\Samples\3. Children\Client\Client.csproj", "{F32F0869-7F2C-45BD-A28D-64F068965DDE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "src\Samples\Children\Domain\Domain.csproj", "{719D3C7A-1A22-42D5-AB51-01DDFBED4277}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "src\Samples\3. Children\Domain\Domain.csproj", "{719D3C7A-1A22-42D5-AB51-01DDFBED4277}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Language", "src\Samples\Children\Language\Language.csproj", "{67E85000-F22C-47F3-AA9B-14A32EC6FF55}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Language", "src\Samples\3. Children\Language\Language.csproj", "{67E85000-F22C-47F3-AA9B-14A32EC6FF55}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
