@@ -1,13 +1,16 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26730.16
+VisualStudioVersion = 15.0.27004.2005
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET", "src\Aggregates.NET\Aggregates.NET.csproj", "{FEC5D03F-5699-4F38-9470-1B915F7482E7}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{EA1A5D36-7FE4-4C48-9B08-1FC5822CFD5E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "1. HelloWorld", "1. HelloWorld", "{10B64234-CC27-41A5-B427-B34B3817C746}"
+	ProjectSection(SolutionItems) = preProject
+		src\Samples\1. HelloWorld\README.md = src\Samples\1. HelloWorld\README.md
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.EventStore", "src\Aggregates.NET.EventStore\Aggregates.NET.EventStore.csproj", "{10E3EA3B-1197-4D51-BAE0-E0D150D56767}"
 EndProject
@@ -28,6 +31,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.SimpleInjector", "src\Aggregates.NET.SimpleInjector\Aggregates.NET.SimpleInjector.csproj", "{71B8C7B4-2E80-497C-A3ED-8A18BEFC8C92}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2. Snapshots", "2. Snapshots", "{0697586E-2361-4276-9FEE-DD8B90BCA87E}"
+	ProjectSection(SolutionItems) = preProject
+		src\Samples\2. Snapshots\README.md = src\Samples\2. Snapshots\README.md
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "src\Samples\2. Snapshots\Client\Client.csproj", "{F32F0869-7F2C-45BD-A29D-69F068965DDF}"
 EndProject
@@ -36,12 +42,18 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Language", "src\Samples\2. Snapshots\Language\Language.csproj", "{67E85000-F22C-47F3-AA9A-14A38EC6FF56}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3. Children", "3. Children", "{993E84BE-5FCD-4FEE-B1DE-A28B4820FDAA}"
+	ProjectSection(SolutionItems) = preProject
+		src\Samples\3. Children\README.md = src\Samples\3. Children\README.md
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "6. DelayedBulk", "6. DelayedBulk", "{A4B9059F-1B69-4E09-ADA5-D0E149D205CD}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "5. OutOfBand", "5. OutOfBand", "{6E36D40B-48DD-4246-8E27-715D4252D29C}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4. Queries", "4. Queries", "{7796CB1D-2B69-4628-A8BD-1B660AF3299E}"
+	ProjectSection(SolutionItems) = preProject
+		src\Samples\4. Queries\README.md = src\Samples\4. Queries\README.md
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "src\Samples\4. Queries\Client\Client.csproj", "{F32F0869-7F2C-45BD-A29D-64F068965DDE}"
 EndProject
