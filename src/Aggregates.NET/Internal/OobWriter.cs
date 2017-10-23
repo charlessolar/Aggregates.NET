@@ -16,7 +16,7 @@ namespace Aggregates.Internal
         private readonly IStoreEvents _store;
         private readonly StreamIdGenerator _generator;
 
-        private static ConcurrentDictionary<string, int> DaysToLiveKnowns = new ConcurrentDictionary<string, int>();
+        private static readonly ConcurrentDictionary<string, int> DaysToLiveKnowns = new ConcurrentDictionary<string, int>();
 
         public OobWriter(IMessageDispatcher dispatcher, IStoreEvents store, StreamIdGenerator generator)
         {
@@ -65,21 +65,14 @@ namespace Aggregates.Internal
                 };
 
                 string id = "";
-                bool transient = true;
-                int daysToLive = -1;
 
                 id = @event.Descriptor.Headers[Defaults.OobHeaderKey];
 
-                if (@event.Descriptor.Headers.ContainsKey(Defaults.OobTransientKey))
-                    bool.TryParse(@event.Descriptor.Headers[Defaults.OobTransientKey], out transient);
-                if (@event.Descriptor.Headers.ContainsKey(Defaults.OobDaysToLiveKey))
-                    int.TryParse(@event.Descriptor.Headers[Defaults.OobDaysToLiveKey], out daysToLive);
-
-                if (!transient)
+                if (@event.Descriptor.Headers.ContainsKey(Defaults.OobTransientKey) && bool.TryParse(@event.Descriptor.Headers[Defaults.OobTransientKey], out var transient) && !transient)
                 {
                     var stream = _generator(typeof(TEntity), StreamTypes.OOB, $"{id}.{bucket}", streamId, parents);
                     var version = await _store.WriteEvents(stream, new[] { @event }, headers).ConfigureAwait(false);
-                    if (daysToLive != -1)
+                    if (@event.Descriptor.Headers.ContainsKey(Defaults.OobDaysToLiveKey) && int.TryParse(@event.Descriptor.Headers[Defaults.OobDaysToLiveKey], out var daysToLive) && daysToLive != -1)
                     {
                         var key = $"{bucket}.{id}.{streamId}.{parentsStr}";
                         // Uses the dictionary to keep track of daysToLive data its already saved.
@@ -98,5 +91,5 @@ namespace Aggregates.Internal
 
         }
     }
-    
+
 }
