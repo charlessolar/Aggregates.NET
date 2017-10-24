@@ -74,10 +74,7 @@ namespace Aggregates.NServiceBus
             _context.Setup(x => x.Headers).Returns(headers);
 
             await _executor.Invoke(_context.Object, _next.Object);
-
-            Assert.IsTrue(headers.ContainsKey($"{Defaults.DelayedPrefixHeader}.test"));
-            Assert.AreEqual("test", headers[$"{Defaults.DelayedPrefixHeader}.test"]);
-
+            
             _context.Verify(x => x.UpdateMessageInstance(Moq.It.IsAny<object>()), Moq.Times.Once);
             _next.Verify(x => x(), Moq.Times.Once);
         }
@@ -99,10 +96,7 @@ namespace Aggregates.NServiceBus
             _context.Setup(x => x.Headers).Returns(headers);
 
             await _executor.Invoke(_context.Object, _next.Object);
-
-            Assert.IsTrue(headers.ContainsKey($"{Defaults.DelayedPrefixHeader}.test"));
-            Assert.AreEqual("test", headers[$"{Defaults.DelayedPrefixHeader}.test"]);
-
+            
             _context.Verify(x => x.UpdateMessageInstance(Moq.It.IsAny<object>()), Moq.Times.Exactly(3));
             _next.Verify(x => x(), Moq.Times.Exactly(3));
         }
