@@ -31,23 +31,35 @@ namespace Aggregates.Internal
 
                 Logger.Write(LogLevel.Debug, () => $"Bulk processing {delayedMessages.Length} messages, bulk id {context.MessageId}");
                 var index = 1;
-                foreach (var x in delayedMessages)
+                var originalheaders = new Dictionary<string, string>(context.Headers);
+
+                try
                 {
-                    // Replace all headers with the original headers to preserve CorrId etc.
+                    foreach (var x in delayedMessages)
+                    {
+                        // Replace all headers with the original headers to preserve CorrId etc.
+                        context.Headers.Clear();
+                        foreach (var header in x.Headers)
+                            context.Headers[$"{Defaults.DelayedPrefixHeader}.{header.Key}"] = header.Value;
+
+                        context.Headers[Defaults.LocalBulkHeader] = delayedMessages.Length.ToString();
+                        context.Headers[Defaults.DelayedId] = x.MessageId;
+                        Logger.Write(LogLevel.Debug, () => $"Processing {index}/{delayedMessages.Length} message, bulk id {context.MessageId}.  MessageId: {x.MessageId} ChannelKey: {x.ChannelKey}");
+
+                        // Don't set on headers because headers are kept with the message through retries, could lead to unexpected results
+                        context.Extensions.Set(Defaults.ChannelKey, x.ChannelKey);
+
+                        context.UpdateMessageInstance(x.Message);
+                        await next().ConfigureAwait(false);
+                        index++;
+                    }
+                }
+                finally
+                {
+                    // Restore original message headers
                     context.Headers.Clear();
-                    foreach (var header in x.Headers)
-                        context.Headers[$"{Defaults.DelayedPrefixHeader}.{header.Key}"] = header.Value;
-
-                    context.Headers[Defaults.LocalBulkHeader] = delayedMessages.Length.ToString();
-                    context.Headers[Defaults.DelayedId] = x.MessageId;
-                    Logger.Write(LogLevel.Debug, () => $"Processing {index}/{delayedMessages.Length} message, bulk id {context.MessageId}.  MessageId: {x.MessageId} ChannelKey: {x.ChannelKey}");
-
-                    // Don't set on headers because headers are kept with the message through retries, could lead to unexpected results
-                    context.Extensions.Set(Defaults.ChannelKey, x.ChannelKey);
-
-                    context.UpdateMessageInstance(x.Message);
-                    await next().ConfigureAwait(false);
-                    index++;
+                    foreach (var original in originalheaders)
+                        context.Headers[original.Key] = original.Value;
                 }
             }
             else if (context.Extensions.TryGet(Defaults.LocalHeader, out object @event))

@@ -162,11 +162,11 @@ namespace Aggregates.Internal
 
             await messages.GroupBy(x => x.Message.GetType()).ToArray().StartEachAsync(3, async (group) =>
             {
-                var groupedMessages = group.ToArray();
+                var groupedMessages = group.Select(x => x.Message as IDelayedMessage).ToArray();
 
                 var contextBag = new ContextBag();
                 // Hack to get all the events to invoker without NSB deserializing 
-                contextBag.Set(Defaults.LocalBulkHeader, groupedMessages.Select(x => x.Message as IDelayedMessage).ToArray());
+                contextBag.Set(Defaults.LocalBulkHeader, groupedMessages);
 
 
                 var processed = false;

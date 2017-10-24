@@ -79,12 +79,12 @@ namespace Aggregates.Internal
                 return;
             }
             // If we are bulk processing and the above check fails it means the current message handler shouldn't be called
+            // because if contextChannelKey is set we are using delayed bulk SendLocal
+            // which should only execute the message on the handlers that were marked delayed, the other handlers were already invoked when the message
+            // originally came in
             if (!string.IsNullOrEmpty(contextChannelKey))
-            {
-                Logger.Warn(
-                    $"Received channel [{channelKey}] while bulk processing [{contextChannelKey}] - will not execute message");
                 return;
-            }
+            
 
             if (IsDelayed.ContainsKey(channelKey))
             {

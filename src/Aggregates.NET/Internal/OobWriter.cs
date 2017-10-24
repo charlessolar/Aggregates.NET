@@ -7,11 +7,14 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Aggregates.Logging;
 
 namespace Aggregates.Internal
 {
     class OobWriter : IOobWriter
     {
+        private static readonly ILog Logger = LogProvider.GetLogger("OobWriter");
+
         private readonly IMessageDispatcher _dispatcher;
         private readonly IStoreEvents _store;
         private readonly StreamIdGenerator _generator;
@@ -43,6 +46,7 @@ namespace Aggregates.Internal
 
         public async Task WriteEvents<TEntity>(string bucket, Id streamId, Id[] parents, IFullEvent[] events, IDictionary<string, string> commitHeaders) where TEntity : IEntity
         {
+            Logger.Write(LogLevel.Debug, $"Writing {events.Length} oob events stream [{streamId}] bucket [{bucket}]");
             await events.WhenAllAsync(async @event =>
             {
                 var message = new FullMessage
