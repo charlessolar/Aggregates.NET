@@ -25,7 +25,7 @@ namespace Aggregates.Internal
         {
             // Stupid hack to get events from ES and messages from NSB into the same pipeline
             // Special case for delayed messages read from delayed stream
-            if (context.Extensions.TryGet(Defaults.LocalBulkHeader, out IDelayedMessage[] delayedMessages))
+            if (context.Extensions.TryGet(Defaults.LocalBulkHeader, out IFullMessage[] delayedMessages))
             {
                 _metrics.Mark("Messages", Unit.Message, delayedMessages.Length);
 
@@ -43,11 +43,15 @@ namespace Aggregates.Internal
                             context.Headers[$"{Defaults.DelayedPrefixHeader}.{header.Key}"] = header.Value;
 
                         context.Headers[Defaults.LocalBulkHeader] = delayedMessages.Length.ToString();
-                        context.Headers[Defaults.DelayedId] = x.MessageId;
-                        Logger.Write(LogLevel.Debug, () => $"Processing {index}/{delayedMessages.Length} message, bulk id {context.MessageId}.  MessageId: {x.MessageId} ChannelKey: {x.ChannelKey}");
+                        Logger.Write(LogLevel.Debug, () => $"Processing {index}/{delayedMessages.Length} message, bulk id {context.MessageId}");
 
+                        if (!x.Headers.ContainsKey(Defaults.ChannelKey))
+                        {
+                            Logger.Write(LogLevel.Warn, $"Received delayed message without a channel key: {context.Headers.AsString()}");
+                            continue;
+                        }
                         // Don't set on headers because headers are kept with the message through retries, could lead to unexpected results
-                        context.Extensions.Set(Defaults.ChannelKey, x.ChannelKey);
+                        context.Extensions.Set(Defaults.ChannelKey, x.Headers[Defaults.ChannelKey]);
 
                         context.UpdateMessageInstance(x.Message);
                         await next().ConfigureAwait(false);

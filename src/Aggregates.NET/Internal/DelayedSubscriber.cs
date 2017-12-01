@@ -141,17 +141,24 @@ namespace Aggregates.Internal
                         {
                             Logger.Write(LogLevel.Info,
                                 () => $"Processing {flushedEvents.Count()} bulked events");
-
-                            foreach (var nullEvent in flushedEvents.Where(x => x.Item2.Event == null))
-                                Logger.Write(LogLevel.Warn, $"Received null event from delayed stream \"{stream}\" position {nullEvent.Item1}");
-
+                            
                             metrics.Decrement("Delayed Queued", Unit.Event, flushedEvents.Count(x => x.Item2.Event != null));
-
-                            var messages = flushedEvents.Where(x => x.Item2.Event != null).Select(x => new FullMessage
+                            
+                            var messages = flushedEvents.Where(x => x.Item2.Event != null).Select(x => 
                             {
-                                Message = x.Item2.Event,
-                                Headers = x.Item2.Descriptor.Headers
+                                // Unpack the delayed message for delivery - the IDelayedMessage wrapper should be transparent to other services
+                                var delayed = x.Item2.Event as IDelayedMessage;
+
+                                var headers = delayed.Headers.Merge(x.Item2.Descriptor.Headers);
+                                headers[Defaults.ChannelKey] = delayed.ChannelKey;
+
+                                return new FullMessage
+                                {
+                                    Message = delayed.Message,
+                                    Headers = headers
+                                };
                             });
+                            
 
                             // Same stream ids should modify the same models, processing this way reduces write collisions on commit
                             await dispatcher.SendLocal(messages.ToArray()).ConfigureAwait(false);

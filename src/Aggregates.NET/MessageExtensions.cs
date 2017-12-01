@@ -19,7 +19,7 @@ namespace Aggregates
             if (msg is Reject)
             {
                 var reject = (Reject)msg;
-                Logger.WriteFormat(LogLevel.Warn, "Command was rejected - Message: {0}\n", reject.Message);
+                Logger.Warn($"Command was rejected - Message: {reject.Message}");
                 throw new CommandRejectedException(reject.Message, reject.Exception);
             }
             // ReSharper disable once CanBeReplacedWithTryCastAndCheckForNull

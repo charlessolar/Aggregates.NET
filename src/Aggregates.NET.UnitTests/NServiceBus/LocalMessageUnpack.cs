@@ -59,14 +59,15 @@ namespace Aggregates.NServiceBus
         [Test]
         public async Task bulk_event_delivered()
         {
-            var delayed = new Moq.Mock<IDelayedMessage>();
+            var delayed = new Moq.Mock<IFullMessage>();
 
             delayed.Setup(x => x.Headers).Returns(new Dictionary<string, string>
             {
-                ["test"] = "test"
+                ["test"] = "test",
+                [Defaults.ChannelKey] = "test"
             });
 
-            var events = new IDelayedMessage[] { delayed.Object };
+            var events = new IFullMessage[] { delayed.Object };
 
             _contextBag.Set(Defaults.LocalBulkHeader, events);
 
@@ -82,13 +83,14 @@ namespace Aggregates.NServiceBus
         [Test]
         public async Task multiple_bulk_events()
         {
-            var delayed = new Moq.Mock<IDelayedMessage>();
+            var delayed = new Moq.Mock<IFullMessage>();
             delayed.Setup(x => x.Headers).Returns(new Dictionary<string, string>
             {
-                ["test"] = "test"
+                ["test"] = "test",
+                [Defaults.ChannelKey] = "test"
             });
 
-            var events = new IDelayedMessage[] { delayed.Object, delayed.Object, delayed.Object };
+            var events = new IFullMessage[] { delayed.Object, delayed.Object, delayed.Object };
 
             _contextBag.Set(Defaults.LocalBulkHeader, events);
 
