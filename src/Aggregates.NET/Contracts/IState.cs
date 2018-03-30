@@ -14,6 +14,7 @@ namespace Aggregates.Contracts
         long Version { get; set;  }
 
         IState Snapshot { get; set;  }
+        IEvent[] Committed { get; }
         
         void Conflict(IEvent @event);
         void Apply(IEvent @event);

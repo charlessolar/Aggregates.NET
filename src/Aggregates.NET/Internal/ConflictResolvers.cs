@@ -65,14 +65,14 @@ namespace Aggregates.Internal
         public async Task Resolve<TEntity, TState>(TEntity entity, IFullEvent[] uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : IState, new()
         {
             var state = entity.State;
-            
-            Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{entity.Id}] type [{typeof(TEntity).FullName}] bucket [{entity.Bucket}]");
+
+            Logger.DebugEvent("Resolver", "Resolving {Events} conflicting events to stream [{Stream:l}] type [{EntityType:l}] bucket [{Bucket:l}]", uncommitted.Count(), entity.Id, typeof(TEntity).FullName, entity.Bucket);
 
             foreach (var u in uncommitted)
             {
                 state.Apply(u.Event as IEvent);
             }
-            
+
             await _store.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.Parents, uncommitted, commitHeaders).ConfigureAwait(false);
         }
     }
@@ -85,7 +85,7 @@ namespace Aggregates.Internal
 
         public Task Resolve<TEntity, TState>(TEntity entity, IFullEvent[] uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : IState, new()
         {
-            Logger.Write(LogLevel.Info, () => $"Discarding {uncommitted.Count()} conflicting uncommitted events to stream [{entity.Id}] type [{typeof(TEntity).FullName}] bucket [{entity.Bucket}]");
+            Logger.DebugEvent("Resolver", "Discarding {Events} conflicting events to stream [{Stream:l}] type [{EntityType:l}] bucket [{Bucket:l}]", uncommitted.Count(), entity.Id, typeof(TEntity).FullName, entity.Bucket);
 
             return Task.CompletedTask;
         }
@@ -111,16 +111,15 @@ namespace Aggregates.Internal
         public async Task Resolve<TEntity, TState>(TEntity entity, IFullEvent[] uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : IState, new()
         {
             var state = entity.State;
-            Logger.Write(LogLevel.Info, () => $"Resolving {uncommitted.Count()} uncommitted events to stream [{entity.Id}] type [{typeof(TEntity).FullName}] bucket [{entity.Bucket}]");
+            Logger.DebugEvent("Resolver", "Resolving {Events} conflicting events to stream [{Stream:l}] type [{EntityType:l}] bucket [{Bucket:l}]", uncommitted.Count(), entity.Id, typeof(TEntity).FullName, entity.Bucket);
 
             var latestEvents =
                 await _eventstore.GetEvents<TEntity>(entity.Bucket, entity.Id, entity.Parents, entity.Version).ConfigureAwait(false);
-            Logger.Write(LogLevel.Info, () => $"Stream is {latestEvents.Count()} events behind store");
+            Logger.DebugEvent("Behind", "Stream is {Count} events behind store", latestEvents.Count());
 
             for (var i = 0; i < latestEvents.Length; i++)
                 state.Apply(latestEvents[i].Event as IEvent);
-            
-            Logger.Write(LogLevel.Debug, () => "Merging conflicted events");
+
             try
             {
                 foreach (var u in uncommitted)
@@ -147,15 +146,11 @@ namespace Aggregates.Internal
             }
             catch (NoRouteException e)
             {
-                Logger.Write(LogLevel.Info, () => $"Failed to resolve conflict: {e.Message}");
+                Logger.WarnEvent("ResolveFailure", e, "Failed to resolve conflict: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
                 throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
             }
 
-            Logger.Write(LogLevel.Debug, () => "Successfully merged conflicted events");
-
-
             await _eventstore.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.Parents, entity.Uncommitted, commitHeaders).ConfigureAwait(false);
-            
         }
     }
 
@@ -196,8 +191,8 @@ namespace Aggregates.Internal
             throw new NotImplementedException();
         }
     }
-    
 
 
-    
+
+
 }

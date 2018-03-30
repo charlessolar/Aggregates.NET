@@ -87,8 +87,10 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
             // Runs all conflicting events back through a re-hydrated entity
             var resolver = new Aggregates.Internal.ResolveStronglyConflictResolver(_snapstore.Object, _eventstore.Object, streamGen);
 
+            var uow = new Moq.Mock<IDomainUnitOfWork>();
             var entity = new FakeEntity();
             (entity as IEntity<FakeState>).Instantiate(new FakeState());
+            (entity as INeedDomainUow).Uow = uow.Object;
 
             await resolver.Resolve<FakeEntity, FakeState>(entity, new[] { _event.Object }, Guid.NewGuid(), new Dictionary<string, string>())
                 .ConfigureAwait(false);
@@ -138,12 +140,14 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
 
             // Runs all conflicting events back through a re-hydrated entity
             var resolver = new Aggregates.Internal.ResolveStronglyConflictResolver(_snapstore.Object, _eventstore.Object, streamGen);
-            
+
+            var uow = new Moq.Mock<IDomainUnitOfWork>();
             var entity = new FakeEntity();
             (entity as IEntity<FakeState>).Instantiate(new FakeState());
+            (entity as INeedDomainUow).Uow = uow.Object;
             entity.State.TakeASnapshot = true;
 
-            _snapstore.Setup(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()))
+            _snapstore.Setup(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()))
                 .Returns(Task.CompletedTask);
 
             await resolver.Resolve<FakeEntity, FakeState>(entity, new[] { _event.Object }, Guid.NewGuid(), new Dictionary<string, string>())
@@ -151,7 +155,7 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
 
             Assert.AreEqual(1, entity.State.Conflicts);
 
-            _snapstore.Verify(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
+            _snapstore.Verify(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
             
         }
 
@@ -166,8 +170,11 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
             // Runs all conflicting events back through a re-hydrated entity
             var resolver = new Aggregates.Internal.ResolveStronglyConflictResolver(_snapstore.Object, _eventstore.Object, streamGen);
 
+            var uow = new Moq.Mock<IDomainUnitOfWork>();
+
             var entity = new FakeEntity();
             (entity as IEntity<FakeState>).Instantiate(new FakeState());
+            (entity as INeedDomainUow).Uow = uow.Object;
 
             await resolver.Resolve<FakeEntity, FakeState>(entity, new[] { _event.Object }, Guid.NewGuid(), new Dictionary<string, string>())
                 .ConfigureAwait(false);

@@ -73,7 +73,7 @@ namespace Aggregates.UnitTests.Common
                 x =>
                     x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                         Moq.It.IsAny<string>(),
-                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
+                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Func<string, long, IFullEvent, Task>>(),
                         Moq.It.IsAny<Func<Task>>())).Returns(Task.FromResult(true));
 
             await _subscriber.Setup("test", Version.Parse("0.0.0")).ConfigureAwait(false);
@@ -84,7 +84,7 @@ namespace Aggregates.UnitTests.Common
                 x =>
                     x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                         Moq.It.IsAny<string>(),
-                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
+                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Func<string, long, IFullEvent, Task>>(),
                         Moq.It.IsAny<Func<Task>>()), Moq.Times.Once);
         }
 
@@ -93,20 +93,19 @@ namespace Aggregates.UnitTests.Common
         public async Task event_gets_processed()
         {
 
-            Action<string, long, IFullEvent> eventCb = null;
+            Func<string, long, IFullEvent, Task> eventCb = null;
             _consumer.Setup(
                     x =>
                         x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                             Moq.It.IsAny<string>(),
-                            Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
+                            Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Func<string, long, IFullEvent, Task>>(),
                             Moq.It.IsAny<Func<Task>>()))
-                .Callback<string, string, CancellationToken, Action<string, long, IFullEvent>, Func<Task>>(
+                .Callback<string, string, CancellationToken, Func<string, long, IFullEvent, Task>, Func<Task>>(
                     (stream, group, token, onEvent, onDisconnect) =>
                     {
                         eventCb = onEvent;
                     })
                 .Returns(Task.FromResult(true));
-            _consumer.Setup(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>())).Returns(Task.FromResult(true));
 
             var cts = new CancellationTokenSource();
             await _subscriber.Setup("test", Version.Parse("0.0.0")).ConfigureAwait(false);
@@ -119,13 +118,12 @@ namespace Aggregates.UnitTests.Common
             message.Setup(x => x.Descriptor).Returns(new EventDescriptor());
             message.Setup(x => x.Event).Returns(new FakeEvent());
 
-            eventCb("test", 0, message.Object);
+            await eventCb("test", 0, message.Object);
 
             await Task.Delay(500);
 
             _dispatcher.Verify(x => x.SendLocal(Moq.It.IsAny<IFullMessage>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
             
-            _consumer.Verify(x => x.Acknowledge(Moq.It.IsAny<string>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IFullEvent>()), Moq.Times.Once);
 
             cts.Cancel();
         }
@@ -345,9 +343,9 @@ namespace Aggregates.UnitTests.Common
                 x =>
                     x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                         Moq.It.IsAny<string>(),
-                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
+                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Func<string, long, IFullEvent, Task>>(),
                         Moq.It.IsAny<Func<Task>>()))
-                        .Callback<string, string, CancellationToken, Action<string, long, IFullEvent>, Func<Task>>((stream, group, token, onEvent, dis) => disconnect = dis)
+                        .Callback<string, string, CancellationToken, Func<string, long, IFullEvent, Task>, Func<Task>>((stream, group, token, onEvent, dis) => disconnect = dis)
                         .Returns(Task.FromResult(true));
 
             await _subscriber.Setup("test", Version.Parse("0.0.0")).ConfigureAwait(false);
@@ -358,7 +356,7 @@ namespace Aggregates.UnitTests.Common
                 x =>
                     x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                         Moq.It.IsAny<string>(),
-                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
+                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Func<string, long, IFullEvent, Task>>(),
                         Moq.It.IsAny<Func<Task>>()), Moq.Times.Once);
 
             Assert.NotNull(disconnect);
@@ -369,7 +367,7 @@ namespace Aggregates.UnitTests.Common
                 x =>
                     x.ConnectPinnedPersistentSubscription(Moq.It.IsAny<string>(),
                         Moq.It.IsAny<string>(),
-                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Action<string, long, IFullEvent>>(),
+                        Moq.It.IsAny<CancellationToken>(), Moq.It.IsAny<Func<string, long, IFullEvent, Task>>(),
                         Moq.It.IsAny<Func<Task>>()), Moq.Times.Exactly(2));
 
         }

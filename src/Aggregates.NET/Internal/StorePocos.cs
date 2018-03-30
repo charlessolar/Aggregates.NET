@@ -11,7 +11,7 @@ namespace Aggregates.Internal
 {
     class StorePocos : IStorePocos
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("StoreStreams");
+        private static readonly ILog Logger = LogProvider.GetLogger("StorePocos");
         private readonly IStoreEvents _store;
         private readonly ICache _cache;
         private readonly IMessageSerializer _serializer;
@@ -30,14 +30,14 @@ namespace Aggregates.Internal
         public async Task<Tuple<long, T>> Get<T>(string bucket, Id streamId, Id[] parents) where T : class
         {
             var streamName = _streamGen(typeof(T), StreamTypes.Poco, bucket, streamId, parents);
-            Logger.Write(LogLevel.Debug, () => $"Getting poco stream [{streamName}]");
+            Logger.DebugEvent("Get", "[{Stream:l}] bucket [{Bucket:l}]", streamName);
 
             if (_shouldCache)
             {
                 var cached = _cache.Retreive(streamName) as Tuple<long, T>;
                 if (cached != null)
                 {
-                    Logger.Write(LogLevel.Debug, () => $"Found poco [{streamId}] bucket [{bucket}] version {cached.Item1} in cache");
+                    Logger.DebugEvent("Cached", "[{Stream:l}] version {Version}", streamName, cached.Item1);
                     return new Tuple<long, T>(cached.Item1,
                     // An easy way to make a deep copy
                         _serializer.Deserialize<T>(_serializer.Serialize(cached.Item2)));
@@ -58,7 +58,7 @@ namespace Aggregates.Internal
         public async Task Write<T>(Tuple<long, T> poco, string bucket, Id streamId, Id[] parents, IDictionary<string, string> commitHeaders)
         {
             var streamName = _streamGen(typeof(T), StreamTypes.Poco, bucket, streamId, parents);
-            Logger.Write(LogLevel.Debug, () => $"Writing poco to stream id [{streamName}]");
+            Logger.DebugEvent("Write", "[{Stream:l}]", streamName);
 
             var descriptor = new EventDescriptor
             {

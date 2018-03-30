@@ -19,24 +19,32 @@ namespace Aggregates
 
     public static class Defaults
     {
-        public static readonly string PrefixHeader = "Originating";
-        public static readonly string EventPrefixHeader = "Event";
-        public static readonly string DelayedPrefixHeader = "Delayed";
+        public static readonly string PrefixHeader = "Aggregates.NET";
+        public static readonly string MessageIdHeader = "MessageId";
+        public static readonly string CorrelationIdHeader = "CorrelationId";
+
+        public static readonly string OriginatingHeader = "Originating";
+
         public static readonly string Retries = "Aggregates.NET.Retries";
         public static readonly string RequestResponse = "Aggregates.NET.Request";
-        public static readonly string DelayedId = "Aggregates.NET.DelayedMessageId";
         public static readonly string ChannelKey = "Aggregates.NET.ChannelKey";
         public static readonly string OobHeaderKey = "Aggregates.OOB";
         public static readonly string OobTransientKey = "Aggregates.Transient";
         public static readonly string OobDaysToLiveKey = "Aggregates.DaysToLive";
         public static readonly string LocalHeader = "Aggregates.NET.LocalMessage";
-        public static readonly string LocalBulkHeader = "Aggregates.NET.LocalBulkMessage";
+        public static readonly string BulkHeader = "Aggregates.NET.BulkMessage";
+        public static readonly string ConflictResolvedHeader = "ConflictResolver";
+
+        public static readonly string AggregatesVersionHeader = "Aggregates.NET.Version";
+        public static readonly string EndpointHeader = "Endpoint";
+        public static readonly string InstanceHeader = "Endpoint.Instance";
+        public static readonly string MachineHeader = "Endpoint.Machine";
+        public static readonly string EndpointVersionHeader = "Endpoint.Version";
 
 
         public static Guid Instance = Guid.NewGuid();
         public static string Bucket = "default";
         public static string CommitIdHeader = "CommitId";
-        public static string InstanceHeader = "Instance";
 
         public static AsyncLocal<LogLevel?> MinimumLogging = new AsyncLocal<LogLevel?>();
 

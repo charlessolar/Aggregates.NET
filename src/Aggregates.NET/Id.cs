@@ -13,10 +13,12 @@ namespace Aggregates
         public static implicit operator Id(string id) => new Id(id);
         public static implicit operator Id(long id) => new Id(id);
         public static implicit operator Id(Guid id) => new Id(id);
-
-        public static implicit operator string(Id id) => (string)id.Value;
+    
         public static implicit operator long(Id id) => (long)id.Value;
         public static implicit operator Guid(Id id) => (Guid)id.Value;
+        public static implicit operator string(Id id) => (string)id?.Value;
+        public static implicit operator long?(Id id) => (long?)id?.Value;
+        public static implicit operator Guid?(Id id) => (Guid?)id?.Value;
 
         public override string ToString()
         {

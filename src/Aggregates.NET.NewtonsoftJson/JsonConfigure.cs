@@ -10,13 +10,15 @@ namespace Aggregates
 {
     public static class JsonConfigure
     {
-        public static Configure NewtonsoftJson(this Configure config)
+        public static Configure NewtonsoftJson(this Configure config, JsonConverter[] extraConverters = null)
         {
+            extraConverters = extraConverters ?? new JsonConverter[] { };
+
             config.RegistrationTasks.Add((c) =>
             {
                 var container = c.Container;
                                 
-                container.Register<IMessageSerializer>((factory) => new JsonMessageSerializer(factory.Resolve<IEventMapper>()), Lifestyle.Singleton);
+                container.Register<IMessageSerializer>((factory) => new JsonMessageSerializer(factory.Resolve<IEventMapper>(), factory.Resolve<IEventFactory>(), extraConverters), Lifestyle.Singleton);
 
                 return Task.CompletedTask;
             });

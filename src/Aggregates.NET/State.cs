@@ -6,6 +6,7 @@ using Aggregates.Internal;
 using Aggregates.Messages;
 using Aggregates.Logging;
 using Aggregates.Exceptions;
+using Aggregates.Extensions;
 
 namespace Aggregates
 {
@@ -16,9 +17,10 @@ namespace Aggregates
         private IMutateState Mutator => StateMutators.For(typeof(TThis));
 
         // set is for deserialization
+        // todo: with the private contract resolver is this needed?
         public Id Id
         {
-            get => (this as IState).Id;
+            get => (this as IState)?.Id;
             set => (this as IState).Id = value;
         }
         public string Bucket
@@ -47,6 +49,9 @@ namespace Aggregates
         Id[] IState.Parents { get; set; }
         long IState.Version { get; set; }
         IState IState.Snapshot { get; set; }
+        IEvent[] IState.Committed => _committed.ToArray();
+
+        private List<IEvent> _committed = new List<IEvent>();
 
         // Allow user to perform and needed initial tasks with the snapshot info
         protected virtual void SnapshotRestored() { }
@@ -83,8 +88,9 @@ namespace Aggregates
             }
             catch (NoRouteException)
             {
-                Logger.Debug($"{typeof(TThis).Name} missing handler for event {@event.GetType().Name}");
+                Logger.DebugEvent("NoRoute", "{State} has no route for {EventType}", typeof(TThis).FullName, @event.GetType().FullName);
             }
+            _committed.Add(@event);
 
             (this as IState).Version++;
         }

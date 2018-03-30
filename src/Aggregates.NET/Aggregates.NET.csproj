@@ -1,168 +1,29 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../Common.props" />
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{FEC5D03F-5699-4F38-9470-1B915F7482E7}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <DefineConstants>NETSTANDARD2_0;LIBLOG_PORTABLE</DefineConstants>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace>Aggregates</RootNamespace>
-    <AssemblyName>Aggregates.NET</AssemblyName>
-    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <TargetFrameworkProfile />
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    
+    <IsPackable>true</IsPackable>
+    <Title>Aggregates.NET</Title>
+    <Description>ES/CQRS framework for NServiceBus and EventStore</Description>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Runtime.Serialization" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
-  </ItemGroup>
+
+
   <ItemGroup>
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
-    <Compile Include="Attributes\DelayedAttribute.cs" />
-    <Compile Include="Attributes\KeyProperty.cs" />
-    <Compile Include="Attributes\OptimisticConcurrencyAttribute.cs" />
-    <Compile Include="Compression.cs" />
-    <Compile Include="ConcurrencyConflict.cs" />
-    <Compile Include="Configure.cs" />
-    <Compile Include="Contracts\IContainer.cs" />
-    <Compile Include="Contracts\IDelayedCache.cs" />
-    <Compile Include="Contracts\IDelayedChannel.cs" />
-    <Compile Include="Contracts\IEntity.cs" />
-    <Compile Include="Contracts\IEntityFactory.cs" />
-    <Compile Include="Contracts\IEventDescriptor.cs" />
-    <Compile Include="Contracts\IEventFactory.cs" />
-    <Compile Include="Contracts\IEventMapper.cs" />
-    <Compile Include="Contracts\IEventStoreConsumer.cs" />
-    <Compile Include="Contracts\IEventSubscriber.cs" />
-    <Compile Include="Contracts\IFullEvent.cs" />
-    <Compile Include="Contracts\IFullMessage.cs" />
-    <Compile Include="Contracts\IHaveEntities.cs" />
-    <Compile Include="Contracts\IMessageDispatcher.cs" />
-    <Compile Include="Contracts\IMessageSerializer.cs" />
-    <Compile Include="Contracts\IMessaging.cs" />
-    <Compile Include="Contracts\IMetrics.cs" />
-    <Compile Include="Contracts\IMutateState.cs" />
-    <Compile Include="Contracts\IMutating.cs" />
-    <Compile Include="Contracts\INeedDomainUow.cs" />
-    <Compile Include="Contracts\INeedEventFactory.cs" />
-    <Compile Include="Contracts\INeedStore.cs" />
-    <Compile Include="Contracts\IOobWriter.cs" />
-    <Compile Include="Contracts\IPocoRepository.cs" />
-    <Compile Include="Contracts\IProcessor.cs" />
-    <Compile Include="Contracts\IRepository.cs" />
-    <Compile Include="Contracts\IRepositoryFactory.cs" />
-    <Compile Include="Contracts\ISnapshot.cs" />
-    <Compile Include="Contracts\ISnapshotReader.cs" />
-    <Compile Include="Contracts\IState.cs" />
-    <Compile Include="Contracts\IStoreEvents.cs" />
-    <Compile Include="Contracts\IStorePocos.cs" />
-    <Compile Include="Contracts\IStoreSnapshots.cs" />
-    <Compile Include="Defaults.cs" />
-    <Compile Include="Entity.cs" />
-    <Compile Include="Exceptions\AbandonConflictException.cs" />
-    <Compile Include="Exceptions\AggregateException.cs" />
-    <Compile Include="BusinessException.cs" />
-    <Compile Include="CommandRejectedException.cs" />
-    <Compile Include="Exceptions\ConflictingCommandException.cs" />
-    <Compile Include="Exceptions\ConflictResolutionFailedException.cs" />
-    <Compile Include="Exceptions\DiscardEventException.cs" />
-    <Compile Include="Exceptions\DiscriminatorException.cs" />
-    <Compile Include="Exceptions\DuplicateCommitException.cs" />
-    <Compile Include="Exceptions\EndpointVersionException.cs" />
-    <Compile Include="Exceptions\NoRouteException.cs" />
-    <Compile Include="Exceptions\NotFoundException.cs" />
-    <Compile Include="Exceptions\PersistenceException.cs" />
-    <Compile Include="Exceptions\StorageException.cs" />
-    <Compile Include="Exceptions\SubscriptionCanceled.cs" />
-    <Compile Include="Exceptions\VersionException.cs" />
-    <Compile Include="Extensions\DescriptorExtensions.cs" />
-    <Compile Include="Extensions\DictionaryExtensions.cs" />
-    <Compile Include="Extensions\EntityExtensions.cs" />
-    <Compile Include="Extensions\EventSourceExtensions.cs" />
-    <Compile Include="Extensions\ExceptionExtensions.cs" />
-    <Compile Include="Extensions\GuidExtensions.cs" />
-    <Compile Include="Extensions\LoggerExtensions.cs" />
-    <Compile Include="MessageExtensions.cs" />
-    <Compile Include="Extensions\MethodInfoExtensions.cs" />
-    <Compile Include="Extensions\ObjectExtensions.cs" />
-    <Compile Include="Extensions\ReflectionExtensions.cs" />
-    <Compile Include="Extensions\StackExtensions.cs" />
-    <Compile Include="Extensions\StoreExtensions.cs" />
-    <Compile Include="Extensions\StringExtensions.cs" />
-    <Compile Include="Extensions\TaskExtensions.cs" />
-    <Compile Include="ICache.cs" />
-    <Compile Include="Id.cs" />
-    <Compile Include="IHandleQueries.cs" />
-    <Compile Include="IMutate.cs" />
-    <Compile Include="Internal\ConflictResolvers.cs" />
-    <Compile Include="Internal\DelayedCache.cs" />
-    <Compile Include="Internal\DelayedChannel.cs" />
-    <Compile Include="Internal\DelayedSubscriber.cs" />
-    <Compile Include="Internal\EntityFactory.cs" />
-    <Compile Include="Internal\Enumeration.cs" />
-    <Compile Include="Internal\EventDescriptor.cs" />
-    <Compile Include="Internal\EventSubscriber.cs" />
-    <Compile Include="Internal\FullEvent.cs" />
-    <Compile Include="Internal\FullMessage.cs" />
-    <Compile Include="Internal\IntelligentCache.cs" />
-    <Compile Include="Internal\MutateState.cs" />
-    <Compile Include="Internal\Mutating.cs" />
-    <Compile Include="Internal\NullMetrics.cs" />
-    <Compile Include="Internal\OobWriter.cs" />
-    <Compile Include="Internal\PocoRepository.cs" />
-    <Compile Include="Internal\Processor.cs" />
-    <Compile Include="Internal\Repository.cs" />
-    <Compile Include="Internal\RepositoryFactory.cs" />
-    <Compile Include="Internal\Snapshot.cs" />
-    <Compile Include="Internal\SnapshotReader.cs" />
-    <Compile Include="Internal\StorePocos.cs" />
-    <Compile Include="Internal\StoreSnapshots.cs" />
-    <Compile Include="Internal\StreamPosition.cs" />
-    <Compile Include="Internal\Timer.cs" />
-    <Compile Include="Internal\UnitOfWork.cs" />
-    <Compile Include="IResolveConflicts.cs" />
-    <Compile Include="IUnitOfWork.cs" />
-    <Compile Include="Logging\LibLog.cs" />
-    <Compile Include="Messages\Accept.cs" />
-    <Compile Include="Messages\EndpointAlive.cs" />
-    <Compile Include="Messages\EndpointDead.cs" />
-    <Compile Include="Messages\Error.cs" />
-    <Compile Include="Messages\ICommand.cs" />
-    <Compile Include="Messages\IEvent.cs" />
-    <Compile Include="Messages\IMessage.cs" />
-    <Compile Include="Messages\IQuery.cs" />
-    <Compile Include="Messages\Reject.cs" />
-    <Compile Include="MutationManager.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="State.cs" />
-    <Compile Include="ValueObject.cs" />
   </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CSharp" Version="4.4.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SourceLink.Create.GitHub" Version="2.8.0" PrivateAssets="All" />
+    <DotNetCliToolReference Include="dotnet-sourcelink-git" Version="2.6.0" />
+  </ItemGroup>
 </Project>

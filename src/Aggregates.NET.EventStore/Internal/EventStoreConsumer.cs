@@ -27,6 +27,7 @@ namespace Aggregates.Internal
         private readonly IMetrics _metrics;
         private readonly IMessageSerializer _serializer;
         private readonly IEventStoreConnection[] _clients;
+        private readonly IEventMapper _mapper;
         private readonly int _readSize;
         private readonly bool _extraStats;
         private readonly object _subLock;
@@ -35,11 +36,12 @@ namespace Aggregates.Internal
         private readonly ConcurrentDictionary<string, Tuple<EventStorePersistentSubscriptionBase, Guid>> _outstandingEvents;
         private bool _disposed;
 
-        public EventStoreConsumer(IMetrics metrics, IMessageSerializer serializer, IEventStoreConnection[] clients, int readSize, bool extraStats)
+        public EventStoreConsumer(IMetrics metrics, IMessageSerializer serializer, IEventStoreConnection[] clients, IEventMapper mapper, int readSize, bool extraStats)
         {
             _metrics = metrics;
             _serializer = serializer;
             _clients = clients;
+            _mapper = mapper;
 
             _readSize = readSize;
             _extraStats = extraStats;
@@ -47,7 +49,7 @@ namespace Aggregates.Internal
             _subscriptions = new List<EventStoreCatchUpSubscription>();
             _persistentSubs = new List<EventStorePersistentSubscriptionBase>();
             _outstandingEvents = new ConcurrentDictionary<string, Tuple<EventStorePersistentSubscriptionBase, Guid>>();
-            
+
             if (clients.Any(x => x.Settings.GossipSeeds == null || !x.Settings.GossipSeeds.Any()))
                 throw new ArgumentException(
                     "Eventstore connection settings does not contain gossip seeds (even if single host call SetGossipSeedEndPoints and SetClusterGossipPort)");
@@ -62,14 +64,12 @@ namespace Aggregates.Internal
 
 
 
-        public Task<bool> SubscribeToStreamStart(string stream, CancellationToken token, Action<string, long, IFullEvent> callback, Func<Task> disconnected)
+        public Task<bool> SubscribeToStreamStart(string stream, CancellationToken token, Func<string, long, IFullEvent, Task> callback, Func<Task> disconnected)
         {
             var clientsToken = CancellationTokenSource.CreateLinkedTokenSource(token);
             foreach (var client in _clients)
             {
-                Logger.Write(LogLevel.Info,
-                    () => $"Subscribing to beginning of stream [{stream}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
-
+                Logger.InfoEvent("BeginSubscribe", "[{Stream:l}] store {Store}", stream, client.Settings.GossipSeeds[0].EndPoint.Address);
 
                 var settings = new CatchUpSubscriptionSettings(1000, 50, Logger.IsDebugEnabled(), true);
                 var startingNumber = 0L;
@@ -80,8 +80,6 @@ namespace Aggregates.Internal
                         settings,
                         eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
                         subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected, clientsToken.Token));
-                    Logger.Write(LogLevel.Info,
-                        () => $"Subscribed to stream [{stream}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
                     lock (_subLock) _subscriptions.Add(subscription);
 
                 }
@@ -94,15 +92,14 @@ namespace Aggregates.Internal
             return Task.FromResult(!clientsToken.IsCancellationRequested);
         }
 
-        public async Task<bool> SubscribeToStreamEnd(string stream, CancellationToken token, Action<string, long, IFullEvent> callback, Func<Task> disconnected)
+        public async Task<bool> SubscribeToStreamEnd(string stream, CancellationToken token, Func<string, long, IFullEvent, Task> callback, Func<Task> disconnected)
         {
             var clientsToken = CancellationTokenSource.CreateLinkedTokenSource(token);
             foreach (var client in _clients)
             {
                 try
                 {
-                    Logger.Write(LogLevel.Info,
-                        () => $"Subscribing to end of stream [{stream}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
+                    Logger.InfoEvent("EndSubscribe", "End of [{Stream:l}] store {Store}", stream, client.Settings.GossipSeeds[0].EndPoint.Address);
                     // Subscribe to the end
                     var lastEvent =
                         await client.ReadStreamEventsBackwardAsync(stream, StreamPosition.End, 1, true).ConfigureAwait(false);
@@ -118,8 +115,6 @@ namespace Aggregates.Internal
                         settings,
                         eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
                         subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected, clientsToken.Token));
-                    Logger.Write(LogLevel.Info,
-                        () => $"Subscribed to stream [{stream}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
                     lock (_subLock) _subscriptions.Add(subscription);
                 }
                 catch (OperationTimedOutException)
@@ -132,13 +127,12 @@ namespace Aggregates.Internal
         }
 
         public async Task<bool> ConnectPinnedPersistentSubscription(string stream, string group, CancellationToken token,
-            Action<string, long, IFullEvent> callback, Func<Task> disconnected)
+            Func<string, long, IFullEvent, Task> callback, Func<Task> disconnected)
         {
             var clientsToken = CancellationTokenSource.CreateLinkedTokenSource(token);
             foreach (var client in _clients)
             {
-                Logger.Write(LogLevel.Info,
-                    () => $"Connecting to persistent subscription stream [{stream}] group [{group}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
+                Logger.InfoEvent("PersistentSubscribe", "Persistent [{Stream:l}] group [{Group:l}] store {Store}", stream, group, client.Settings.GossipSeeds[0].EndPoint.Address);
 
 
                 var settings = PersistentSubscriptionSettings.Create()
@@ -147,8 +141,8 @@ namespace Aggregates.Internal
                     .WithReadBatchOf(_readSize)
                     .WithBufferSizeOf(_readSize * 3)
                     .WithLiveBufferSizeOf(_readSize)
-                    .DontTimeoutMessages()
-                    //.WithMessageTimeoutOf(TimeSpan.FromMinutes(2))
+                    //.DontTimeoutMessages()
+                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(2))
                     .CheckPointAfter(TimeSpan.FromSeconds(30))
                     .MaximumCheckPointCountOf(_readSize * 3)
                     .ResolveLinkTos()
@@ -160,7 +154,7 @@ namespace Aggregates.Internal
                 {
                     await client.CreatePersistentSubscriptionAsync(stream, group, settings,
                         client.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                    Logger.Info($"Created PINNED persistent subscription stream [{stream}] group [{group}]");
+                    Logger.InfoEvent("CreatePinned", "[{Stream:l}] group [{Group:l}]", stream, group);
                 }
                 catch (InvalidOperationException)
                 {
@@ -177,8 +171,6 @@ namespace Aggregates.Internal
                         autoAck: false).ConfigureAwait(false);
 
                     lock (_subLock) _persistentSubs.Add(subscription);
-                    Logger.Write(LogLevel.Info,
-                        () => $"Connected to persistent subscription stream [{stream}] group [{group}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
                 }
                 catch (OperationTimedOutException)
                 {
@@ -188,13 +180,12 @@ namespace Aggregates.Internal
             return true;
         }
         public async Task<bool> ConnectRoundRobinPersistentSubscription(string stream, string group, CancellationToken token,
-            Action<string, long, IFullEvent> callback, Func<Task> disconnected)
+            Func<string, long, IFullEvent, Task> callback, Func<Task> disconnected)
         {
             var clientsToken = CancellationTokenSource.CreateLinkedTokenSource(token);
             foreach (var client in _clients)
             {
-                Logger.Write(LogLevel.Info,
-                    () => $"Connecting to persistent subscription stream [{stream}] group [{group}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
+                Logger.InfoEvent("PersistentSubscribe", "Persistent [{Stream:l}] group [{Group:l}] store {Store}", stream, group, client.Settings.GossipSeeds[0].EndPoint.Address);
 
 
                 var settings = PersistentSubscriptionSettings.Create()
@@ -203,8 +194,8 @@ namespace Aggregates.Internal
                     .WithReadBatchOf(_readSize)
                     .WithBufferSizeOf(_readSize * 3)
                     .WithLiveBufferSizeOf(_readSize)
-                    .DontTimeoutMessages()
-                    //.WithMessageTimeoutOf(TimeSpan.FromMinutes(2))
+                    //.DontTimeoutMessages()
+                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(2))
                     .CheckPointAfter(TimeSpan.FromSeconds(30))
                     .MaximumCheckPointCountOf(_readSize * 3)
                     .ResolveLinkTos()
@@ -216,7 +207,7 @@ namespace Aggregates.Internal
                 {
                     await client.CreatePersistentSubscriptionAsync(stream, group, settings,
                         client.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                    Logger.Info($"Created ROUND ROBIN persistent subscription stream [{stream}] group [{group}]");
+                    Logger.InfoEvent("CreateRoundRobin", "[{Stream:l}] group [{Group:l}]", stream, group);
                 }
                 catch (InvalidOperationException)
                 {
@@ -234,8 +225,6 @@ namespace Aggregates.Internal
                         autoAck: false).ConfigureAwait(false);
 
                     lock (_subLock) _persistentSubs.Add(subscription);
-                    Logger.Write(LogLevel.Info,
-                        () => $"Connected to persistent subscription stream [{stream}] group [{group}] on client {client.Settings.GossipSeeds[0].EndPoint.Address}");
                 }
                 catch (OperationTimedOutException)
                 {
@@ -251,17 +240,16 @@ namespace Aggregates.Internal
             Tuple<EventStorePersistentSubscriptionBase, Guid> outstanding;
             if (!@event.EventId.HasValue || !_outstandingEvents.TryRemove(eventId, out outstanding))
             {
-                Logger.Warn($"Tried to ACK unknown event {@event.EventId}");
+                Logger.WarnEvent("ACK", "Unknown ack {EventId}", @event.EventId);
                 return Task.CompletedTask;
             }
-            _metrics.Decrement("Outstanding Events", Unit.Event);
 
             outstanding.Item1.Acknowledge(outstanding.Item2);
             return Task.CompletedTask;
         }
 
-        private void EventAppeared(EventStorePersistentSubscriptionBase sub, ResolvedEvent e, CancellationToken token,
-            Action<string, long, IFullEvent> callback)
+        private async Task EventAppeared(EventStorePersistentSubscriptionBase sub, ResolvedEvent e, CancellationToken token,
+            Func<string, long, IFullEvent, Task> callback)
         {
             // Don't care about metadata streams
             if (e.Event == null || e.Event.EventStreamId[0] == '$')
@@ -272,18 +260,29 @@ namespace Aggregates.Internal
 
             if (token.IsCancellationRequested)
             {
-                Logger.Warn($"Token cancelation requested, stopping persistent subscription");
-                Task.Run(() => sub.Stop(TimeSpan.FromSeconds(5)));
+                Logger.WarnEvent("Cancelation", "Token cancel requested");
+                ThreadPool.QueueUserWorkItem((_) => sub.Stop(TimeSpan.FromSeconds(10)));
                 token.ThrowIfCancellationRequested();
             }
 
             var eventId = $"{e.Event.EventId}:{e.Event.EventStreamId}:{e.Event.EventNumber}";
             _outstandingEvents[eventId] = new Tuple<EventStorePersistentSubscriptionBase, Guid>(sub, e.OriginalEvent.EventId);
-            EventAppeared(e, token, callback);
+            
+            try
+            {
+                await EventAppeared(e, token, callback).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Logger.ErrorEvent("AppearedException", ex, "Stream: [{Stream:l}] Position: {StreamPosition} {ExceptionType} - {ExceptionMessage}", e.Event.EventStreamId, e.Event.EventNumber, ex.GetType().Name, ex.Message);
+                sub.Fail(e, PersistentSubscriptionNakEventAction.Park, ex.GetType().Name);
+                // don't throw, stops subscription and causes reconnect
+                //throw;
+            }
         }
 
-        private void EventAppeared(EventStoreCatchUpSubscription sub, ResolvedEvent e, CancellationToken token,
-            Action<string, long, IFullEvent> callback)
+        private async Task EventAppeared(EventStoreCatchUpSubscription sub, ResolvedEvent e, CancellationToken token,
+            Func<string, long, IFullEvent, Task> callback)
         {
             // Don't care about metadata streams
             if (e.Event == null || e.Event.EventStreamId[0] == '$')
@@ -291,18 +290,23 @@ namespace Aggregates.Internal
 
             if (token.IsCancellationRequested)
             {
-                Logger.Warn($"Token cancelation requested, stopping catchup subscription");
-                Task.Run(() => sub.Stop(TimeSpan.FromSeconds(5)));
+                Logger.WarnEvent("Cancelation", "Token cancel requested");
+                ThreadPool.QueueUserWorkItem((_) => sub.Stop(TimeSpan.FromSeconds(10)));
                 token.ThrowIfCancellationRequested();
             }
-            EventAppeared(e, token, callback);
+            try
+            {
+                await EventAppeared(e, token, callback).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Logger.ErrorEvent("AppearedException", ex, "Stream: [{Stream:l}] Position: {StreamPosition} {ExceptionType} - {ExceptionMessage}", e.Event.EventStreamId, e.Event.EventNumber, ex.GetType().Name, ex.Message);
+                //throw;
+            }
         }
 
-        private void EventAppeared(ResolvedEvent e, CancellationToken token, Action<string, long, IFullEvent> callback)
+        private Task EventAppeared(ResolvedEvent e, CancellationToken token, Func<string, long, IFullEvent, Task> callback)
         {
-            Logger.Write(LogLevel.Debug,
-                    () => $"Event appeared {e.Event?.EventId ?? Guid.Empty} in subscription stream [{e.Event?.EventStreamId ?? ""}] number {e.Event?.EventNumber ?? -1} projection {e.OriginalStreamId} event number {e.OriginalEventNumber}");
-
             var metadata = e.Event.Metadata;
             var data = e.Event.Data;
 
@@ -310,12 +314,14 @@ namespace Aggregates.Internal
 
             if (descriptor.Compressed)
                 data = data.Decompress();
-            
-            var payload = _serializer.Deserialize(e.Event.EventType, data);
 
-            _metrics.Increment("Outstanding Events", Unit.Event);
+            var eventType = Type.GetType(e.Event.EventType, false);
+            // Not all types are detected and initialized by NSB - they do it in the pipeline, we have to do it here
+            _mapper.Initialize(eventType);
 
-            callback(e.Event.EventStreamId, e.Event.EventNumber, new FullEvent
+            var payload = _serializer.Deserialize(eventType, data);
+
+            return callback(e.Event.EventStreamId, e.Event.EventNumber, new FullEvent
             {
                 Descriptor = descriptor,
                 Event = payload,
@@ -325,7 +331,7 @@ namespace Aggregates.Internal
 
         private void SubscriptionDropped(EventStoreCatchUpSubscription sub, SubscriptionDropReason reason, Exception ex, Func<Task> disconnected, CancellationToken token)
         {
-            Logger.Write(LogLevel.Info, () => $"Disconnected from subscription.  Reason: {reason} Exception: {ex}");
+            Logger.InfoEvent("Disconnect", "{Reason}: {ExceptionType} - {ExceptionMessage}", reason, ex.GetType().Name, ex.Message);
 
             lock (_subLock) _subscriptions.Remove(sub);
             if (reason == SubscriptionDropReason.UserInitiated) return;
@@ -336,8 +342,8 @@ namespace Aggregates.Internal
         }
         private void SubscriptionDropped(EventStorePersistentSubscriptionBase sub, SubscriptionDropReason reason, Exception ex, Func<Task> disconnected, CancellationToken token)
         {
-            Logger.Write(LogLevel.Info, () => $"Disconnected from subscription.  Reason: {reason} Exception: {ex}");
-            
+            Logger.InfoEvent("Disconnect", "{Reason}: {ExceptionType} - {ExceptionMessage}", reason, ex.GetType().Name, ex.Message);
+
             lock (_subLock) _persistentSubs.Remove(sub);
             if (reason == SubscriptionDropReason.UserInitiated) return;
             if (token.IsCancellationRequested) return;
@@ -353,7 +359,7 @@ namespace Aggregates.Internal
 
             foreach (var connection in _clients)
             {
-                var manager = new ProjectionsManager(connection.Settings.Log, (EndPoint)
+                var manager = new ProjectionsManager(connection.Settings.Log,
                     new IPEndPoint(connection.Settings.GossipSeeds[0].EndPoint.Address,
                         connection.Settings.ExternalGossipPort), TimeSpan.FromSeconds(30));
                 try
@@ -376,7 +382,7 @@ namespace Aggregates.Internal
             foreach (var client in _clients)
             {
 
-                var manager = new ProjectionsManager(client.Settings.Log, (EndPoint)
+                var manager = new ProjectionsManager(client.Settings.Log,
                     new IPEndPoint(client.Settings.GossipSeeds[0].EndPoint.Address,
                         client.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
 

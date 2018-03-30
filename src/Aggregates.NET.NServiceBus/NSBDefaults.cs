@@ -18,5 +18,6 @@ namespace Aggregates
             "NServiceBus.OriginatingEndpoint"
         };
         public static string MessageIdHeader = "NServiceBus.MessageId";
+        public static string CorrelationIdHeader = "NServiceBus.CorrelationId";
     }
 }

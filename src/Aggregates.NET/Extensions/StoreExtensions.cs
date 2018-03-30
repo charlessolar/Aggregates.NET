@@ -4,6 +4,7 @@ using System.IO.Compression;
 using System.Text;
 using Aggregates.Contracts;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Linq;
 
 namespace Aggregates.Extensions
 {
@@ -55,16 +56,11 @@ namespace Aggregates.Extensions
             using (var stream = new MemoryStream(bytes))
             {
                 var deserialized = serializer.Deserialize(stream, new[] { type });
+                if (!deserialized.Any())
+                    return null;
 
                 return deserialized[0];
             }
-        }
-        public static object Deserialize(this IMessageSerializer serializer, string type, byte[] bytes)
-        {
-            var resolved = Type.GetType(type, false);
-            if (resolved == null) return null;
-
-            return Deserialize(serializer, resolved, bytes);
         }
 
         public static T Deserialize<T>(this IMessageSerializer serializer, byte[] bytes)

@@ -38,8 +38,6 @@ namespace Aggregates.Internal
                 if (SlowCommandTypes.Contains(messageTypeIdentifier))
                 {
                     lock (SlowLock) SlowCommandTypes.Remove(messageTypeIdentifier);
-                    Logger.Write(LogLevel.Info,
-                        () => $"Message {messageTypeIdentifier} was previously detected as slow, switching to more verbose logging (for this instance)\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}");
                     Defaults.MinimumLogging.Value = LogLevel.Debug;
                     verbose = true;
                 }
@@ -53,24 +51,16 @@ namespace Aggregates.Internal
 
                 if (elapsed > _slowAlert.TotalSeconds)
                 {
-                    SlowLogger.Write(LogLevel.Warn,
-                        () => $" - SLOW ALERT - Processing message {context.MessageId} {messageTypeIdentifier} took {elapsed} ms\nPayload: {Encoding.UTF8.GetString(context.Message.Body)}");
+                    SlowLogger.WarnEvent("Processed", "{MessageId} {MessageType} took {Milliseconds} payload {Payload}", context.MessageId, messageTypeIdentifier, elapsed, Encoding.UTF8.GetString(context.Message.Body).MaxLines(10));
                     if (!verbose)
                         lock (SlowLock) SlowCommandTypes.Add(messageTypeIdentifier);
                 }
-                else
-                    Logger.Write(LogLevel.Info,
-                        () => $"Processing message {context.MessageId} {messageTypeIdentifier} took {elapsed} ms");
 
             }
             finally
             {
                 if (verbose)
-                {
-                    Logger.Write(LogLevel.Info,
-                        () => $"Finished processing message {messageTypeIdentifier} verbosely - resetting log level");
                     Defaults.MinimumLogging.Value = null;
-                }
             }
         }
     }

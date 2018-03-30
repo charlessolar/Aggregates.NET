@@ -24,6 +24,7 @@ namespace Aggregates.UnitTests.Common
         private IMessageSerializer _serializer;
         private Moq.Mock<IDomainUnitOfWork> _uow;
         private Moq.Mock<IEventMapper> _mapper;
+        private Moq.Mock<IEventFactory> _factory;
         private Aggregates.Internal.PocoRepository<Poco> _repository;
 
         [SetUp]
@@ -32,9 +33,10 @@ namespace Aggregates.UnitTests.Common
             _metrics = new Moq.Mock<IMetrics>();
             _store = new Moq.Mock<IStorePocos>();
             _mapper = new Moq.Mock<IEventMapper>();
+            _factory = new Moq.Mock<IEventFactory>();
             _uow = new Moq.Mock<IDomainUnitOfWork>();
 
-            _serializer = new JsonMessageSerializer(_mapper.Object);
+            _serializer = new JsonMessageSerializer(_mapper.Object, _factory.Object, new Newtonsoft.Json.JsonConverter[] { });
 
             var fake = new FakeConfiguration();
 

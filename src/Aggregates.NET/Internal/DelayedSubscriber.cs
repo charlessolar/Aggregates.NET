@@ -16,13 +16,11 @@ using Aggregates.Messages;
 
 namespace Aggregates.Internal
 {
-    class BulkMessage : IMessage { }
-
     class DelayedSubscriber : IEventSubscriber
     {
         private static readonly ILog Logger = LogProvider.GetLogger("DelaySubscriber");
         private static readonly ILog SlowLogger = LogProvider.GetLogger("Slow Alarm");
-        
+
         private static readonly ConcurrentDictionary<string, LinkedList<Tuple<long, IFullEvent>>> WaitingEvents = new ConcurrentDictionary<string, LinkedList<Tuple<long, IFullEvent>>>();
 
         private class ThreadParam
@@ -86,14 +84,15 @@ namespace Aggregates.Internal
             return _consumer.ConnectRoundRobinPersistentSubscription(stream, group, _cancelation.Token, onEvent, () => Reconnect(stream, group));
         }
 
-        private void onEvent(string stream, long position, IFullEvent e)
+        private Task onEvent(string stream, long position, IFullEvent e)
         {
             _metrics.Increment("Delayed Queued", Unit.Event);
-            WaitingEvents.AddOrUpdate(stream, (key) => new LinkedList<Tuple<long, IFullEvent>>( new[]{ new Tuple<long, IFullEvent>(position, e)}.AsEnumerable()), (key, existing) =>
-              {
-                  existing.AddLast(new Tuple<long, IFullEvent>(position, e));
-                  return existing;
-              });
+            WaitingEvents.AddOrUpdate(stream, (key) => new LinkedList<Tuple<long, IFullEvent>>(new[] { new Tuple<long, IFullEvent>(position, e) }.AsEnumerable()), (key, existing) =>
+               {
+                   existing.AddLast(new Tuple<long, IFullEvent>(position, e));
+                   return existing;
+               });
+            return Task.CompletedTask;
         }
 
         private static void Threaded(object state)
@@ -103,10 +102,10 @@ namespace Aggregates.Internal
             var metrics = container.Resolve<IMetrics>();
             var consumer = container.Resolve<IEventStoreConsumer>();
             var dispatcher = container.Resolve<IMessageDispatcher>();
-            
+
             var param = (ThreadParam)state;
             var random = new Random();
-            
+
             try
             {
                 while (true)
@@ -133,18 +132,17 @@ namespace Aggregates.Internal
                         // Keys.Count is not thread safe and this can throw very occasionally
                         continue;
                     }
-                    
+
 
                     try
                     {
                         Task.Run(async () =>
                         {
-                            Logger.Write(LogLevel.Info,
-                                () => $"Processing {flushedEvents.Count()} bulked events");
-                            
+                            Logger.DebugEvent("Processing", "{Messages} bulk events", flushedEvents.Count);
+
                             metrics.Decrement("Delayed Queued", Unit.Event, flushedEvents.Count(x => x.Item2.Event != null));
-                            
-                            var messages = flushedEvents.Where(x => x.Item2.Event != null).Select(x => 
+
+                            var messages = flushedEvents.Where(x => x.Item2.Event != null).Select(x =>
                             {
                                 // Unpack the delayed message for delivery - the IDelayedMessage wrapper should be transparent to other services
                                 var delayed = x.Item2.Event as IDelayedMessage;
@@ -158,38 +156,35 @@ namespace Aggregates.Internal
                                     Headers = headers
                                 };
                             });
-                            
+
 
                             // Same stream ids should modify the same models, processing this way reduces write collisions on commit
                             await dispatcher.SendLocal(messages.ToArray()).ConfigureAwait(false);
-                            
-                            Logger.Write(LogLevel.Info,
-                                () => $"Finished processing {flushedEvents.Count()} bulked events");
                             foreach (var @event in flushedEvents)
-                                    await consumer.Acknowledge(stream, @event.Item1, @event.Item2)
-                                        .ConfigureAwait(false);
-                            
+                                await consumer.Acknowledge(stream, @event.Item1, @event.Item2)
+                                    .ConfigureAwait(false);
+
                         }, param.Token).Wait();
                     }
                     catch (System.AggregateException e)
                     {
                         if (e.InnerException is OperationCanceledException)
                             throw e.InnerException;
-                        
+
                         // If not a canceled exception, just write to log and continue
                         // we dont want some random unknown exception to kill the whole event loop
-                        Logger.Error(
-                            $"Received exception in delayed message thread: {e.GetType()}: {e.Message}\n{e.AsString()}");
+                        Logger.ErrorEvent("Exception", e, "From event thread: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
                     }
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
-                Logger.Error($"Delayed subscriber thread terminated due to exception: {e.GetType()}: {e.Message}\n{e.AsString()}");
+                if (!(e is OperationCanceledException))
+                    Logger.ErrorEvent("Died", e, "Event thread closed: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
             }
 
         }
-        
+
         public void Dispose()
         {
             if (_disposed)

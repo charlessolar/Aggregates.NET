@@ -29,7 +29,7 @@ namespace Aggregates.Internal
                 if (string.IsNullOrEmpty(defaultHeader))
                     defaultHeader = NotFound;
 
-                var workHeader = $"{Defaults.PrefixHeader}.{header}";
+                var workHeader = $"{Defaults.OriginatingHeader}.{header}";
                 CurrentHeaders[workHeader] = defaultHeader;
             }
             CurrentHeaders[$"{Defaults.PrefixHeader}.OriginatingType"] = CurrentMessage.GetType().FullName;
@@ -45,14 +45,13 @@ namespace Aggregates.Internal
                             !h.Equals(Defaults.RequestResponse, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.Retries, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.LocalHeader, StringComparison.InvariantCultureIgnoreCase) &&
-                            !h.Equals(Defaults.LocalBulkHeader, StringComparison.InvariantCultureIgnoreCase));
+                            !h.Equals(Defaults.BulkHeader, StringComparison.InvariantCultureIgnoreCase));
 
             foreach (var header in userHeaders)
                 CurrentHeaders[header] = command.Headers[header];
-
-            CurrentHeaders[Defaults.InstanceHeader] = Defaults.Instance.ToString();
+            
             if (command.Headers.ContainsKey(Headers.CorrelationId))
-                CurrentHeaders[Headers.CorrelationId] = command.Headers[Headers.CorrelationId];
+                CurrentHeaders[$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = command.Headers[Headers.CorrelationId];
 
             string messageId;
             Guid commitId = Guid.NewGuid();
@@ -61,20 +60,18 @@ namespace Aggregates.Internal
             // If we maintain a good CommitId convention it should solve the message idempotentcy issue (assuming the storage they choose supports it)
             if (CurrentHeaders.TryGetValue(NSBDefaults.MessageIdHeader, out messageId))
                 Guid.TryParse(messageId, out commitId);
-            if (CurrentHeaders.TryGetValue($"{Defaults.PrefixHeader}.{NSBDefaults.MessageIdHeader}", out messageId))
-                Guid.TryParse(messageId, out commitId);
-            if (CurrentHeaders.TryGetValue($"{Defaults.DelayedPrefixHeader}.{NSBDefaults.MessageIdHeader}", out messageId))
+            if (CurrentHeaders.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}", out messageId))
                 Guid.TryParse(messageId, out commitId);
 
             // Allow the user to send a CommitId along with his message if he wants
             if (CurrentHeaders.TryGetValue(Defaults.CommitIdHeader, out messageId))
                 Guid.TryParse(messageId, out commitId);
 
+
             CommitId = commitId;
 
             // Helpful log and gets CommitId into the dictionary
             var firstEventId = UnitOfWork.NextEventId(CommitId);
-            Logger.Write(LogLevel.Debug, () => $"Starting unit of work - first event id {firstEventId}");
 
             return command;
         }

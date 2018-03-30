@@ -41,6 +41,8 @@ namespace Aggregates
 
     public class Configure
     {
+        public readonly Version EndpointVersion;
+        public readonly Version AggregatesVersion;
 
         // Log settings
         public TimeSpan? SlowAlertThreshold { get; private set; }
@@ -80,6 +82,9 @@ namespace Aggregates
 
         public Configure()
         {
+            EndpointVersion = Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(0, 0, 0);
+            AggregatesVersion = Assembly.GetExecutingAssembly()?.GetName().Version ?? new Version(0, 0, 0);
+
             RegistrationTasks = new List<Func<Configure, Task>>();
             SetupTasks = new List<Func<Configure, Task>>();
             StartupTasks = new List<Func<Configure, Task>>();
@@ -104,6 +109,8 @@ namespace Aggregates
             {
                 var container = c.Container;
 
+                // Register outselves with ourselves
+                container.Register<IContainer>(container, Lifestyle.Singleton);
                 container.Register<IDelayedChannel, DelayedChannel>(Lifestyle.UnitOfWork);
                 container.Register<IDomainUnitOfWork, UnitOfWork>(Lifestyle.UnitOfWork);
 
@@ -114,7 +121,7 @@ namespace Aggregates
                 container.Register<IOobWriter>((factory) => new OobWriter(factory.Resolve<IMessageDispatcher>(), factory.Resolve<IStoreEvents>(), c.Generator), Lifestyle.PerInstance);
                 container.Register<ISnapshotReader, SnapshotReader>(Lifestyle.PerInstance);
 
-                container.Register<ICache, IntelligentCache>(Lifestyle.Singleton);
+                container.Register<ICache, IntelligentCache>(Lifestyle.PerInstance);
                 container.Register<IMetrics, NullMetrics>(Lifestyle.Singleton);
                 container.Register<IDelayedCache>((factory) => new DelayedCache(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), c.FlushInterval, c.Endpoint, c.MaxDelayed, c.FlushSize, c.DelayedExpiration, c.Generator), Lifestyle.Singleton);
 
@@ -161,7 +168,10 @@ namespace Aggregates
 
                 return Task.CompletedTask;
             });
-
+            StartupTasks.Add((c) =>
+            {
+                return Task.CompletedTask;
+            });
         }
         public Configure SetEndpointName(string endpoint)
         {

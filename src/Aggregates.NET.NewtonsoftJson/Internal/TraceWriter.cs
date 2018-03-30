@@ -1,12 +1,8 @@
 ﻿using Newtonsoft.Json.Serialization;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Diagnostics;
 using Aggregates.Logging;
 using Aggregates.Extensions;
+using System.Diagnostics;
 
 namespace Aggregates.Internal
 {
@@ -33,7 +29,7 @@ namespace Aggregates.Internal
 
         public void Trace(TraceLevel level, string message, Exception ex)
         {
-            Logger.Write(getLogLevel(level), ex == null ? message : $"{message}\n{ex.AsString()}");
+            Logger.LogEvent(getLogLevel(level), "Trace", ex, message);
         }
 
         private LogLevel getLogLevel(TraceLevel level)

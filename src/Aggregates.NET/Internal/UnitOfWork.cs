@@ -37,9 +37,7 @@ namespace Aggregates.Internal
         private bool _disposed;
         private readonly IDictionary<string, IRepository> _repositories;
         private readonly IDictionary<string, IRepository> _pocoRepositories;
-
-        public int Retries { get; private set; }
-
+        
         public Guid CommitId { get; protected set; }
         public object CurrentMessage { get; protected set; }
         public IDictionary<string, string> CurrentHeaders { get; protected set; }
@@ -82,9 +80,8 @@ namespace Aggregates.Internal
             _disposed = true;
         }
 
-        public IRepository<T> For<T>() where T : IEntity
+        public IRepository<T> For<T>() where T : class, IEntity
         {
-            Logger.Write(LogLevel.Debug, () => $"Retreiving repository for type {typeof(T)}");
             var key = typeof(T).FullName;
 
             IRepository repository;
@@ -92,10 +89,9 @@ namespace Aggregates.Internal
 
             return (IRepository<T>)(_repositories[key] = (IRepository)_repoFactory.ForEntity<T>(this));
         }
-        public IRepository<TEntity, TParent> For<TEntity, TParent>(TParent parent) where TEntity : IChildEntity<TParent> where TParent : IEntity
+        public IRepository<TEntity, TParent> For<TEntity, TParent>(TParent parent) where TEntity : class, IChildEntity<TParent> where TParent : class, IHaveEntities<TParent>
         {
-            Logger.Write(LogLevel.Debug, () => $"Retreiving entity repository for type {typeof(TEntity)}");
-            var key = $"{typeof(TParent).FullName}.{typeof(TEntity).FullName}";
+            var key = $"{typeof(TParent).FullName}.{parent.Id}.{typeof(TEntity).FullName}";
 
             IRepository repository;
             if (_repositories.TryGetValue(key, out repository))
@@ -105,7 +101,6 @@ namespace Aggregates.Internal
         }
         public IPocoRepository<T> Poco<T>() where T : class, new()
         {
-            Logger.Write(LogLevel.Debug, () => $"Retreiving poco repository for type {typeof(T)}");
             var key = typeof(T).FullName;
 
             IRepository repository;
@@ -113,10 +108,9 @@ namespace Aggregates.Internal
 
             return (IPocoRepository<T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<T>(this));
         }
-        public IPocoRepository<T, TParent> Poco<T, TParent>(TParent parent) where T : class, new() where TParent : IEntity
+        public IPocoRepository<T, TParent> Poco<T, TParent>(TParent parent) where T : class, new() where TParent : class, IHaveEntities<TParent>
         {
-            Logger.Write(LogLevel.Debug, () => $"Retreiving child poco repository for type {typeof(T)}");
-            var key = $"{typeof(TParent).FullName}.{typeof(T).FullName}";
+            var key = $"{typeof(TParent).FullName}.{parent.Id}.{typeof(T).FullName}";
 
             IRepository repository;
             if (_pocoRepositories.TryGetValue(key, out repository))
@@ -124,11 +118,11 @@ namespace Aggregates.Internal
 
             return (IPocoRepository<T, TParent>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<T, TParent>(parent, this));
         }
-        public Task<TResponse> Query<TQuery, TResponse>(TQuery query, IContainer container) where TQuery : IQuery<TResponse>
+        public Task<TResponse> Query<TQuery, TResponse>(TQuery query, IContainer container) where TQuery : class, IQuery<TResponse>
         {
             return _processor.Process<TQuery, TResponse>(query, container);
         }
-        public Task<TResponse> Query<TQuery, TResponse>(Action<TQuery> query, IContainer container) where TQuery : IQuery<TResponse>
+        public Task<TResponse> Query<TQuery, TResponse>(Action<TQuery> query, IContainer container) where TQuery : class, IQuery<TResponse>
         {
             var result = _eventFactory.Create(query);
             return Query<TQuery, TResponse>(result, container);
@@ -150,7 +144,6 @@ namespace Aggregates.Internal
 
                 Guid eventId;
                 EventIds.TryRemove(CommitId, out eventId);
-                Retries++;
                 return Task.CompletedTask;
             }
 
@@ -172,20 +165,18 @@ namespace Aggregates.Internal
 
 
             var changedStreams = _repositories.Sum(x => x.Value.ChangedStreams) + _pocoRepositories.Sum(x => x.Value.ChangedStreams);
-
-            Logger.Write(LogLevel.Debug, () => $"Detected {changedStreams} changed streams in commit {CommitId}");
+            
+            Logger.DebugEvent("Changed", "{Changed} streams {CommitId}", changedStreams, CommitId);
             // Only prepare if multiple changed streams, which will quickly check all changed streams to see if they are all the same version as when we read them
             // Not 100% guarenteed to eliminate writing 1 stream then failing the other one but will help - and we also tell the user to not do this.. 
             if (changedStreams > 1)
             {
-                Logger.Write(LogLevel.Warn, $"Starting prepare for commit id {CommitId} with {_repositories.Count + _pocoRepositories.Count} tracked repositories. You changed {changedStreams} streams.  We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams");
-
+                Logger.WarnEvent("BestPractices", "{Changed} changed streams. We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams", changedStreams, CommitId);
                 // First check all streams read but not modified - if the store has a different version a VersionException will be thrown
                 await allRepos.WhenAllAsync(x => x.Prepare(CommitId)).ConfigureAwait(false);
             }
-
-            Logger.Write(LogLevel.Debug, () => $"Starting commit id {CommitId} with {allRepos.Length} tracked repositories");
-
+            
+            Logger.DebugEvent("Commit", "{CommitId} for {Repositories} repositories", CommitId, allRepos.Length);
             try
             {
                 await allRepos.WhenAllAsync(x => x.Commit(CommitId, headers)).ConfigureAwait(false);

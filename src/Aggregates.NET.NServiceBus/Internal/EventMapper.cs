@@ -17,11 +17,13 @@ namespace Aggregates.Internal
             _mapper = mapper;
         }
 
+        public void Initialize(Type type)
+        {
+            _mapper.Initialize(new[] {type});
+        }
+
         public Type GetMappedTypeFor(Type type)
         {
-            while (!Bus.BusOnline)
-                Thread.Sleep(100);
-
             return _mapper.GetMappedTypeFor(type);
         }
     }

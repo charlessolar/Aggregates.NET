@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Logging;
+using Aggregates.Extensions;
 
 namespace Aggregates.Internal
 {
@@ -29,7 +30,7 @@ namespace Aggregates.Internal
                     }
                     catch (Exception e)
                     {
-                        Logger.Warn($"Repeating timer [{description}] threw an exception: {e.GetType().Name} {e.Message}", e);
+                        Logger.WarnEvent("RepeatFailure", e, "[{description:l}]: {ExceptionType} - {ExceptionMessage}", description, e.GetType().Name, e.Message);
                     }
                     try
                     {
@@ -59,7 +60,7 @@ namespace Aggregates.Internal
                     }
                     catch (Exception e)
                     {
-                        Logger.Warn($"Repeating timer [{description}] threw an exception: {e.GetType().Name} {e.Message}", e);
+                        Logger.WarnEvent("RepeatFailure", e, "[{description:l}]: {ExceptionType} - {ExceptionMessage}", description, e.GetType().Name, e.Message);
                     }
                     try
                     {
@@ -94,7 +95,7 @@ namespace Aggregates.Internal
                 }
                 catch (Exception e)
                 {
-                    Logger.Warn($"One-time timer [{description}] threw an exception: {e.GetType().Name} {e.Message}", e);
+                    Logger.WarnEvent("OnceFailure", e, "[{description:l}]: {ExceptionType} - {ExceptionMessage}", description, e.GetType().Name, e.Message);
                 }
             }, cancellationToken);
         }
@@ -120,7 +121,7 @@ namespace Aggregates.Internal
                 }
                 catch (Exception e)
                 {
-                    Logger.Warn($"One-time timer [{description}] threw an exception: {e.GetType().Name} {e.Message}", e);
+                    Logger.WarnEvent("OnceFailure", e, "[{description:l}]: {ExceptionType} - {ExceptionMessage}", description, e.GetType().Name, e.Message);
                 }
             }, cancellationToken);
         }

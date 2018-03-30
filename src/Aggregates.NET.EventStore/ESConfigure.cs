@@ -23,6 +23,7 @@ namespace Aggregates
                         factory.Resolve<IMetrics>(),
                         factory.Resolve<IMessageSerializer>(),
                         connections,
+                        factory.Resolve<IEventMapper>(),
                         config.ReadSize,
                         config.ExtraStats
                         ), Lifestyle.Singleton);
@@ -31,6 +32,7 @@ namespace Aggregates
                         factory.Resolve<IMetrics>(),
                         factory.Resolve<IMessageSerializer>(),
                         factory.Resolve<IEventMapper>(),
+                        factory.Resolve<ICache>(),
                         config.Generator,
                         config.ReadSize,
                         config.Compression,

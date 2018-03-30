@@ -75,7 +75,7 @@ namespace Aggregates
         }
 
 
-        public IRepository<TEntity, TThis> For<TEntity>() where TEntity : IChildEntity<TThis>
+        public IRepository<TEntity, TThis> For<TEntity>() where TEntity : class, IChildEntity<TThis>
         {
             return Uow.For<TEntity, TThis>(this as TThis);
         }
@@ -117,6 +117,7 @@ namespace Aggregates
         void IEntity<TState>.Apply(IEvent @event)
         {
             State.Apply(@event);
+            var eventId = UnitOfWork.NextEventId(Uow.CommitId);
             _uncommitted.Add(new FullEvent
             {
                 Descriptor = new EventDescriptor
@@ -129,14 +130,20 @@ namespace Aggregates
                     Timestamp = DateTime.UtcNow,
                     Version = State.Version,
                     Headers = new Dictionary<string, string>()
+                    {
+                        [$"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}"] = eventId.ToString(),
+                        [$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = Uow.CommitId.ToString()
+                    }
                 },
+                EventId = eventId,
                 Event = @event
             });
         }
 
-        void IEntity<TState>.Raise(IEvent @event, string id, bool transient, int? daysToLive)
+        void IEntity<TState>.Raise(IEvent @event, string id, bool transient, int? daysToLive, bool? single)
         {
-            _uncommitted.Add(new FullEvent
+            var eventId = UnitOfWork.NextEventId(Uow.CommitId);
+            var newEvent = new FullEvent
             {
                 Descriptor = new EventDescriptor
                 {
@@ -149,15 +156,31 @@ namespace Aggregates
                     Version = State.Version,
                     Headers = new Dictionary<string, string>()
                     {
-                        { Defaults.OobHeaderKey, id },
-                        { Defaults.OobTransientKey, transient.ToString() },
-                        { Defaults.OobDaysToLiveKey, daysToLive.ToString() }
+                        [$"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}"] = eventId.ToString(),
+                        [$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = Uow.CommitId.ToString(),
+                        [Defaults.OobHeaderKey] = id,
+                        [Defaults.OobTransientKey] = transient.ToString(),
+                        [Defaults.OobDaysToLiveKey] = daysToLive.ToString()
                     }
                 },
+                EventId = eventId,
                 Event = @event
-            });
+            };
+
+            if (single.HasValue && single == true &&
+                _uncommitted.Any(x => x.Descriptor.Headers.ContainsKey(Defaults.OobHeaderKey) && x.Descriptor.Headers[Defaults.OobHeaderKey] == id))
+            {
+                var idx = _uncommitted.IndexOf(
+                    _uncommitted.First(x => x.Descriptor.Headers.ContainsKey(Defaults.OobHeaderKey) && x.Descriptor.Headers[Defaults.OobHeaderKey] == id));
+                _uncommitted[idx] = newEvent;
+            }
+            else
+                _uncommitted.Add(newEvent);
         }
 
+        /// <summary>
+        /// Apply a new event to the stream, will be hydrated each future read
+        /// </summary>
         protected void Apply<TEvent>(Action<TEvent> @event) where TEvent : IEvent
         {
             var instance = Factory.Create(@event);
@@ -165,11 +188,18 @@ namespace Aggregates
             (this as IEntity<TState>).Apply(instance);
         }
 
-        protected void Raise<TEvent>(Action<TEvent> @event, string id, bool transient = true, int? daysToLive = null) where TEvent : IEvent
+        /// <summary>
+        /// Raise an OOB event - identify the channel with id and the properties
+        /// If the channel is transient (requires no persistence)
+        /// or if the channel is written but has an expiration (daysToLive)
+        /// Single is used if you only ever want to write 1 oob event of this type per transaction
+        /// useful if you are bulk delivering messages and only want 1 oob event raised
+        /// </summary>
+        protected void Raise<TEvent>(Action<TEvent> @event, string id, bool transient = true, int? daysToLive = null, bool? single = null) where TEvent : IEvent
         {
             var instance = Factory.Create(@event);
 
-            (this as IEntity<TState>).Raise(instance, id, transient, daysToLive);
+            (this as IEntity<TState>).Raise(instance, id, transient, daysToLive, single);
         }
 
         public override int GetHashCode()

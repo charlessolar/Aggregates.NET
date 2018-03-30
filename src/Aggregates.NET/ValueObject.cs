@@ -91,7 +91,8 @@ namespace Aggregates
 
         public static bool operator ==(ValueObject<T> x, ValueObject<T> y)
         {
-            return x.Equals(y);
+            // note doing x == null would cause an infinite loop
+            return object.ReferenceEquals(x, null) ? object.ReferenceEquals(y, null) : x.Equals(y);
         }
 
         public static bool operator !=(ValueObject<T> x, ValueObject<T> y)

@@ -39,41 +39,43 @@ namespace Aggregates.Internal
         where TState : IState
     {
         private readonly Dictionary<string, Action<TState, object>> _mutators;
-        private IEventMapper _mapper;
 
         public StateMutator()
         {
             _mutators = ReflectionExtensions.GetStateMutators<TState>();
-
-            // because this type is created from a static class its hard to get injection going right
-            _mapper = Configuration.Settings.Container.Resolve<IEventMapper>();
         }
 
         public void Handle(IState state, IEvent @event)
         {
-            var eventType = @event.GetType();
-            if(!eventType.IsInterface)
-                eventType = _mapper.GetMappedTypeFor(eventType);
-            
+            // Todo: cheap hack NSB creates events as IEvent__impl
+            // remove the __impl if it exists
+            // (message mapper not working here in due to static creation)
+            var eventType = @event.GetType().Name;
+            if (eventType.EndsWith("impl"))
+                eventType = eventType.Substring(0, eventType.Length - 6);
+
             // Todo: can suport "named" events with an attribute here so instead of routing based on object type 
             // route based on event name.
             Action<TState, object> eventMutator;
-            if(!_mutators.TryGetValue($"Handle.{eventType.Name}", out eventMutator))
-                throw new NoRouteException($"State {typeof(TState).Name} does not have handler for event {eventType.Name}");
+            if(!_mutators.TryGetValue($"Handle.{eventType}", out eventMutator))
+                throw new NoRouteException($"State {typeof(TState).Name} does not have handler for event {eventType}");
             eventMutator((TState)state, @event);
         }
         public void Conflict(IState state, IEvent @event)
         {
-            var eventType = @event.GetType();
-            if (!eventType.IsInterface)
-                eventType = _mapper.GetMappedTypeFor(eventType);
+            // Todo: cheap hack NSB creates events as IEvent__impl
+            // remove the __impl if it exists
+            // (message mapper not working here in due to static creation)
+            var eventType = @event.GetType().Name;
+            if (eventType.EndsWith("impl"))
+                eventType = eventType.Substring(0, eventType.Length - 6);
 
             // Todo: the "conflict." and "handle." key prefixes are a hack
             // Todo: can suport "named" events with an attribute here so instead of routing based on object type 
             // route based on event name.
             Action<TState, object> eventMutator;
-            if (!_mutators.TryGetValue($"Conflict.{eventType.Name}", out eventMutator))
-                throw new NoRouteException($"State {typeof(TState).Name} does not have handler for event {eventType.Name}");
+            if (!_mutators.TryGetValue($"Conflict.{eventType}", out eventMutator))
+                throw new NoRouteException($"State {typeof(TState).Name} does not have handler for event {eventType}");
             eventMutator((TState)state, @event);
         }
     }

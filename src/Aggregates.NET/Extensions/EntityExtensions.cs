@@ -10,9 +10,7 @@ namespace Aggregates.Extensions
     {
         public static string BuildParentsString(this IEntity entity)
         {
-            if (entity.Parents == null || !entity.Parents.Any())
-                return "";
-            return entity.Parents.Aggregate<Id, string>("", (cur, next) => $"{cur}:{next}");
+            return BuildParents(entity).Aggregate<Id, string>("", (cur, next) => $"{cur}:{next}");
         }
         public static Id[] BuildParents(this IEntity entity)
         {

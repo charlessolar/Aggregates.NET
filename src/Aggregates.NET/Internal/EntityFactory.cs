@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Aggregates.Internal.Cloning;
+using Aggregates.Logging;
 using Aggregates.Messages;
 
 namespace Aggregates.Internal
@@ -32,7 +35,7 @@ namespace Aggregates.Internal
 
     class EntityFactory<TEntity, TState> : IEntityFactory<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
-
+        private static readonly ILog Logger = LogProvider.GetLogger("EntityFactory");
         private readonly Func<TEntity> _factory;
 
         public EntityFactory()
@@ -40,7 +43,7 @@ namespace Aggregates.Internal
             _factory = ReflectionExtensions.BuildCreateEntityFunc<TEntity>();
         }
 
-        public TEntity Create(string bucket, Id id, Id[] parents = null, IFullEvent[] events = null, IState snapshot = null)
+        public TEntity Create(string bucket, Id id, Id[] parents = null, IEvent[] events = null, object snapshot = null)
         {
             // Todo: Can use a simple duck type helper incase snapshot type != TState due to refactor or something
             if (snapshot != null && !(snapshot is TState))
@@ -49,28 +52,32 @@ namespace Aggregates.Internal
 
             var snapshotState = snapshot as TState;
 
-            var state = snapshotState?.Copy<TState>() ?? new TState() { Version = EntityFactory.NewEntityVersion };
+            var state = snapshotState ?? new TState() { Version = EntityFactory.NewEntityVersion };
+
             state.Id = id;
             state.Bucket = bucket;
 
             state.Parents = parents;
-            state.Snapshot = snapshotState;
+            // this is set from SnapshotReader.cs L:164
+            //state.Snapshot = snapshotState?.Copy();
 
             if (snapshotState != null)
+            {
+                Logger.DebugEvent("Restored", "[{Stream:l}] bucket [{Bucket:l}] entity [{EntityType:l}] version {Version}", id, bucket, typeof(TEntity).Name, state.Version);
                 state.SnapshotRestored();
+            }
 
             if (events != null && events.Length > 0)
             {
                 for (var i = 0; i < events.Length; i++)
-                    state.Apply(events[i].Event as IEvent);
+                    state.Apply(events[i]);
             }
 
             var entity = _factory();
             (entity as IEntity<TState>).Instantiate(state);
 
-            
             return entity;
         }
-        
+
     }
 }

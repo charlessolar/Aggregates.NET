@@ -20,6 +20,7 @@ namespace Aggregates.UnitTests.Common
             public bool Fail { get; set; }
             public bool Abandon { get; set; }
             public bool Called { get; set; }
+            public IDictionary<string,string> CommitHeaders { get; set; }
 
             public Task Resolve<TEntity, TState>(TEntity entity, IFullEvent[] uncommitted, Guid commitId,
                 IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : IState, new()
@@ -30,6 +31,7 @@ namespace Aggregates.UnitTests.Common
                     throw new ConflictResolutionFailedException();
                 if (Abandon)
                     throw new AbandonConflictException();
+                CommitHeaders = commitHeaders;
 
                 return Task.CompletedTask;
             }
@@ -302,7 +304,7 @@ namespace Aggregates.UnitTests.Common
 
             await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
 
-            _snapshots.Verify(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
+            _snapshots.Verify(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
             
         }
 
@@ -320,7 +322,7 @@ namespace Aggregates.UnitTests.Common
 
             await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
 
-            _snapshots.Verify(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>(), Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
+            _snapshots.Verify(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
             
         }
 
@@ -362,7 +364,7 @@ namespace Aggregates.UnitTests.Common
             _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
 
             Assert.IsTrue(_resolver.Called);
-            
+
         }
 
         [Test]
@@ -385,7 +387,29 @@ namespace Aggregates.UnitTests.Common
             _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
 
             Assert.IsTrue(_resolver.Called);
-            
+
+        }
+        [Test]
+        public async Task commit_version_exception_sets_header()
+        {
+            _resolver.Fail = false;
+
+            _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+                .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
+            _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
+                .Throws(new VersionException("test"));
+
+            var entity = await _repository.Get("test");
+            // make entity dirty
+            (entity as IEntity<FakeState>).Apply(new FakeEvent());
+
+            Assert.DoesNotThrowAsync(() =>
+                (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
+
+            _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
+
+            Assert.IsTrue(_resolver.Called);
+            Assert.IsTrue(_resolver.CommitHeaders.ContainsKey(Defaults.ConflictResolvedHeader));
         }
         [Test]
         public async Task commit_version_exception_resolution_throws_abandon()
@@ -458,14 +482,14 @@ namespace Aggregates.UnitTests.Common
 
             _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
                 .Returns(Task.FromResult(0L));
-            _oobStore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>()))
+            _oobStore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()))
                 .Returns(Task.CompletedTask);
 
             await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
 
             _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
 
-            _oobStore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
+            _oobStore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
         }
     }
 }

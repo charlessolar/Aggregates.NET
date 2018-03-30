@@ -1,6 +1,7 @@
 public class BuildVersion
 {
     public string Version { get; private set; }
+    public string NuGet { get; private set; }
     public string SemVersion { get; private set; }
     public string Milestone { get; private set; }
     public string Sha { get; private set; }
@@ -17,7 +18,7 @@ public class BuildVersion
         var gitversion = context.GitVersion(new GitVersionSettings {
             UpdateAssemblyInfoFilePath = "./src/SharedAssemblyInfo.cs",
             UpdateAssemblyInfo = !parameters.IsLocalBuild,
-            OutputType = GitVersionOutput.Json
+            OutputType = GitVersionOutput.Json,
         });
 
         string version = string.Concat(gitversion.Major, ".", gitversion.Minor);
@@ -25,12 +26,16 @@ public class BuildVersion
         string milestone = string.Concat("v", version);
         string sha = gitversion.Sha;
 
-        context.Information("Calculated Semantic Version: {0} sha: {1}", semVersion, sha.Substring(0,8));
-        context.Information("Informational Version: {0}", gitversion.InformationalVersion);
+        string nuget = semVersion;
+        // tag nont master branches with pre-release 
+        // gitversion in the future will support something similar
+        if(!parameters.IsMaster && !parameters.IsLocalBuild) 
+            nuget += "-" + parameters.Branch;
 
         return new BuildVersion
         {
             Version = version,
+            NuGet = nuget,
             SemVersion = semVersion,
             Milestone = milestone,
             Sha = sha,

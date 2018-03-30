@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NServiceBus.Newtonsoft.Json" Version="2.1.0-beta0001" />
+    <PackageReference Include="NServiceBus.RabbitMQ" Version="5.0.0-rc0001" />
+    <PackageReference Include="NServiceBus.Serilog" Version="4.0.0-rc.1" />
+    <PackageReference Include="NServiceBus.StructureMap" Version="7.0.0-rc0001" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Aggregates.NET.EventStore\Aggregates.NET.EventStore.csproj" />
+    <ProjectReference Include="..\..\..\src\Aggregates.NET.NewtonsoftJson\Aggregates.NET.NewtonsoftJson.csproj" />
+    <ProjectReference Include="..\..\..\src\Aggregates.NET.NServiceBus\Aggregates.NET.NServiceBus.csproj" />
+    <ProjectReference Include="..\..\..\src\Aggregates.NET.StructureMap\Aggregates.NET.StructureMap.csproj" />
+    <ProjectReference Include="..\..\..\src\Aggregates.NET\Aggregates.NET.csproj" />
+    <ProjectReference Include="..\4. Language\4. Language.csproj" />
+  </ItemGroup>
+</Project>

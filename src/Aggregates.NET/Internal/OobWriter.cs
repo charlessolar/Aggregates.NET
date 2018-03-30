@@ -44,21 +44,21 @@ namespace Aggregates.Internal
             return _store.GetEventsBackwards(stream, start, count);
         }
 
-        public async Task WriteEvents<TEntity>(string bucket, Id streamId, Id[] parents, IFullEvent[] events, IDictionary<string, string> commitHeaders) where TEntity : IEntity
+        public async Task WriteEvents<TEntity>(string bucket, Id streamId, Id[] parents, IFullEvent[] events, Guid CommitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity
         {
-            Logger.Write(LogLevel.Debug, $"Writing {events.Length} oob events stream [{streamId}] bucket [{bucket}]");
-            await events.WhenAllAsync(async @event =>
-            {
-                var message = new FullMessage
-                {
-                    Message = @event.Event,
-                    Headers = @event.Descriptor.Headers
-                };
+            Logger.DebugEvent("Write", "{Events} stream [{Stream:l}] bucket [{Bucket:l}]", events.Length, streamId, bucket);
 
+            var transients = new List<IFullMessage>();
+            var durables = new Dictionary<string, List<IFullEvent>>();
+
+            foreach (var @event in events)
+            {
                 var parentsStr = parents?.Any() ?? false ? parents.Aggregate<Id, string>("", (cur, next) => $"{cur},{next}") : "";
 
                 var headers = new Dictionary<string, string>()
                 {
+                    [$"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}"] = @event.EventId.ToString(),
+                    [$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = CommitId.ToString(),
                     [$"{Defaults.PrefixHeader}.EventId"] = @event.EventId.ToString(),
                     [$"{Defaults.PrefixHeader}.EntityType"] = @event.Descriptor.EntityType,
                     [$"{Defaults.PrefixHeader}.Timestamp"] = @event.Descriptor.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture),
@@ -68,30 +68,68 @@ namespace Aggregates.Internal
                     [$"{Defaults.PrefixHeader}.Parents"] = parentsStr
                 };
 
+
                 string id = "";
 
                 id = @event.Descriptor.Headers[Defaults.OobHeaderKey];
 
-                if (@event.Descriptor.Headers.ContainsKey(Defaults.OobTransientKey) && bool.TryParse(@event.Descriptor.Headers[Defaults.OobTransientKey], out var transient) && !transient)
+                if (@event.Descriptor.Headers.ContainsKey(Defaults.OobTransientKey) &&
+                    bool.TryParse(@event.Descriptor.Headers[Defaults.OobTransientKey], out var transient) && !transient)
                 {
                     var stream = _generator(typeof(TEntity), StreamTypes.OOB, $"{id}.{bucket}", streamId, parents);
-                    var version = await _store.WriteEvents(stream, new[] { @event }, headers).ConfigureAwait(false);
-                    if (@event.Descriptor.Headers.ContainsKey(Defaults.OobDaysToLiveKey) && int.TryParse(@event.Descriptor.Headers[Defaults.OobDaysToLiveKey], out var daysToLive) && daysToLive != -1)
+                    if (!durables.ContainsKey(stream))
+                        durables[stream] = new List<IFullEvent>();
+
+                    durables[stream].Add(new FullEvent
                     {
-                        var key = $"{bucket}.{id}.{streamId}.{parentsStr}";
-                        // Uses the dictionary to keep track of daysToLive data its already saved.
-                        // If an entity saves the same stream with a new daysToLive the stream metadata needs to be rewritten
-                        if (!DaysToLiveKnowns.ContainsKey(key) || DaysToLiveKnowns[key] != daysToLive)
+                        EventId = @event.EventId,
+                        Event = @event.Event,
+                        Descriptor = new EventDescriptor
                         {
-                            DaysToLiveKnowns[key] = daysToLive;
-                            await _store.WriteMetadata(stream, maxAge: TimeSpan.FromDays(daysToLive)).ConfigureAwait(false);
+                            EventId = @event.Descriptor.EventId,
+                            EntityType = @event.Descriptor.EntityType,
+                            StreamType = @event.Descriptor.StreamType,
+                            Bucket = @event.Descriptor.Bucket,
+                            StreamId = @event.Descriptor.StreamId,
+                            Parents = @event.Descriptor.Parents,
+                            Compressed = @event.Descriptor.Compressed,
+                            Version = @event.Descriptor.Version,
+                            Timestamp = @event.Descriptor.Timestamp,
+                            Headers = @event.Descriptor.Headers.Merge(headers),
+                            CommitHeaders = @event.Descriptor.CommitHeaders.Merge(commitHeaders)
                         }
-                    }
+                    });
                 }
                 else
-                    await _dispatcher.Publish(message, headers).ConfigureAwait(false);
+                {
+                    transients.Add(new FullMessage
+                    {
+                        Message = @event.Event,
+                        Headers = @event.Descriptor.Headers.Merge(headers).Merge(commitHeaders)
+                    });
+                }
+            }
 
-            }).ConfigureAwait(false);
+            await _dispatcher.Publish(transients.ToArray()).ConfigureAwait(false);
+            foreach (var stream in durables)
+            {
+                await _store.WriteEvents(stream.Key, stream.Value.ToArray(), commitHeaders).ConfigureAwait(false);
+                // Update stream's maxAge if oob channel has a DaysToLive parameter
+                DaysToLiveKnowns.TryGetValue(stream.Key, out var daysToLiveKnown);
+
+                var sample = stream.Value.FirstOrDefault(x => x.Descriptor.Headers.ContainsKey(Defaults.OobDaysToLiveKey));
+                if (sample == null)
+                    continue;
+
+                int.TryParse(sample.Descriptor.Headers[Defaults.OobDaysToLiveKey], out var daysToLive);
+
+                if (daysToLiveKnown != daysToLive)
+                {
+                    DaysToLiveKnowns.AddOrUpdate(stream.Key, daysToLive, (key, val) => daysToLive);
+                    await _store.WriteMetadata(stream.Key, maxAge: TimeSpan.FromDays(daysToLive)).ConfigureAwait(false);
+                }
+
+            }
 
         }
     }

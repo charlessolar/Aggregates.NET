@@ -13,24 +13,29 @@ namespace Aggregates.Internal
     // https://github.com/Particular/NServiceBus.Newtonsoft.Json/blob/develop/src/NServiceBus.Newtonsoft.Json/JsonMessageSerializer.cs
     class JsonMessageSerializer : IMessageSerializer
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("JsonMessageSerializer");
+        public static readonly UTF8Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
         IEventMapper messageMapper;
+        IEventFactory messageFactory;
         Func<Stream, JsonReader> readerCreator;
         Func<Stream, JsonWriter> writerCreator;
         NewtonSerializer jsonSerializer;
 
         public JsonMessageSerializer(
-            IEventMapper messageMapper)
+            IEventMapper messageMapper,
+            IEventFactory messageFactory,
+            JsonConverter[] extraConverters)
         {
             this.messageMapper = messageMapper;
+            this.messageFactory = messageFactory;
 
             var settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
-                Converters = new JsonConverter[] { new Newtonsoft.Json.Converters.StringEnumConverter(), new IdJsonConverter() },
+                Converters = new JsonConverter[] { new Newtonsoft.Json.Converters.StringEnumConverter(), new IdJsonConverter() }.Concat(extraConverters).ToArray(),
                 Error = new EventHandler<Newtonsoft.Json.Serialization.ErrorEventArgs>(HandleError),
-                ContractResolver = new PrivateSetterContractResolver(),
+                ContractResolver = new EventContractResolver(messageMapper, messageFactory),
+                SerializationBinder = new EventSerializationBinder(messageMapper),
                 //TraceWriter = new TraceWriter(),
                 MissingMemberHandling = MissingMemberHandling.Ignore,
                 NullValueHandling = NullValueHandling.Include
@@ -38,7 +43,7 @@ namespace Aggregates.Internal
 
             this.writerCreator = (stream =>
             {
-                var streamWriter = new StreamWriter(stream, Encoding.UTF8);
+                var streamWriter = new StreamWriter(stream, Utf8NoBom);
                 return new JsonTextWriter(streamWriter)
                 {
                     // better for displaying
@@ -48,7 +53,7 @@ namespace Aggregates.Internal
 
             this.readerCreator = (stream =>
             {
-                var streamReader = new StreamReader(stream, Encoding.UTF8);
+                var streamReader = new StreamReader(stream, Utf8NoBom);
                 return new JsonTextReader(streamReader);
             });
 
@@ -115,6 +120,7 @@ namespace Aggregates.Internal
             {
                 var messageType = rootTypes[index];
                 stream.Seek(0, SeekOrigin.Begin);
+
                 messageType = GetMappedType(messageType);
                 messages[index] = ReadObject(stream, isArrayStream, messageType);
             }

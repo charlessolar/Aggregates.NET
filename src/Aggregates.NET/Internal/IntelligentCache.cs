@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
@@ -23,85 +24,97 @@ namespace Aggregates.Internal
         // Only cache items that don't change very often
         private static readonly HashSet<string> Cachable = new HashSet<string>();
         //                                          Last attempt  count  
-        private static readonly Dictionary<string,Tuple<DateTime, int>> CacheAttempts = new Dictionary<string, Tuple<DateTime, int>>();
+        private static readonly Dictionary<string, Tuple<DateTime, int>> CacheAttempts = new Dictionary<string, Tuple<DateTime, int>>();
         private static readonly object Lock = new object();
         private static int _stage;
-        private static readonly Task CachableEviction = Timer.Repeat(() =>
+
+        private static int _evicting;
+        private static Task _eviction;
+
+        public IntelligentCache(IMetrics metrics)
         {
-            // Clear cachable every 10 minutes
-            if (_stage % 120 == 0)
-            {
-                _stage = 0;
-                Logger.Write(LogLevel.Info, () => $"Clearing old cache attempt counters");
+            if (Interlocked.CompareExchange(ref _evicting, 1, 0) == 1) return;
 
-                lock (Lock)
-                {
-                    foreach(var expired in CacheAttempts.Where(x => (DateTime.UtcNow - x.Value.Item1).TotalMinutes > 10).Select(x => x.Key).ToList())
-                        CacheAttempts.Remove(expired);
-                }
-            }
+            _eviction = Timer.Repeat((state) =>
+            {
+                var m = state as IMetrics;
 
-            if (_stage % 60 == 0)
-            {
-                Logger.Write(LogLevel.Info, () => $"Clearing {Expires2.Count} 5m cached keys");
-                lock (Lock)
+                // Clear cachable every 10 minutes
+                if (_stage % 120 == 0)
                 {
-                    foreach (var stream in Expires2)
-                        MemCache.Remove(stream);
-                    Expires2.Clear();
-                }
-            }
-            if (_stage % 12 == 0)
-            {
-                Logger.Write(LogLevel.Info, () => $"Clearing {Expires1.Count} 1m cached keys");
-                lock (Lock)
-                {
-                    foreach (var stream in Expires1)
-                        MemCache.Remove(stream);
-                    Expires1.Clear();
-                }
-            }
+                    _stage = 0;
 
-            if (_stage % 2 == 0)
-            {
-                Logger.Write(LogLevel.Info, () => $"Clearing {Expires0.Count} 10s cached keys");
-                lock (Lock)
-                {
-                    foreach (var stream in Expires0)
-                        MemCache.Remove(stream);
-                    Expires0.Clear();
+                    lock (Lock)
+                    {
+                        foreach (var expired in CacheAttempts.Where(x => (DateTime.UtcNow - x.Value.Item1).TotalMinutes > 10).Select(x => x.Key).ToList())
+                        {
+                            CacheAttempts.Remove(expired);
+                            MemCache.Remove(expired);
+                        }
+                    }
                 }
-            }
-            
-            _stage++;
-            return Task.CompletedTask;
-        }, TimeSpan.FromSeconds(5), "intelligent cache eviction");
-        
-        
+
+                if (_stage % 60 == 0)
+                {
+                    lock (Lock)
+                    {
+                        foreach (var stream in Expires2)
+                            MemCache.Remove(stream);
+                        Expires2.Clear();
+                    }
+                }
+                if (_stage % 12 == 0)
+                {
+                    lock (Lock)
+                    {
+                        foreach (var stream in Expires1)
+                            MemCache.Remove(stream);
+                        Expires1.Clear();
+                    }
+                }
+
+                if (_stage % 2 == 0)
+                {
+                    lock (Lock)
+                    {
+                        foreach (var stream in Expires0)
+                            MemCache.Remove(stream);
+                        Expires0.Clear();
+                    }
+                }
+
+                lock (Lock) m.Update("Aggregates Cache Size", Unit.Items, MemCache.Count);
+
+
+                _stage++;
+                return Task.CompletedTask;
+            }, metrics, TimeSpan.FromSeconds(5), "intelligent cache eviction");
+        }
 
         public void Cache(string key, object cached, bool expires10S = false, bool expires1M = false, bool expires5M = false)
         {
             lock (Lock)
             {
-
                 if (Cachable.Contains(key) || expires10S || expires1M || expires5M)
                 {
                     if (!expires10S && !expires1M && !expires5M)
-                        Logger.Write(LogLevel.Debug, () => $"Caching item [{key}]");
+                        Logger.DebugEvent("Cache", "{Key}", key);
                     else if (expires10S)
                     {
-                        Logger.Write(LogLevel.Debug, () => $"Caching item [{key}] expires in 10s");
+                        Logger.DebugEvent("Cache", "{Key} for {Seconds}s", key, 10);
                         Expires0.Add(key);
                     }
                     else if (expires1M)
                     {
-                        Logger.Write(LogLevel.Debug, () => $"Caching item [{key}] expires in 1m");
+                        Logger.DebugEvent("Cache", "{Key} for {Seconds}s", key, 60);
                         Expires1.Add(key);
-                    }else if (expires5M)
+                    }
+                    else if (expires5M)
                     {
-                        Logger.Write(LogLevel.Debug, () => $"Caching item [{key}] expires in 5m");
+                        Logger.DebugEvent("Cache", "{Key} for {Seconds}s", key, 300);
                         Expires2.Add(key);
                     }
+
                     MemCache[key] = cached;
 
                     return;
@@ -110,34 +123,37 @@ namespace Aggregates.Internal
                 if (!CacheAttempts.ContainsKey(key))
                     CacheAttempts[key] = new Tuple<DateTime, int>(DateTime.UtcNow, 1);
                 else
-                    CacheAttempts[key] = new Tuple<DateTime, int>(DateTime.UtcNow, Math.Min(20, CacheAttempts[key].Item2 + 1));
-                
-                if (CacheAttempts[key].Item2 >= 20)
                 {
-                    Logger.Write(LogLevel.Info,
-                        () => $"Stream [{key}] has not been evicted recently, marking cachable for a few minutes");
-                    Cachable.Add(key);
+                    CacheAttempts[key] =
+                        new Tuple<DateTime, int>(DateTime.UtcNow, Math.Min(20, CacheAttempts[key].Item2 + 1));
+
+                    if (CacheAttempts[key].Item2 >= 20)
+                    {
+                        Logger.DebugEvent("Cachable", "{Key} is cachable now", key);
+                        Cachable.Add(key);
+                    }
                 }
             }
+
+
+
 
         }
         public void Evict(string key)
         {
-            Logger.Write(LogLevel.Debug, () => $"Evicting item [{key}] from cache");
-
             lock (Lock)
             {
                 // Decrease by 5 - evicting is a terrible thing, usually means there was a version conflict
-                if(CacheAttempts.ContainsKey(key))
+                if (CacheAttempts.ContainsKey(key))
                     CacheAttempts[key] = new Tuple<DateTime, int>(DateTime.UtcNow, Math.Max(0, CacheAttempts[key].Item2 - 5));
 
                 Cachable.Remove(key);
 
                 MemCache.Remove(key);
-            }
-            
 
+            }
         }
+
         public object Retreive(string key)
         {
             object cached;
@@ -145,13 +161,12 @@ namespace Aggregates.Internal
             {
                 // Cachable check is O(1) whereas a Dict search is not
                 if (!Cachable.Contains(key) || !MemCache.TryGetValue(key, out cached))
-                    cached = null;
+                    return null;
             }
-            if (cached == null)
-                Logger.Write(LogLevel.Debug, () => $"Item [{key}] is not in cache");
 
+            Logger.DebugEvent("Retrieved", "{Key}", key);
             return cached;
         }
-        
+
     }
 }

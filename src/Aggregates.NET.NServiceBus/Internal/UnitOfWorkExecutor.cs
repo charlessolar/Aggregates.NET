@@ -16,6 +16,7 @@ namespace Aggregates.Internal
     internal class UnitOfWorkExecutor : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogProvider.GetLogger("UOW Executor");
+        private static readonly ConcurrentDictionary<string, dynamic> Bags = new ConcurrentDictionary<string, dynamic>();
 
         private readonly IMetrics _metrics;
 
@@ -33,7 +34,7 @@ namespace Aggregates.Internal
             context.Extensions.Set(child);
 
             // Only SEND messages deserve a UnitOfWork
-            if (context.MessageHeaders[Headers.MessageIntent] != MessageIntentEnum.Send.ToString() && context.MessageHeaders[Headers.MessageIntent] != MessageIntentEnum.Publish.ToString())
+            if (context.GetMessageIntent() != MessageIntentEnum.Send && context.GetMessageIntent() != MessageIntentEnum.Publish)
             {
                 await next().ConfigureAwait(false);
                 return;
@@ -42,7 +43,7 @@ namespace Aggregates.Internal
             {
                 // If this happens the callback for the message took too long (likely due to a timeout)
                 // normall NSB will report an exception for "No Handlers" - this will just log a warning and ignore
-                Logger.Write(LogLevel.Warn, $"Received overdue {context.Message.MessageType.Name} callback - your timeouts might be too short");
+                Logger.WarnEvent("Overdue", "Overdue Accept/Reject {MessageType} callback - your timeouts might be too short", context.Message.MessageType.Name);
                 return;
             }
 
@@ -53,32 +54,30 @@ namespace Aggregates.Internal
             {
                 // IUnitOfWork might not be defined by user
                 appUOW = child.Resolve<IUnitOfWork>();
+                appUOW.Bag = new System.Dynamic.ExpandoObject();
+                // if this is a retry pull the bag from the registry
+                if (Bags.TryRemove(context.MessageId, out var bag))
+                    appUOW.Bag = bag;
             }
             catch { }
 
             // Set into the context because DI can be slow
             context.Extensions.Set(domainUOW);
             context.Extensions.Set(appUOW);
-
-            Logger.Write(LogLevel.Debug,
-                () => $"Starting UOW for message {context.MessageId} type {context.Message.MessageType.FullName}");
-
+            
             try
             {
                 _metrics.Increment("Messages Concurrent", Unit.Message);
                 using (_metrics.Begin("Message Duration"))
                 {
-
-                    Logger.Write(LogLevel.Debug, () => $"Running UOW.Begin for message {context.MessageId}");
+                    
                     await domainUOW.Begin().ConfigureAwait(false);
                     if (appUOW != null)
                         await appUOW.Begin().ConfigureAwait(false);
                     await delayed.Begin().ConfigureAwait(false);
                     
                     await next().ConfigureAwait(false);
-
-                    Logger.Write(LogLevel.Debug, () => $"Running UOW.End for message {context.MessageId}");
-
+                    
                     await domainUOW.End().ConfigureAwait(false);
                     if (appUOW != null)
                         await appUOW.End().ConfigureAwait(false);
@@ -88,19 +87,18 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
-                Logger.Info($"Caught exception '{e.GetType().FullName}' while executing message {context.MessageId} {context.Message.MessageType.FullName}", e);
-
                 _metrics.Mark("Message Errors", Unit.Errors);
                 var trailingExceptions = new List<Exception>();
 
                 try
                 {
-                    Logger.Write(LogLevel.Debug,
-                        () => $"Running UOW.End with exception [{e.GetType().Name}] for message {context.MessageId}");
                     // Todo: if one throws an exception (again) the others wont work.  Fix with a loop of some kind
                     await domainUOW.End(e).ConfigureAwait(false);
                     if (appUOW != null)
+                    {
                         await appUOW.End(e).ConfigureAwait(false);
+                        Bags.TryAdd(context.MessageId, appUOW.Bag);
+                    }
                     await delayed.End(e).ConfigureAwait(false);
                 }
                 catch (Exception endException)
@@ -127,13 +125,14 @@ namespace Aggregates.Internal
     }
     internal class UowRegistration : RegisterStep
     {
-        public UowRegistration() : base(
+        public UowRegistration(IContainer container) : base(
             stepId: "UnitOfWorkExecution",
             behavior: typeof(UnitOfWorkExecutor),
-            description: "Begins and Ends unit of work for your application"
+            description: "Begins and Ends unit of work for your application",
+            factoryMethod: (b) => new UnitOfWorkExecutor(container.Resolve<IMetrics>())
         )
         {
-            //InsertAfterIfExists("ExecuteUnitOfWork");
+            InsertAfterIfExists("ExceptionRejector");
         }
     }
 }

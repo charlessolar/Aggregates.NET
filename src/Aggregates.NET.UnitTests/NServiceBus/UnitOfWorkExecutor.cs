@@ -43,6 +43,7 @@ namespace Aggregates.UnitTests.NServiceBus
             Configuration.Settings = fake;
             
             _metrics.Setup(x => x.Begin(Moq.It.IsAny<string>())).Returns(new Moq.Mock<ITimer>().Object);
+            _context.Setup(x => x.MessageId).Returns("1");
             _context.Setup(x => x.Extensions).Returns(_contextBag);
             _context.Setup(x => x.MessageHeaders).Returns(new Dictionary<string, string>
             {

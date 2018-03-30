@@ -13,17 +13,12 @@ namespace Aggregates.Internal
     internal class MutateIncoming : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogProvider.GetLogger("MutateIncoming");
-
-        private readonly IMetrics _metrics;
-
-        public MutateIncoming(IMetrics metrics)
-        {
-            _metrics = metrics;
-        }
-
+        
+        
         public override Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
-            _metrics.Mark("Incoming Messages", Unit.Message);
+            if (context.GetMessageIntent() == MessageIntentEnum.Reply)
+                return next();
 
             IMutating mutated = new Mutating(context.Message.Instance, context.Headers ?? new Dictionary<string, string>());
 
@@ -39,8 +34,7 @@ namespace Aggregates.Internal
                 var mutator = (IMutate)container.TryResolve(type);
                 if (mutator == null)
                     continue;
-
-                Logger.Write(LogLevel.Debug, () => $"Mutating incoming message {context.Message.MessageType.FullName} with mutator {type.FullName}");
+                
                 mutated = mutator.MutateIncoming(mutated);
             }
             

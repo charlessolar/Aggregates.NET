@@ -70,7 +70,7 @@ namespace Aggregates.Internal
             {
                 Pulled = DateTime.UtcNow.Ticks;
 
-                count = count ?? int.MaxValue;
+                count = Math.Min(Count, count ?? int.MaxValue);
 
                 var discovered = new List<IDelayedMessage>();
                 lock (_lock)
@@ -169,44 +169,7 @@ namespace Aggregates.Internal
             // If cache grows larger than 150% of max cache size, pause all processing until flush finished
             while (Interlocked.CompareExchange(ref _tooLarge, 1, 1) == 1)
                 await Task.Delay(50).ConfigureAwait(false);
-
-            // Anything without a key bypasses memory cache
-            if (string.IsNullOrEmpty(key))
-            {
-                var translatedEvents = messages.Select(x => (IFullEvent)new FullEvent
-                {
-                    Descriptor = new EventDescriptor
-                    {
-                        EntityType = "DELAY",
-                        StreamType = $"{_endpoint}.{StreamTypes.Delayed}",
-                        Bucket = Assembly.GetEntryAssembly()?.FullName ?? "UNKNOWN",
-                        StreamId = channel,
-                        Timestamp = DateTime.UtcNow,
-                        Headers = new Dictionary<string, string>()
-                        {
-                            ["Expired"] = "true",
-                            ["FlushTime"] = DateTime.UtcNow.ToString("s"),
-                            ["Instance"] = Defaults.Instance.ToString(),
-                            ["Machine"] = Environment.MachineName,
-                        }
-                    },
-                    Event = x,
-                }).ToArray();
-                try
-                {
-                    var streamName = _streamGen(typeof(DelayedCache),
-                        $"{_endpoint}.{StreamTypes.Delayed}",
-                        Assembly.GetEntryAssembly()?.FullName ?? "UNKNOWN", channel, new Id[] { });
-                    await _store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
-                    return;
-                }
-                catch (Exception e)
-                {
-                    Logger.Write(LogLevel.Warn,
-                        () => $"Failed to write to channel [{channel}].  Exception: {e.GetType().Name}: {e.Message}");
-                }
-            }
-
+            
             addToMemCache(channel, key, messages);
         }
 
@@ -234,8 +197,7 @@ namespace Aggregates.Internal
                 var nonSpecific = pullFromMemCache(channel, null, max);
                 discovered = discovered.Concat(nonSpecific).ToArray();
             }
-
-            Logger.Write(LogLevel.Debug, () => $"Pulled {discovered.Length} from delayed channel [{channel}] key [{key}] max [{max}]");
+            
             return Task.FromResult(discovered);
         }
 
@@ -249,15 +211,13 @@ namespace Aggregates.Internal
             CachedList temp;
             if (_memCache.TryGetValue(specificKey, out temp))
                 specificAge = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - temp.Pulled);
-            Logger.Write(LogLevel.Debug, () => $"Age of delayed channel [{channel}] key [{key}] is {specificAge.TotalMilliseconds}");
             
+
             return Task.FromResult<TimeSpan?>(specificAge);
         }
 
         public Task<int> Size(string channel, string key)
         {
-            Logger.Write(LogLevel.Debug, () => $"Getting size of delayed channel [{channel}] key [{key}]");
-
             var specificSize = 0;
             // Get size from memcache
             var specificKey = new CacheKey(channel, key);
@@ -292,11 +252,9 @@ namespace Aggregates.Internal
         private async Task Flush()
         {
             var memCacheTotalSize = _memCache.Values.Sum(x => x.Count);
-            _metrics.Update("Delayed Cache Size", Unit.Items, memCacheTotalSize);
+            _metrics.Update("Delayed Cache Size", Unit.Message, memCacheTotalSize);
 
-            Logger.Write(LogLevel.Info,
-                () => $"Flushing expired delayed channels - cache size: {memCacheTotalSize} - total channels: {_memCache.Keys.Count}");
-
+            Logger.InfoEvent("Flush", "Cache Size: {CacheSize} Total Channels: {TotalChannels}", memCacheTotalSize, _memCache.Keys.Count);
             var totalFlushed = 0;
 
             // A list of channels who have expired or have more than 1/5 the max total cache size
@@ -312,8 +270,8 @@ namespace Aggregates.Internal
                 if (!messages.Any())
                     return;
 
-                Logger.Write(LogLevel.Info,
-                    () => $"Flushing {messages.Length} expired messages from channel {expired.Channel} key {expired.Key}");
+
+                Logger.InfoEvent("ExpiredFlush", "{Flush} messages channel [{Channel:l}] key [{Key:l}]", messages.Length, expired.Channel, expired.Key);
 
                 var translatedEvents = messages.Select(x => (IFullEvent)new FullEvent
                 {
@@ -328,8 +286,6 @@ namespace Aggregates.Internal
                         {
                             ["Expired"] = "true",
                             ["FlushTime"] = DateTime.UtcNow.ToString("s"),
-                            ["Instance"] = Defaults.Instance.ToString(),
-                            ["Machine"] = Environment.MachineName,
                         }
                     },
                     Event = x,
@@ -352,9 +308,7 @@ namespace Aggregates.Internal
                 }
                 catch (Exception e)
                 {
-                    Logger.Write(LogLevel.Warn,
-                        () => $"Failed to write to channel [{expired.Channel}] key [{expired.Key}].  Exception: {e.GetType().Name}: {e.Message}");
-
+                    Logger.WarnEvent("FlushFailure", e, "Channel [{Channel:l}] key [{Key:l}]: {ExceptionType} - {ExceptionMessage}", expired.Channel, expired.Key, e.GetType().Name, e.Message);
                     // Failed to write to ES - put object back in memcache
                     addToMemCache(expired.Channel, expired.Key, messages);
 
@@ -365,18 +319,15 @@ namespace Aggregates.Internal
 
             try
             {
+                if (memCacheTotalSize > (_maxSize * 1.5))
+                {
+                    Logger.WarnEvent("TooLarge", "Pausing message processing");
+                    Interlocked.CompareExchange(ref _tooLarge, 1, 0);
+                }
+
                 var limit = 10;
                 while (memCacheTotalSize > _maxSize && limit > 0)
                 {
-                    Logger.Write(LogLevel.Info,
-                        () => $"Flushing too large delayed channels - cache size: {memCacheTotalSize} - total channels: {_memCache.Keys.Count}");
-
-                    if (memCacheTotalSize > (_maxSize * 1.5))
-                    {
-                        Logger.Write(LogLevel.Warn,
-                            () => $"Delay cache has grown too large - pausing message processing while we flush!");
-                        Interlocked.CompareExchange(ref _tooLarge, 1, 0);
-                    }
 
                     // Flush the largest channels
                     var toFlush = _memCache.Where(x => x.Value.Count > _flushSize || (x.Value.Count > (_maxSize / 5))).Select(x => x.Key).Take(Math.Max(1, _memCache.Keys.Count / 5)).ToArray();
@@ -388,8 +339,8 @@ namespace Aggregates.Internal
                     {
                         var messages = pullFromMemCache(expired.Channel, expired.Key, max: _flushSize);
 
-                        Logger.Write(LogLevel.Warn,
-                            () => $"Flushing {messages.Length} messages from large channel [{expired.Channel}] key [{expired.Key}]");
+                        Logger.InfoEvent("LargeFlush", "{Flush} messages channel [{Channel:l}] key [{Key:l}]", messages.Length, expired.Channel, expired.Key);
+
                         var translatedEvents = messages.Select(x => (IFullEvent)new FullEvent
                         {
                             Descriptor = new EventDescriptor
@@ -403,8 +354,6 @@ namespace Aggregates.Internal
                                 {
                                     ["Expired"] = "false",
                                     ["FlushTime"] = DateTime.UtcNow.ToString("s"),
-                                    ["Instance"] = Defaults.Instance.ToString(),
-                                    ["Machine"] = Environment.MachineName,
                                 }
                             },
                             Event = x,
@@ -425,12 +374,9 @@ namespace Aggregates.Internal
                         catch (Exception e)
                         {
                             limit--;
-                            Logger.Write(LogLevel.Warn,
-                                () => $"Failed to write to channel [{expired.Channel}] key [{expired.Key}].  Exception: {e.GetType().Name}: {e.Message}");
-
+                            Logger.WarnEvent("FlushFailure", e, "Channel [{Channel:l}] key [{Key:l}]: {ExceptionType} - {ExceptionMessage}", expired.Channel, expired.Key, e.GetType().Name, e.Message);
                             // Failed to write to ES - put object back in memcache
                             addToMemCache(expired.Channel, expired.Key, messages);
-                            throw;
                         }
 
 
@@ -441,16 +387,14 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
-                var stackTrace = string.Join("\n", (e.StackTrace?.Split('\n').Take(10) ?? new string[] { }).AsEnumerable());
-                Logger.Write(LogLevel.Error,
-                    () => $"Caught exception: {e.GetType().Name}: {e.Message} while flushing cache messages\nStack: {stackTrace}");
+                Logger.ErrorEvent("FlushException", e, "{ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
             }
             finally
             {
                 Interlocked.CompareExchange(ref _tooLarge, 0, 1);
             }
-
-            Logger.Write(LogLevel.Info, () => $"Flushed {totalFlushed} expired delayed objects");
+            
+            Logger.DebugEvent("Flushed", "{Flushed} total", totalFlushed);
         }
     }
 }

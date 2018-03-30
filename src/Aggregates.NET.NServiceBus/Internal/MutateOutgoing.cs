@@ -14,16 +14,16 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogProvider.GetLogger("MutateOutgoing");
 
-        private readonly IMetrics _metrics;
-
-        public MutateOutgoing(IMetrics metrics)
-        {
-            _metrics = metrics;
-        }
-
         public override Task Invoke(IOutgoingLogicalMessageContext context, Func<Task> next)
         {
-            _metrics.Mark("Outgoing Messages", Unit.Message);
+            // Set aggregates.net message and corr id
+            if (context.Headers.ContainsKey(Headers.MessageId))
+                context.Headers[$"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}"] = context.Headers[Headers.MessageId];
+            if(context.Headers.ContainsKey(Headers.CorrelationId))
+                context.Headers[$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = context.Headers[Headers.CorrelationId];
+
+            if (context.GetMessageIntent() == MessageIntentEnum.Reply)
+                return next();
 
             IMutating mutated = new Mutating(context.Message.Instance, context.Headers ?? new Dictionary<string, string>());
 
@@ -40,8 +40,7 @@ namespace Aggregates.Internal
                 var mutator = (IMutate)container.TryResolve(type);
                 if (mutator == null)
                     continue;
-
-                Logger.Write(LogLevel.Debug, () => $"Mutating outgoing message {context.Message.MessageType.FullName} with mutator {type.FullName}");
+                
                 mutated = mutator.MutateOutgoing(mutated);
             }
             

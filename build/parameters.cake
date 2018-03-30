@@ -11,7 +11,6 @@ public class BuildParameters
     public bool IsLocalBuild { get; private set; }
     public bool IsRunningOnUnix { get; private set; }
     public bool IsRunningOnWindows { get; private set; }
-    public bool IsRunningOnGoCD { get; private set; }
     public bool IsRunningOnVSTS { get; private set; }
     public bool IsRunningOnAppVeyor { get; private set; }
     public bool IsReleaseBuild { get; private set; }
@@ -22,12 +21,15 @@ public class BuildParameters
     public BuildPaths Paths { get; private set; }
     public BuildPackages Packages { get; private set; }
     public int BuildNumber { get; private set; }
+    public string Branch { get; private set; }
+    public bool IsMaster { get; private set; }
+    public bool IsPullRequest { get; private set; }
 
     public bool ShouldPublish
     {
         get
         {
-            return !IsLocalBuild && IsReleaseBuild;
+            return !IsLocalBuild && IsReleaseBuild && IsMaster && !IsPullRequest;
         }
     }
 
@@ -36,7 +38,8 @@ public class BuildParameters
     {
         get
         {
-            return (IsRunningOnGoCD || IsRunningOnVSTS)  && ShouldPublish;
+            // Can publish pre-release to artifactory
+            return IsRunningOnVSTS  && !IsLocalBuild && IsReleaseBuild && !IsPullRequest;
         }
     }
 
@@ -48,10 +51,12 @@ public class BuildParameters
         Paths = BuildPaths.GetPaths(context, Configuration, Version.SemVersion);
 
         Packages = BuildPackages.GetPackages(
-			Paths.Directories.ArtifactsBin,
+            context,
+            IsRunningOnWindows,
+            Version,
+            Paths.Directories.ArtifactsBin,
             Paths.Directories.NugetRoot,
-            Version.SemVersion,
-            IsRunningOnWindows
+            Paths.Files.Projects
             );
     }
 
@@ -72,13 +77,24 @@ public class BuildParameters
         var target = context.Argument("target", "Default");
         var buildSystem = context.BuildSystem();
 
+        var isVSTS = buildSystem.TFBuild.IsRunningOnVSTS || buildSystem.TFBuild.IsRunningOnTFS;
+
+        var repository = "";
+
         var buildNumber = 0;
-        if(buildSystem.GoCD.IsRunningOnGoCD)
-            buildNumber = buildSystem.GoCD.Environment.Pipeline.Counter;
-        if(buildSystem.AppVeyor.IsRunningOnAppVeyor)
+        var branch = "";
+        var pr = false;
+        if(buildSystem.AppVeyor.IsRunningOnAppVeyor) {
             buildNumber = buildSystem.AppVeyor.Environment.Build.Number;
-        if(buildSystem.TFBuild.IsRunningOnVSTS)
+            branch = buildSystem.AppVeyor.Environment.Repository.Branch;
+            pr = buildSystem.AppVeyor.Environment.PullRequest.IsPullRequest;
+            repository = "https://github.com/volak/Aggregates.NET";
+        }
+        if(isVSTS) {
             buildNumber = buildSystem.TFBuild.Environment.Build.Id;
+            branch = buildSystem.TFBuild.Environment.Repository.Branch;
+            repository = context.Environment.GetEnvironmentVariable("BUILD_REPOSITORY_URI");
+        }
 
 
         return new BuildParameters {
@@ -88,20 +104,23 @@ public class BuildParameters
             IsLocalBuild = buildSystem.IsLocalBuild,
             IsRunningOnUnix = context.IsRunningOnUnix(),
             IsRunningOnWindows = context.IsRunningOnWindows(),
-            IsRunningOnGoCD = buildSystem.GoCD.IsRunningOnGoCD,
-            IsRunningOnVSTS = buildSystem.TFBuild.IsRunningOnVSTS,
             IsRunningOnAppVeyor = buildSystem.AppVeyor.IsRunningOnAppVeyor,
+            IsRunningOnVSTS = isVSTS,
+            Repository = repository,
             GitHub = BuildCredentials.GetGitHubCredentials(context),
             Artifactory = BuildCredentials.GetArtifactoryCredentials(context, buildSystem.IsLocalBuild),
             IsReleaseBuild = IsReleasing(target),
-            BuildNumber = buildNumber
+            BuildNumber = buildNumber,
+            Branch = branch,
+            IsMaster = StringComparer.OrdinalIgnoreCase.Equals("master", branch),
+            IsPullRequest = pr
         };
     }
 
 
     private static bool IsReleasing(string target)
     {
-        var targets = new [] { "GoCD", "AppVeyor", "VSTS-Publish", "Publish", "Publish-NuGet" };
+        var targets = new [] { "AppVeyor", "VSTS-Publish", "Publish", "Publish-NuGet" };
         return targets.Any(t => StringComparer.OrdinalIgnoreCase.Equals(t, target));
     }
 

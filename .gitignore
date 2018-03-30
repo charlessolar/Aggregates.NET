@@ -157,3 +157,4 @@ tools/
 artifacts/
 packages/
 .vs/
+.learningtransport/

@@ -82,47 +82,7 @@ namespace Aggregates.UnitTests.Common
             Assert.AreEqual("test", result[0].MessageId);
             Assert.AreEqual("test2", result[1].MessageId);
         }
-
-        [Test]
-        public async Task add_no_key_flushes_to_store()
-        {
-            _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>())).Returns(Task.FromResult(0L));
-
-            _cache = new Internal.DelayedCache(_metrics.Object, _store.Object, TimeSpan.FromSeconds(5), "test", int.MaxValue, int.MaxValue, TimeSpan.MaxValue, (a, b, c, d, e) => "test");
-
-            var msg = new Moq.Mock<IDelayedMessage>();
-            msg.Setup(x => x.MessageId).Returns("test");
-            await _cache.Add("test", null, new[] { msg.Object });
-
-            var size = await _cache.Size("test", "test");
-            Assert.AreEqual(0, size);
-
-            var result = await _cache.Pull("test", "test");
-
-            Assert.AreEqual(0, result.Length);
-            _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
-        }
-
-        [Test]
-        public async Task add_no_key_write_exception()
-        {
-            _store.Setup(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>())).Throws<Exception>();
-
-            _cache = new Internal.DelayedCache(_metrics.Object, _store.Object, TimeSpan.FromSeconds(5), "test", int.MaxValue, int.MaxValue, TimeSpan.MaxValue, (a, b, c, d, e) => "test");
-
-            var msg = new Moq.Mock<IDelayedMessage>();
-            msg.Setup(x => x.MessageId).Returns("test");
-            await _cache.Add("test", null, new[] { msg.Object });
-
-            var size = await _cache.Size("test", null);
-            Assert.AreEqual(1, size);
-
-            var result = await _cache.Pull("test");
-
-            Assert.AreEqual(1, result.Length);
-            Assert.AreEqual("test", result[0].MessageId);
-            _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
-        }
+        
 
         [Test]
         public async Task add_key_exception_once_get_both()
@@ -144,8 +104,7 @@ namespace Aggregates.UnitTests.Common
 
             // Todo: cache uses rand to pull non-specific channel, will have to fake rand to turn this into
             // Assert.AreEqual(2, result.Length);
-            Assert.GreaterOrEqual(1, result.Length);
-            _store.Verify(x => x.WriteEvents(Moq.It.IsAny<string>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
+            Assert.GreaterOrEqual(result.Length, 1);
         }
 
         [Test]

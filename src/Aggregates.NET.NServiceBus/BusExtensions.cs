@@ -47,7 +47,7 @@ namespace Aggregates
             }
             catch (TaskCanceledException)
             {
-                Logger.Warn($"Command {command.GetType().FullName} timed out");
+                Logger.WarnEvent("TimeOut", "{CommandType}", command.GetType().FullName);
                 return false;
             }
         }
@@ -66,7 +66,7 @@ namespace Aggregates
             }
             catch (TaskCanceledException)
             {
-                Logger.Warn($"Command {command.GetType().FullName} timed out");
+                Logger.WarnEvent("TimeOut", "{CommandType}", command.GetType().FullName);
                 return false;
             }
         }

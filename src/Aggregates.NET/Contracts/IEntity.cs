@@ -24,7 +24,7 @@ namespace Aggregates.Contracts
 
         void Conflict(IEvent @event);
         void Apply(IEvent @event);
-        void Raise(IEvent @event, string id, bool transient = false, int? daysToLive = null);
+        void Raise(IEvent @event, string id, bool transient = false, int? daysToLive = null, bool? single = null);
     }
     public interface IChildEntity<out TParent> where TParent : IEntity
     {

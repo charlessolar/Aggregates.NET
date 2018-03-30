@@ -34,7 +34,7 @@ namespace Aggregates.Internal
 
         public override async Task<T> Get(Id id)
         {
-            Logger.Write(LogLevel.Debug, () => $"Retreiving poco id [{id}] from parent {_parent.Id} [{typeof(TParent).FullName}] in store");
+            Logger.DebugEvent("Get", "Poco [{Id}] from parent [{Parent}] type [{Type}]", id, _parent.Id, typeof(TParent).FullName);
             var streamId = $"{_parent.BuildParentsString()}.{id}";
 
             var entity = await Get(_parent.Bucket, streamId, _parent.BuildParents()).ConfigureAwait(false);
@@ -100,7 +100,7 @@ namespace Aggregates.Internal
                     }
                     catch (PersistenceException e)
                     {
-                        Logger.WriteFormat(LogLevel.Warn, "Failed to commit events to store for stream: [{0}] bucket [{1}]\nException: {2}", tracked.Key.Item2, tracked.Key.Item1, e.Message);
+                        Logger.WarnEvent("WriteFailure", "Stream [{Stream:l}] bucket [{Bucket:l}]: {ExtensionType} - {ExceptionMessage}", tracked.Key.Item2, tracked.Key.Item1, e.GetType().Name, e.Message);
                         throw;
                     }
 
@@ -149,7 +149,7 @@ namespace Aggregates.Internal
         }
         protected async Task<T> Get(string bucket, Id id, Id[] parents)
         {
-            Logger.Write(LogLevel.Debug, () => $"Retreiving poco id [{id}] from bucket [{bucket}] in store");
+            Logger.DebugEvent("Get", "Poco [{Id}] bucket [{Bucket}]", id, bucket);
             var cacheId = new Tuple<string, Id, Id[]>(bucket, id, parents);
             Tuple<long, T, string> root;
             if (Tracked.TryGetValue(cacheId, out root))

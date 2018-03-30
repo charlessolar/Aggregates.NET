@@ -21,7 +21,9 @@ namespace Aggregates.Internal
 
         private static readonly ILog Logger = LogProvider.GetLogger("EventSubscriber");
         
-        private readonly BlockingCollection<Tuple<string, long, IFullEvent>>[] _waitingEvents;
+        // todo: events don't stay here long, but if there are events here and the instance crashes the events won't 
+        // be processed
+        private static readonly BlockingCollection<Tuple<string, long, IFullEvent>> WaitingEvents= new BlockingCollection<Tuple<string, long, IFullEvent>>();
 
         private class ThreadParam
         {
@@ -29,7 +31,6 @@ namespace Aggregates.Internal
             public CancellationToken Token { get; set; }
             public IMessaging Messaging { get; set; }
             public int Index { get; set; }
-            public BlockingCollection<Tuple<string, long, IFullEvent>> Queue { get; set; }
         }
 
 
@@ -53,11 +54,6 @@ namespace Aggregates.Internal
             _messaging = messaging;
             _consumer = consumer;
             _concurrency = concurrency;
-
-            // Initiate multiple event queues, 1 for each concurrent eventstream
-            _waitingEvents = new BlockingCollection<Tuple<string, long, IFullEvent>>[_concurrency];
-            for (var i = 0; i < _concurrency; i++)
-                _waitingEvents[i] = new BlockingCollection<Tuple<string, long, IFullEvent>>();
         }
 
         public async Task Setup(string endpoint, Version version)
@@ -118,7 +114,7 @@ when({{
                 _pinnedThreads[i] = new Thread(Threaded)
                 { IsBackground = true, Name = $"Event Thread {i}" };
 
-                _pinnedThreads[i].Start(new ThreadParam { Token = _cancelation.Token, Messaging = _messaging, Concurrency = _concurrency, Index = i, Queue = _waitingEvents[i] });
+                _pinnedThreads[i].Start(new ThreadParam { Token = _cancelation.Token, Messaging = _messaging, Concurrency = _concurrency, Index = i });
             }
 
 
@@ -138,12 +134,12 @@ when({{
             return _consumer.ConnectPinnedPersistentSubscription(stream, group, _cancelation.Token, onEvent, () => Reconnect(stream, group));
         }
 
-        private void onEvent(string stream, long position, IFullEvent e)
+        private Task onEvent(string stream, long position, IFullEvent e)
         {
             _metrics.Increment("Events Queued", Unit.Event);
-
-            var bucket = Math.Abs(stream.GetHashCode() % _concurrency);
-            _waitingEvents[bucket].Add(new Tuple<string, long, IFullEvent>(stream, position, e));
+            
+            WaitingEvents.Add(new Tuple<string, long, IFullEvent>(stream, position, e));
+            return Task.CompletedTask;
         }
 
 
@@ -164,7 +160,7 @@ when({{
                 {
                     param.Token.ThrowIfCancellationRequested();
 
-                    var @event = param.Queue.Take(param.Token);
+                    var @event = WaitingEvents.Take(param.Token);
                     metrics.Decrement("Events Queued", Unit.Event);
 
                     try
@@ -178,15 +174,13 @@ when({{
                         var headers =
                             new Dictionary<string, string>()
                             {
-                                [$"{Defaults.EventPrefixHeader}.EventId"] = @event.Item3.EventId.ToString(),
-                                [$"{Defaults.EventPrefixHeader}.EventStream"] = @event.Item1,
-                                [$"{Defaults.EventPrefixHeader}.EventPosition"] = @event.Item2.ToString()
+                                [$"{Defaults.PrefixHeader}.EventId"] = @event.Item3.EventId.ToString(),
+                                [$"{Defaults.PrefixHeader}.EventStream"] = @event.Item1,
+                                [$"{Defaults.PrefixHeader}.EventPosition"] = @event.Item2.ToString()
                             };
 
                         dispatcher.SendLocal(message, headers).ConfigureAwait(false).GetAwaiter().GetResult();
 
-                        Logger.Write(LogLevel.Debug,
-                            () => $"Acknowledge event {@event.Item3.Descriptor.EventId} stream [{@event.Item1}] number {@event.Item2}");
                         consumer.Acknowledge(@event.Item1, @event.Item2, @event.Item3).ConfigureAwait(false)
                             .GetAwaiter().GetResult();
                     }
@@ -194,17 +188,18 @@ when({{
                     {
                         if (e.InnerException is OperationCanceledException)
                             throw e.InnerException;
-                        
+
                         // If not a canceled exception, just write to log and continue
                         // we dont want some random unknown exception to kill the whole event loop
-                        Logger.Error($"Received exception in main event thread: {e.GetType()}: {e.Message}\n{e.AsString()}");
+                        Logger.ErrorEvent("Exception", e, "From event thread: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
 
                     }
                 }
             }
             catch(Exception e)
             {
-                Logger.Error($"Event subscriber thread terminated due to exception: {e.GetType()}: {e.Message}\n{e.AsString()}");
+                if(!(e is OperationCanceledException))
+                    Logger.ErrorEvent("Died", e, "Event thread closed: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
             }
         }
         

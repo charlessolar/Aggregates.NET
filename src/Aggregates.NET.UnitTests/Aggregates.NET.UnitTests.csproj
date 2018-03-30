@@ -1,112 +1,29 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../Common.props" />
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{8C37F0E4-7C6C-41EC-9499-D330B5B8E61A}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <TargetFramework>net462</TargetFramework>
     <RootNamespace>Aggregates</RootNamespace>
-    <AssemblyName>Aggregates.NET.UnitTests</AssemblyName>
-    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
+    
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
+
   <ItemGroup>
-    <Reference Include="Castle.Core, Version=4.1.1.0, Culture=neutral, PublicKeyToken=407dd0808d44fbdc, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Castle.Core.4.1.1\lib\net45\Castle.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="EventStore.ClientAPI, Version=4.0.3.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\EventStore.Client.4.0.3\lib\net40\EventStore.ClientAPI.dll</HintPath>
-    </Reference>
-    <Reference Include="Moq, Version=4.7.99.0, Culture=neutral, PublicKeyToken=69f491c39445e920, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Moq.4.7.99\lib\net45\Moq.dll</HintPath>
-    </Reference>
-    <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Newtonsoft.Json.10.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="NServiceBus.Core, Version=6.0.0.0, Culture=neutral, PublicKeyToken=9fc386479f8a226c, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\NServiceBus.6.4.0\lib\net452\NServiceBus.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="nunit.framework, Version=3.8.1.0, Culture=neutral, PublicKeyToken=2638cd05610744eb, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\NUnit.3.8.1\lib\net45\nunit.framework.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
+    <PackageReference Include="EventStore.ClientAPI.NetCore" Version="4.1.0.23" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.6.1" />
+    <PackageReference Include="Moq" Version="4.8.2" />
+    <PackageReference Include="MSTest.TestAdapter" Version="1.2.0" />
+    <PackageReference Include="MSTest.TestFramework" Version="1.2.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.1" />
+    <PackageReference Include="NUnit" Version="3.9.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="3.10.0" />
   </ItemGroup>
+
   <ItemGroup>
-    <Compile Include="Common\ConflictResolvers\EasyConflictResolvers.cs" />
-    <Compile Include="Common\ConflictResolvers\StrongConflictResolver.cs" />
-    <Compile Include="Common\ConflictResolvers\WeakConflictResolver.cs" />
-    <Compile Include="Common\DelayedCache.cs" />
-    <Compile Include="Common\DelayedChannel.cs" />
-    <Compile Include="Common\DelayedSubscriber.cs" />
-    <Compile Include="Common\Entity.cs" />
-    <Compile Include="Common\Enumeration.cs" />
-    <Compile Include="Common\EventSubscriber.cs" />
-    <Compile Include="Common\PocoRepository.cs" />
-    <Compile Include="Common\Repository.cs" />
-    <Compile Include="Common\SnapshotReader.cs" />
-    <Compile Include="Common\State.cs" />
-    <Compile Include="Common\UnitOfWork.cs" />
-    <Compile Include="EventStore\EventStoreConsumer.cs" />
-    <Compile Include="EventStore\StoreEvents.cs" />
-    <Compile Include="FakeConfiguration.cs" />
-    <Compile Include="NServiceBus\BulkInvokeHandlerTerminator.cs" />
-    <Compile Include="NServiceBus\LocalMessageUnpack.cs" />
-    <Compile Include="NServiceBus\UnitOfWorkExecutor.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
+    <ProjectReference Include="..\Aggregates.NET.EventStore\Aggregates.NET.EventStore.csproj" />
+    <ProjectReference Include="..\Aggregates.NET.NewtonsoftJson\Aggregates.NET.NewtonsoftJson.csproj" />
+    <ProjectReference Include="..\Aggregates.NET.NServiceBus\Aggregates.NET.NServiceBus.csproj" />
+    <ProjectReference Include="..\Aggregates.NET.StructureMap\Aggregates.NET.StructureMap.csproj" />
+    <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="NewtonsoftJson\" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Aggregates.NET.EventStore\Aggregates.NET.EventStore.csproj">
-      <Project>{10e3ea3b-1197-4d51-bae0-e0d150d56767}</Project>
-      <Name>Aggregates.NET.EventStore</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Aggregates.NET.NewtonsoftJson\Aggregates.NET.NewtonsoftJson.csproj">
-      <Project>{83714f8f-1112-4948-bace-3cfd0c30a9fd}</Project>
-      <Name>Aggregates.NET.NewtonsoftJson</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Aggregates.NET.NServiceBus\Aggregates.NET.NServiceBus.csproj">
-      <Project>{f552d7a6-be84-47cf-95bd-ff765358c0af}</Project>
-      <Name>Aggregates.NET.NServiceBus</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Aggregates.NET.StructureMap\Aggregates.NET.StructureMap.csproj">
-      <Project>{ccec41f0-1150-414d-965a-cafb40d8c4fa}</Project>
-      <Name>Aggregates.NET.StructureMap</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj">
-      <Project>{fec5d03f-5699-4f38-9470-1b915f7482e7}</Project>
-      <Name>Aggregates.NET</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
 </Project>

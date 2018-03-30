@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
+using Aggregates.Internal.Cloning;
 using Aggregates.Logging;
 
 
@@ -25,7 +26,8 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogProvider.GetLogger("SnapshotReader");
         
         // Todo: upgrade to LRU cache?
-        private static readonly ConcurrentDictionary<string, Tuple<DateTime, ISnapshot>> Snapshots = new ConcurrentDictionary<string, Tuple<DateTime, ISnapshot>>();
+        // Store snapshots as strings, so that each request returns a new object which doesn't need to be deep copied
+        private static readonly ConcurrentDictionary<string, Tuple<DateTime, string>> Snapshots = new ConcurrentDictionary<string, Tuple<DateTime, string>>();
         private static readonly ConcurrentDictionary<string, long> TruncateBefore = new ConcurrentDictionary<string, long>();
 
         private static Task _truncate;
@@ -38,11 +40,13 @@ namespace Aggregates.Internal
 
         private readonly IMetrics _metrics;
         private readonly IEventStoreConsumer _consumer;
+        private readonly IMessageSerializer _serializer;
 
-        public SnapshotReader(IMetrics metrics, IStoreEvents store, IEventStoreConsumer consumer)
+        public SnapshotReader(IMetrics metrics, IStoreEvents store, IEventStoreConsumer consumer, IMessageSerializer serializer)
         {
             _metrics = metrics;
             _consumer = consumer;
+            _serializer = serializer;
 
             if (Interlocked.CompareExchange(ref _truncating, 1, 0) == 1) return;
 
@@ -65,7 +69,7 @@ namespace Aggregates.Internal
                         await eventstore.WriteMetadata(x, truncateBefore: tb).ConfigureAwait(false);
                     }
                     catch { }
-                });
+                }).ConfigureAwait(false);
             }, store, TimeSpan.FromMinutes(5), "snapshot truncate before");
 
             _snapshotExpiration = Timer.Repeat((state) =>
@@ -75,7 +79,7 @@ namespace Aggregates.Internal
                 var expired = Snapshots.Where(x => (DateTime.UtcNow - x.Value.Item1) > TimeSpan.FromMinutes(5)).Select(x => x.Key)
                     .ToList();
 
-                Tuple<DateTime, ISnapshot> temp;
+                Tuple<DateTime, string> temp;
                 foreach (var key in expired)
                     if (Snapshots.TryRemove(key, out temp))
                         m.Decrement("Snapshots Stored", Unit.Items);
@@ -110,7 +114,7 @@ namespace Aggregates.Internal
             return _consumer.SubscribeToStreamEnd(stream, _cancelation.Token, onEvent, () => Reconnect(stream));
         }
 
-        private void onEvent(string stream, long position, IFullEvent e)
+        private Task onEvent(string stream, long position, IFullEvent e)
         {
             var snapshot = new Snapshot
             {
@@ -119,31 +123,46 @@ namespace Aggregates.Internal
                 StreamId = e.Descriptor.StreamId,
                 Timestamp = e.Descriptor.Timestamp,
                 Version = e.Descriptor.Version,
-                Payload = e.Event as IState
+                Payload = e.Event
             };
-
-            Logger.Write(LogLevel.Debug, () => $"Got snapshot of stream id [{snapshot.StreamId}] bucket [{snapshot.Bucket}] entity [{snapshot.EntityType}] version {snapshot.Version}");
+            
+            Logger.DebugEvent("GotSnapshot", "[{Stream:l}] bucket [{Bucket:l}] entity [{EntityType:l}] version {Version}", snapshot.StreamId, snapshot.Bucket, snapshot.EntityType, snapshot.Version);
             Snapshots.AddOrUpdate(stream, (key) =>
             {
                 _metrics.Increment("Snapshots Stored", Unit.Items);
-                return new Tuple<DateTime, ISnapshot>(DateTime.UtcNow, snapshot);
+                return new Tuple<DateTime, string>(DateTime.UtcNow, _serializer.Serialize(snapshot).AsString());
             }, (key, existing) =>
             {
                 TruncateBefore[key] = position;
-                return new Tuple<DateTime, ISnapshot>(DateTime.UtcNow, snapshot);
+                return new Tuple<DateTime, string>(DateTime.UtcNow, _serializer.Serialize(snapshot).AsString());
             });
+            return Task.CompletedTask;
         }
 
         public Task<ISnapshot> Retreive(string stream)
         {
-            Tuple<DateTime, ISnapshot> snapshot;
+            Tuple<DateTime, string> snapshot;
             if (!Snapshots.TryGetValue(stream, out snapshot))
                 return Task.FromResult((ISnapshot)null);
 
             // Update timestamp so snapshot doesn't expire
-            Snapshots.TryUpdate(stream, new Tuple<DateTime, ISnapshot>(DateTime.UtcNow, snapshot.Item2), snapshot);
+            // let all snapshots eventually expire
+            //Snapshots.TryUpdate(stream, new Tuple<DateTime, ISnapshot>(DateTime.UtcNow, snapshot.Item2), snapshot);
 
-            return Task.FromResult(snapshot.Item2);
+            // Explanation:
+            // Snapshots are stored as strings do that each retreive creates a new object (deep copy in C# doesn't work very well)
+            // snapshots have a 'Snapshot' property which is supposed to be a clean copy of the state for use in event handlers
+            // think: 
+            //
+            // void Handle(Events.FooBar e)
+            //    // this.Snapshot is the unmodified state 
+            //
+            // to support that unmodified state we need to deserialize the snapshot twice - once for the state
+            // second for the snapshot property on the state.
+            // Todo: is there a way to mark the whole object as readonly?
+            var result = (ISnapshot)_serializer.Deserialize<Snapshot>(snapshot.Item2.AsByteArray());
+            (result.Payload as IState).Snapshot = (IState)(_serializer.Deserialize<Snapshot>(snapshot.Item2.AsByteArray()).Payload);
+            return Task.FromResult(result);
         }
 
         public void Dispose()

@@ -47,12 +47,11 @@ namespace Aggregates.Internal
                 catch (BusinessException e)
                 {
                     _metrics.Mark("Business Exceptions", Unit.Errors);
-
-                    Logger.Write(LogLevel.Info, () => $"Caught business exception: {e.Message}");
+                    
+                    Logger.InfoEvent("BusinessException", "{MessageId} {MessageType} rejected {Message}", context.MessageId, context.Message.MessageType.FullName, e.Message);
                     if (!context.MessageHeaders.ContainsKey(Defaults.RequestResponse) || context.MessageHeaders[Defaults.RequestResponse] != "1")
                         return; // Dont throw, business exceptions are not message failures
-
-                    Logger.Write(LogLevel.Debug, () => $"Command {context.Message.MessageType.FullName} was rejected\nException: {e.Message}");
+                    
                     // Tell the sender the command was rejected due to a business exception
                     var rejection = context.Builder.Build<Func<BusinessException, Reject>>();
                     await context.Reply(rejection(e)).ConfigureAwait(false);
@@ -68,14 +67,15 @@ namespace Aggregates.Internal
     }
     internal class CommandAcceptorRegistration : RegisterStep
     {
-        public CommandAcceptorRegistration() : base(
+        public CommandAcceptorRegistration(IContainer container) : base(
             stepId: "CommandAcceptor",
             behavior: typeof(CommandAcceptor),
-            description: "Filters [BusinessException] from processing failures"
+            description: "Filters [BusinessException] from processing failures",
+            factoryMethod: (b) => new CommandAcceptor(container.Resolve<IMetrics>())
         )
         {
-            // Needs to be after message unpack so Message.Instance is correct
-            InsertAfter("LocalMessageUnpack");
+            // If a command fails business exception uow still needs to error out
+            InsertBefore("UnitOfWorkExecution");
         }
     }
 }

@@ -1,0 +1,22 @@
+<Project>
+  <PropertyGroup>
+    <DebugType>embedded</DebugType>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+    <PackageRequireLicenseAcceptance>False</PackageRequireLicenseAcceptance>
+
+    <Authors>Charles Solar</Authors>
+    <Company>Charles Solar</Company>
+    <Copyright>Copyright (c) 2017</Copyright>
+    <PackageTags>CQRS ES event sourcing NServiceBus GetEventStore eventstore ddd</PackageTags>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/volak/Aggregates.NET</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/volak/Aggregates.NET</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/volak/Aggregates.NET/master/icon.png</PackageIconUrl>
+    <PackageLicenseUrl>http://opensource.org/licenses/MIT</PackageLicenseUrl>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    
+  </PropertyGroup>
+</Project>

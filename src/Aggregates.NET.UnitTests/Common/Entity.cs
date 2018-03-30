@@ -68,6 +68,7 @@ namespace Aggregates.UnitTests.Common
 
             _entity = new FakeEntity(_factory.Object, _eventstore.Object, _oobWriter.Object);
             (_entity as IEntity<FakeState>).Instantiate(new FakeState());
+            (_entity as INeedDomainUow).Uow = _uow.Object;
         }
         
 

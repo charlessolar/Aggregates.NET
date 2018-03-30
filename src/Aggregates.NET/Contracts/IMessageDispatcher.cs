@@ -10,7 +10,7 @@ namespace Aggregates.Contracts
     {
         Task SendLocal(IFullMessage message, IDictionary<string, string> headers = null);
         Task SendLocal(IFullMessage[] messages, IDictionary<string, string> headers = null);
-        Task Send(IFullMessage message, string destination, IDictionary<string, string> headers = null);
-        Task Publish(IFullMessage message, IDictionary<string, string> headers = null);
+        Task Send(IFullMessage[] message, string destination);
+        Task Publish(IFullMessage[] message);
     }
 }

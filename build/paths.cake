@@ -22,23 +22,23 @@ public class BuildPaths
             throw new ArgumentNullException("semVersion");
         }
 
-        var projects = context.GetFiles("./**/*.csproj");
+        var projects = context.GetFiles("./src/**/*.csproj");
         var projectInfos = new List<ProjectInfo>();
 
         var binDirs = new List<DirectoryPath>();
         foreach(var project in projects)
         {
-            var info = context.ParseProject(project);
+            var info = context.ParseProject(project, configuration);
             var projectDir = project.GetDirectory();
 
             var output = info.OutputType;
-            var binDir = project.GetDirectory().Combine(context.Directory("bin")).Combine(context.Directory(configuration));
+            var binDir = info.OutputPath;
             Func<IEnumerable<FilePath>> getBinaries = () => {
                 return 
                         context.GetFiles(binDir + "/*");
             };
 
-            if(info.Files.Any(x => x.FilePath.GetFilename().ToString() == "Dockerfile"))
+            if(context.FileExists(projectDir.CombineWithFilePath("./Dockerfile")))
             {
                 output = "Docker";
 
@@ -48,7 +48,7 @@ public class BuildPaths
                         .Concat(context.GetFiles(projectDir + "/Dockerfile*"));
                 };
             }
-            if(info.References.Any(x => x.Include == "System.Web")) 
+            if(info.IsWebApplication()) 
             {
                 output = "Web";
 
@@ -62,12 +62,17 @@ public class BuildPaths
                         .Concat(context.GetFiles(projectDir + "/Dockerfile*"));
                 };
             }
+            if(info.AssemblyName.EndsWith("Tests")) 
+            {
+                output = "Test";
+            }
 
             binDirs.Add(binDir);
 
+            context.Information("Discovered project {0} output type {1}", info.AssemblyName, output);
             var filename = project.GetFilename().FullPath;
             projectInfos.Add(new ProjectInfo(
-                filename.Substring(0,filename.Length-7), 
+                filename.Substring(0, filename.Length-7), 
                 info.AssemblyName, 
                 output, 
                 project, 
@@ -80,7 +85,7 @@ public class BuildPaths
         var testResultsDir = artifactsDir.Combine("test-reports");
         var nugetRoot = artifactsDir.Combine("nuget");
 
-        var zipBinary = artifactsDir.CombineWithFilePath("Build-net46-v" + semVersion + ".zip");
+        var zipBinary = artifactsDir.CombineWithFilePath("Build-v" + semVersion + ".zip");
         var zipSource = artifactsDir.CombineWithFilePath("Build-source-v" + semVersion + ".zip");
 
         // Directories
@@ -88,6 +93,7 @@ public class BuildPaths
             nugetRoot,
             artifactsDir,
             artifactsBinDir,
+            testResultsDir,
             binDirs);
         // Files
         var buildFiles = new BuildFiles(
@@ -109,18 +115,21 @@ public class BuildDirectories
     public DirectoryPath NugetRoot { get; private set; }
     public DirectoryPath ArtifactsDir { get; private set; }
     public DirectoryPath ArtifactsBin { get; private set; }
+    public DirectoryPath TestResultsDir { get; private set; }
     public IEnumerable<DirectoryPath> ToClean { get; private set; }
 
     public BuildDirectories(
         DirectoryPath nugetRoot,
         DirectoryPath artifactsDir,
         DirectoryPath artifactsBinDir,
+        DirectoryPath testResultsDir,
         IEnumerable<DirectoryPath> binDirs
         )
     {
         NugetRoot = nugetRoot;
         ArtifactsBin = artifactsBinDir;
         ArtifactsDir = artifactsDir;
+        TestResultsDir = testResultsDir;
         ToClean = binDirs.Concat(new[] {
             ArtifactsDir,
             ArtifactsBin,
@@ -138,7 +147,8 @@ public class BuildFiles
     public BuildFiles(
         IEnumerable<ProjectInfo> projects,
         FilePath binaries,
-        FilePath sources)
+        FilePath sources
+        )
     {
         Projects = projects;
         ZipBinaries = binaries;

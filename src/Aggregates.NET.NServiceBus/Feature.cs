@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Aggregates
@@ -27,27 +28,23 @@ namespace Aggregates
             var settings = context.Settings;
             var container = Configuration.Settings.Container;
             
-
             context.Container.ConfigureComponent<IDomainUnitOfWork>((c) => new NSBUnitOfWork(c.Build<IRepositoryFactory>(), c.Build<IEventFactory>(), c.Build<IProcessor>()), DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<IEventFactory>((c) => new EventFactory(c.Build<IMessageCreator>()), DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<IMessageDispatcher>((c) => new Dispatcher(c.Build<IMetrics>(), c.Build<IMessageSerializer>(), c.Build<IEventMapper>()), DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<IMessaging>((c) => new NServiceBusMessaging(c.Build<MessageHandlerRegistry>(), c.Build<MessageMetadataRegistry>()), DependencyLifecycle.InstancePerCall);
 
-            context.Container.ConfigureComponent<IEventMapper>((c) => new EventMapper(c.Build<IMessageMapper>()), DependencyLifecycle.SingleInstance);
+            context.Container.ConfigureComponent<IEventMapper>((c) => new EventMapper(c.Build<IMessageMapper>()), DependencyLifecycle.InstancePerCall);
+
+            context.Pipeline.Register(new ExceptionRejectorRegistration(container));
 
             if (!Configuration.Settings.Passive)
             {
                 //container.Register<IDomainUnitOfWork, NSBUnitOfWork>();
                 MutationManager.RegisterMutator("domain unit of work", typeof(IDomainUnitOfWork));
+                
 
-                context.Pipeline.Register(
-                    b => new ExceptionRejector(b.Build<IMetrics>(), Configuration.Settings.Retries),
-                    "Watches message faults, sends error replies to client when message moves to error queue"
-                    );
-
-                context.Pipeline.Register<UowRegistration>();
-                context.Pipeline.Register<CommandAcceptorRegistration>();
-                context.Pipeline.Register<LocalMessageUnpackRegistration>();
+                context.Pipeline.Register(new UowRegistration(container));
+                context.Pipeline.Register(new CommandAcceptorRegistration(container));
                 // Remove NSBs unit of work since we do it ourselves
                 context.Pipeline.Remove("ExecuteUnitOfWork");
 
@@ -57,6 +54,8 @@ namespace Aggregates
                     "Replaces default invoke handlers with one that supports our custom delayed invoker");
             }
 
+            context.Pipeline.Register(new LocalMessageUnpackRegistration(container));
+            context.Pipeline.Register<LogContextProviderRegistration>();
 
             if (Configuration.Settings.SlowAlertThreshold.HasValue)
                 context.Pipeline.Register(
@@ -72,7 +71,7 @@ namespace Aggregates
 
             context.Pipeline.Register<MutateIncomingRegistration>();
             context.Pipeline.Register<MutateOutgoingRegistration>();
-
+            
             // We are sending IEvents, which NSB doesn't like out of the box - so turn that check off
             context.Pipeline.Remove("EnforceSendBestPractices");
 
@@ -107,8 +106,11 @@ namespace Aggregates
         }
         protected override async Task OnStart(IMessageSession session)
         {
+            // Subscribe to BulkMessage, because it wraps messages and is not used in a handler directly
+            if(!_config.Passive)
+                await session.Subscribe<BulkMessage>().ConfigureAwait(false);
 
-            Logger.Write(LogLevel.Info, "Starting endpoint");
+            Logger.InfoEvent("Startup", "Starting on {Queue}", _instanceQueue);
 
             await session.Publish<EndpointAlive>(x =>
             {
@@ -116,11 +118,15 @@ namespace Aggregates
                 x.Instance = Defaults.Instance;
             }).ConfigureAwait(false);
 
-            await _startupTasks.WhenAllAsync(x => x(_config)).ConfigureAwait(false);
+            // Don't stop the bus from completing setup
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                _startupTasks.WhenAllAsync(x => x(_config)).Wait();
+            });
         }
         protected override async Task OnStop(IMessageSession session)
         {
-            Logger.Write(LogLevel.Info, "Stopping endpoint");
+            Logger.InfoEvent("Shutdown", "Stopping on {Queue}", _instanceQueue);
             await session.Publish<EndpointDead>(x =>
             {
                 x.Endpoint = _instanceQueue;
