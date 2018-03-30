@@ -30,12 +30,9 @@ Current features include -
 - Automatic saving and publishing of domain events
 - Out of band events (events saved or published which do not affect business logic of entity)
 - Bulk command and event delivery
-- Async!
 - Intelligent and configurable conflict resolution
-- NO internal IOC container (NServiceBus used for resolutions)
 - Automatic configuration of projections and competing consumers for consumers
 - EventStore sharding
-- Specifications
 - Automatic command accept/reject replies
 - Ton of performance counters
 
