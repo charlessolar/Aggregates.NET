@@ -16,9 +16,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{78BF
 		samples\README.md = samples\README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.StructureMap", "src\Aggregates.NET.StructureMap\Aggregates.NET.StructureMap.csproj", "{672EB778-D80B-4D77-8C02-FF7BCD96BA54}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET.StructureMap", "src\Aggregates.NET.StructureMap\Aggregates.NET.StructureMap.csproj", "{672EB778-D80B-4D77-8C02-FF7BCD96BA54}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.UnitTests", "src\Aggregates.NET.UnitTests\Aggregates.NET.UnitTests.csproj", "{0875C868-DF80-4647-9455-684BF6276051}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET.UnitTests", "src\Aggregates.NET.UnitTests\Aggregates.NET.UnitTests.csproj", "{0875C868-DF80-4647-9455-684BF6276051}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET.SimpleInjector", "src\Aggregates.NET.SimpleInjector\Aggregates.NET.SimpleInjector.csproj", "{4A6EE14F-F404-4594-A907-2C6F4D849104}"
 EndProject
@@ -39,32 +39,34 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3. Children", "3. Children"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4. Queries", "4. Queries", "{1B634F3D-72A0-40FE-80CB-226BC33A5B06}"
 	ProjectSection(SolutionItems) = preProject
-		..\Aggregates.NET\src\Samples\4. Queries\README.md = ..\Aggregates.NET\src\Samples\4. Queries\README.md
+		src\Samples\4. Queries\README.md = src\Samples\4. Queries\README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "2. Domain", "samples\2. Snapshots\2. Domain\2. Domain.csproj", "{76EDBD24-2D2C-4720-8E6D-BEF9E79FADE4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "2. Domain", "samples\2. Snapshots\2. Domain\2. Domain.csproj", "{76EDBD24-2D2C-4720-8E6D-BEF9E79FADE4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "2. Client", "samples\2. Snapshots\2. Client\2. Client.csproj", "{3AD95ECA-A732-4CD6-B126-2361C3C34841}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "2. Client", "samples\2. Snapshots\2. Client\2. Client.csproj", "{3AD95ECA-A732-4CD6-B126-2361C3C34841}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "2. Language", "samples\2. Snapshots\2. Language\2. Language.csproj", "{A3A0B66B-EAFD-406D-8136-CAEE98C6ACCF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "2. Language", "samples\2. Snapshots\2. Language\2. Language.csproj", "{A3A0B66B-EAFD-406D-8136-CAEE98C6ACCF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "1. Domain", "samples\1. HelloWorld\1. Domain\1. Domain.csproj", "{2AE510D1-86E6-496D-852B-CEC89D2D7BD1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "1. Domain", "samples\1. HelloWorld\1. Domain\1. Domain.csproj", "{2AE510D1-86E6-496D-852B-CEC89D2D7BD1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "1. Client", "samples\1. HelloWorld\1. Client\1. Client.csproj", "{10013E0D-DA25-4A6C-8204-71B19251478A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "1. Client", "samples\1. HelloWorld\1. Client\1. Client.csproj", "{10013E0D-DA25-4A6C-8204-71B19251478A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "1. Language", "samples\1. HelloWorld\1. Language\1. Language.csproj", "{652DE4B4-ABDD-4A69-B56B-5E2CB50A6BBD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "1. Language", "samples\1. HelloWorld\1. Language\1. Language.csproj", "{652DE4B4-ABDD-4A69-B56B-5E2CB50A6BBD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "3. Domain", "samples\3. Children\3. Domain\3. Domain.csproj", "{F54831E5-944B-414C-8C65-75BABC847910}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "3. Domain", "samples\3. Children\3. Domain\3. Domain.csproj", "{F54831E5-944B-414C-8C65-75BABC847910}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "3. Language", "samples\3. Children\3. Language\3. Language.csproj", "{94364013-DFB7-421B-8387-880AB50F1C0F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "3. Language", "samples\3. Children\3. Language\3. Language.csproj", "{94364013-DFB7-421B-8387-880AB50F1C0F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "3. Client", "samples\3. Children\3. Client\3. Client.csproj", "{0815EB39-E74F-442E-B7D1-4A30B6442F5B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "3. Client", "samples\3. Children\3. Client\3. Client.csproj", "{0815EB39-E74F-442E-B7D1-4A30B6442F5B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "4. Domain", "samples\4. Queries\4. Domain\4. Domain.csproj", "{78D3EAF3-745B-471A-899F-CB5D9FCA5079}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "4. Domain", "samples\4. Queries\4. Domain\4. Domain.csproj", "{78D3EAF3-745B-471A-899F-CB5D9FCA5079}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "4. Client", "samples\4. Queries\4. Client\4. Client.csproj", "{1A3D9563-AA08-48CD-8937-12F316B5D79B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "4. Client", "samples\4. Queries\4. Client\4. Client.csproj", "{1A3D9563-AA08-48CD-8937-12F316B5D79B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "4. Language", "samples\4. Queries\4. Language\4. Language.csproj", "{BFEE9D30-D425-4773-BE62-C4A9242BF478}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "4. Language", "samples\4. Queries\4. Language\4. Language.csproj", "{BFEE9D30-D425-4773-BE62-C4A9242BF478}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "5. Mutators", "5. Mutators", "{3BE21E29-6CED-43DD-8AFF-474FFD094F48}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -169,6 +171,7 @@ Global
 		{78D3EAF3-745B-471A-899F-CB5D9FCA5079} = {1B634F3D-72A0-40FE-80CB-226BC33A5B06}
 		{1A3D9563-AA08-48CD-8937-12F316B5D79B} = {1B634F3D-72A0-40FE-80CB-226BC33A5B06}
 		{BFEE9D30-D425-4773-BE62-C4A9242BF478} = {1B634F3D-72A0-40FE-80CB-226BC33A5B06}
+		{3BE21E29-6CED-43DD-8AFF-474FFD094F48} = {78BFD874-663A-44A5-8DF1-88ED20750147}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {743EB920-E480-4A2C-B96E-5B3745783AB8}
