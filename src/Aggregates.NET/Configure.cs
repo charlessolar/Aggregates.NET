@@ -69,6 +69,8 @@ namespace Aggregates
 
         public bool Passive { get; private set; }
 
+        public string MessageContentType { get; internal set; }
+
         internal List<Func<Configure, Task>> RegistrationTasks;
         internal List<Func<Configure, Task>> SetupTasks;
         internal List<Func<Configure, Task>> StartupTasks;
@@ -104,6 +106,7 @@ namespace Aggregates
             FlushInterval = TimeSpan.FromMinutes(1);
             DelayedExpiration = TimeSpan.FromMinutes(5);
             MaxDelayed = 5000;
+            MessageContentType = "";
 
             RegistrationTasks.Add((c) =>
             {

@@ -17,8 +17,8 @@ namespace Aggregates.Internal
     {
         private readonly Lazy<IMessageSerializer> _serializer = new Lazy<IMessageSerializer>(() => Configuration.Settings.Container.Resolve<IMessageSerializer>());
 
-        public string ContentType => _serializer.Value.ContentType;
-        
+        public string ContentType => Configuration.Settings.MessageContentType;
+
         public object[] Deserialize(Stream stream, IList<Type> messageTypes = null)
         {
             return _serializer.Value.Deserialize(stream, messageTypes);

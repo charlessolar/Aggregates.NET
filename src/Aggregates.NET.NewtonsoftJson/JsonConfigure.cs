@@ -14,6 +14,7 @@ namespace Aggregates
         {
             extraConverters = extraConverters ?? new JsonConverter[] { };
 
+            config.MessageContentType = "json";
             config.RegistrationTasks.Add((c) =>
             {
                 var container = c.Container;
