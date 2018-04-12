@@ -73,5 +73,6 @@ This is a one man project so documentation is lacking - sorry about that.  If yo
 
 * [Wiki](https://github.com/volak/Aggregates.NET/wiki)
 * [Simple Examples](https://github.com/volak/Aggregates.NET/tree/master/samples)
+* [TodoMVC Style Example (recommended)](https://github.com/volak/TodoMVC-DDD-CQRS-EventSourcing)
 * [Enterprise Example](https://github.com/volak/DDD.Enterprise.Example/)
 
