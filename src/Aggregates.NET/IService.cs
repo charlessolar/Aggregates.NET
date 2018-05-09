@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Aggregates.Messages
+namespace Aggregates
 {
-    public interface IQuery<TResponse> : IMessage
+    public interface IService<TResponse>
     {
     }
 }

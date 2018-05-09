@@ -65,8 +65,8 @@ namespace Aggregates
 
             var types = settings.GetAvailableTypes();
 
-            // Register all query handlers in my IoC so query processor can use them
-            foreach (var type in types.Where(IsQueryHandler))
+            // Register all service handlers in my IoC so query processor can use them
+            foreach (var type in types.Where(IsServiceHandler))
                 container.Register(type, Lifestyle.PerInstance);
 
             context.Pipeline.Register<MutateIncomingRegistration>();
@@ -77,7 +77,7 @@ namespace Aggregates
 
             context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue(), Configuration.Settings, Configuration.Settings.StartupTasks, Configuration.Settings.ShutdownTasks));
         }
-        private static bool IsQueryHandler(Type type)
+        private static bool IsServiceHandler(Type type)
         {
             if (type.IsAbstract || type.IsGenericTypeDefinition)
                 return false;
@@ -85,7 +85,7 @@ namespace Aggregates
             return type.GetInterfaces()
                 .Where(@interface => @interface.IsGenericType)
                 .Select(@interface => @interface.GetGenericTypeDefinition())
-                .Any(genericTypeDef => genericTypeDef == typeof(IHandleQueries<,>));
+                .Any(genericTypeDef => genericTypeDef == typeof(IProvideService<,>));
         }
     }
 

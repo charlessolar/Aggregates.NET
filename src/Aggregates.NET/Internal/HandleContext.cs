@@ -5,7 +5,7 @@ using Aggregates.Contracts;
 
 namespace Aggregates.Internal
 {
-    class HandleContext : IHandleContext
+    class HandleContext : IServiceContext
     {
         private readonly IDomainUnitOfWork _uow;
         private readonly IUnitOfWork _app;

@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Aggregates
 {
-    public interface IHandleContext
+    public interface IServiceContext
     {
         IDomainUnitOfWork UoW { get; }
         IUnitOfWork App { get; }

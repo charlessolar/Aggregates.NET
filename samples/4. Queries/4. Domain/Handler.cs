@@ -14,7 +14,7 @@ namespace Domain
         IHandleMessages<SayHello>,
         IHandleMessages<SaidHello>,
         IHandleMessages<RequestMessages>,
-        IHandleQueries<PreviousMessages, MessageState[]>
+        IProvideService<PreviousMessages, MessageState[]>
     {
         // Typically from some external storage
         private readonly static List<Guid> MessageIds = new List<Guid>();
@@ -43,13 +43,13 @@ namespace Domain
         // sent from clients via bus who want a list of previous messages
         public async Task Handle(RequestMessages request, IMessageHandlerContext ctx)
         {
-            var messages = await ctx.Query<PreviousMessages, MessageState[]>(new PreviousMessages()).ConfigureAwait(false);
+            var messages = await ctx.Service<PreviousMessages, MessageState[]>(new PreviousMessages()).ConfigureAwait(false);
 
             // Using NSB callbacks
             await ctx.Reply(new MessagesResponse { Messages = messages.Select(x => x.Message).ToArray() }).ConfigureAwait(false);
         }
 
-        public async Task<MessageState[]> Handle(PreviousMessages query, IHandleContext context)
+        public async Task<MessageState[]> Handle(PreviousMessages query, IServiceContext context)
         {
             var uow = context.UoW;
 

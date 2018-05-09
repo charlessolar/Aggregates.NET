@@ -28,8 +28,8 @@ namespace Aggregates
         IPocoRepository<T, TParent> Poco<T, TParent>(TParent parent) where T : class, new() where TParent : class, IHaveEntities<TParent>;
 
 
-        Task<TResponse> Query<TQuery, TResponse>(TQuery query, IContainer container) where TQuery : class, IQuery<TResponse>;
-        Task<TResponse> Query<TQuery, TResponse>(Action<TQuery> query, IContainer container) where TQuery : class, IQuery<TResponse>;
+        Task<TResponse> Service<TService, TResponse>(TService service, IContainer container) where TService : class, IService<TResponse>;
+        Task<TResponse> Service<TService, TResponse>(Action<TService> service, IContainer container) where TService : class, IService<TResponse>;
 
         Guid CommitId { get; }
         object CurrentMessage { get; }

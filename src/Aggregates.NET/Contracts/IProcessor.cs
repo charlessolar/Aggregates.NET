@@ -6,6 +6,6 @@ namespace Aggregates.Contracts
 {
     public interface IProcessor
     {
-        Task<TResponse> Process<TQuery, TResponse>(TQuery query, IContainer container) where TQuery : IQuery<TResponse>;
+        Task<TResponse> Process<TService, TResponse>(TService service, IContainer container) where TService : IService<TResponse>;
     }
 }

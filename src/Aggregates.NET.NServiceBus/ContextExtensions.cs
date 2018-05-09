@@ -23,17 +23,17 @@ namespace Aggregates
             return uow.Poco<T>();
         }
 
-        public static Task<TResponse> Query<TQuery, TResponse>(this IMessageHandlerContext context, TQuery query) where TQuery : class, IQuery<TResponse>
+        public static Task<TResponse> Service<TService, TResponse>(this IMessageHandlerContext context, TService query) where TService : class, IService<TResponse>
         {
             var container = context.Extensions.Get<IContainer>();
             var uow = context.Extensions.Get<IDomainUnitOfWork>();
-            return uow.Query<TQuery, TResponse>(query, container);
+            return uow.Service<TService, TResponse>(query, container);
         }
-        public static Task<TResponse> Query<TQuery, TResponse>(this IMessageHandlerContext context, Action<TQuery> query) where TQuery : class, IQuery<TResponse>
+        public static Task<TResponse> Service<TService, TResponse>(this IMessageHandlerContext context, Action<TService> query) where TService : class, IService<TResponse>
         {
             var container = context.Extensions.Get<IContainer>();
             var uow = context.Extensions.Get<IDomainUnitOfWork>();
-            return uow.Query<TQuery, TResponse>(query, container);
+            return uow.Service<TService, TResponse>(query, container);
         }
 
         public static TUnitOfWork App<TUnitOfWork>(this IMessageHandlerContext context) where TUnitOfWork : class, IUnitOfWork

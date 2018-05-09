@@ -17,22 +17,22 @@ namespace Aggregates.Internal
         private static readonly ConcurrentDictionary<Type, object> Processors = new ConcurrentDictionary<Type, object>();
 
         [DebuggerStepThrough]
-        public Task<TResponse> Process<TQuery, TResponse>(TQuery query, IContainer container) where TQuery : IQuery<TResponse>
+        public Task<TResponse> Process<TService, TResponse>(TService service, IContainer container) where TService : IService<TResponse>
         {
-            var handlerType = typeof(IHandleQueries<,>).MakeGenericType(typeof(TQuery), typeof(TResponse));
+            var handlerType = typeof(IProvideService<,>).MakeGenericType(typeof(TService), typeof(TResponse));
 
-            var handlerFunc = (Func<object, TQuery, IHandleContext, Task<TResponse>>)Processors.GetOrAdd(handlerType, t => ReflectionExtensions.MakeQueryHandler<TQuery, TResponse>(handlerType));
+            var handlerFunc = (Func<object, TService, IServiceContext, Task<TResponse>>)Processors.GetOrAdd(handlerType, t => ReflectionExtensions.MakeServiceHandler<TService, TResponse>(handlerType));
             var handler = container.Resolve(handlerType);
             if (handler == null)
             {
-                Logger.ErrorEvent("ProcessFailure", "No handler [{QueryType:l}] response [{Response:l}]", typeof(TQuery).FullName, typeof(TResponse).FullName);
+                Logger.ErrorEvent("ProcessFailure", "No handler [{ServiceType:l}] response [{Response:l}]", typeof(TService).FullName, typeof(TResponse).FullName);
                 return null;
             }
 
             // Todo: both units of work should come from the pipeline not the container
             var context = new HandleContext(container.Resolve<IDomainUnitOfWork>(), container.Resolve<IUnitOfWork>(), container);
 
-            return handlerFunc(handler, query, context);
+            return handlerFunc(handler, service, context);
         }
     }
 }
