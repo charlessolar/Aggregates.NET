@@ -22,24 +22,27 @@ namespace Aggregates
             var uow = context.Extensions.Get<IDomainUnitOfWork>();
             return uow.Poco<T>();
         }
-
-        public static Task<TResponse> Service<TService, TResponse>(this IMessageHandlerContext context, TService query) where TService : class, IService<TResponse>
-        {
-            var container = context.Extensions.Get<IContainer>();
-            var uow = context.Extensions.Get<IDomainUnitOfWork>();
-            return uow.Service<TService, TResponse>(query, container);
-        }
-        public static Task<TResponse> Service<TService, TResponse>(this IMessageHandlerContext context, Action<TService> query) where TService : class, IService<TResponse>
-        {
-            var container = context.Extensions.Get<IContainer>();
-            var uow = context.Extensions.Get<IDomainUnitOfWork>();
-            return uow.Service<TService, TResponse>(query, container);
-        }
-
+        
         public static TUnitOfWork App<TUnitOfWork>(this IMessageHandlerContext context) where TUnitOfWork : class, IUnitOfWork
         {
             var uow = context.Extensions.Get<IUnitOfWork>();
             return uow as TUnitOfWork;
+        }
+        public static Task<TResponse> Service<TService, TResponse>(this IMessageHandlerContext context, TService service)
+            where TService : class, IService<TResponse>
+        {
+            var container = context.Extensions.Get<IContainer>();
+            var processor = container.Resolve<IProcessor>();
+            return processor.Process<TService, TResponse>(service, container);
+        }
+        public static Task<TResponse> Service<TService, TResponse>(this IMessageHandlerContext context, Action<TService> service)
+            where TService : class, IService<TResponse>
+        {
+            var container = context.Extensions.Get<IContainer>();
+            var processor = container.Resolve<IProcessor>();
+            var factory = container.Resolve<IEventFactory>();
+
+            return processor.Process<TService, TResponse>(factory.Create(service), container);
         }
 
         public static Task SendToSelf(this IMessageHandlerContext context, Messages.ICommand command)

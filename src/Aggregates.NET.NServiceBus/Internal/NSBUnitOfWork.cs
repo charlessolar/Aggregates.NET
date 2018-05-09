@@ -11,7 +11,7 @@ namespace Aggregates.Internal
 {
     class NSBUnitOfWork : UnitOfWork, IMutate
     {
-        public NSBUnitOfWork(IRepositoryFactory repoFactory, IEventFactory eventFactory, IProcessor processor) : base(repoFactory, eventFactory, processor) { }
+        public NSBUnitOfWork(IRepositoryFactory repoFactory, IEventFactory eventFactory) : base(repoFactory, eventFactory) { }
 
 
         public IMutating MutateIncoming(IMutating command)

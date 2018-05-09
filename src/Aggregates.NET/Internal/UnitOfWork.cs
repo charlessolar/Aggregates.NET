@@ -32,7 +32,6 @@ namespace Aggregates.Internal
 
         private readonly IRepositoryFactory _repoFactory;
         private readonly IEventFactory _eventFactory;
-        private readonly IProcessor _processor;
 
         private bool _disposed;
         private readonly IDictionary<string, IRepository> _repositories;
@@ -42,11 +41,10 @@ namespace Aggregates.Internal
         public object CurrentMessage { get; protected set; }
         public IDictionary<string, string> CurrentHeaders { get; protected set; }
 
-        public UnitOfWork(IRepositoryFactory repoFactory, IEventFactory eventFactory, IProcessor processor)
+        public UnitOfWork(IRepositoryFactory repoFactory, IEventFactory eventFactory)
         {
             _repoFactory = repoFactory;
             _eventFactory = eventFactory;
-            _processor = processor;
             _repositories = new Dictionary<string, IRepository>();
             _pocoRepositories = new Dictionary<string, IRepository>();
             CurrentHeaders = new Dictionary<string, string>();
@@ -117,15 +115,6 @@ namespace Aggregates.Internal
                 return (IPocoRepository<T, TParent>)repository;
 
             return (IPocoRepository<T, TParent>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<T, TParent>(parent, this));
-        }
-        public Task<TResponse> Service<TService, TResponse>(TService query, IContainer container) where TService : class, IService<TResponse>
-        {
-            return _processor.Process<TService, TResponse>(query, container);
-        }
-        public Task<TResponse> Service<TService, TResponse>(Action<TService> query, IContainer container) where TService : class, IService<TResponse>
-        {
-            var result = _eventFactory.Create(query);
-            return Service<TService, TResponse>(result, container);
         }
 
 

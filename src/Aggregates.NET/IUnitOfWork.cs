@@ -27,10 +27,6 @@ namespace Aggregates
         IPocoRepository<T> Poco<T>() where T : class, new();
         IPocoRepository<T, TParent> Poco<T, TParent>(TParent parent) where T : class, new() where TParent : class, IHaveEntities<TParent>;
 
-
-        Task<TResponse> Service<TService, TResponse>(TService service, IContainer container) where TService : class, IService<TResponse>;
-        Task<TResponse> Service<TService, TResponse>(Action<TService> service, IContainer container) where TService : class, IService<TResponse>;
-
         Guid CommitId { get; }
         object CurrentMessage { get; }
         IDictionary<string, string> CurrentHeaders { get; }

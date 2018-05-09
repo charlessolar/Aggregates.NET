@@ -17,7 +17,6 @@ namespace Aggregates.UnitTests.Common
 
         private Moq.Mock<IRepositoryFactory> _factory;
         private Moq.Mock<IEventFactory> _eventFactory;
-        private Moq.Mock<IProcessor> _processor;
         private Moq.Mock<IRepository<FakeEntity>> _repository;
         private Moq.Mock<IPocoRepository<FakePoco>> _pocoRepository;
         private Moq.Mock<IDomainUnitOfWork> _uow;
@@ -29,7 +28,6 @@ namespace Aggregates.UnitTests.Common
         {
             _factory = new Moq.Mock<IRepositoryFactory>();
             _eventFactory = new Moq.Mock<IEventFactory>();
-            _processor = new Moq.Mock<IProcessor>();
             _repository = new Moq.Mock<IRepository<FakeEntity>>();
             _pocoRepository = new Moq.Mock<IPocoRepository<FakePoco>>();
             _uow = new Moq.Mock<IDomainUnitOfWork>();
@@ -37,7 +35,7 @@ namespace Aggregates.UnitTests.Common
             _factory.Setup(x => x.ForEntity<FakeEntity>(Moq.It.IsAny<IDomainUnitOfWork>())).Returns(_repository.Object);
             _factory.Setup(x => x.ForPoco<FakePoco>(Moq.It.IsAny<IDomainUnitOfWork>())).Returns(_pocoRepository.Object);
 
-            _unitofwork = new Internal.UnitOfWork(_factory.Object, _eventFactory.Object, _processor.Object);
+            _unitofwork = new Internal.UnitOfWork(_factory.Object, _eventFactory.Object);
         }
 
         [Test]
