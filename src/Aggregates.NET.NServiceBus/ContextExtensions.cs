@@ -58,5 +58,13 @@ namespace Aggregates
             Task.Run(() => dispatcher.SendLocal(message));
             return Task.CompletedTask;
         }
+
+        /// <summary>
+        /// Allows you to run a series of tasks using the full bus - Request/Response available
+        /// </summary>
+        public static Task LocalSaga(this IMessageHandlerContext context, Func<IMessageSession, Task> saga)
+        {
+            return saga(Bus.Instance);
+        }
     }
 }
