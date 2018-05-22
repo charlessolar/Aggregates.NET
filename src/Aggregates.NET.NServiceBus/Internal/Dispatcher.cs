@@ -95,6 +95,7 @@ namespace Aggregates.Internal
             if (finalHeaders.ContainsKey($"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"))
                 corrId = finalHeaders[$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"];
 
+            Logger.DebugEvent("SendLocal", "Starting local message [{MessageId:l}] Corr [{CorrelationId:l}]", messageId, corrId);
 
             finalHeaders[Headers.MessageId] = messageId;
             finalHeaders[Headers.CorrelationId] = corrId;
@@ -123,6 +124,7 @@ namespace Aggregates.Internal
                 catch (Exception ex)
                 {
                     _metrics.Mark("Dispatched Errors", Unit.Errors);
+                    Logger.DebugEvent("SendLocalException", ex, "Local message [{MessageId:l}] Corr [{CorrelationId:l}] exception", messageId, corrId);
 
                     ++numberOfDeliveryAttempts;
 

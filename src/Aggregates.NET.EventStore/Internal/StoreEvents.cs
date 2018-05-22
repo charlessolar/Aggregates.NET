@@ -240,8 +240,27 @@ namespace Aggregates.Internal
         {
             _cache.Evict(stream);
 
+
+            var mutators = MutationManager.Registered.ToList();
+
             var translatedEvents = events.Select(e =>
             {
+                IMutating mutated = new Mutating(e.Event, e.Descriptor.Headers ?? new Dictionary<string, string>());
+
+                foreach (var type in mutators)
+                {
+                    var mutator = (IMutate)Configuration.Settings.Container.TryResolve(type);
+                    if (mutator == null)
+                    {
+                        Logger.WarnEvent("MutateFailure", "Failed to construct mutator {Mutator}", type.FullName);
+                        continue;
+                    }
+
+                    mutated = mutator.MutateOutgoing(mutated);
+                }
+                foreach (var header in mutated.Headers)
+                    e.Descriptor.Headers[header.Key] = header.Value;
+
                 var descriptor = new EventDescriptor
                 {
                     EventId = e.EventId ?? Guid.NewGuid(),
@@ -268,7 +287,7 @@ namespace Aggregates.Internal
                 if (!mappedType.IsInterface)
                     mappedType = _mapper.GetMappedTypeFor(mappedType) ?? mappedType;
 
-                var @event = _serializer.Serialize(e.Event);
+                var @event = _serializer.Serialize(mutated.Message);
 
                 if (_compress.HasFlag(Compression.Events))
                 {

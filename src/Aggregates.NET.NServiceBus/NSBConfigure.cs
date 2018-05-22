@@ -39,7 +39,7 @@ namespace Aggregates
             config.RegistrationTasks.Add(c =>
             {
                 var container = c.Container;
-                
+
                 container.Register(factory => new Aggregates.Internal.DelayedRetry(factory.Resolve<IMetrics>(), factory.Resolve<IMessageDispatcher>()), Lifestyle.Singleton);
 
                 return Task.CompletedTask;
@@ -52,19 +52,17 @@ namespace Aggregates
                 settings.Set("Retries", config.Retries);
                 settings.Set("SlowAlertThreshold", config.SlowAlertThreshold);
 
-                if (!c.Passive)
+                // Set immediate retries to 0 - we handle retries ourselves any message which throws should be sent to error queue
+                endpointConfig.Recoverability().Immediate(x =>
                 {
-                    // Set immediate retries to 0 - we handle retries ourselves any message which throws should be sent to error queue
-                    endpointConfig.Recoverability().Immediate(x =>
-                    {
-                        x.NumberOfRetries(0);
-                    });
+                    x.NumberOfRetries(0);
+                });
 
-                    endpointConfig.Recoverability().Delayed(x =>
-                    {
-                        x.NumberOfRetries(0);
-                    });
-                }
+                endpointConfig.Recoverability().Delayed(x =>
+                {
+                    x.NumberOfRetries(0);
+                });
+
 
                 endpointConfig.MakeInstanceUniquelyAddressable(c.UniqueAddress);
                 endpointConfig.LimitMessageProcessingConcurrencyTo(c.ParallelMessages);

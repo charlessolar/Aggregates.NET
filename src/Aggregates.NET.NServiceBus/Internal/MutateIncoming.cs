@@ -33,8 +33,11 @@ namespace Aggregates.Internal
             {
                 var mutator = (IMutate)container.TryResolve(type);
                 if (mutator == null)
+                {
+                    Logger.WarnEvent("MutateFailure", "Failed to construct mutator {Mutator}", type.FullName);
                     continue;
-                
+                }
+
                 mutated = mutator.MutateIncoming(mutated);
             }
             
