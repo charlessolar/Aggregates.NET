@@ -32,6 +32,7 @@ namespace Aggregates.Internal
             // Child container with resolved domain and app uow used by downstream
             var child = container.GetChildContainer();
             context.Extensions.Set(child);
+            Configuration.Settings.LocalContainer.Value = child;
 
             // Only SEND messages deserve a UnitOfWork
             if (context.GetMessageIntent() != MessageIntentEnum.Send && context.GetMessageIntent() != MessageIntentEnum.Publish)

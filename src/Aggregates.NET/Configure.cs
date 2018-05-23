@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Aggregates
@@ -75,6 +76,8 @@ namespace Aggregates
         internal List<Func<Configure, Task>> SetupTasks;
         internal List<Func<Configure, Task>> StartupTasks;
         internal List<Func<Configure, Task>> ShutdownTasks;
+
+        internal AsyncLocal<IContainer> LocalContainer;
         internal IContainer Container;
 
         public static Configure Start()
@@ -107,6 +110,7 @@ namespace Aggregates
             DelayedExpiration = TimeSpan.FromMinutes(5);
             MaxDelayed = 5000;
             MessageContentType = "";
+            LocalContainer = new AsyncLocal<IContainer>();
 
             RegistrationTasks.Add((c) =>
             {

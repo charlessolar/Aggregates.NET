@@ -247,9 +247,15 @@ namespace Aggregates.Internal
             {
                 IMutating mutated = new Mutating(e.Event, e.Descriptor.Headers ?? new Dictionary<string, string>());
 
+                // use async local container first if one exists
+                // (is set by unit of work - it creates a child container which mutators might need)
+                IContainer container = Configuration.Settings.LocalContainer.Value;
+                if (container == null)
+                    container = Configuration.Settings.Container;
+
                 foreach (var type in mutators)
                 {
-                    var mutator = (IMutate)Configuration.Settings.Container.TryResolve(type);
+                    var mutator = (IMutate)container.TryResolve(type);
                     if (mutator == null)
                     {
                         Logger.WarnEvent("MutateFailure", "Failed to construct mutator {Mutator}", type.FullName);
