@@ -50,7 +50,7 @@ namespace Aggregates.Internal
         }
     }
 
-    class PocoRepository<T> : IPocoRepository<T>, IRepository where T : class, new()
+    class PocoRepository<T> : IPocoRepository<T>, IRepositoryCommit where T : class, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger("PocoRepository");
 
@@ -75,12 +75,12 @@ namespace Aggregates.Internal
             _uow = uow;
         }
 
-        Task IRepository.Prepare(Guid commitId)
+        Task IRepositoryCommit.Prepare(Guid commitId)
         {
             return Task.CompletedTask;
         }
 
-        async Task IRepository.Commit(Guid commitId, IDictionary<string, string> commitHeaders)
+        async Task IRepositoryCommit.Commit(Guid commitId, IDictionary<string, string> commitHeaders)
         {
             await Tracked
                 .ToArray()

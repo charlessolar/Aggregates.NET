@@ -148,92 +148,92 @@ namespace Aggregates.UnitTests.Common
             Assert.AreEqual(1, _repository.ChangedStreams);
         }
 
-        [Test]
-        public async Task commit_empty()
-        {
+        //[Test]
+        //public async Task commit_empty()
+        //{
 
-            await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()).ConfigureAwait(false);
+        //    await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()).ConfigureAwait(false);
 
 
-            _store.Verify(
-                x =>
-                    x.Write<Poco>(Moq.It.IsAny<Tuple<long, Poco>>(), Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
-                        Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
+        //    _store.Verify(
+        //        x =>
+        //            x.Write<Poco>(Moq.It.IsAny<Tuple<long, Poco>>(), Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
+        //                Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
 
-        }
-        [Test]
-        public async Task commit_no_changes()
-        {
+        //}
+        //[Test]
+        //public async Task commit_no_changes()
+        //{
 
-            _store.Setup(x => x.Get<Poco>(Defaults.Bucket, new Id("test"), null))
-                .Returns(Task.FromResult(new Tuple<long, Poco>(0, new Poco())));
+        //    _store.Setup(x => x.Get<Poco>(Defaults.Bucket, new Id("test"), null))
+        //        .Returns(Task.FromResult(new Tuple<long, Poco>(0, new Poco())));
 
-            var poco = await _repository.Get("test").ConfigureAwait(false);
+        //    var poco = await _repository.Get("test").ConfigureAwait(false);
             
-            Assert.AreEqual(0, _repository.ChangedStreams);
+        //    Assert.AreEqual(0, _repository.ChangedStreams);
 
-            await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()).ConfigureAwait(false);
-
-
-            _store.Verify(
-                x =>
-                    x.Write<Poco>(Moq.It.IsAny<Tuple<long, Poco>>(), Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
-                        Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
-
-        }
+        //    await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()).ConfigureAwait(false);
 
 
-        [Test]
-        public async Task commit_with_changes()
-        {
+        //    _store.Verify(
+        //        x =>
+        //            x.Write<Poco>(Moq.It.IsAny<Tuple<long, Poco>>(), Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
+        //                Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
 
-            _store.Setup(x => x.Get<Poco>(Defaults.Bucket, new Id("test"), null))
-                .Returns(Task.FromResult(new Tuple<long, Poco>(0, new Poco())));
+        //}
 
-            var poco = await _repository.Get("test").ConfigureAwait(false);
-            poco.Foo = "test";
+
+        //[Test]
+        //public async Task commit_with_changes()
+        //{
+
+        //    _store.Setup(x => x.Get<Poco>(Defaults.Bucket, new Id("test"), null))
+        //        .Returns(Task.FromResult(new Tuple<long, Poco>(0, new Poco())));
+
+        //    var poco = await _repository.Get("test").ConfigureAwait(false);
+        //    poco.Foo = "test";
             
-            Assert.AreEqual(1, _repository.ChangedStreams);
+        //    Assert.AreEqual(1, _repository.ChangedStreams);
 
-            await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()).ConfigureAwait(false);
-
-
-            _store.Verify(
-                x =>
-                    x.Write<Poco>(Moq.It.IsAny<Tuple<long, Poco>>(), Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
-                        Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
-
-        }
-
-        [Test]
-        public void persistence_exception()
-        {
-            _store.Setup(
-                    x =>
-                        x.Write<Poco>(Moq.It.IsAny<Tuple<long, Poco>>(), Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
-                            Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IDictionary<string, string>>()))
-                .Throws<PersistenceException>();
-
-            var poco = _repository.New("test").ConfigureAwait(false);
-
-            Assert.ThrowsAsync<PersistenceException>(() =>
-                    (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
-        }
+        //    await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()).ConfigureAwait(false);
 
 
-        [Test]
-        public void throws_any_other_exception()
-        {
-            _store.Setup(
-                    x =>
-                        x.Write<Poco>(Moq.It.IsAny<Tuple<long, Poco>>(), Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
-                            Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IDictionary<string, string>>()))
-                .Throws<Exception>();
+        //    _store.Verify(
+        //        x =>
+        //            x.Write<Poco>(Moq.It.IsAny<Tuple<long, Poco>>(), Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
+        //                Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
 
-            var poco = _repository.New("test").ConfigureAwait(false);
+        //}
 
-            Assert.ThrowsAsync<Exception>(() =>
-                    (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
-        }
+        //[Test]
+        //public void persistence_exception()
+        //{
+        //    _store.Setup(
+        //            x =>
+        //                x.Write<Poco>(Moq.It.IsAny<Tuple<long, Poco>>(), Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
+        //                    Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IDictionary<string, string>>()))
+        //        .Throws<PersistenceException>();
+
+        //    var poco = _repository.New("test").ConfigureAwait(false);
+
+        //    Assert.ThrowsAsync<PersistenceException>(() =>
+        //            (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
+        //}
+
+
+        //[Test]
+        //public void throws_any_other_exception()
+        //{
+        //    _store.Setup(
+        //            x =>
+        //                x.Write<Poco>(Moq.It.IsAny<Tuple<long, Poco>>(), Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(),
+        //                    Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IDictionary<string, string>>()))
+        //        .Throws<Exception>();
+
+        //    var poco = _repository.New("test").ConfigureAwait(false);
+
+        //    Assert.ThrowsAsync<Exception>(() =>
+        //            (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
+        //}
     }
 }

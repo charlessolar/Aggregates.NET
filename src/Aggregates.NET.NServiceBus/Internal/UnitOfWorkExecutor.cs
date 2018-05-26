@@ -48,7 +48,7 @@ namespace Aggregates.Internal
                 return;
             }
 
-            var domainUOW = child.Resolve<IDomainUnitOfWork>();
+            var domainUOW = child.Resolve<IDomainUnitOfWork>() as IDomainUnitOfWorkCommit;
             var delayed = child.Resolve<IDelayedChannel>();
             IUnitOfWork appUOW = null;
             try

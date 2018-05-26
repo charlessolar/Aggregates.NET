@@ -53,53 +53,53 @@ namespace Aggregates.UnitTests.Common
             _pocoRepository.Verify(x => x.Dispose(), Moq.Times.Once);
         }
 
-        [Test]
-        public async Task commit_repository()
-        {
-            var repo = _unitofwork.For<FakeEntity>();
-            var poco = _unitofwork.Poco<FakePoco>();
+        //[Test]
+        //public async Task commit_repository()
+        //{
+        //    var repo = _unitofwork.For<FakeEntity>();
+        //    var poco = _unitofwork.Poco<FakePoco>();
 
-            _repository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
-            _pocoRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
+        //    _repository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
+        //    _pocoRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
 
-            await (_unitofwork as IDomainUnitOfWork).End();
+        //    await (_unitofwork as IDomainUnitOfWork).End();
 
-            _repository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
-            _pocoRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
-        }
+        //    _repository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
+        //    _pocoRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
+        //}
 
-        [Test]
-        public async Task multiple_changes_prepare()
-        {
-            var repo = _unitofwork.For<FakeEntity>();
-            var poco = _unitofwork.Poco<FakePoco>();
+        //[Test]
+        //public async Task multiple_changes_prepare()
+        //{
+        //    var repo = _unitofwork.For<FakeEntity>();
+        //    var poco = _unitofwork.Poco<FakePoco>();
 
-            _repository.Setup(x => x.ChangedStreams).Returns(2);
-            _pocoRepository.Setup(x => x.ChangedStreams).Returns(2);
+        //    _repository.Setup(x => x.ChangedStreams).Returns(2);
+        //    _pocoRepository.Setup(x => x.ChangedStreams).Returns(2);
 
-            _repository.Setup(x => x.Prepare(Moq.It.IsAny<Guid>())).Returns(Task.CompletedTask);
-            _pocoRepository.Setup(x => x.Prepare(Moq.It.IsAny<Guid>())).Returns(Task.CompletedTask);
+        //    _repository.Setup(x => x.Prepare(Moq.It.IsAny<Guid>())).Returns(Task.CompletedTask);
+        //    _pocoRepository.Setup(x => x.Prepare(Moq.It.IsAny<Guid>())).Returns(Task.CompletedTask);
 
-            await (_unitofwork as IDomainUnitOfWork).End();
+        //    await (_unitofwork as IDomainUnitOfWork).End();
 
-            _repository.Verify(x => x.Prepare(Moq.It.IsAny<Guid>()), Moq.Times.Once);
-            _pocoRepository.Verify(x => x.Prepare(Moq.It.IsAny<Guid>()), Moq.Times.Once);
+        //    _repository.Verify(x => x.Prepare(Moq.It.IsAny<Guid>()), Moq.Times.Once);
+        //    _pocoRepository.Verify(x => x.Prepare(Moq.It.IsAny<Guid>()), Moq.Times.Once);
 
-        }
+        //}
 
-        [Test]
-        public async Task commit_exception_no_commit()
-        {
-            var repo = _unitofwork.For<FakeEntity>();
-            var poco = _unitofwork.Poco<FakePoco>();
+        //[Test]
+        //public async Task commit_exception_no_commit()
+        //{
+        //    var repo = _unitofwork.For<FakeEntity>();
+        //    var poco = _unitofwork.Poco<FakePoco>();
 
-            _repository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
-            _pocoRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
+        //    _repository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
+        //    _pocoRepository.Setup(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>())).Returns(Task.CompletedTask);
 
-            await(_unitofwork as IDomainUnitOfWork).End(new Exception());
+        //    await(_unitofwork as IDomainUnitOfWork).End(new Exception());
 
-            _repository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
-            _pocoRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
-        }
+        //    _repository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
+        //    _pocoRepository.Verify(x => x.Commit(Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
+        //}
     }
 }

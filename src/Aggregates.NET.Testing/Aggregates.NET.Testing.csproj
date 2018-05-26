@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../Common.props" />
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <RootNamespace>Aggregates</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <IsPackable>true</IsPackable>
+    <Title>Aggregates.NET.Testing</Title>
+    <Description>ES/CQRS framework for NServiceBus and EventStore</Description>
+  </PropertyGroup>
+
+
+  <ItemGroup>
+    <Compile Include="..\SharedAssemblyInfo.cs">
+      <Link>Properties\SharedAssemblyInfo.cs</Link>
+    </Compile>
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+    <PackageReference Include="NServiceBus.Testing" Version="7.0.0-rc0001" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj" />
+  </ItemGroup>
+
+</Project>

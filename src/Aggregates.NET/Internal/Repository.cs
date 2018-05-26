@@ -86,7 +86,7 @@ namespace Aggregates.Internal
             return entity;
         }
     }
-    class Repository<TEntity, TState> : IRepository<TEntity>, IRepository where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
+    class Repository<TEntity, TState> : IRepository<TEntity>, IRepositoryCommit where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Repository");
         private static readonly IEntityFactory<TEntity> Factory = EntityFactory.For<TEntity>();
@@ -120,7 +120,7 @@ namespace Aggregates.Internal
                 _conflictResolution = (OptimisticConcurrencyAttribute)Attribute.GetCustomAttribute(typeof(TEntity), typeof(OptimisticConcurrencyAttribute))
                                       ?? new OptimisticConcurrencyAttribute(ConcurrencyConflict.Throw);
         }
-        Task IRepository.Prepare(Guid commitId)
+        Task IRepositoryCommit.Prepare(Guid commitId)
         {
             Logger.DebugEvent("Prepare", "{EntityType} prepare {CommitId}", typeof(TEntity).FullName, commitId);
             // Verify streams we read but didn't change are still save version
@@ -132,7 +132,7 @@ namespace Aggregates.Internal
         }
 
 
-        async Task IRepository.Commit(Guid commitId, IDictionary<string, string> commitHeaders)
+        async Task IRepositoryCommit.Commit(Guid commitId, IDictionary<string, string> commitHeaders)
         {
             Logger.DebugEvent("Commit", "[{EntityType:l}] commit {CommitId}", typeof(TEntity).FullName, commitId);
 

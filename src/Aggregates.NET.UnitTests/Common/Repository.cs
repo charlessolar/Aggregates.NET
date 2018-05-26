@@ -195,301 +195,301 @@ namespace Aggregates.UnitTests.Common
             _eventstore.Verify(x => x.GetEvents<FakeEntity>("test", new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()), Moq.Times.Never);
         }
 
-        [Test]
-        public async Task verify_version_no_dirty()
-        {
-            _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
+        //[Test]
+        //public async Task verify_version_no_dirty()
+        //{
+        //    _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+        //        .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
 
-            var entity = await _repository.Get("test");
+        //    var entity = await _repository.Get("test");
             
-            _eventstore.Setup(x => x.VerifyVersion<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>()))
-                .Returns(Task.FromResult(true));
+        //    _eventstore.Setup(x => x.VerifyVersion<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>()))
+        //        .Returns(Task.FromResult(true));
             
-            await (_repository as IRepository).Prepare(Guid.NewGuid());
+        //    await (_repository as IRepository).Prepare(Guid.NewGuid());
 
-            _eventstore.Verify(x => x.VerifyVersion<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>()), Moq.Times.Once);
-        }
+        //    _eventstore.Verify(x => x.VerifyVersion<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>()), Moq.Times.Once);
+        //}
 
-        [Test]
-        public async Task verify_version_dirty()
-        {
+        //[Test]
+        //public async Task verify_version_dirty()
+        //{
 
-            _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
+        //    _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+        //        .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
 
-            var entity = await _repository.Get("test");
+        //    var entity = await _repository.Get("test");
 
-            // make entity dirty
-            (entity as IEntity<FakeState>).Apply(new FakeEvent());
+        //    // make entity dirty
+        //    (entity as IEntity<FakeState>).Apply(new FakeEvent());
 
-            _eventstore.Setup(x => x.VerifyVersion<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>()))
-                .Returns(Task.FromResult(true));
+        //    _eventstore.Setup(x => x.VerifyVersion<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>()))
+        //        .Returns(Task.FromResult(true));
 
-            await (_repository as IRepository).Prepare(Guid.NewGuid());
+        //    await (_repository as IRepository).Prepare(Guid.NewGuid());
 
-            _eventstore.Verify(x => x.VerifyVersion<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>()), Moq.Times.Never);
+        //    _eventstore.Verify(x => x.VerifyVersion<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>()), Moq.Times.Never);
             
-        }
+        //}
 
-        [Test]
-        public async Task verify_version_throws_version_exception()
-        {
+        //[Test]
+        //public async Task verify_version_throws_version_exception()
+        //{
 
-            _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
+        //    _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+        //        .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
 
-            var entity = await _repository.Get("test");
+        //    var entity = await _repository.Get("test");
 
-            _eventstore.Setup(x => x.VerifyVersion<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>()))
-                .Throws<VersionException>();
+        //    _eventstore.Setup(x => x.VerifyVersion<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>()))
+        //        .Throws<VersionException>();
 
-            Assert.ThrowsAsync<VersionException>(() => (_repository as IRepository).Prepare(Guid.NewGuid()));
+        //    Assert.ThrowsAsync<VersionException>(() => (_repository as IRepository).Prepare(Guid.NewGuid()));
 
-            _eventstore.Verify(x => x.VerifyVersion<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>()), Moq.Times.Once);
+        //    _eventstore.Verify(x => x.VerifyVersion<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long>()), Moq.Times.Once);
             
-        }
+        //}
 
-        [Test]
-        public void commit_no_streams()
-        {
-            Assert.DoesNotThrowAsync(
-                () => (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
-        }
+        //[Test]
+        //public void commit_no_streams()
+        //{
+        //    Assert.DoesNotThrowAsync(
+        //        () => (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
+        //}
 
-        [Test]
-        public async Task commit_stream()
-        {
-            _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
+        //[Test]
+        //public async Task commit_stream()
+        //{
+        //    _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+        //        .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
 
-            var entity = await _repository.Get("test");
-            // make entity dirty
-            (entity as IEntity<FakeState>).Apply(new FakeEvent());
+        //    var entity = await _repository.Get("test");
+        //    // make entity dirty
+        //    (entity as IEntity<FakeState>).Apply(new FakeEvent());
 
-            _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string,string>>(), Moq.It.IsAny<long?>()))
-                .Returns(Task.FromResult(0L));
+        //    _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string,string>>(), Moq.It.IsAny<long?>()))
+        //        .Returns(Task.FromResult(0L));
 
-            await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
+        //    await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
 
-            _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
+        //    _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
 
-        }
-        [Test]
-        public async Task commit_stream_not_dirty()
-        {
-            _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
+        //}
+        //[Test]
+        //public async Task commit_stream_not_dirty()
+        //{
+        //    _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+        //        .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
 
-            var entity = await _repository.Get("test");
+        //    var entity = await _repository.Get("test");
 
-            _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
-                .Returns(Task.FromResult(0L));
+        //    _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
+        //        .Returns(Task.FromResult(0L));
 
-            await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
+        //    await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
 
-            _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Never);
+        //    _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Never);
 
-        }
+        //}
 
-        [Test]
-        public async Task commit_take_snapshot_but_not_changed()
-        {
-            _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
+        //[Test]
+        //public async Task commit_take_snapshot_but_not_changed()
+        //{
+        //    _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+        //        .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
 
-            var entity = await _repository.Get("test");
+        //    var entity = await _repository.Get("test");
 
-            entity.State.TestTakeSnapshot = true;
+        //    entity.State.TestTakeSnapshot = true;
 
-            await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
+        //    await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
 
-            _snapshots.Verify(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
+        //    _snapshots.Verify(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Never);
             
-        }
+        //}
 
-        [Test]
-        public async Task commit_take_snapshot()
-        {
-            _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
+        //[Test]
+        //public async Task commit_take_snapshot()
+        //{
+        //    _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+        //        .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
 
-            var entity = await _repository.Get("test");
+        //    var entity = await _repository.Get("test");
 
-            entity.State.TestTakeSnapshot = true;
-            // make entity dirty
-            (entity as IEntity<FakeState>).Apply(new FakeEvent());
+        //    entity.State.TestTakeSnapshot = true;
+        //    // make entity dirty
+        //    (entity as IEntity<FakeState>).Apply(new FakeEvent());
 
-            await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
+        //    await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
 
-            _snapshots.Verify(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
+        //    _snapshots.Verify(x => x.WriteSnapshots<FakeEntity>(Moq.It.IsAny<IState>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
             
-        }
+        //}
 
-        [Test]
-        public async Task commit_version_exception_new_stream_doesnt_start_resolution()
-        {
-            _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
-                .Throws(new VersionException("test"));
+        //[Test]
+        //public async Task commit_version_exception_new_stream_doesnt_start_resolution()
+        //{
+        //    _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
+        //        .Throws(new VersionException("test"));
 
-            var entity = await _repository.New("test");
-            // make entity dirty
-            (entity as IEntity<FakeState>).Apply(new FakeEvent());
+        //    var entity = await _repository.New("test");
+        //    // make entity dirty
+        //    (entity as IEntity<FakeState>).Apply(new FakeEvent());
 
-            Assert.ThrowsAsync<ConflictResolutionFailedException>(() =>
-                (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
+        //    Assert.ThrowsAsync<ConflictResolutionFailedException>(() =>
+        //        (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
 
-            _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
+        //    _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
 
-            Assert.IsFalse(_resolver.Called);
-        }
+        //    Assert.IsFalse(_resolver.Called);
+        //}
 
-        [Test]
-        public async Task commit_version_exception_starts_resolution()
-        {
-            _resolver.Fail = true;
+        //[Test]
+        //public async Task commit_version_exception_starts_resolution()
+        //{
+        //    _resolver.Fail = true;
 
-            _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
-            _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
-                .Throws(new VersionException("test"));
+        //    _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+        //        .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
+        //    _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
+        //        .Throws(new VersionException("test"));
 
-            var entity = await _repository.Get("test");
-            // make entity dirty
-            (entity as IEntity<FakeState>).Apply(new FakeEvent());
+        //    var entity = await _repository.Get("test");
+        //    // make entity dirty
+        //    (entity as IEntity<FakeState>).Apply(new FakeEvent());
 
-            Assert.ThrowsAsync<ConflictResolutionFailedException>(() =>
-                (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
+        //    Assert.ThrowsAsync<ConflictResolutionFailedException>(() =>
+        //        (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
 
-            _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
+        //    _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
 
-            Assert.IsTrue(_resolver.Called);
+        //    Assert.IsTrue(_resolver.Called);
 
-        }
+        //}
 
-        [Test]
-        public async Task commit_version_exception_resolution_succeeds()
-        {
-            _resolver.Fail = false;
+        //[Test]
+        //public async Task commit_version_exception_resolution_succeeds()
+        //{
+        //    _resolver.Fail = false;
 
-            _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
-            _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
-                .Throws(new VersionException("test"));
+        //    _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+        //        .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
+        //    _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
+        //        .Throws(new VersionException("test"));
 
-            var entity = await _repository.Get("test");
-            // make entity dirty
-            (entity as IEntity<FakeState>).Apply(new FakeEvent());
+        //    var entity = await _repository.Get("test");
+        //    // make entity dirty
+        //    (entity as IEntity<FakeState>).Apply(new FakeEvent());
 
-            Assert.DoesNotThrowAsync(() =>
-                (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
+        //    Assert.DoesNotThrowAsync(() =>
+        //        (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
 
-            _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
+        //    _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
 
-            Assert.IsTrue(_resolver.Called);
+        //    Assert.IsTrue(_resolver.Called);
 
-        }
-        [Test]
-        public async Task commit_version_exception_sets_header()
-        {
-            _resolver.Fail = false;
+        //}
+        //[Test]
+        //public async Task commit_version_exception_sets_header()
+        //{
+        //    _resolver.Fail = false;
 
-            _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
-            _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
-                .Throws(new VersionException("test"));
+        //    _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+        //        .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
+        //    _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
+        //        .Throws(new VersionException("test"));
 
-            var entity = await _repository.Get("test");
-            // make entity dirty
-            (entity as IEntity<FakeState>).Apply(new FakeEvent());
+        //    var entity = await _repository.Get("test");
+        //    // make entity dirty
+        //    (entity as IEntity<FakeState>).Apply(new FakeEvent());
 
-            Assert.DoesNotThrowAsync(() =>
-                (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
+        //    Assert.DoesNotThrowAsync(() =>
+        //        (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
 
-            _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
+        //    _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
 
-            Assert.IsTrue(_resolver.Called);
-            Assert.IsTrue(_resolver.CommitHeaders.ContainsKey(Defaults.ConflictResolvedHeader));
-        }
-        [Test]
-        public async Task commit_version_exception_resolution_throws_abandon()
-        {
+        //    Assert.IsTrue(_resolver.Called);
+        //    Assert.IsTrue(_resolver.CommitHeaders.ContainsKey(Defaults.ConflictResolvedHeader));
+        //}
+        //[Test]
+        //public async Task commit_version_exception_resolution_throws_abandon()
+        //{
 
-            _resolver.Abandon = true;
+        //    _resolver.Abandon = true;
 
-            _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
-            _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
-                .Throws(new VersionException("test"));
+        //    _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+        //        .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
+        //    _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
+        //        .Throws(new VersionException("test"));
 
-            var entity = await _repository.Get("test");
-            // make entity dirty
-            (entity as IEntity<FakeState>).Apply(new FakeEvent());
+        //    var entity = await _repository.Get("test");
+        //    // make entity dirty
+        //    (entity as IEntity<FakeState>).Apply(new FakeEvent());
 
-            Assert.ThrowsAsync<ConflictResolutionFailedException>(() =>
-                (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
+        //    Assert.ThrowsAsync<ConflictResolutionFailedException>(() =>
+        //        (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
 
-            _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
+        //    _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
 
-            Assert.IsTrue(_resolver.Called);
-        }
+        //    Assert.IsTrue(_resolver.Called);
+        //}
 
 
-        [Test]
-        public async Task commit_persistence_exception()
-        {
+        //[Test]
+        //public async Task commit_persistence_exception()
+        //{
 
-            _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
-                .Throws(new PersistenceException("test"));
+        //    _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
+        //        .Throws(new PersistenceException("test"));
 
-            var entity = await _repository.Get("test");
-            // make entity dirty
-            (entity as IEntity<FakeState>).Apply(new FakeEvent());
+        //    var entity = await _repository.Get("test");
+        //    // make entity dirty
+        //    (entity as IEntity<FakeState>).Apply(new FakeEvent());
 
-            Assert.ThrowsAsync<PersistenceException>(() =>
-                (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
+        //    Assert.ThrowsAsync<PersistenceException>(() =>
+        //        (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
 
-            _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
+        //    _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
             
 
-        }
-        [Test]
-        public async Task commit_duplicate_commit_exception()
-        {
-            _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
-                .Throws(new DuplicateCommitException("test"));
+        //}
+        //[Test]
+        //public async Task commit_duplicate_commit_exception()
+        //{
+        //    _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
+        //        .Throws(new DuplicateCommitException("test"));
 
-            var entity = await _repository.Get("test");
-            // make entity dirty
-            (entity as IEntity<FakeState>).Apply(new FakeEvent());
+        //    var entity = await _repository.Get("test");
+        //    // make entity dirty
+        //    (entity as IEntity<FakeState>).Apply(new FakeEvent());
 
-            Assert.DoesNotThrowAsync(() =>
-                (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
+        //    Assert.DoesNotThrowAsync(() =>
+        //        (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>()));
 
-            _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
+        //    _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
             
-        }
-        [Test]
-        public async Task commit_oob_events_handled()
-        {
-            _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
-                .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
+        //}
+        //[Test]
+        //public async Task commit_oob_events_handled()
+        //{
+        //    _eventstore.Setup(x => x.GetEvents<FakeEntity>(Moq.It.IsAny<string>(), new Id("test"), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<long?>(), Moq.It.IsAny<int?>()))
+        //        .Returns(Task.FromResult(new IFullEvent[] { _event.Object }));
 
-            var entity = await _repository.Get("test");
-            // make entity dirty
-            (entity as IEntity<FakeState>).Apply(new FakeEvent());
-            (entity as IEntity<FakeState>).Raise(new FakeEvent(), "test");
+        //    var entity = await _repository.Get("test");
+        //    // make entity dirty
+        //    (entity as IEntity<FakeState>).Apply(new FakeEvent());
+        //    (entity as IEntity<FakeState>).Raise(new FakeEvent(), "test");
 
-            _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
-                .Returns(Task.FromResult(0L));
-            _oobStore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()))
-                .Returns(Task.CompletedTask);
+        //    _eventstore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()))
+        //        .Returns(Task.FromResult(0L));
+        //    _oobStore.Setup(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()))
+        //        .Returns(Task.CompletedTask);
 
-            await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
+        //    await (_repository as IRepository).Commit(Guid.NewGuid(), new Dictionary<string, string>());
 
-            _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
+        //    _eventstore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<IDictionary<string, string>>(), Moq.It.IsAny<long?>()), Moq.Times.Once);
 
-            _oobStore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
-        }
+        //    _oobStore.Verify(x => x.WriteEvents<FakeEntity>(Moq.It.IsAny<string>(), Moq.It.IsAny<Id>(), Moq.It.IsAny<Id[]>(), Moq.It.IsAny<IFullEvent[]>(), Moq.It.IsAny<Guid>(), Moq.It.IsAny<IDictionary<string, string>>()), Moq.Times.Once);
+        //}
     }
 }

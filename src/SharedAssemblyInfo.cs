@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 [assembly: AssemblyProduct("Aggregates.NET")]
 [assembly: AssemblyDescription(".NET event sourced domain driven design model via NServiceBus and EventStore")]
-[assembly: AssemblyCopyright("Copyright © Charles Solar 2017")]
+[assembly: AssemblyCopyright("Copyright © Charles Solar 2018")]
 [assembly: AssemblyVersion("0.13.0.0")]
 [assembly: AssemblyFileVersion("0.13.0.0")]
 [assembly: AssemblyInformationalVersion("0.13.0.0")]
@@ -14,3 +14,4 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Aggregates.NET.NewtonsoftJson")]
 [assembly: InternalsVisibleTo("Aggregates.NET.StructureMap")]
 [assembly: InternalsVisibleTo("Aggregates.NET.SimpleInjector")]
+[assembly: InternalsVisibleTo("Aggregates.NET.Testing")]

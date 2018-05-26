@@ -12,7 +12,7 @@ using Aggregates.Messages;
 
 namespace Aggregates.Internal
 {
-    class UnitOfWork : IDomainUnitOfWork, IDisposable
+    class UnitOfWork : IDomainUnitOfWork, IDomainUnitOfWorkCommit, IDisposable
     {
         private static readonly ConcurrentDictionary<Guid, Guid> EventIds = new ConcurrentDictionary<Guid, Guid>();
 
@@ -78,7 +78,7 @@ namespace Aggregates.Internal
             _disposed = true;
         }
 
-        public IRepository<T> For<T>() where T : class, IEntity
+        public IRepository<T> For<T>() where T : IEntity
         {
             var key = typeof(T).FullName;
 
@@ -87,7 +87,7 @@ namespace Aggregates.Internal
 
             return (IRepository<T>)(_repositories[key] = (IRepository)_repoFactory.ForEntity<T>(this));
         }
-        public IRepository<TEntity, TParent> For<TEntity, TParent>(TParent parent) where TEntity : class, IChildEntity<TParent> where TParent : class, IHaveEntities<TParent>
+        public IRepository<TEntity, TParent> For<TEntity, TParent>(TParent parent) where TEntity : IChildEntity<TParent> where TParent : IHaveEntities<TParent>
         {
             var key = $"{typeof(TParent).FullName}.{parent.Id}.{typeof(TEntity).FullName}";
 
@@ -118,11 +118,11 @@ namespace Aggregates.Internal
         }
 
 
-        Task IDomainUnitOfWork.Begin()
+        Task IDomainUnitOfWorkCommit.Begin()
         {
             return Task.FromResult(true);
         }
-        Task IDomainUnitOfWork.End(Exception ex)
+        Task IDomainUnitOfWorkCommit.End(Exception ex)
         {
             // Todo: If current message is an event, detect if they've modified any entities and warn them.
             if (ex != null || CurrentMessage is IEvent)
@@ -150,10 +150,10 @@ namespace Aggregates.Internal
             };
 
             var allRepos =
-                _repositories.Values.Concat(_pocoRepositories.Values).ToArray();
+                _repositories.Values.Concat(_pocoRepositories.Values).Cast<IRepositoryCommit>().ToArray();
 
 
-            var changedStreams = _repositories.Sum(x => x.Value.ChangedStreams) + _pocoRepositories.Sum(x => x.Value.ChangedStreams);
+            var changedStreams = allRepos.Sum(x => x.ChangedStreams);
             
             Logger.DebugEvent("Changed", "{Changed} streams {CommitId}", changedStreams, CommitId);
             // Only prepare if multiple changed streams, which will quickly check all changed streams to see if they are all the same version as when we read them

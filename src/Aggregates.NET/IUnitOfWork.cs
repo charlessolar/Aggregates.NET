@@ -17,13 +17,16 @@ namespace Aggregates
         Task End(Exception ex = null);
     }
 
-    public interface IDomainUnitOfWork
+    internal interface IDomainUnitOfWorkCommit
     {
         Task Begin();
         Task End(Exception ex = null);
+    }
 
-        IRepository<T> For<T>() where T : class, IEntity;
-        IRepository<TEntity, TParent> For<TEntity, TParent>(TParent parent) where TEntity : class, IChildEntity<TParent> where TParent : class, IHaveEntities<TParent>;
+    public interface IDomainUnitOfWork
+    {
+        IRepository<T> For<T>() where T : IEntity;
+        IRepository<TEntity, TParent> For<TEntity, TParent>(TParent parent) where TEntity : IChildEntity<TParent> where TParent : IHaveEntities<TParent>;
         IPocoRepository<T> Poco<T>() where T : class, new();
         IPocoRepository<T, TParent> Poco<T, TParent>(TParent parent) where T : class, new() where TParent : class, IHaveEntities<TParent>;
 
