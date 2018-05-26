@@ -5,14 +5,16 @@ using System.Text;
 
 namespace Aggregates
 {
-    public interface IChecker
+    public interface IChecker<TEntity> where TEntity : IEntity
     {
-        IChecker Raised<TEvent>(Action<TEvent> factory) where TEvent : Messages.IEvent;
+        IChecker<TChild> Check<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>;
+        IChecker<TEntity> Raised<TEvent>(Action<TEvent> factory) where TEvent : Messages.IEvent;
     }
-    public interface IEventPlanner 
+    public interface IEventPlanner<TEntity> where TEntity : IEntity
     {
-        IEventPlanner HasEvent<TEvent>(Action<TEvent> factory);
-        IEventPlanner HasSnapshot(object snapshot);
+        IEventPlanner<TChild> Plan<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>;
+        IEventPlanner<TEntity> HasEvent<TEvent>(Action<TEvent> factory);
+        IEventPlanner<TEntity> HasSnapshot(object snapshot);
     }
     public interface IPocoChecker
     {
@@ -26,15 +28,15 @@ namespace Aggregates
 
     public interface IRepositoryTest<TEntity> : IRepository where TEntity : IEntity
     {
-        IChecker Check(Id id);
-        IChecker Check(string bucket, Id id);
-        IEventPlanner Plan(Id id);
-        IEventPlanner Plan(string bucket, Id id);
+        IChecker<TEntity> Check(Id id);
+        IChecker<TEntity> Check(string bucket, Id id);
+        IEventPlanner<TEntity> Plan(Id id);
+        IEventPlanner<TEntity> Plan(string bucket, Id id);
     }
-    public interface IRepositoryTest<TEntity, TParent> : IRepository where TParent : IEntity where TEntity : IChildEntity<TParent>
+    public interface IRepositoryTest<TEntity, TParent> : IRepository where TParent : IEntity where TEntity : IEntity, IChildEntity<TParent>
     {
-        IChecker Check(Id id);
-        IEventPlanner Plan(Id id);
+        IChecker<TEntity> Check(Id id);
+        IEventPlanner<TEntity> Plan(Id id);
     }
     public interface IPocoRepositoryTest<T> where T : class, new()
     {

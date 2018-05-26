@@ -8,48 +8,59 @@ using System.Text;
 
 namespace Aggregates.Internal
 {
-    class EventPlanner<TState> : IEventPlanner where TState : class, IState, new()
+    class EventPlanner<TEntity, TState> : IEventPlanner<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
+        private TestableUnitOfWork _uow;
         private TestableEventStore _events;
         private TestableSnapshotStore _snapshots;
         private TestableEventFactory _factory;
+        private Func<TEntity> _entityFactory;
         private string _bucket;
         private Id _id;
         private Id[] _parents;
 
-        public EventPlanner(TestableEventStore events, TestableSnapshotStore snapshots, TestableEventFactory factory, string bucket, Id id, Id[] parents = null)
+        public EventPlanner(TestableUnitOfWork uow, TestableEventStore events, TestableSnapshotStore snapshots, TestableEventFactory factory, Func<TEntity> entityFactory, string bucket, Id id, Id[] parents = null)
         {
+            _uow = uow;
             _events = events;
             _snapshots = snapshots;
             _factory = factory;
+            _entityFactory = entityFactory;
             _bucket = bucket;
             _id = id;
             _parents = parents ?? new Id[] { };
         }
 
-        public IEventPlanner HasEvent<TEvent>(Action<TEvent> factory)
+        public IEventPlanner<TEntity> HasEvent<TEvent>(Action<TEvent> factory)
         {
             _events.AddEvent(_bucket, _id, _parents, (Messages.IEvent)_factory.Create(factory));
             return this;
         }
-        public IEventPlanner HasSnapshot(object snapshot)
+        public IEventPlanner<TEntity> HasSnapshot(object snapshot)
         {
             _snapshots.SpecifySnapshot<TState>(_bucket, _id, snapshot);
             return this;
         }
+        public IEventPlanner<TChild> Plan<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>
+        {
+            // Use a factory so its 'lazy' - meaning defining the parent doesn't necessarily have to come before defining child
+            return _uow.Test<TChild, TEntity>(_entityFactory()).Plan(id);
+        }
     }
-    class Checker<TEntity, TState> : IChecker where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
+    class Checker<TEntity, TState> : IChecker<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
+        private TestableUnitOfWork _uow;
         private TestableEventFactory _factory;
         private TEntity _entity;
 
-        public Checker(TestableEventFactory factory, TEntity entity)
+        public Checker(TestableUnitOfWork uow, TestableEventFactory factory, TEntity entity)
         {
+            _uow = uow;
             _factory = factory;
             _entity = entity;
         }
 
-        public IChecker Raised<TEvent>(Action<TEvent> factory) where TEvent : Messages.IEvent
+        public IChecker<TEntity> Raised<TEvent>(Action<TEvent> factory) where TEvent : Messages.IEvent
         {
             var @event = _factory.Create(factory);
 
@@ -57,6 +68,10 @@ namespace Aggregates.Internal
                 throw new DidNotRaisedException(@event, _entity.Uncommitted.Select(x => x.Event as Messages.IEvent).ToArray());
 
             return this;
+        }
+        public IChecker<TChild> Check<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>
+        {
+            return _uow.Test<TChild, TEntity>(_entity).Check(id);
         }
     }
     class PocoPlanner<T> : IPocoPlanner where T : class, new()

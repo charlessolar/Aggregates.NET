@@ -48,7 +48,7 @@ namespace Aggregates
             if (_repositories.TryGetValue(key, out repository))
                 return (IRepository<TEntity, TParent>)repository;
 
-            return (IRepository<TEntity, TParent>)(_repositories[key] = (IRepository)Activator.CreateInstance(repoType, this));
+            return (IRepository<TEntity, TParent>)(_repositories[key] = (IRepository)Activator.CreateInstance(repoType, parent, this));
         }
 
         IPocoRepository<T> IDomainUnitOfWork.Poco<T>()
@@ -76,7 +76,7 @@ namespace Aggregates
         {
             return (IRepositoryTest<TEntity>)(this as IDomainUnitOfWork).For<TEntity>();
         }
-        public IRepositoryTest<TEntity, TParent> Test<TEntity, TParent>(TParent parent) where TEntity : IChildEntity<TParent> where TParent : IHaveEntities<TParent>
+        public IRepositoryTest<TEntity, TParent> Test<TEntity, TParent>(TParent parent) where TEntity : IEntity, IChildEntity<TParent> where TParent : IHaveEntities<TParent>
         {
             return (IRepositoryTest<TEntity, TParent>)(this as IDomainUnitOfWork).For<TEntity, TParent>(parent);
         }

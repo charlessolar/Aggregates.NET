@@ -7,6 +7,7 @@ namespace Language
 {
     public class SayHello : ICommand
     {
+        public Guid MessageId { get; set; }
         public string Message { get; set; }
     }
 }

@@ -21,7 +21,7 @@ namespace Domain
                 world.Create();
             }
 
-            var message = await world.For<Message>().New(Guid.NewGuid());
+            var message = await world.For<Message>().New(command.MessageId);
             message.SayHello(command.Message);
 
         }

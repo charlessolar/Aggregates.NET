@@ -63,9 +63,16 @@ namespace Aggregates.Internal
 
             return root;
         }
-        public override IEventPlanner Plan(Id id)
+        public override IEventPlanner<TEntity> Plan(Id id)
         {
-            return new EventPlanner<TState>(_eventstore, _snapstore, _factory, _parent.Bucket, id, _parent.BuildParents());
+            return new EventPlanner<TEntity, TState>(_uow, _eventstore, _snapstore, _factory, () => Get(id).Result, _parent.Bucket, id, _parent.BuildParents());
+        }
+        public override IChecker<TEntity> Check(Id id)
+        {
+            var cacheId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{id}";
+            if (!Tracked.ContainsKey(cacheId))
+                throw new ExistException(typeof(TEntity), _parent.Bucket, id);
+            return new Checker<TEntity, TState>(_uow, _factory, Tracked[cacheId]);
         }
 
         protected override async Task<TEntity> GetUntracked(string bucket, Id id, Id[] parents)
@@ -202,24 +209,25 @@ namespace Aggregates.Internal
             return default(TEntity);
         }
 
-        public virtual IEventPlanner Plan(Id id)
+        public virtual IEventPlanner<TEntity> Plan(Id id)
         {
             return Plan(Defaults.Bucket, id);
         }
-        public IEventPlanner Plan(string bucket, Id id)
+        public IEventPlanner<TEntity> Plan(string bucket, Id id)
         {
-            return new EventPlanner<TState>(_eventstore, _snapstore, _factory, bucket, id);
+            //                                                                                       async method isnt async so hack it
+            return new EventPlanner<TEntity, TState>(_uow, _eventstore, _snapstore, _factory, () => Get(bucket, id).Result, bucket, id);
         }
-        public IChecker Check(Id id)
+        public virtual IChecker<TEntity> Check(Id id)
         {
             return Check(Defaults.Bucket, id);
         }
-        public IChecker Check(string bucket, Id id)
+        public IChecker<TEntity> Check(string bucket, Id id)
         {
             var cacheId = $"{bucket}.{id}";
             if (!Tracked.ContainsKey(cacheId))
                 throw new ExistException(typeof(TEntity), bucket, id);
-            return new Checker<TEntity, TState>(_factory, Tracked[cacheId]);
+            return new Checker<TEntity, TState>(_uow, _factory, Tracked[cacheId]);
         }
 
     }
