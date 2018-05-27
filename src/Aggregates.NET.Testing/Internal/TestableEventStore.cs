@@ -21,10 +21,6 @@ namespace Aggregates.Internal
 
         public void AddEvent(string bucket, Id streamId, Id[] parents, Messages.IEvent @event)
         {
-            // if using auto-ids - substitute the generated id
-            if (streamId.ToString().StartsWith(Constants.GeneratedIdPrefix))
-                streamId = _uow.GeneratedIds[streamId];
-
             var key = $"{bucket}.{streamId}.{parents.BuildParentsString()}";
             var fullEvent =
                     new FullEvent
@@ -42,10 +38,6 @@ namespace Aggregates.Internal
         // create the test stream with no events so its "found" by event reader but not hydrated
         public void Exists(string bucket, Id streamId, Id[] parents)
         {
-            // if using auto-ids - substitute the generated id
-            if (streamId.ToString().StartsWith(Constants.GeneratedIdPrefix))
-                streamId = _uow.GeneratedIds[streamId];
-
             var key = $"{bucket}.{streamId}.{parents.BuildParentsString()}";
             if (_events.ContainsKey(key))
                 return;
@@ -60,10 +52,6 @@ namespace Aggregates.Internal
 
         public Task<IFullEvent[]> GetEvents<TEntity>(string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
         {
-            // if using auto-ids - substitute the generated id
-            if (streamId.ToString().StartsWith(Constants.GeneratedIdPrefix))
-                streamId = _uow.GeneratedIds[streamId];
-
             // ignore start and count, not needed for tests
             var key = $"{bucket}.{streamId}.{parents.BuildParentsString()}";
             if (!_events.ContainsKey(key))
@@ -78,10 +66,6 @@ namespace Aggregates.Internal
 
         public Task<IFullEvent[]> GetEventsBackwards<TEntity>(string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
         {
-            // if using auto-ids - substitute the generated id
-            if (streamId.ToString().StartsWith(Constants.GeneratedIdPrefix))
-                streamId = _uow.GeneratedIds[streamId];
-
             var key = $"{bucket}.{streamId}.{parents.BuildParentsString()}";
             if (!_events.ContainsKey(key))
                 throw new ArgumentException("undefined stream");
