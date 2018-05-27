@@ -1,4 +1,6 @@
-﻿using NServiceBus;
+﻿using Aggregates.Contracts;
+using Aggregates.Internal;
+using NServiceBus;
 using NServiceBus.Extensibility;
 using NServiceBus.Persistence;
 using NServiceBus.Testing;
@@ -11,6 +13,7 @@ namespace Aggregates
 {
     public class TestableContext : IMessageHandlerContext
     {
+
         public readonly TestableUnitOfWork UoW;
         private readonly TestableMessageHandlerContext _ctx;
 
@@ -19,6 +22,19 @@ namespace Aggregates
             UoW = uow;
             _ctx = new TestableMessageHandlerContext();
             _ctx.Extensions.Set<IDomainUnitOfWork>(UoW);
+        }
+
+        public TestableId Id()
+        {
+            return UoW.AnyId();
+        }
+        public TestableId Id(string named)
+        {
+            return UoW.MakeId(named);
+        }
+        public TestableId Id(int number)
+        {
+            return UoW.MakeId(number);
         }
 
         public SynchronizedStorageSession SynchronizedStorageSession => _ctx.SynchronizedStorageSession;

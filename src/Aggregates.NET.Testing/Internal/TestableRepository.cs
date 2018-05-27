@@ -69,6 +69,26 @@ namespace Aggregates.Internal
         }
         public override IChecker<TEntity> Check(Id id)
         {
+            // if using auto-ids - substitute the generated id
+            if (id.ToString().StartsWith(Constants.GeneratedIdPrefix))
+            {
+                var testableId = _uow.GeneratedIds[id];
+
+                // we dont know which was used by user's handler - so check them all
+                var cacheLongId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{testableId.LongId}";
+                var cacheStringId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{testableId.StringId}";
+                var cacheGuidId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{testableId.GuidId}";
+
+                if(Tracked.ContainsKey(cacheLongId))
+                    return new Checker<TEntity, TState>(_uow, _factory, Tracked[cacheLongId]);
+                if (Tracked.ContainsKey(cacheStringId))
+                    return new Checker<TEntity, TState>(_uow, _factory, Tracked[cacheStringId]);
+                if (Tracked.ContainsKey(cacheGuidId))
+                    return new Checker<TEntity, TState>(_uow, _factory, Tracked[cacheGuidId]);
+
+                throw new ExistException(typeof(TEntity), _parent.Bucket, id);
+            }
+
             var cacheId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{id}";
             if (!Tracked.ContainsKey(cacheId))
                 throw new ExistException(typeof(TEntity), _parent.Bucket, id);
@@ -110,7 +130,7 @@ namespace Aggregates.Internal
             _uow = uow;
             _factory = new TestableEventFactory(new MessageMapper());
             _oobStore = new TestableOobWriter();
-            _eventstore = new TestableEventStore();
+            _eventstore = new TestableEventStore(uow);
             _snapstore = new TestableSnapshotStore();
         }
 

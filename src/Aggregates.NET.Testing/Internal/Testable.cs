@@ -31,6 +31,11 @@ namespace Aggregates.Internal
             _parents = parents ?? new Id[] { };
         }
 
+        public IEventPlanner<TEntity> Exists()
+        {
+            _events.Exists(_bucket, _id, _parents);
+            return this;
+        }
         public IEventPlanner<TEntity> HasEvent<TEvent>(Action<TEvent> factory)
         {
             _events.AddEvent(_bucket, _id, _parents, (Messages.IEvent)_factory.Create(factory));
@@ -44,8 +49,9 @@ namespace Aggregates.Internal
         public IEventPlanner<TChild> Plan<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>
         {
             // Use a factory so its 'lazy' - meaning defining the parent doesn't necessarily have to come before defining child
-            return _uow.Test<TChild, TEntity>(_entityFactory()).Plan(id);
+            return _uow.Plan<TChild, TEntity>(_entityFactory(), id);
         }
+        
     }
     class Checker<TEntity, TState> : IChecker<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
@@ -69,9 +75,21 @@ namespace Aggregates.Internal
 
             return this;
         }
+        public IChecker<TEntity> Raised<TEvent>() where TEvent : Messages.IEvent
+        {
+            if(!_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).OfType<TEvent>().Any())
+                throw new NoMatchingEventException(_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).ToArray());
+            return this;
+        }
+        public IChecker<TEntity> Raised<TEvent>(Func<TEvent, bool> assert) where TEvent : Messages.IEvent
+        {
+            if (!_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).OfType<TEvent>().Any(assert))
+                throw new NoMatchingEventException(_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).ToArray());
+            return this;
+        }
         public IChecker<TChild> Check<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>
         {
-            return _uow.Test<TChild, TEntity>(_entity).Check(id);
+            return _uow.Check<TChild, TEntity>(_entity, id);
         }
     }
     class PocoPlanner<T> : IPocoPlanner where T : class, new()

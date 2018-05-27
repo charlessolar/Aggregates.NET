@@ -25,7 +25,7 @@ namespace Tests
             Handler handler
             )
         {
-            context.UoW.Test<Domain.World>().Plan("World").HasEvent<SaidHello>(x =>
+            context.UoW.Plan<Domain.World>("World").HasEvent<SaidHello>(x =>
             {
                 x.Message = "foo";
             });
@@ -35,7 +35,7 @@ namespace Tests
                 Message = "test"
             }, context).ConfigureAwait(false);
 
-            context.UoW.Test<Domain.World>().Check("World").Raised<SaidHello>(x =>
+            context.UoW.Check<Domain.World>("World").Raised<SaidHello>(x =>
             {
                 x.Message = "test";
             });
@@ -52,7 +52,7 @@ namespace Tests
                 Message = "test"
             }, context).ConfigureAwait(false);
 
-            context.UoW.Test<Domain.World>().Check("World").Raised<SaidHello>(x =>
+            context.UoW.Check<Domain.World>("World").Raised<SaidHello>(x =>
             {
                 x.Message = "test";
             });

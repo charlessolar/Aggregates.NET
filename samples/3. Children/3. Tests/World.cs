@@ -25,22 +25,23 @@ namespace Tests
             Handler handler
             )
         {
-            context.UoW.Test<Domain.World>().Plan("World").HasEvent<WorldCreated>(x =>
+            context.UoW.Plan<Domain.World>("World").HasEvent<WorldCreated>(x =>
             {
             });
 
-            var messageId = Guid.NewGuid();
             await handler.Handle(new SayHello
             {
-                MessageId = messageId,
+                MessageId = context.Id(),
                 Message = "test"
             }, context).ConfigureAwait(false);
 
-            context.UoW.Test<Domain.World>().Check("World").Check<Domain.Message>(messageId).Raised<SaidHello>(x =>
-            {
-                x.MessageId = messageId;
-                x.Message = "test";
-            });
+            context.UoW.Check<Domain.World>("World").Check<Domain.Message>(context.Id())
+                .Raised<SaidHello>(x => x.Message == "test")
+                .Raised<SaidHello>(x =>
+                {
+                    x.MessageId = context.Id();
+                    x.Message = "test";
+                });
         }
         [Theory, AutoFakeItEasyData]
         public async Task should_create_world(
@@ -49,19 +50,18 @@ namespace Tests
             )
         {
 
-            var messageId = Guid.NewGuid();
             await handler.Handle(new SayHello
             {
-                MessageId = messageId,
+                MessageId = context.Id(1),
                 Message = "test"
             }, context).ConfigureAwait(false);
 
-            context.UoW.Test<Domain.World>().Check("World")
+            context.UoW.Check<Domain.World>("World")
                 .Raised<WorldCreated>(x => { })
-                .Check<Domain.Message>(messageId)
+                .Check<Domain.Message>(context.Id(1))
                 .Raised<SaidHello>(x =>
                 {
-                    x.MessageId = messageId;
+                    x.MessageId = context.Id(1);
                     x.Message = "test";
                 });
         }

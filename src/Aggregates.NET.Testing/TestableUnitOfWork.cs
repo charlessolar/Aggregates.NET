@@ -9,11 +9,40 @@ namespace Aggregates
 {
     public class TestableUnitOfWork : IDomainUnitOfWork
     {
+        private long _longIdCounter = 0;
+        public IReadOnlyDictionary<string, TestableId> GeneratedIds => _generatedIds;
+
+        private readonly Dictionary<string, TestableId> _generatedIds = new Dictionary<string, TestableId>();
         private Dictionary<string, IRepository> _repositories;
 
         public TestableUnitOfWork()
         {
             _repositories = new Dictionary<string, IRepository>();
+        }
+
+        public TestableId AnyId()
+        {
+            var generated = Guid.NewGuid();
+            var id = new TestableId(Constants.GeneratedAnyId, _longIdCounter++, generated.ToString(), generated);
+            if (_generatedIds.ContainsKey(id.GeneratedIdKey))
+                return _generatedIds[id.GeneratedIdKey];
+            return _generatedIds[id.GeneratedIdKey] = id;
+        }
+        public TestableId MakeId(int key)
+        {
+            var generated = Guid.NewGuid();
+            var id = new TestableId(Constants.GeneratedNumberedId(key), _longIdCounter++, generated.ToString(), generated);
+            if (_generatedIds.ContainsKey(id.GeneratedIdKey))
+                return _generatedIds[id.GeneratedIdKey];
+            return _generatedIds[id.GeneratedIdKey] = id;
+        }
+        public TestableId MakeId(string key)
+        {
+            var generated = Guid.NewGuid();
+            var id = new TestableId(Constants.GenerateNamedId(key), _longIdCounter++, generated.ToString(), generated);
+            if (_generatedIds.ContainsKey(id.GeneratedIdKey))
+                return _generatedIds[id.GeneratedIdKey];
+            return _generatedIds[id.GeneratedIdKey] = id;
         }
 
         public Guid CommitId => Guid.Empty;
@@ -72,13 +101,32 @@ namespace Aggregates
             return (IPocoRepository<T, TParent>)(_repositories[key] = (IRepository)new TestablePocoRepository<T, TParent>(parent, this));
         }
 
-        public IRepositoryTest<TEntity> Test<TEntity>() where TEntity : IEntity
+        public IChecker<TEntity> Check<TEntity>(Id id) where TEntity : IEntity
         {
-            return (IRepositoryTest<TEntity>)(this as IDomainUnitOfWork).For<TEntity>();
+            return ((IRepositoryTest<TEntity>)(this as IDomainUnitOfWork).For<TEntity>()).Check(id);
         }
-        public IRepositoryTest<TEntity, TParent> Test<TEntity, TParent>(TParent parent) where TEntity : IEntity, IChildEntity<TParent> where TParent : IHaveEntities<TParent>
+        public IEventPlanner<TEntity> Plan<TEntity>(Id id) where TEntity : IEntity
         {
-            return (IRepositoryTest<TEntity, TParent>)(this as IDomainUnitOfWork).For<TEntity, TParent>(parent);
+            return ((IRepositoryTest<TEntity>)(this as IDomainUnitOfWork).For<TEntity>()).Plan(id);
+        }
+        public IChecker<TEntity> Check<TEntity>(string bucket, Id id) where TEntity : IEntity
+        {
+            return ((IRepositoryTest<TEntity>)(this as IDomainUnitOfWork).For<TEntity>()).Check(id);
+        }
+        public IEventPlanner<TEntity> Plan<TEntity>(string bucket, Id id) where TEntity : IEntity
+        {
+            return ((IRepositoryTest<TEntity>)(this as IDomainUnitOfWork).For<TEntity>()).Plan(bucket, id);
+        }
+
+
+
+        internal IChecker<TEntity> Check<TEntity, TParent>(TParent parent, Id id) where TEntity : IEntity, IChildEntity<TParent> where TParent : IHaveEntities<TParent>
+        {
+            return ((IRepositoryTest<TEntity, TParent>)(this as IDomainUnitOfWork).For<TEntity, TParent>(parent)).Check(id);
+        }
+        internal IEventPlanner<TEntity> Plan<TEntity, TParent>(TParent parent, Id id) where TEntity : IEntity, IChildEntity<TParent> where TParent : IHaveEntities<TParent>
+        {
+            return ((IRepositoryTest<TEntity, TParent>)(this as IDomainUnitOfWork).For<TEntity, TParent>(parent)).Plan(id);
         }
     }
 }

@@ -8,11 +8,26 @@ namespace Aggregates
     public interface IChecker<TEntity> where TEntity : IEntity
     {
         IChecker<TChild> Check<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>;
+        /// <summary>
+        /// Check that a specific event was raised
+        /// </summary>
         IChecker<TEntity> Raised<TEvent>(Action<TEvent> factory) where TEvent : Messages.IEvent;
+        /// <summary>
+        /// Check that a specific type of event was raised
+        /// </summary>
+        IChecker<TEntity> Raised<TEvent>() where TEvent : Messages.IEvent;
+        /// <summary>
+        /// Check a property on a raised event
+        /// </summary>
+        IChecker<TEntity> Raised<TEvent>(Func<TEvent, bool> assert) where TEvent : Messages.IEvent;
     }
     public interface IEventPlanner<TEntity> where TEntity : IEntity
     {
         IEventPlanner<TChild> Plan<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>;
+        /// <summary>
+        /// entity will exist to read - for when events arn't needed
+        /// </summary>
+        IEventPlanner<TEntity> Exists();
         IEventPlanner<TEntity> HasEvent<TEvent>(Action<TEvent> factory);
         IEventPlanner<TEntity> HasSnapshot(object snapshot);
     }
