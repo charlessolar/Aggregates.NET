@@ -27,7 +27,7 @@ namespace Aggregates.Internal
         public override async Task<TEntity> TryGet(Id id)
         {
             if (id == null) return default(TEntity);
-            id = _uow.MakeId(id);
+
             try
             {
                 return await Get(id).ConfigureAwait(false);
@@ -90,7 +90,6 @@ namespace Aggregates.Internal
 
         protected override async Task<TEntity> GetUntracked(string bucket, Id id, Id[] parents)
         {
-            id = _uow.MakeId(id);
             var entity = await base.GetUntracked(bucket, id, parents).ConfigureAwait(false);
 
             entity.Parent = _parent;
@@ -100,7 +99,6 @@ namespace Aggregates.Internal
 
         protected override async Task<TEntity> NewUntracked(string bucket, Id id, Id[] parents)
         {
-            id = _uow.MakeId(id);
             var entity = await base.NewUntracked(bucket, id, parents).ConfigureAwait(false);
 
             entity.Parent = _parent;
@@ -148,7 +146,6 @@ namespace Aggregates.Internal
 
         public virtual Task<TEntity> Get(Id id)
         {
-            id = _uow.MakeId(id);
             return Get(Defaults.Bucket, id);
         }
 
@@ -184,7 +181,6 @@ namespace Aggregates.Internal
 
         public virtual Task<TEntity> New(Id id)
         {
-            id = _uow.MakeId(id);
             return New(Defaults.Bucket, id);
         }
 
@@ -216,7 +212,6 @@ namespace Aggregates.Internal
 
         public virtual Task<TEntity> TryGet(Id id)
         {
-            id = _uow.MakeId(id);
             return TryGet(Defaults.Bucket, id);
         }
         public async Task<TEntity> TryGet(string bucket, Id id)
