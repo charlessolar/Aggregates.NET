@@ -10,15 +10,29 @@ namespace Aggregates
         public Id(long id) { Value = id; }
         public Id(Guid id) { Value = id; }
 
+        // provides a hook for testing
+        protected virtual long GetLongValue()
+        {
+            return (long)Value;
+        }
+        protected virtual Guid GetGuidValue()
+        {
+            return (Guid)Value;
+        }
+        protected virtual string GetStringValue()
+        {
+            return (string)Value;
+        }
+
         public static implicit operator Id(string id) => new Id(id);
         public static implicit operator Id(long id) => new Id(id);
         public static implicit operator Id(Guid id) => new Id(id);
     
-        public static implicit operator long(Id id) => (long)id.Value;
-        public static implicit operator Guid(Id id) => (Guid)id.Value;
-        public static implicit operator string(Id id) => (string)id?.Value;
-        public static implicit operator long?(Id id) => (long?)id?.Value;
-        public static implicit operator Guid?(Id id) => (Guid?)id?.Value;
+        public static implicit operator long(Id id) => id.GetLongValue();
+        public static implicit operator Guid(Id id) => id.GetGuidValue();
+        public static implicit operator string(Id id) => id?.GetStringValue();
+        public static implicit operator long?(Id id) => id?.GetLongValue();
+        public static implicit operator Guid?(Id id) => id?.GetGuidValue();
 
         public override string ToString()
         {

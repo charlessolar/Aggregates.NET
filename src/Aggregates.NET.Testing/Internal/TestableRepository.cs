@@ -27,6 +27,7 @@ namespace Aggregates.Internal
         public override async Task<TEntity> TryGet(Id id)
         {
             if (id == null) return default(TEntity);
+            id = _uow.MakeId(id);
             try
             {
                 return await Get(id).ConfigureAwait(false);
@@ -37,6 +38,7 @@ namespace Aggregates.Internal
         }
         public override async Task<TEntity> Get(Id id)
         {
+            id = _uow.MakeId(id);
             var cacheId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{id}";
             TEntity root;
             if (!Tracked.TryGetValue(cacheId, out root))
@@ -51,6 +53,7 @@ namespace Aggregates.Internal
 
         public override async Task<TEntity> New(Id id)
         {
+            id = _uow.MakeId(id);
             var cacheId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{id}";
 
             TEntity root;
@@ -65,30 +68,20 @@ namespace Aggregates.Internal
         }
         public override IEventPlanner<TEntity> Plan(Id id)
         {
+            id = _uow.MakeId(id);
+            return Plan((TestableId)id);
+        }
+        public override IEventPlanner<TEntity> Plan(TestableId id)
+        {
             return new EventPlanner<TEntity, TState>(_uow, _eventstore, _snapstore, _factory, () => Get(id).Result, _parent.Bucket, id, _parent.BuildParents());
         }
         public override IChecker<TEntity> Check(Id id)
         {
-            // if using auto-ids - substitute the generated id
-            if (id.ToString().StartsWith(Constants.GeneratedIdPrefix))
-            {
-                var testableId = _uow.GeneratedIds[id];
-
-                // we dont know which was used by user's handler - so check them all
-                var cacheLongId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{testableId.LongId}";
-                var cacheStringId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{testableId.StringId}";
-                var cacheGuidId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{testableId.GuidId}";
-
-                if(Tracked.ContainsKey(cacheLongId))
-                    return new Checker<TEntity, TState>(_uow, _factory, Tracked[cacheLongId]);
-                if (Tracked.ContainsKey(cacheStringId))
-                    return new Checker<TEntity, TState>(_uow, _factory, Tracked[cacheStringId]);
-                if (Tracked.ContainsKey(cacheGuidId))
-                    return new Checker<TEntity, TState>(_uow, _factory, Tracked[cacheGuidId]);
-
-                throw new ExistException(typeof(TEntity), _parent.Bucket, id);
-            }
-
+            id = _uow.MakeId(id);
+            return Check((TestableId)id);
+        }
+        public override IChecker<TEntity> Check(TestableId id)
+        {
             var cacheId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{id}";
             if (!Tracked.ContainsKey(cacheId))
                 throw new ExistException(typeof(TEntity), _parent.Bucket, id);
@@ -97,6 +90,7 @@ namespace Aggregates.Internal
 
         protected override async Task<TEntity> GetUntracked(string bucket, Id id, Id[] parents)
         {
+            id = _uow.MakeId(id);
             var entity = await base.GetUntracked(bucket, id, parents).ConfigureAwait(false);
 
             entity.Parent = _parent;
@@ -106,6 +100,7 @@ namespace Aggregates.Internal
 
         protected override async Task<TEntity> NewUntracked(string bucket, Id id, Id[] parents)
         {
+            id = _uow.MakeId(id);
             var entity = await base.NewUntracked(bucket, id, parents).ConfigureAwait(false);
 
             entity.Parent = _parent;
@@ -153,11 +148,13 @@ namespace Aggregates.Internal
 
         public virtual Task<TEntity> Get(Id id)
         {
+            id = _uow.MakeId(id);
             return Get(Defaults.Bucket, id);
         }
 
         public async Task<TEntity> Get(string bucket, Id id)
         {
+            id = _uow.MakeId(id);
             var cacheId = $"{bucket}.{id}";
             TEntity root;
             if (!Tracked.TryGetValue(cacheId, out root))
@@ -171,6 +168,7 @@ namespace Aggregates.Internal
         }
         protected virtual async Task<TEntity> GetUntracked(string bucket, Id id, Id[] parents = null)
         {
+            id = _uow.MakeId(id);
             var snapshot = await _snapstore.GetSnapshot<TEntity>(bucket, id, parents).ConfigureAwait(false);
             var events = await _eventstore.GetEvents<TEntity>(bucket, id, parents, start: snapshot?.Version).ConfigureAwait(false);
 
@@ -186,11 +184,13 @@ namespace Aggregates.Internal
 
         public virtual Task<TEntity> New(Id id)
         {
+            id = _uow.MakeId(id);
             return New(Defaults.Bucket, id);
         }
 
         public async Task<TEntity> New(string bucket, Id id)
         {
+            id = _uow.MakeId(id);
             TEntity root;
             var cacheId = $"{bucket}.{id}";
             if (!Tracked.TryGetValue(cacheId, out root))
@@ -203,6 +203,7 @@ namespace Aggregates.Internal
         }
         protected virtual Task<TEntity> NewUntracked(string bucket, Id id, Id[] parents = null)
         {
+            id = _uow.MakeId(id);
             var entity = Factory.Create(bucket, id, parents);
 
             (entity as INeedDomainUow).Uow = _uow;
@@ -215,12 +216,14 @@ namespace Aggregates.Internal
 
         public virtual Task<TEntity> TryGet(Id id)
         {
+            id = _uow.MakeId(id);
             return TryGet(Defaults.Bucket, id);
         }
         public async Task<TEntity> TryGet(string bucket, Id id)
         {
             if (id == null) return default(TEntity);
 
+            id = _uow.MakeId(id);
             try
             {
                 return await Get(bucket, id).ConfigureAwait(false);
@@ -231,18 +234,38 @@ namespace Aggregates.Internal
 
         public virtual IEventPlanner<TEntity> Plan(Id id)
         {
+            id = _uow.MakeId(id);
+            return Plan(Defaults.Bucket, (TestableId)id);
+        }
+        public virtual IEventPlanner<TEntity> Plan(TestableId id)
+        {
             return Plan(Defaults.Bucket, id);
         }
         public IEventPlanner<TEntity> Plan(string bucket, Id id)
+        {
+            id = _uow.MakeId(id);
+            return Plan(bucket, (TestableId)id);
+        }
+        public IEventPlanner<TEntity> Plan(string bucket, TestableId id)
         {
             //                                                                                       async method isnt async so hack it
             return new EventPlanner<TEntity, TState>(_uow, _eventstore, _snapstore, _factory, () => Get(bucket, id).Result, bucket, id);
         }
         public virtual IChecker<TEntity> Check(Id id)
         {
+            id = _uow.MakeId(id);
+            return Check(Defaults.Bucket, (TestableId)id);
+        }
+        public virtual IChecker<TEntity> Check(TestableId id)
+        {
             return Check(Defaults.Bucket, id);
         }
         public IChecker<TEntity> Check(string bucket, Id id)
+        {
+            id = _uow.MakeId(id);
+            return Check(bucket, (TestableId)id);
+        }
+        public IChecker<TEntity> Check(string bucket, TestableId id)
         {
             var cacheId = $"{bucket}.{id}";
             if (!Tracked.ContainsKey(cacheId))

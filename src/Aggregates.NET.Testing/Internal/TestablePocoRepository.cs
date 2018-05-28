@@ -48,10 +48,18 @@ namespace Aggregates.Internal
         }
         public override IPocoChecker Check(Id id)
         {
+            return Check(_uow.MakeId(id.ToString()));
+        }
+        public override IPocoChecker Check(TestableId id)
+        {
             var streamId = $"{_parent.BuildParentsString()}.{id}";
             return Check(_parent.Bucket, streamId, _parent.BuildParents());
         }
         public override IPocoPlanner Plan(Id id)
+        {
+            return Plan(_uow.MakeId(id.ToString()));
+        }
+        public override IPocoPlanner Plan(TestableId id)
         {
             var streamId = $"{_parent.BuildParentsString()}.{id}";
             return Plan(_parent.Bucket, streamId, _parent.BuildParents());
@@ -62,7 +70,7 @@ namespace Aggregates.Internal
         protected readonly Dictionary<Tuple<string, Id, Id[]>, Tuple<long, T, string>> Tracked = new Dictionary<Tuple<string, Id, Id[]>, Tuple<long, T, string>>();
         public readonly Dictionary<Tuple<string, Id, Id[]>, T> Pocos = new Dictionary<Tuple<string, Id, Id[]>, T>();
 
-        private readonly TestableUnitOfWork _uow;
+        protected readonly TestableUnitOfWork _uow;
         private bool _disposed;
 
         public int ChangedStreams =>
@@ -157,16 +165,28 @@ namespace Aggregates.Internal
 
         public virtual IPocoChecker Check(Id id)
         {
+            return Check(Defaults.Bucket, _uow.MakeId(id.ToString()));
+        }
+        public virtual IPocoChecker Check(TestableId id)
+        {
             return Check(Defaults.Bucket, id);
         }
 
         public IPocoChecker Check(string bucket, Id id)
         {
+            return Check(bucket, _uow.MakeId(id), null);
+        }
+        public IPocoChecker Check(string bucket, TestableId id)
+        {
             return Check(bucket, id, null);
         }
         protected IPocoChecker Check(string bucket, Id id, Id[] parents)
         {
-            var cacheId = new Tuple<string, Id, Id[]>(bucket, id, parents);
+            return Check(bucket, _uow.MakeId(id.ToString()), parents);
+        }
+        protected IPocoChecker Check(string bucket, TestableId id, Id[] parents)
+        {
+            var cacheId = Tuple.Create(bucket, (Id)id, parents);
             if (!Tracked.ContainsKey(cacheId))
                 throw new ExistException(typeof(T), bucket, id);
 
@@ -175,14 +195,26 @@ namespace Aggregates.Internal
 
         public virtual IPocoPlanner Plan(Id id)
         {
+            return Plan(Defaults.Bucket, _uow.MakeId(id));
+        }
+        public virtual IPocoPlanner Plan(TestableId id)
+        {
             return Plan(Defaults.Bucket, id);
         }
 
         public IPocoPlanner Plan(string bucket, Id id)
         {
+            return Plan(bucket, _uow.MakeId(id.ToString()));
+        }
+        public IPocoPlanner Plan(string bucket, TestableId id)
+        {
             return Plan(bucket, id, null);
         }
-        public IPocoPlanner Plan(string bucket, Id id, Id[] parents)
+        protected IPocoPlanner Plan(string bucket, Id id, Id[] parents)
+        {
+            return Plan(bucket, _uow.MakeId(id.ToString()), parents);
+        }
+        protected IPocoPlanner Plan(string bucket, TestableId id, Id[] parents)
         {
             return new PocoPlanner<T>(this, bucket, id, parents);
         }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
@@ -9,7 +10,7 @@ namespace Aggregates
 {
     public class TestableUnitOfWork : IDomainUnitOfWork
     {
-        private long _longIdCounter = 0;
+        private int _longIdCounter = -1;
         public IReadOnlyDictionary<string, TestableId> GeneratedIds => _generatedIds;
 
         private readonly Dictionary<string, TestableId> _generatedIds = new Dictionary<string, TestableId>();
@@ -22,27 +23,43 @@ namespace Aggregates
 
         public TestableId AnyId()
         {
-            var generated = Guid.NewGuid();
-            var id = new TestableId(Constants.GeneratedAnyId, _longIdCounter++, generated.ToString(), generated);
+            var generated = new Guid(0, 0, 0, new byte[] { 0, 0, 0, 0, 0, 0, 0, (byte)-_longIdCounter });
+            var id = new TestableId(Constants.GeneratedAnyId, _longIdCounter--, generated.ToString(), generated);
             if (_generatedIds.ContainsKey(id.GeneratedIdKey))
                 return _generatedIds[id.GeneratedIdKey];
             return _generatedIds[id.GeneratedIdKey] = id;
         }
         public TestableId MakeId(int key)
         {
-            var generated = Guid.NewGuid();
-            var id = new TestableId(Constants.GeneratedNumberedId(key), _longIdCounter++, generated.ToString(), generated);
+            var generated = new Guid(0, 0, 0, new byte[] { 0, 0, 0, 0, 0, 0, 0, (byte)-_longIdCounter });
+            var id = new TestableId(Constants.GeneratedNumberedId(key), _longIdCounter--, generated.ToString(), generated);
             if (_generatedIds.ContainsKey(id.GeneratedIdKey))
                 return _generatedIds[id.GeneratedIdKey];
             return _generatedIds[id.GeneratedIdKey] = id;
         }
         public TestableId MakeId(string key)
         {
-            var generated = Guid.NewGuid();
-            var id = new TestableId(Constants.GenerateNamedId(key), _longIdCounter++, generated.ToString(), generated);
+            var generated = new Guid(0, 0, 0, new byte[] { 0, 0, 0, 0, 0, 0, 0, (byte)-_longIdCounter });
+            var id = new TestableId(Constants.GenerateNamedId(key), _longIdCounter--, generated.ToString(), generated);
             if (_generatedIds.ContainsKey(id.GeneratedIdKey))
                 return _generatedIds[id.GeneratedIdKey];
             return _generatedIds[id.GeneratedIdKey] = id;
+        }
+        public TestableId MakeId(Id id)
+        {
+            if (id is TestableId)
+                return (TestableId)id;
+
+            // checks if the Id we get was a generated one
+            var existing = _generatedIds.Values.FirstOrDefault(kv => kv.Equals(id));
+            if(existing != null)
+                return existing;
+
+            var generated = new Guid(0, 0, 0, new byte[] { 0, 0, 0, 0, 0, 0, 0, (byte)-_longIdCounter });
+            var testable = new TestableId(Constants.GenerateNamedId(id.ToString()), _longIdCounter--, generated.ToString(), generated);
+            if (_generatedIds.ContainsKey(testable.GeneratedIdKey))
+                return _generatedIds[testable.GeneratedIdKey];
+            return _generatedIds[testable.GeneratedIdKey] = testable;
         }
 
         public Guid CommitId => Guid.Empty;

@@ -106,7 +106,7 @@ namespace Aggregates.UnitTests.Common
             var message = new Moq.Mock<IFullEvent>();
             message.Setup(x => x.Descriptor).Returns(new EventDescriptor());
             message.Setup(x => x.Event).Returns(memento);
-            await eventCb("test", 0, message.Object);
+            await eventCb("test", 0, message.Object).ConfigureAwait(false);
 
             var read = await _subscriber.Retreive("test").ConfigureAwait(false);
             Assert.AreEqual(1, (read.Payload as IState).Version);
@@ -144,7 +144,7 @@ namespace Aggregates.UnitTests.Common
             var message = new Moq.Mock<IFullEvent>();
             message.Setup(x => x.Descriptor).Returns(new EventDescriptor());
             message.Setup(x => x.Event).Returns(memento);
-            await eventCb("test", 0, message.Object);
+            await eventCb("test", 0, message.Object).ConfigureAwait(false);
 
             var read = await _subscriber.Retreive("test").ConfigureAwait(false);
 
@@ -197,9 +197,9 @@ namespace Aggregates.UnitTests.Common
             var message = new Moq.Mock<IFullEvent>();
             message.Setup(x => x.Descriptor).Returns(new EventDescriptor());
             message.Setup(x => x.Event).Returns(memento);
-            await eventCb("test", 0, message.Object);
+            await eventCb("test", 0, message.Object).ConfigureAwait(false);
             message.Setup(x => x.Event).Returns(memento2);
-            await eventCb("test", 0, message.Object);
+            await eventCb("test", 0, message.Object).ConfigureAwait(false);
 
             var snapshot = await _subscriber.Retreive("test").ConfigureAwait(false);
             Assert.AreEqual(2, (snapshot.Payload as IState).Version);

@@ -84,14 +84,7 @@ namespace Aggregates.Internal
 
         public Task<long> Size<TEntity>(string bucket, Id streamId, Id[] parents) where TEntity : IEntity
         {
-            // if using auto-ids - substitute the generated id
-            if (streamId.ToString().StartsWith(Constants.GeneratedIdPrefix))
-                streamId = _uow.GeneratedIds[streamId];
-
-            var key = $"{bucket}.{streamId}.{parents.BuildParentsString()}";
-            if (!_events.ContainsKey(key))
-                throw new ArgumentException("undefined stream");
-            return Task.FromResult((long)_events[key].Length);
+            throw new NotImplementedException();
         }
 
         public Task<long> Size(string stream)

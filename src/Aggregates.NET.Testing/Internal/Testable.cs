@@ -16,10 +16,10 @@ namespace Aggregates.Internal
         private TestableEventFactory _factory;
         private Func<TEntity> _entityFactory;
         private string _bucket;
-        private Id _id;
+        private TestableId _id;
         private Id[] _parents;
 
-        public EventPlanner(TestableUnitOfWork uow, TestableEventStore events, TestableSnapshotStore snapshots, TestableEventFactory factory, Func<TEntity> entityFactory, string bucket, Id id, Id[] parents = null)
+        public EventPlanner(TestableUnitOfWork uow, TestableEventStore events, TestableSnapshotStore snapshots, TestableEventFactory factory, Func<TEntity> entityFactory, string bucket, TestableId id, Id[] parents = null)
         {
             _uow = uow;
             _events = events;
@@ -49,9 +49,14 @@ namespace Aggregates.Internal
         public IEventPlanner<TChild> Plan<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>
         {
             // Use a factory so its 'lazy' - meaning defining the parent doesn't necessarily have to come before defining child
+            return _uow.Plan<TChild, TEntity>(_entityFactory(), _uow.MakeId(id.ToString()));
+        }
+        public IEventPlanner<TChild> Plan<TChild>(TestableId id) where TChild : IEntity, IChildEntity<TEntity>
+        {
+            // Use a factory so its 'lazy' - meaning defining the parent doesn't necessarily have to come before defining child
             return _uow.Plan<TChild, TEntity>(_entityFactory(), id);
         }
-        
+
     }
     class Checker<TEntity, TState> : IChecker<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
@@ -89,6 +94,10 @@ namespace Aggregates.Internal
         }
         public IChecker<TChild> Check<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>
         {
+            return _uow.Check<TChild, TEntity>(_entity, _uow.MakeId(id.ToString()));
+        }
+        public IChecker<TChild> Check<TChild>(TestableId id) where TChild : IEntity, IChildEntity<TEntity>
+        {
             return _uow.Check<TChild, TEntity>(_entity, id);
         }
     }
@@ -96,10 +105,10 @@ namespace Aggregates.Internal
     {
         private readonly TestablePocoRepository<T> _repo;
         private readonly string _bucket;
-        private readonly Id _id;
+        private readonly TestableId _id;
         private readonly Id[] _parents;
 
-        public PocoPlanner(TestablePocoRepository<T> repo, string bucket, Id id, Id[] parents = null)
+        public PocoPlanner(TestablePocoRepository<T> repo, string bucket, TestableId id, Id[] parents = null)
         {
             _repo = repo;
             _bucket = bucket;
@@ -109,7 +118,7 @@ namespace Aggregates.Internal
 
         public IPocoPlanner HasValue(object poco)
         {
-            _repo.Pocos.Add(Tuple.Create(_bucket, _id, _parents), poco as T);
+            _repo.Pocos.Add(Tuple.Create(_bucket, (Id)_id, _parents), poco as T);
             return this;
         }
     }
