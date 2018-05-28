@@ -216,7 +216,7 @@ namespace Aggregates.Internal
         }
         public async Task<TEntity> TryGet(string bucket, Id id)
         {
-            if (id == null) return default(TEntity);
+            if (id.Equals(null)) return default(TEntity);
 
             id = _uow.MakeId(id);
             try

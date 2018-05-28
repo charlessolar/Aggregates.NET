@@ -41,6 +41,7 @@ namespace Aggregates
 
         public bool Equals(Id other)
         {
+            if (ReferenceEquals(null, other) && this.Value == null) return true;
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
             return Equals(Value, other.Value);
@@ -48,6 +49,7 @@ namespace Aggregates
 
         public override bool Equals(object obj)
         {
+            if (ReferenceEquals(null, obj) && this.Value == null) return true;
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
             return obj.GetType() == this.GetType() && Equals((Id)obj);
