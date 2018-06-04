@@ -48,7 +48,7 @@ namespace Aggregates.Internal
                 return;
             }
 
-            var domainUOW = child.Resolve<IDomainUnitOfWork>() as IDomainUnitOfWorkCommit;
+            var domainUOW = child.Resolve<IDomainUnitOfWork>();
             var delayed = child.Resolve<IDelayedChannel>();
             IUnitOfWork appUOW = null;
             try
@@ -65,21 +65,23 @@ namespace Aggregates.Internal
             // Set into the context because DI can be slow
             context.Extensions.Set(domainUOW);
             context.Extensions.Set(appUOW);
-            
+
+
+            var commitableUow = domainUOW as IDomainUnitOfWorkCommit;
             try
             {
                 _metrics.Increment("Messages Concurrent", Unit.Message);
                 using (_metrics.Begin("Message Duration"))
                 {
                     
-                    await domainUOW.Begin().ConfigureAwait(false);
+                    await commitableUow.Begin().ConfigureAwait(false);
                     if (appUOW != null)
                         await appUOW.Begin().ConfigureAwait(false);
                     await delayed.Begin().ConfigureAwait(false);
                     
                     await next().ConfigureAwait(false);
                     
-                    await domainUOW.End().ConfigureAwait(false);
+                    await commitableUow.End().ConfigureAwait(false);
                     if (appUOW != null)
                         await appUOW.End().ConfigureAwait(false);
                     await delayed.End().ConfigureAwait(false);
@@ -94,7 +96,7 @@ namespace Aggregates.Internal
                 try
                 {
                     // Todo: if one throws an exception (again) the others wont work.  Fix with a loop of some kind
-                    await domainUOW.End(e).ConfigureAwait(false);
+                    await commitableUow.End(e).ConfigureAwait(false);
                     if (appUOW != null)
                     {
                         await appUOW.End(e).ConfigureAwait(false);
