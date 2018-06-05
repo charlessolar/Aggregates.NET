@@ -31,14 +31,16 @@ namespace Aggregates.Internal
 
             foreach (var type in mutators)
             {
-                var mutator = (IMutate)container.TryResolve(type);
-                if (mutator == null)
+                try
                 {
-                    Logger.WarnEvent("MutateFailure", "Failed to construct mutator {Mutator}", type.FullName);
-                    continue;
+                    var mutator = (IMutate)container.Resolve(type);
+                    mutated = mutator.MutateIncoming(mutated);
+                }
+                catch(Exception e)
+                {
+                    Logger.WarnEvent("MutateFailure", e, "Failed to run mutator {Mutator}", type.FullName);
                 }
 
-                mutated = mutator.MutateIncoming(mutated);
             }
             
             foreach (var header in mutated.Headers)
