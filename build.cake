@@ -421,6 +421,7 @@ Task("Default")
 Task("AppVeyor")
   .IsDependentOn("Sonar")
   .IsDependentOn("Upload-AppVeyor-Artifacts")
+  .IsDependentOn("Upload-Test-Coverage")
   .IsDependentOn("Publish-NuGet");
 
 Task("VSTS")
