@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <DebugType>embedded</DebugType>
+    <DebugType>full</DebugType>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 

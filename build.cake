@@ -185,7 +185,8 @@ Task("Run-Unit-Tests")
                 NoBuild = true,
                 NoRestore = true,
                 Configuration = parameters.Configuration,
-                ResultsDirectory = parameters.Paths.Directories.TestResultsDir
+                ResultsDirectory = parameters.Paths.Directories.TestResultsDir,
+                ArgumentCustomization = builder => builder.Append("--logger \"trx;LogFileName=./report.xml\"")
             }),
             parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./OpenCover.xml"),
             settings
@@ -386,7 +387,8 @@ Task("SonarBegin")
         Key = "Aggregates.NET",
         Organization = "volak-github",
         Verbose = true,
-        OpenCoverReportsPath = parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./OpenCover.xml").ToString()
+        OpenCoverReportsPath = parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./OpenCover.xml").ToString(),
+        VsTestReportsPath = parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./report.xml").ToString()
     });
   });
 
