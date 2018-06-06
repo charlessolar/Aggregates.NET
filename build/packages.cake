@@ -3,6 +3,7 @@ public class BuildPackages
     public IEnumerable<BuildPackage> Nuget { get; private set; }
     public IEnumerable<BuildDocker> Images { get; private set; }
     public IEnumerable<BuildBinary> Binaries { get; private set; }
+    public IEnumerable<BuildTest> Tests { get; private set; }
 
 
     public static BuildPackages GetPackages(
@@ -20,9 +21,16 @@ public class BuildPackages
                 projectPath: project.ProjectFile.FullPath,
                 packagePath: nugetDir.CombineWithFilePath(string.Concat(project.AssemblyName, ".", version.NuGet, ".nupkg"))
             ));
+        var tests = projects.Where(x => x.OutputType == "Test").Select(project => {
+            return new BuildTest(
+                id: project.AssemblyName,
+                projectPath: project.ProjectFile.FullPath
+            );
+        });
 
         return new BuildPackages { 
-			Nuget = nugets
+			Nuget = nugets,
+            Tests = tests
 		};
     }
 
@@ -79,5 +87,19 @@ public class BuildBinary
         Id = id;
         BaseDir = baseDir;
         PackagePath = packagePath;
+    }
+}
+
+public class BuildTest
+{
+    public string Id { get; private set; }
+    public FilePath ProjectPath { get; private set; }
+    
+    public BuildTest(
+        string id,
+        FilePath projectPath)
+    {
+        Id = id;
+        ProjectPath = projectPath;
     }
 }

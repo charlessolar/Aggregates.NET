@@ -1,4 +1,11 @@
-[![Build status](https://ci.appveyor.com/api/projects/status/r75p0yn5uo6colgk?svg=true)](https://ci.appveyor.com/project/volak/aggregates-net)
+
+| | |
+| --- | --- |
+| **Build** | [![Build status](https://ci.appveyor.com/api/projects/status/r75p0yn5uo6colgk?svg=true?branch=master)](https://ci.appveyor.com/project/volak/aggregates-net) |
+| **Coverage** | <sup>Coveralls</sup> [![Coverage Status](https://coveralls.io/repos/github/volak/Aggregates.NET/badge.svg?branch=master)](https://coveralls.io/github/volak/Aggregates.NET?branch=master)  <sup>SonarCloud</sup> [![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=Aggregates.NET&metric=coverage)](https://sonarcloud.io/dashboard?id=Aggregates.NET) | 
+| **Quality** | [![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=Aggregates.NET&metric=alert_status)](https://sonarcloud.io/dashboard?id=Aggregates.NET) 
+[![GitHub issues](https://img.shields.io/github/issues/volak/aggregates.net.svg)](https://github.com/volak/Aggregates.NET/issues) | 
+| **Nuget** | [![Nuget](https://buildstats.info/nuget/Aggregates.NET)](http://nuget.org/packages/Aggregates.NET)  [![Nuget](https://img.shields.io/nuget/vpre/opencover.svg)](http://nuget.org/packages/Aggregates.NET) |
 
 # Aggregates.NET
 

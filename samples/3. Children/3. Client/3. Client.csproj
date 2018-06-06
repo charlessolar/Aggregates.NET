@@ -6,10 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NServiceBus.Newtonsoft.Json" Version="2.1.0-beta0001" />
-    <PackageReference Include="NServiceBus.RabbitMQ" Version="5.0.0-rc0001" />
-    <PackageReference Include="NServiceBus.Serilog" Version="4.0.0-rc.1" />
-    <PackageReference Include="NServiceBus.StructureMap" Version="7.0.0-rc0001" />
+    <PackageReference Include="NServiceBus.Newtonsoft.Json" Version="2.1.0" />
+    <PackageReference Include="NServiceBus.RabbitMQ" Version="5.0.0" />
+    <PackageReference Include="NServiceBus.Serilog" Version="4.0.0" />
+    <PackageReference Include="NServiceBus.StructureMap" Version="7.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
   </ItemGroup>
 

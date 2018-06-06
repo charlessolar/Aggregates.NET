@@ -69,7 +69,7 @@ namespace Aggregates.Internal
 
                 _namedCollections[typeof(TInterface)].Add(ConvertLifestyle(lifestyle).CreateRegistration<TInterface>(() => factory(this), _container));
 
-                _container.RegisterCollection<TInterface>(_namedCollections[typeof(TInterface)]);
+                _container.Collection.Register<TInterface>(_namedCollections[typeof(TInterface)]);
                 return;
             }
             _container.Register(() => factory(this), ConvertLifestyle(lifestyle));
@@ -86,7 +86,7 @@ namespace Aggregates.Internal
 
                 _namedCollections[typeof(TInterface)].Add(ConvertLifestyle(lifestyle).CreateRegistration<TConcrete>( _container));
 
-                _container.RegisterCollection<TInterface>(_namedCollections[typeof(TInterface)]);
+                _container.Collection.Register<TInterface>(_namedCollections[typeof(TInterface)]);
                 return;
             }
             _container.Register<TInterface, TConcrete>(ConvertLifestyle(lifestyle));

@@ -12,8 +12,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NServiceBus" Version="7.0.0-rc0001" />
-    <PackageReference Include="NServiceBus.Callbacks" Version="3.0.0-rc0001" />
+    <PackageReference Include="NServiceBus" Version="7.0.1" />
+    <PackageReference Include="NServiceBus.Callbacks" Version="3.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -26,7 +26,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="SourceLink.Create.GitHub" Version="2.8.0" PrivateAssets="All" />
+    <PackageReference Include="SourceLink.Create.GitHub" Version="2.8.1" PrivateAssets="All" />
     <DotNetCliToolReference Include="dotnet-sourcelink-git" Version="2.6.0" />
   </ItemGroup>
 </Project>

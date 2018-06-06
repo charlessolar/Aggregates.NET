@@ -5,14 +5,15 @@
 #addin "nuget:?package=Cake.Docker&version=0.9.3"
 #addin "nuget:?package=Cake.Curl&version=3.0.0"
 #addin "nuget:?package=Cake.Sonar"
+#addin "nuget:?package=Cake.Coveralls&version=0.8.0"
 
 // Install tools.
 #tool "nuget:?package=GitReleaseManager&version=0.7.1"
 #tool "nuget:?package=GitVersion.CommandLine&version=3.6.5"
 #tool "nuget:?package=OpenCover&version=4.6.519"
-#tool "nuget:?package=ReportGenerator&version=3.1.2"
 #tool "nuget:?package=xunit.runner.console&version=2.3.1"
 #tool "nuget:?package=MSBuild.SonarQube.Runner.Tool"
+#tool "nuget:?package=coveralls.io&version=1.4.2"
 
 // Load other scripts.
 #load "./build/parameters.cake"
@@ -159,47 +160,40 @@ Task("Run-Unit-Tests")
     .Does(() =>
 {
     EnsureDirectoryExists(parameters.Paths.Directories.TestResultsDir);
-    NUnit3("./src/**/bin/" + parameters.Configuration + "/**/*Tests.dll",
-                new NUnit3Settings
-                {
-                    Timeout = 600000,
-                    ShadowCopy = false,
-                    NoHeader = true,
-                    NoColor = true,
-                    DisposeRunners = true,
-                    OutputFile = parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./TestOutput.txt"),
-                    NoResults = true
-                });
+
     
-//      Action<ICakeContext> testAction = tool => {
+    var projects = parameters.Paths.Files.Projects
+        .Where(x => x.OutputType != "Test")
+        .Select(x => parameters.Paths.Directories.ArtifactsBin.Combine(x.AssemblyName));
 
-//        tool.NUnit3("./src/**/bin/" + parameters.Configuration + "/**/*Tests.dll",
-//                new NUnit3Settings
-//                {
-//                    Timeout = 600000,
-//                    ShadowCopy = false,
-//                    NoHeader = true,
-//                    NoColor = true,
-//                    DisposeRunners = true,
-//                    OutputFile = parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./TestOutput.txt"),
-//                    NoResults = true
-//                });
-//    };
+    var settings = new OpenCoverSettings 
+    {
+        MergeOutput = true,
+        SkipAutoProps = true,
+        OldStyle = true,
+        Register = "user",
+        ArgumentCustomization = builder => builder.Append("-hideskipped:File"),
+    };
+    settings.WithFilter("+[Aggregates*]*").ExcludeByAttribute("*.ExcludeFromCodeCoverage*").ExcludeByFile("*/*Designer.cs");
 
-//    OpenCover(testAction,
-//        parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./OpenCover.xml"),
-//        new OpenCoverSettings {
-//            ReturnTargetCodeOffset = 0,
-//            ArgumentCustomization = aggs => aggs.Append("-register")
-//        }
-//        .WithFilter("+[Aggregates.NET*]*")
-//        .WithFilter("-[*Tests*]*")
-//        .ExcludeByAttribute("*.ExcludeFromCodeCoverage*")
-//        .ExcludeByFile("*/*Designer.cs"));
-
-//    ReportGenerator(parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./OpenCover.xml"), parameters.Paths.Directories.TestResultsDir);
+    foreach(var project in parameters.Packages.Tests) 
+    {
+        OpenCover(t => t
+            .DotNetCoreTest(project.ProjectPath.ToString(), new DotNetCoreTestSettings
+            {
+                Framework = "netcoreapp2.0",
+                NoBuild = true,
+                NoRestore = true,
+                Configuration = parameters.Configuration,
+                ResultsDirectory = parameters.Paths.Directories.TestResultsDir
+            }),
+            parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./OpenCover.xml"),
+            settings
+        );
+    }
 
 });
+
 
 Task("Upload-Test-Coverage")
     .WithCriteria(() => !parameters.IsLocalBuild)
@@ -207,16 +201,16 @@ Task("Upload-Test-Coverage")
     .Does(() =>
 {
     // Resolve the API key.
-//    var token = EnvironmentVariable("COVERALLS_TOKEN");
-//    if (string.IsNullOrEmpty(token))
-//    {
-//        throw new Exception("The COVERALLS_TOKEN environment variable is not defined.");
-//    }
+    var token = EnvironmentVariable("COVERALLS_TOKEN");
+    if (string.IsNullOrEmpty(token))
+    {
+        throw new Exception("The COVERALLS_TOKEN environment variable is not defined.");
+    }
 
-//    CoverallsIo(parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./OpenCover.xml"), new CoverallsIoSettings()
-//    {
-//        RepoToken = token
-//    });
+    CoverallsIo(parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./OpenCover.xml"), new CoverallsIoSettings()
+    {
+        RepoToken = token
+    });
 });
 
 Task("Copy-Files")
@@ -391,7 +385,8 @@ Task("SonarBegin")
         Login = apiKey,
         Key = "Aggregates.NET",
         Organization = "volak-github",
-        Verbose = true
+        Verbose = true,
+        OpenCoverReportsPath = parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./OpenCover.xml")
     });
   });
 
