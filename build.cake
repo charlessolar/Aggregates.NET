@@ -386,7 +386,7 @@ Task("SonarBegin")
         Key = "Aggregates.NET",
         Organization = "volak-github",
         Verbose = true,
-        OpenCoverReportsPath = parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./OpenCover.xml")
+        OpenCoverReportsPath = parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./OpenCover.xml").ToString()
     });
   });
 

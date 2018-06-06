@@ -1,11 +1,9 @@
 
 | | |
-| --- | --- |
-| **Build** | [![Build status](https://ci.appveyor.com/api/projects/status/r75p0yn5uo6colgk?svg=true?branch=master)](https://ci.appveyor.com/project/volak/aggregates-net) |
+| **Build** | [![Build status](https://ci.appveyor.com/api/projects/status/r75p0yn5uo6colgk?svg=true&branch=master)](https://ci.appveyor.com/project/volak/aggregates-net) |
 | **Coverage** | <sup>Coveralls</sup> [![Coverage Status](https://coveralls.io/repos/github/volak/Aggregates.NET/badge.svg?branch=master)](https://coveralls.io/github/volak/Aggregates.NET?branch=master)  <sup>SonarCloud</sup> [![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=Aggregates.NET&metric=coverage)](https://sonarcloud.io/dashboard?id=Aggregates.NET) | 
-| **Quality** | [![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=Aggregates.NET&metric=alert_status)](https://sonarcloud.io/dashboard?id=Aggregates.NET) 
-[![GitHub issues](https://img.shields.io/github/issues/volak/aggregates.net.svg)](https://github.com/volak/Aggregates.NET/issues) | 
-| **Nuget** | [![Nuget](https://buildstats.info/nuget/Aggregates.NET)](http://nuget.org/packages/Aggregates.NET)  [![Nuget](https://img.shields.io/nuget/vpre/opencover.svg)](http://nuget.org/packages/Aggregates.NET) |
+| **Quality** | [![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=Aggregates.NET&metric=alert_status)](https://sonarcloud.io/dashboard?id=Aggregates.NET) [![GitHub issues](https://img.shields.io/github/issues/volak/aggregates.net.svg)](https://github.com/volak/Aggregates.NET/issues) | 
+| **Nuget** | [![Nuget](https://buildstats.info/nuget/Aggregates.NET)](http://nuget.org/packages/Aggregates.NET) |
 
 # Aggregates.NET
 
@@ -27,12 +25,10 @@ We fill in the gap between EventStore and NServiceBus.  Commands from NServiceBu
 
 Current features include -
 
-- Aggregate Roots
-- Entities
+- Entities (Aggregates)
 - Children entities of entities (infinite parenthood)
-- Value Objects
 - Snapshotting
-- Computed and query pattern
+- Query pattern
 - Unit of Work and Repository pattern
 - Automatic saving and publishing of domain events
 - Out of band events (events saved or published which do not affect business logic of entity)
@@ -72,7 +68,7 @@ I welcome pull requests for other transports or stores - otherwise they'll only 
 
 ## Nuget
 
-Nuget packages are published in a pre-release state.  They are available under the id Aggregates.NET.  There are also binaries and source code releases available via github.
+Nuget packages are available under the id Aggregates.NET.  There are also binaries and source code releases available via github.
 
 ## Documentation
 
@@ -81,5 +77,4 @@ This is a one man project so documentation is lacking - sorry about that.  If yo
 * [Wiki](https://github.com/volak/Aggregates.NET/wiki)
 * [Simple Examples](https://github.com/volak/Aggregates.NET/tree/master/samples)
 * [TodoMVC Style Example (recommended)](https://github.com/volak/TodoMVC-DDD-CQRS-EventSourcing)
-* [Enterprise Example](https://github.com/volak/DDD.Enterprise.Example/)
 
