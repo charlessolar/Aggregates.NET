@@ -1,21 +1,17 @@
 // Install addins.
-#addin "nuget:?package=Cake.FileHelpers&version=2.0.0"
-#addin "nuget:?package=Cake.Coveralls&version=0.7.0"
-#addin "nuget:?package=Cake.Powershell&version=0.4.3"
-#addin "nuget:?package=Cake.Incubator&version=1.6.0"
-#addin "nuget:?package=Cake.Docker&version=0.8.2"
-#addin "nuget:?package=Cake.Curl&version=2.0.0"
+#addin "nuget:?package=Cake.FileHelpers&version=3.0.0"
+#addin "nuget:?package=Cake.Powershell&version=0.4.5"
+#addin "nuget:?package=Cake.Incubator&version=2.0.2"
+#addin "nuget:?package=Cake.Docker&version=0.9.3"
+#addin "nuget:?package=Cake.Curl&version=3.0.0"
 #addin "nuget:?package=Cake.Sonar"
 
 // Install tools.
-#tool "nuget:?package=GitReleaseManager&version=0.6.0"
+#tool "nuget:?package=GitReleaseManager&version=0.7.1"
 #tool "nuget:?package=GitVersion.CommandLine&version=3.6.5"
-#tool "nuget:?package=coveralls.io&version=1.3.4"
 #tool "nuget:?package=OpenCover&version=4.6.519"
-#tool "nuget:?package=ReportGenerator&version=3.0.2"
-#tool "nuget:?package=gitlink&version=3.1.0"
-#tool "nuget:?package=NUnit.ConsoleRunner&version=3.7.0"
-#tool "nuget:?package=MSBuild.SonarQube.Runner.Tool"
+#tool "nuget:?package=ReportGenerator&version=3.1.2"
+#tool "nuget:?package=xunit.runner.console&version=2.3.1"
 
 // Load other scripts.
 #load "./build/parameters.cake"
