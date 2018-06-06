@@ -12,6 +12,7 @@
 #tool "nuget:?package=OpenCover&version=4.6.519"
 #tool "nuget:?package=ReportGenerator&version=3.1.2"
 #tool "nuget:?package=xunit.runner.console&version=2.3.1"
+#tool "nuget:?package=MSBuild.SonarQube.Runner.Tool"
 
 // Load other scripts.
 #load "./build/parameters.cake"
@@ -423,9 +424,9 @@ Task("Default")
   .IsDependentOn("Package");
 
 Task("AppVeyor")
+  .IsDependentOn("Sonar")
   .IsDependentOn("Upload-AppVeyor-Artifacts")
-  .IsDependentOn("Publish-NuGet")
-  .IsDependentOn("Sonar");
+  .IsDependentOn("Publish-NuGet");
 
 Task("VSTS")
   .IsDependentOn("Create-VSTS-Artifacts");
