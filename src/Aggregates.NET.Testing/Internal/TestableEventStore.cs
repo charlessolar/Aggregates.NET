@@ -19,9 +19,9 @@ namespace Aggregates.Internal
             _uow = uow;
         }
 
-        public void AddEvent(string bucket, Id streamId, Id[] parents, Messages.IEvent @event)
+        public void AddEvent<TEntity>(string bucket, Id streamId, Id[] parents, Messages.IEvent @event) where TEntity : IEntity
         {
-            var key = $"{bucket}.{streamId}.{parents.BuildParentsString()}";
+            var key = $"{typeof(TEntity).FullName}.{bucket}.{streamId}.{parents.BuildParentsString()}";
             var fullEvent =
                     new FullEvent
                     {
@@ -36,9 +36,9 @@ namespace Aggregates.Internal
                 _events[key] = _events[key].Concat(new[] { fullEvent }).ToArray();
         }
         // create the test stream with no events so its "found" by event reader but not hydrated
-        public void Exists(string bucket, Id streamId, Id[] parents)
+        public void Exists<TEntity>(string bucket, Id streamId, Id[] parents) where TEntity : IEntity
         {
-            var key = $"{bucket}.{streamId}.{parents.BuildParentsString()}";
+            var key = $"{typeof(TEntity).FullName}.{bucket}.{streamId}.{parents.BuildParentsString()}";
             if (_events.ContainsKey(key))
                 return;
             _events[key] = new IFullEvent[] { };
@@ -53,7 +53,7 @@ namespace Aggregates.Internal
         public Task<IFullEvent[]> GetEvents<TEntity>(string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
         {
             // ignore start and count, not needed for tests
-            var key = $"{bucket}.{streamId}.{parents.BuildParentsString()}";
+            var key = $"{typeof(TEntity).FullName}.{bucket}.{streamId}.{parents.BuildParentsString()}";
             if (!_events.ContainsKey(key))
                 throw new NotFoundException();
             return Task.FromResult(_events[key]);
@@ -66,7 +66,7 @@ namespace Aggregates.Internal
 
         public Task<IFullEvent[]> GetEventsBackwards<TEntity>(string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
         {
-            var key = $"{bucket}.{streamId}.{parents.BuildParentsString()}";
+            var key = $"{typeof(TEntity).FullName}.{bucket}.{streamId}.{parents.BuildParentsString()}";
             if (!_events.ContainsKey(key))
                 throw new ArgumentException("undefined stream");
             return Task.FromResult(_events[key].Reverse().ToArray());

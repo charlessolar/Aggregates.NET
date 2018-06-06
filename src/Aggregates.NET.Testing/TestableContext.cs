@@ -91,5 +91,9 @@ namespace Aggregates
         {
             return _ctx.Send(messageConstructor, options);
         }
+
+        public RepliedMessage<object>[] RepliedMessages => _ctx.RepliedMessages;
+        public string[] ForwardedMessages => _ctx.ForwardedMessages;
+        public SentMessage<object>[] SentMessages => _ctx.SentMessages;
     }
 }

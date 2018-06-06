@@ -33,12 +33,12 @@ namespace Aggregates.Internal
 
         public IEventPlanner<TEntity> Exists()
         {
-            _events.Exists(_bucket, _id, _parents);
+            _events.Exists<TEntity>(_bucket, _id, _parents);
             return this;
         }
         public IEventPlanner<TEntity> HasEvent<TEvent>(Action<TEvent> factory)
         {
-            _events.AddEvent(_bucket, _id, _parents, (Messages.IEvent)_factory.Create(factory));
+            _events.AddEvent<TEntity>(_bucket, _id, _parents, (Messages.IEvent)_factory.Create(factory));
             return this;
         }
         public IEventPlanner<TEntity> HasSnapshot(object snapshot)
