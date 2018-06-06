@@ -5,6 +5,7 @@
 #addin "nuget:?package=Cake.Incubator&version=1.6.0"
 #addin "nuget:?package=Cake.Docker&version=0.8.2"
 #addin "nuget:?package=Cake.Curl&version=2.0.0"
+#addin "nuget:?package=Cake.Sonar"
 
 // Install tools.
 #tool "nuget:?package=GitReleaseManager&version=0.6.0"
@@ -14,6 +15,7 @@
 #tool "nuget:?package=ReportGenerator&version=3.0.2"
 #tool "nuget:?package=gitlink&version=3.1.0"
 #tool "nuget:?package=NUnit.ConsoleRunner&version=3.7.0"
+#tool "nuget:?package=MSBuild.SonarQube.Runner.Tool"
 
 // Load other scripts.
 #load "./build/parameters.cake"
@@ -380,10 +382,43 @@ Task("Create-VSTS-Artifacts")
     commands.AddBuildTag(parameters.Version.SemVersion);
 });
 
+Task("SonarBegin")
+  .Does(() => {
+    var apiKey = EnvironmentVariable("SONAR_KEY");
+    if(string.IsNullOrEmpty(apiKey)) {
+        throw new InvalidOperationException("Could not resolve SonarCloud API key.");
+    }
+
+    SonarBegin(new SonarBeginSettings {
+        Url = "https://sonarcloud.io",
+        Login = apiKey,
+        Key = "Aggregates.NET",
+        Organization = "volak-github",
+        Verbose = true
+    });
+  });
+
+Task("SonarEnd")
+  .Does(() => {
+    var apiKey = EnvironmentVariable("SONAR_KEY");
+    if(string.IsNullOrEmpty(apiKey)) {
+        throw new InvalidOperationException("Could not resolve SonarCloud API key.");
+    }
+    SonarEnd(new SonarEndSettings {
+        Login = apiKey
+    });
+  });
+
 //////////////////////////////////////////////////////////////////////
 // TASK TARGETS
 //////////////////////////////////////////////////////////////////////
 
+Task("Sonar")
+  .IsDependentOn("SonarBegin")
+  .IsDependentOn("Build")
+  .IsDependentOn("Run-Unit-Tests")
+  .IsDependentOn("SonarEnd");
+ 
 Task("Package")
   .IsDependentOn("Zip-Files")
   .IsDependentOn("Create-NuGet-Packages");
@@ -394,7 +429,7 @@ Task("Default")
 Task("AppVeyor")
   .IsDependentOn("Upload-AppVeyor-Artifacts")
   .IsDependentOn("Publish-NuGet")
-  .IsDependentOn("Publish-Artifactory");
+  .IsDependentOn("Sonar");
 
 Task("VSTS")
   .IsDependentOn("Create-VSTS-Artifacts");

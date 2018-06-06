@@ -11,6 +11,8 @@ environment:
   NUGET_URL: https://www.nuget.org/api/v2/package
   GITHUB_API_KEY:
     secure: E3k8jpbA+1HCY5PHHiUlaOTJVBSlJyGNUGdIAUTStkSs9Aw8b5jYJ8bMZv+9/nb+
+  SONAR_KEY:
+    secure: tcSHmNZmnvw9va+hvM0+3Fsmhnifp8sAG0RJ8hf7OTd7i6TghR6ZXHx7Il/C79J0
 
 # Build script
 build_script:
