@@ -69,7 +69,7 @@ namespace Aggregates.Internal
     class TestablePocoRepository<T> : IPocoRepository<T>, IPocoRepositoryTest<T> where T: class, new()
     {
         protected readonly Dictionary<Tuple<string, Id, Id[]>, Tuple<long, T, string>> Tracked = new Dictionary<Tuple<string, Id, Id[]>, Tuple<long, T, string>>();
-        public readonly Dictionary<Tuple<string, Id, Id[]>, T> Pocos = new Dictionary<Tuple<string, Id, Id[]>, T>();
+        protected readonly Dictionary<Tuple<string, Id, Id[]>, T> Pocos = new Dictionary<Tuple<string, Id, Id[]>, T>();
 
         protected readonly TestableUnitOfWork _uow;
         private bool _disposed;
@@ -173,6 +173,11 @@ namespace Aggregates.Internal
         public virtual IPocoChecker Check(TestableId id)
         {
             return Check(Defaults.Bucket, id);
+        }
+
+        public void DefinePoco(string bucket, Id id, Id[] parents, T poco)
+        {
+            Pocos.Add(Tuple.Create(bucket, id, parents), poco);
         }
 
         public IPocoChecker Check(string bucket, Id id)

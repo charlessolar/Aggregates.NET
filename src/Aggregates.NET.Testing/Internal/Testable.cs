@@ -118,7 +118,7 @@ namespace Aggregates.Internal
 
         public IPocoPlanner HasValue(object poco)
         {
-            _repo.Pocos.Add(Tuple.Create(_bucket, (Id)_id, _parents), poco as T);
+            _repo.DefinePoco(_bucket, (Id)_id, _parents, poco as T);
             return this;
         }
     }

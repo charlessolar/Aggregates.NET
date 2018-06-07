@@ -7,7 +7,7 @@ namespace Aggregates
     public static class NSBDefaults
     {
         // Header information to take from incoming messages
-        public static readonly IList<string> CarryOverHeaders = new List<string>
+        public static readonly string[] CarryOverHeaders = new string[]
         {
             "NServiceBus.MessageId",
             "NServiceBus.CorrelationId",
