@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
+using Aggregates.Extensions;
 using Aggregates.Internal;
 using Aggregates.Logging;
 using Aggregates.Messages;
@@ -204,9 +206,25 @@ namespace Aggregates
             (this as IEntity<TState>).Raise(instance, id, transient, daysToLive, single);
         }
 
+        public void Rule(string name, Func<TState, bool> expression, string message = "")
+        {
+            if (expression(State))
+            {
+                if (string.IsNullOrEmpty(message))
+                    throw new BusinessException(name);
+                else
+                    throw new BusinessException(name, message);
+            }
+        }
+
         public override int GetHashCode()
         {
             return Id.GetHashCode();
+        }
+        public override string ToString()
+        {
+            var parents = Parents.Any() ? $" [{Parents.BuildParentsString()}] " : " ";
+            return $"{typeof(TThis).FullName} [{Bucket}]{parents}[{Id}] ";
         }
     }
 }

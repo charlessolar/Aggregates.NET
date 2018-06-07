@@ -12,8 +12,7 @@ namespace Domain
 
         public void SayHello(string message)
         {
-            if (message == State.LastMessage)
-                throw new BusinessException("Don't repeat yourself");
+            Rule("Repetition", x => x.LastMessage == message, "Don't repeat yourself");
 
             Apply<SaidHello>(x =>
             {
