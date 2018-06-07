@@ -19,6 +19,12 @@ namespace Aggregates.Internal
             _uow = uow;
         }
 
+        public bool StreamExists<TEntity>(string bucket, Id streamId, Id[] parents) where TEntity : IEntity
+        {
+            var key = $"{typeof(TEntity).FullName}.{bucket}.{streamId}.{parents.BuildParentsString()}";
+            return _events.ContainsKey(key);
+        }
+
         public void AddEvent<TEntity>(string bucket, Id streamId, Id[] parents, Messages.IEvent @event) where TEntity : IEntity
         {
             var key = $"{typeof(TEntity).FullName}.{bucket}.{streamId}.{parents.BuildParentsString()}";

@@ -199,6 +199,10 @@ namespace Aggregates.Internal
         }
         protected virtual Task<TEntity> NewUntracked(string bucket, Id id, Id[] parents = null)
         {
+            // If the test wants to NEW an existing stream, mimic what would happen (AlreadyExistsException)
+            if (_eventstore.StreamExists<TEntity>(bucket, id, parents))
+                throw new EntityAlreadyExistsException<TEntity>(bucket, id, parents);
+
             id = _uow.MakeId(id);
             var entity = Factory.Create(bucket, id, parents);
 

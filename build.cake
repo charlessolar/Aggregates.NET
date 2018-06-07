@@ -4,7 +4,7 @@
 #addin "nuget:?package=Cake.Incubator&version=2.0.2"
 #addin "nuget:?package=Cake.Docker&version=0.9.3"
 #addin "nuget:?package=Cake.Curl&version=3.0.0"
-#addin "nuget:?package=Cake.Sonar"
+#addin "nuget:?package=Cake.Sonar&version=1.1.0"
 #addin "nuget:?package=Cake.Coveralls&version=0.8.0"
 
 // Install tools.
@@ -12,7 +12,7 @@
 #tool "nuget:?package=GitVersion.CommandLine&version=3.6.5"
 #tool "nuget:?package=OpenCover&version=4.6.519"
 #tool "nuget:?package=xunit.runner.console&version=2.3.1"
-#tool "nuget:?package=MSBuild.SonarQube.Runner.Tool"
+#tool "nuget:?package=MSBuild.SonarQube.Runner.Tool&version=4.3.0"
 #tool "nuget:?package=coveralls.io&version=1.4.2"
 
 // Load other scripts.

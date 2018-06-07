@@ -162,8 +162,7 @@ namespace Aggregates.Internal
                         if (tracked.Version == EntityFactory.NewEntityVersion)
                         {
                             Logger.DebugEvent("AlreadyExists", "[{EntityId:l}] entity [{EntityType:l}] already exists", tracked.Id, typeof(TEntity).FullName);
-                            throw new ConflictResolutionFailedException(
-                                $"New stream [{tracked.Id}] entity {tracked.GetType().FullName} already exists in store");
+                            throw new EntityAlreadyExistsException<TEntity>(tracked.Bucket, tracked.Id, tracked.Parents);
                         }
 
                         try
