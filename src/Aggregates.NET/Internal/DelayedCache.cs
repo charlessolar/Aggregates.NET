@@ -150,7 +150,10 @@ namespace Aggregates.Internal
                     cache.Flush().Wait(cache._cts.Token);
                 }
             }
-            catch { }
+            catch
+            {
+                // Throwing from a terminating thread produces log messages which distract
+            }
         }
 
 

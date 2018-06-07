@@ -8,7 +8,7 @@ namespace Aggregates
     public interface IServiceContext
     {
         IDomainUnitOfWork UoW { get; }
-        IUnitOfWork App { get; }
+        IAppUnitOfWork App { get; }
 
         IContainer Container { get; }
     }

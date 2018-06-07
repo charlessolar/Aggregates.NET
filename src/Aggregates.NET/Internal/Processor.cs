@@ -26,11 +26,11 @@ namespace Aggregates.Internal
             if (handler == null)
             {
                 Logger.ErrorEvent("ProcessFailure", "No handler [{ServiceType:l}] response [{Response:l}]", typeof(TService).FullName, typeof(TResponse).FullName);
-                return null;
+                return Task.FromResult(default(TResponse));
             }
 
             // Todo: both units of work should come from the pipeline not the container
-            var context = new HandleContext(container.Resolve<IDomainUnitOfWork>(), container.Resolve<IUnitOfWork>(), container);
+            var context = new HandleContext(container.Resolve<IDomainUnitOfWork>(), container.Resolve<IAppUnitOfWork>(), container);
 
             return handlerFunc(handler, service, context);
         }

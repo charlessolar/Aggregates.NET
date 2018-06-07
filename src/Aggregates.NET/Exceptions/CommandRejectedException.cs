@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Aggregates
+namespace Aggregates.Exceptions
 {
     public class CommandRejectedException : Exception
     {

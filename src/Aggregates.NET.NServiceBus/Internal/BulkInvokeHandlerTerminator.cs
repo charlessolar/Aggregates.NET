@@ -52,10 +52,12 @@ namespace Aggregates.Internal
                 if (context.Extensions.TryGet<IContainer>(out container))
                     channel = container.Resolve<IDelayedChannel>();
             }
-            // Catch in case IDelayedChannel isn't registered which shouldn't happen unless a user registered Consumer without GetEventStore
-            catch (Exception) { }
+            catch (Exception)
+            {
+                // Catch in case IDelayedChannel isn't registered which shouldn't happen unless a user registered Consumer without GetEventStore
+            }
 
-            var msgType = context.MessageBeingHandled.GetType();
+                var msgType = context.MessageBeingHandled.GetType();
             if (!msgType.IsInterface)
                 msgType = _mapper.GetMappedTypeFor(msgType) ?? msgType;
 

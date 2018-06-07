@@ -12,7 +12,7 @@ using Aggregates.Messages;
 
 namespace Aggregates.Internal
 {
-    class UnitOfWork : IDomainUnitOfWork, IDomainUnitOfWorkCommit, IDisposable
+    class UnitOfWork : IDomainUnitOfWork, IUnitOfWork, IDisposable
     {
         private static readonly ConcurrentDictionary<Guid, Guid> EventIds = new ConcurrentDictionary<Guid, Guid>();
 
@@ -118,11 +118,11 @@ namespace Aggregates.Internal
         }
 
 
-        Task IDomainUnitOfWorkCommit.Begin()
+        Task IUnitOfWork.Begin()
         {
             return Task.FromResult(true);
         }
-        Task IDomainUnitOfWorkCommit.End(Exception ex)
+        Task IUnitOfWork.End(Exception ex)
         {
             // Todo: If current message is an event, detect if they've modified any entities and warn them.
             if (ex != null || CurrentMessage is IEvent)

@@ -8,11 +8,11 @@ namespace Aggregates
 {
     public static class StreamTypes
     {
-        public static string Domain = "DOMAIN";
-        public static string Delayed = "DELAY";
-        public static string Snapshot = "SNAPSHOT";
-        public static string Poco = "POCO";
-        public static string OOB = "OOB";
+        public static readonly string Domain = "DOMAIN";
+        public static readonly string Delayed = "DELAY";
+        public static readonly string Snapshot = "SNAPSHOT";
+        public static readonly string Poco = "POCO";
+        public static readonly string OOB = "OOB";
     }
 
     public delegate string StreamIdGenerator(Type entityType, string streamType, string bucket, Id id, Id[] parents);
@@ -42,11 +42,11 @@ namespace Aggregates
         public static readonly string EndpointVersionHeader = "Endpoint.Version";
 
 
-        public static Guid Instance = Guid.NewGuid();
-        public static string Bucket = "default";
-        public static string CommitIdHeader = "CommitId";
+        public static readonly Guid Instance = Guid.NewGuid();
+        public static readonly string Bucket = "default";
+        public static readonly string CommitIdHeader = "CommitId";
 
-        public static AsyncLocal<LogLevel?> MinimumLogging = new AsyncLocal<LogLevel?>();
+        public static readonly AsyncLocal<LogLevel?> MinimumLogging = new AsyncLocal<LogLevel?>();
 
     }
 }

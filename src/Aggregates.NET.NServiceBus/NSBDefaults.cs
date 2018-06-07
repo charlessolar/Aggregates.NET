@@ -7,7 +7,7 @@ namespace Aggregates
     public static class NSBDefaults
     {
         // Header information to take from incoming messages
-        public static IList<string> CarryOverHeaders = new List<string>
+        public static readonly IList<string> CarryOverHeaders = new List<string>
         {
             "NServiceBus.MessageId",
             "NServiceBus.CorrelationId",
@@ -17,7 +17,7 @@ namespace Aggregates
             "NServiceBus.OriginatingMachine",
             "NServiceBus.OriginatingEndpoint"
         };
-        public static string MessageIdHeader = "NServiceBus.MessageId";
-        public static string CorrelationIdHeader = "NServiceBus.CorrelationId";
+        public static readonly string MessageIdHeader = "NServiceBus.MessageId";
+        public static readonly string CorrelationIdHeader = "NServiceBus.CorrelationId";
     }
 }

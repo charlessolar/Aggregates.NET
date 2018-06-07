@@ -18,7 +18,7 @@ namespace Aggregates
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Bus");
 
-        public static IEndpointInstance Instance;
+        public static IEndpointInstance Instance { get; private set; }
         internal static Func<MessageContext, Task> OnMessage;
         internal static Func<ErrorContext, Task<ErrorHandleResult>> OnError;
         internal static PushRuntimeSettings PushSettings;
@@ -45,7 +45,6 @@ namespace Aggregates
                         .GetField("receiveComponent", BindingFlags.Instance | BindingFlags.NonPublic)
                         .GetValue(Instance);
 
-
                 var receivers = (
                     (IEnumerable)
                     // ReSharper disable once PossibleNullReferenceException
@@ -66,6 +65,8 @@ namespace Aggregates
                         break;
                     }
                 }
+                if (main == null)
+                    throw new InvalidOperationException("Could not find main receiver");
 
                 var pipelineExecutor =
                     main.GetType()

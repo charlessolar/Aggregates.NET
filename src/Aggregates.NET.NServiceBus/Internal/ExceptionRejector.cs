@@ -1,6 +1,5 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Internal.Cloning;
 using Aggregates.Logging;
 using Aggregates.Messages;
 using NServiceBus;

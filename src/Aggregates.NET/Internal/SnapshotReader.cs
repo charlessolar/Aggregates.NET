@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Internal.Cloning;
 using Aggregates.Logging;
 
 
@@ -68,7 +67,10 @@ namespace Aggregates.Internal
                     {
                         await eventstore.WriteMetadata(x, truncateBefore: tb).ConfigureAwait(false);
                     }
-                    catch { }
+                    catch
+                    {
+                        // does matter if metadata fails to write - we'll try again later
+                    }
                 }).ConfigureAwait(false);
             }, store, TimeSpan.FromMinutes(5), "snapshot truncate before");
 

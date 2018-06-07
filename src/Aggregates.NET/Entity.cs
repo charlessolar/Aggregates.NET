@@ -217,14 +217,10 @@ namespace Aggregates
             }
         }
 
-        public override int GetHashCode()
-        {
-            return Id.GetHashCode();
-        }
         public override string ToString()
         {
             var parents = Parents.Any() ? $" [{Parents.BuildParentsString()}] " : " ";
-            return $"{typeof(TThis).FullName} [{Bucket}]{parents}[{Id}] ";
+            return $"{typeof(TThis).FullName} [{Bucket}]{parents}[{Id}] v{Version}(-{_uncommitted.Count})";
         }
     }
 }

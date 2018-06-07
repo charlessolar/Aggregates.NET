@@ -50,24 +50,28 @@ namespace Aggregates.Internal
 
             var domainUOW = child.Resolve<IDomainUnitOfWork>();
             var delayed = child.Resolve<IDelayedChannel>();
-            IUnitOfWork appUOW = null;
+            IAppUnitOfWork appUOW = null;
             try
             {
                 // IUnitOfWork might not be defined by user
-                appUOW = child.Resolve<IUnitOfWork>();
+                appUOW = child.Resolve<IAppUnitOfWork>();
                 appUOW.Bag = new System.Dynamic.ExpandoObject();
                 // if this is a retry pull the bag from the registry
                 if (Bags.TryRemove(context.MessageId, out var bag))
                     appUOW.Bag = bag;
             }
-            catch { }
+            catch
+            {
+                // app uow doesn't have to be defined
+            }
 
             // Set into the context because DI can be slow
             context.Extensions.Set(domainUOW);
             context.Extensions.Set(appUOW);
 
 
-            var commitableUow = domainUOW as IDomainUnitOfWorkCommit;
+            var commitableUow = domainUOW as IUnitOfWork;
+            var commitableAppUow = appUOW as IUnitOfWork;
             try
             {
                 _metrics.Increment("Messages Concurrent", Unit.Message);
@@ -75,15 +79,15 @@ namespace Aggregates.Internal
                 {
                     
                     await commitableUow.Begin().ConfigureAwait(false);
-                    if (appUOW != null)
-                        await appUOW.Begin().ConfigureAwait(false);
+                    if (commitableAppUow != null)
+                        await commitableAppUow.Begin().ConfigureAwait(false);
                     await delayed.Begin().ConfigureAwait(false);
                     
                     await next().ConfigureAwait(false);
                     
                     await commitableUow.End().ConfigureAwait(false);
-                    if (appUOW != null)
-                        await appUOW.End().ConfigureAwait(false);
+                    if (commitableAppUow != null)
+                        await commitableAppUow.End().ConfigureAwait(false);
                     await delayed.End().ConfigureAwait(false);
                 }
 
@@ -99,7 +103,7 @@ namespace Aggregates.Internal
                     await commitableUow.End(e).ConfigureAwait(false);
                     if (appUOW != null)
                     {
-                        await appUOW.End(e).ConfigureAwait(false);
+                        await commitableAppUow.End(e).ConfigureAwait(false);
                         Bags.TryAdd(context.MessageId, appUOW.Bag);
                     }
                     await delayed.End(e).ConfigureAwait(false);

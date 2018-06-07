@@ -20,13 +20,14 @@ namespace Aggregates.Internal
         {
             _parent = parent;
         }
-        public override Task<T> TryGet(Id id)
+        public override async Task<T> TryGet(Id id)
         {
-            if (id == null) return null;
+            if (id == null)
+                return null;
 
             try
             {
-                return Get(id);
+                return await Get(id).ConfigureAwait(false);
             }
             catch (NotFoundException) { }
             return null;
@@ -130,6 +131,9 @@ namespace Aggregates.Internal
         }
         public async Task<T> TryGet(string bucket, Id id)
         {
+            if (id == null)
+                return default(T);
+
             try
             {
                 return await Get(bucket, id).ConfigureAwait(false);

@@ -9,21 +9,18 @@ namespace Aggregates
 {
     public interface IUnitOfWork
     {
+        Task Begin();
+        Task End(Exception ex = null);
+    }
+
+    public interface IAppUnitOfWork
+    {
         /// Used to store things you might need persisted should the message be retried
         /// (if you attempt to save 2 objects and 1 fails, you may want to save the successful one here and ignore it when retrying)
         dynamic Bag { get; set; }
-
-        Task Begin();
-        Task End(Exception ex = null);
     }
 
-    internal interface IDomainUnitOfWorkCommit
-    {
-        Task Begin();
-        Task End(Exception ex = null);
-    }
-
-    public interface IDomainUnitOfWork
+    public interface IDomainUnitOfWork 
     {
         IRepository<T> For<T>() where T : IEntity;
         IRepository<TEntity, TParent> For<TEntity, TParent>(TParent parent) where TEntity : IChildEntity<TParent> where TParent : IHaveEntities<TParent>;
