@@ -68,11 +68,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "4. Language", "samples\4. Q
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "5. Mutators", "5. Mutators", "{3BE21E29-6CED-43DD-8AFF-474FFD094F48}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aggregates.NET.Testing", "src\Aggregates.NET.Testing\Aggregates.NET.Testing.csproj", "{FF9301FF-749D-40B2-82CF-FE79A37652E9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET.Testing", "src\Aggregates.NET.Testing\Aggregates.NET.Testing.csproj", "{FF9301FF-749D-40B2-82CF-FE79A37652E9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "1. Tests", "samples\1. HelloWorld\1. Tests\1. Tests.csproj", "{9AE01C5A-C43C-412B-B466-E40BC1B67492}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "1. Tests", "samples\1. HelloWorld\1. Tests\1. Tests.csproj", "{9AE01C5A-C43C-412B-B466-E40BC1B67492}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "3. Tests", "samples\3. Children\3. Tests\3. Tests.csproj", "{44DE8265-AF39-410B-953F-816BE627235A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "3. Tests", "samples\3. Children\3. Tests\3. Tests.csproj", "{44DE8265-AF39-410B-953F-816BE627235A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
