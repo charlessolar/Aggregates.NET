@@ -5,11 +5,11 @@ using Aggregates.Messages;
 
 namespace Aggregates.Contracts
 {
-    public interface IDelayedMessage : IMessage
+    public interface IDelayedMessage : IEvent
     {
         string MessageId { get; }
         IDictionary<string, string> Headers { get; }
-        object Message { get; }
+        IMessage Message { get; }
         DateTime Received { get; }
         String ChannelKey { get; }
     }

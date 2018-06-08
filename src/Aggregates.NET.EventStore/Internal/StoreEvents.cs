@@ -99,7 +99,7 @@ namespace Aggregates.Internal
                 var eventType = Type.GetType(e.Event.EventType, false);
                 _mapper.Initialize(eventType);
 
-                var @event = _serializer.Deserialize(eventType, data);
+                var @event = _serializer.Deserialize(eventType, data) as IEvent;
 
                 // Special case if event was written without a version - substitue the position from store
                 if (descriptor.Version == 0)
@@ -183,7 +183,7 @@ namespace Aggregates.Internal
                 var eventType = Type.GetType(e.Event.EventType, false);
                 _mapper.Initialize(eventType);
 
-                var @event = _serializer.Deserialize(eventType, data);
+                var @event = _serializer.Deserialize(eventType, data) as IEvent;
 
                 // Special case if event was written without a version - substitute the position from store
                 if (descriptor.Version == 0)

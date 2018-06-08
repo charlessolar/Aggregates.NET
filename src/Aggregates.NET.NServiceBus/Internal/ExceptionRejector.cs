@@ -60,7 +60,7 @@ namespace Aggregates.Internal
 
                     var message = new FullMessage
                     {
-                        Message = context.Message.Instance,
+                        Message = context.Message.Instance as Messages.IMessage,
                         Headers = context.Headers
                     };
 
@@ -71,7 +71,7 @@ namespace Aggregates.Internal
                     if (context.Extensions.TryGet(Defaults.BulkHeader, out IFullMessage[] delayedMessages))
                         message.Message = new BulkMessage { Messages = delayedMessages };
                     if (context.Extensions.TryGet(Defaults.LocalHeader, out object local))
-                        message.Message = local;
+                        message.Message = local as Messages.IMessage;
 
                     _retry.QueueRetry(message, TimeSpan.FromMilliseconds(500));
                     // retry out of the pipeline so NSB can continue processing other messages & we can delay

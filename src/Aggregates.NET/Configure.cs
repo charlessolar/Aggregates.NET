@@ -135,6 +135,8 @@ namespace Aggregates
                 container.Register<IEventSubscriber>((factory) => new DelayedSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IMessageDispatcher>(), c.Retries), Lifestyle.Singleton, "delayedsubscriber");
                 container.Register<IEventSubscriber>((factory) => (IEventSubscriber)factory.Resolve<ISnapshotReader>(), Lifestyle.Singleton, "snapshotreader");
 
+                container.Register<StreamIdGenerator>(Generator, Lifestyle.Singleton);
+
                 container.Register<Func<Exception, string, Error>>((factory) =>
                 {
                     var eventFactory = factory.Resolve<IEventFactory>();

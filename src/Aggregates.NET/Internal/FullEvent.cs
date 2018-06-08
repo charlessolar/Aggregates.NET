@@ -9,7 +9,7 @@ namespace Aggregates.Internal
     class FullEvent : IFullEvent
     {
         public IEventDescriptor Descriptor { get; set; }
-        public object Event { get; set; }
+        public IEvent Event { get; set; }
         public Guid? EventId { get; set; }
     }
 }

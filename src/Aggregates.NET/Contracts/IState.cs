@@ -5,7 +5,7 @@ using Aggregates.Messages;
 
 namespace Aggregates.Contracts
 {
-    public interface IState
+    public interface IState : IEvent
     {
         Id Id { get; set;  }
         string Bucket { get; set; }

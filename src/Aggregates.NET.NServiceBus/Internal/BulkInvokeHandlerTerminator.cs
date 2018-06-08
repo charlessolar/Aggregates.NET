@@ -9,6 +9,7 @@ using Aggregates.Attributes;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Aggregates.Logging;
+using Aggregates.Messages;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
@@ -19,7 +20,7 @@ namespace Aggregates.Internal
     {
         public string MessageId { get; set; }
         public IDictionary<string, string> Headers { get; set; }
-        public object Message { get; set; }
+        public IMessage Message { get; set; }
         public DateTime Received { get; set; }
         public string ChannelKey { get; set; }
         public string SpecificKey { get; set; }
@@ -111,7 +112,7 @@ namespace Aggregates.Internal
                 {
                     MessageId = context.MessageId,
                     Headers = context.Headers,
-                    Message = context.MessageBeingHandled,
+                    Message = context.MessageBeingHandled as IMessage,
                     Received = DateTime.UtcNow,
                     ChannelKey = channelKey,
                     SpecificKey = specificKey

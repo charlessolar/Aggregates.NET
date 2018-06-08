@@ -319,7 +319,7 @@ namespace Aggregates.Internal
             // Not all types are detected and initialized by NSB - they do it in the pipeline, we have to do it here
             _mapper.Initialize(eventType);
 
-            var payload = _serializer.Deserialize(eventType, data);
+            var payload = _serializer.Deserialize(eventType, data) as IEvent;
 
             return callback(e.Event.EventStreamId, e.Event.EventNumber, new FullEvent
             {

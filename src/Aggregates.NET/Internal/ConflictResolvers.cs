@@ -66,7 +66,7 @@ namespace Aggregates.Internal
         public IgnoreConflictResolver(IStoreEvents store, StreamIdGenerator streamGen)
         {
             _store = store;
-            _streamGen = Configuration.Settings.Generator;
+            _streamGen = streamGen;
         }
 
         public async Task Resolve<TEntity, TState>(TEntity entity, IFullEvent[] uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : IState, new()
