@@ -8,8 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Aggregates.NET\Aggregates.NET.csproj" />
+    <PackageReference Include="Aggregates.NET" Version="0.13.30.286" />
   </ItemGroup>
-
 
 </Project>

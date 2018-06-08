@@ -19,9 +19,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Aggregates.NET.Testing\Aggregates.NET.Testing.csproj" />
     <ProjectReference Include="..\1. Domain\1. Domain.csproj" />
     <ProjectReference Include="..\1. Language\1. Language.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Aggregates.NET.Testing" Version="0.13.30.286" />
+  </ItemGroup>
 </Project>

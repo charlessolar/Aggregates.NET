@@ -24,8 +24,6 @@ namespace Aggregates
     {
         IRepository<T> For<T>() where T : IEntity;
         IRepository<TEntity, TParent> For<TEntity, TParent>(TParent parent) where TEntity : IChildEntity<TParent> where TParent : IHaveEntities<TParent>;
-        IPocoRepository<T> Poco<T>() where T : class, new();
-        IPocoRepository<T, TParent> Poco<T, TParent>(TParent parent) where T : class, new() where TParent : class, IHaveEntities<TParent>;
 
         Guid CommitId { get; }
         object CurrentMessage { get; }

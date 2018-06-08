@@ -11,31 +11,38 @@ using Aggregates.Messages;
 
 namespace Aggregates.Internal
 {
-    delegate IResolveConflicts ResolverBuilder(IContainer container, Type type);
-
     class ConcurrencyStrategy : Enumeration<ConcurrencyStrategy, ConcurrencyConflict>
     {
-        public static ConcurrencyStrategy Throw = new ConcurrencyStrategy(ConcurrencyConflict.Throw, "Throw", (b, _) => b.Resolve<ThrowConflictResolver>());
+        public static ConcurrencyStrategy Throw = new ConcurrencyStrategy(ConcurrencyConflict.Throw, "Throw");
+        public static ConcurrencyStrategy Ignore = new ConcurrencyStrategy(ConcurrencyConflict.Ignore, "Ignore");
+        public static ConcurrencyStrategy Discard = new ConcurrencyStrategy(ConcurrencyConflict.Discard, "Discard");
+        public static ConcurrencyStrategy ResolveStrongly = new ConcurrencyStrategy(ConcurrencyConflict.ResolveStrongly, "ResolveStrongly");
+        public static ConcurrencyStrategy ResolveWeakly = new ConcurrencyStrategy(ConcurrencyConflict.ResolveWeakly, "ResolveWeakly");
+        public static ConcurrencyStrategy Custom = new ConcurrencyStrategy(ConcurrencyConflict.Custom, "Custom");
 
-        public static ConcurrencyStrategy Ignore = new ConcurrencyStrategy(ConcurrencyConflict.Ignore, "Ignore",
-            (b, _) => new IgnoreConflictResolver(b.Resolve<IStoreEvents>(), Configuration.Settings.Generator));
-
-        public static ConcurrencyStrategy Discard = new ConcurrencyStrategy(ConcurrencyConflict.Discard, "Discard", (b, _) => b.Resolve<DiscardConflictResolver>());
-
-        public static ConcurrencyStrategy ResolveStrongly = new ConcurrencyStrategy(ConcurrencyConflict.ResolveStrongly, "ResolveStrongly",
-            (b, _) => new ResolveStronglyConflictResolver(b.Resolve<IStoreSnapshots>(), b.Resolve<IStoreEvents>(), Configuration.Settings.Generator));
-
-        public static ConcurrencyStrategy ResolveWeakly = new ConcurrencyStrategy(ConcurrencyConflict.ResolveWeakly, "ResolveWeakly",
-            (b, _) => new ResolveWeaklyConflictResolver(b.Resolve<IStoreSnapshots>(), b.Resolve<IStoreEvents>(), b.Resolve<IDelayedChannel>(), Configuration.Settings.Generator));
-
-        public static ConcurrencyStrategy Custom = new ConcurrencyStrategy(ConcurrencyConflict.Custom, "Custom", (b, type) => (IResolveConflicts)b.Resolve(type));
-
-        public ConcurrencyStrategy(ConcurrencyConflict value, string displayName, ResolverBuilder builder) : base(value, displayName)
+        public ConcurrencyStrategy(ConcurrencyConflict value, string displayName) : base(value, displayName)
         {
-            Build = builder;
         }
 
-        public ResolverBuilder Build { get; private set; }
+        public IResolveConflicts Build(Type type = null)
+        {
+            switch(this.Value)
+            {
+                case ConcurrencyConflict.Throw:
+                    return Configuration.Settings.Container.Resolve<ThrowConflictResolver>();
+                case ConcurrencyConflict.Ignore:
+                    return Configuration.Settings.Container.Resolve<IgnoreConflictResolver>();
+                case ConcurrencyConflict.Discard:
+                    return Configuration.Settings.Container.Resolve<DiscardConflictResolver>();
+                case ConcurrencyConflict.ResolveStrongly:
+                    return Configuration.Settings.Container.Resolve<ResolveStronglyConflictResolver>();
+                case ConcurrencyConflict.ResolveWeakly:
+                    return Configuration.Settings.Container.Resolve<ResolveWeaklyConflictResolver>();
+                case ConcurrencyConflict.Custom:
+                    return (IResolveConflicts)Configuration.Settings.Container.Resolve(type);
+            };
+            throw new InvalidOperationException($"Unknown conflict resolver: {this.Value}");
+        }
     }
 
     internal class ThrowConflictResolver : IResolveConflicts
@@ -59,7 +66,7 @@ namespace Aggregates.Internal
         public IgnoreConflictResolver(IStoreEvents store, StreamIdGenerator streamGen)
         {
             _store = store;
-            _streamGen = streamGen;
+            _streamGen = Configuration.Settings.Generator;
         }
 
         public async Task Resolve<TEntity, TState>(TEntity entity, IFullEvent[] uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : IState, new()

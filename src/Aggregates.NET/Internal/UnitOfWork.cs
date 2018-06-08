@@ -85,7 +85,7 @@ namespace Aggregates.Internal
             IRepository repository;
             if (_repositories.TryGetValue(key, out repository)) return (IRepository<T>)repository;
 
-            return (IRepository<T>)(_repositories[key] = (IRepository)_repoFactory.ForEntity<T>(this));
+            return (IRepository<T>)(_repositories[key] = (IRepository)_repoFactory.ForEntity<T>());
         }
         public IRepository<TEntity, TParent> For<TEntity, TParent>(TParent parent) where TEntity : IChildEntity<TParent> where TParent : IHaveEntities<TParent>
         {
@@ -95,26 +95,7 @@ namespace Aggregates.Internal
             if (_repositories.TryGetValue(key, out repository))
                 return (IRepository<TEntity, TParent>)repository;
 
-            return (IRepository<TEntity, TParent>)(_repositories[key] = (IRepository)_repoFactory.ForEntity<TEntity, TParent>(parent, this));
-        }
-        public IPocoRepository<T> Poco<T>() where T : class, new()
-        {
-            var key = typeof(T).FullName;
-
-            IRepository repository;
-            if (_pocoRepositories.TryGetValue(key, out repository)) return (IPocoRepository<T>)repository;
-
-            return (IPocoRepository<T>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<T>(this));
-        }
-        public IPocoRepository<T, TParent> Poco<T, TParent>(TParent parent) where T : class, new() where TParent : class, IHaveEntities<TParent>
-        {
-            var key = $"{typeof(TParent).FullName}.{parent.Id}.{typeof(T).FullName}";
-
-            IRepository repository;
-            if (_pocoRepositories.TryGetValue(key, out repository))
-                return (IPocoRepository<T, TParent>)repository;
-
-            return (IPocoRepository<T, TParent>)(_pocoRepositories[key] = (IRepository)_repoFactory.ForPoco<T, TParent>(parent, this));
+            return (IRepository<TEntity, TParent>)(_repositories[key] = (IRepository)_repoFactory.ForEntity<TEntity, TParent>(parent));
         }
 
 

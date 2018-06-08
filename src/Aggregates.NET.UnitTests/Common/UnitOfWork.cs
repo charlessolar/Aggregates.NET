@@ -18,7 +18,6 @@ namespace Aggregates.UnitTests.Common
         private Moq.Mock<IRepositoryFactory> _factory;
         private Moq.Mock<IEventFactory> _eventFactory;
         private Moq.Mock<IRepository<FakeEntity>> _repository;
-        private Moq.Mock<IPocoRepository<FakePoco>> _pocoRepository;
         private Moq.Mock<IDomainUnitOfWork> _uow;
 
         private Aggregates.Internal.UnitOfWork _unitofwork;
@@ -29,11 +28,9 @@ namespace Aggregates.UnitTests.Common
             _factory = new Moq.Mock<IRepositoryFactory>();
             _eventFactory = new Moq.Mock<IEventFactory>();
             _repository = new Moq.Mock<IRepository<FakeEntity>>();
-            _pocoRepository = new Moq.Mock<IPocoRepository<FakePoco>>();
             _uow = new Moq.Mock<IDomainUnitOfWork>();
 
-            _factory.Setup(x => x.ForEntity<FakeEntity>(Moq.It.IsAny<IDomainUnitOfWork>())).Returns(_repository.Object);
-            _factory.Setup(x => x.ForPoco<FakePoco>(Moq.It.IsAny<IDomainUnitOfWork>())).Returns(_pocoRepository.Object);
+            _factory.Setup(x => x.ForEntity<FakeEntity>()).Returns(_repository.Object);
 
             _unitofwork = new Internal.UnitOfWork(_factory.Object, _eventFactory.Object);
         }
@@ -42,15 +39,12 @@ namespace Aggregates.UnitTests.Common
         public void dispose_repository_disposed()
         {
             var repo = _unitofwork.For<FakeEntity>();
-            var poco = _unitofwork.Poco<FakePoco>();
 
             _repository.Setup(x => x.Dispose());
-            _pocoRepository.Setup(x => x.Dispose());
 
             _unitofwork.Dispose();
 
             _repository.Verify(x => x.Dispose(), Moq.Times.Once);
-            _pocoRepository.Verify(x => x.Dispose(), Moq.Times.Once);
         }
 
         //[Test]

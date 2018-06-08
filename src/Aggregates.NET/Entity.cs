@@ -83,10 +83,6 @@ namespace Aggregates
         {
             return Uow.For<TEntity, TThis>(this as TThis);
         }
-        public IPocoRepository<T, TThis> Poco<T>() where T : class, new()
-        {
-            return Uow.Poco<T, TThis>(this as TThis);
-        }
         public Task<long> GetSize(string oob = null)
         {
             if (!string.IsNullOrEmpty(oob))

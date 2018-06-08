@@ -34,14 +34,6 @@ namespace Aggregates
         IEventPlanner<TEntity> HasEvent<TEvent>(Action<TEvent> factory);
         IEventPlanner<TEntity> HasSnapshot(object snapshot);
     }
-    public interface IPocoChecker
-    {
-        IPocoChecker IsEqual(object poco);
-    }
-    public interface IPocoPlanner
-    {
-        IPocoPlanner HasValue(object poco);
-    }
 
 
     public interface IRepositoryTest<TEntity> : IRepository where TEntity : IEntity
@@ -61,23 +53,5 @@ namespace Aggregates
         IChecker<TEntity> Check(TestableId id);
         IEventPlanner<TEntity> Plan(Id id);
         IEventPlanner<TEntity> Plan(TestableId id);
-    }
-    public interface IPocoRepositoryTest<T> where T : class, new()
-    {
-        IPocoChecker Check(Id id);
-        IPocoChecker Check(TestableId id);
-        IPocoChecker Check(string bucket, Id id);
-        IPocoChecker Check(string bucket, TestableId id);
-        IPocoPlanner Plan(Id id);
-        IPocoPlanner Plan(TestableId id);
-        IPocoPlanner Plan(string bucket, Id id);
-        IPocoPlanner Plan(string bucket, TestableId id);
-    }
-    public interface IPocoRepositoryTest<T, TParent> where TParent : IEntity where T : class, new()
-    {
-        IPocoChecker Check(Id id);
-        IPocoChecker Check(TestableId id);
-        IPocoPlanner Plan(Id id);
-        IPocoPlanner Plan(TestableId id);
     }
 }

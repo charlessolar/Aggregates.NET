@@ -13,11 +13,12 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Aggregates.NET.EventStore\Aggregates.NET.EventStore.csproj" />
-    <ProjectReference Include="..\..\..\src\Aggregates.NET.NewtonsoftJson\Aggregates.NET.NewtonsoftJson.csproj" />
-    <ProjectReference Include="..\..\..\src\Aggregates.NET.NServiceBus\Aggregates.NET.NServiceBus.csproj" />
-    <ProjectReference Include="..\..\..\src\Aggregates.NET.StructureMap\Aggregates.NET.StructureMap.csproj" />
-    <ProjectReference Include="..\..\..\src\Aggregates.NET\Aggregates.NET.csproj" />
     <ProjectReference Include="..\2. Language\2. Language.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Aggregates.NET.EventStore" Version="0.13.30.286" />
+    <PackageReference Include="Aggregates.NET.NewtonsoftJson" Version="0.13.30.286" />
+    <PackageReference Include="Aggregates.NET.NServiceBus" Version="0.13.30.286" />
+    <PackageReference Include="Aggregates.NET.StructureMap" Version="0.13.30.286" />
   </ItemGroup>
 </Project>

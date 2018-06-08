@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using NUnit.Framework;
 using Aggregates.Messages;
 using Aggregates.Internal;
 using Aggregates.Contracts;
@@ -11,7 +10,7 @@ using Aggregates.Exceptions;
 
 namespace Aggregates.UnitTests.Common.ConflictResolvers
 {
-    [TestFixture]
+    [Category(Categories.Unit)]
     public class EasyConflictResolvers
     {
         class FakeState : Aggregates.State<FakeState> {

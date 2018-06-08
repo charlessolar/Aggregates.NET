@@ -17,11 +17,6 @@ namespace Aggregates
             var uow = context.Extensions.Get<IDomainUnitOfWork>();
             return uow.For<T>();
         }
-        public static IPocoRepository<T> Poco<T>(this IMessageHandlerContext context) where T : class, new()
-        {
-            var uow = context.Extensions.Get<IDomainUnitOfWork>();
-            return uow.Poco<T>();
-        }
         
         public static TUnitOfWork App<TUnitOfWork>(this IMessageHandlerContext context) where TUnitOfWork : class, IUnitOfWork
         {

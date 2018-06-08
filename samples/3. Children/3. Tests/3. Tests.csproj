@@ -18,10 +18,11 @@
     <DotNetCliToolReference Include="dotnet-xunit" Version="2.3.1" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Aggregates.NET.Testing\Aggregates.NET.Testing.csproj" />
-    <ProjectReference Include="..\..\..\src\Aggregates.NET\Aggregates.NET.csproj" />
     <ProjectReference Include="..\3. Domain\3. Domain.csproj" />
     <ProjectReference Include="..\3. Language\3. Language.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Aggregates.NET.Testing" Version="0.13.15.271" />
+  </ItemGroup>
 </Project>

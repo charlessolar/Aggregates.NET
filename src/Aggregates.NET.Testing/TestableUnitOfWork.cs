@@ -97,26 +97,6 @@ namespace Aggregates
             return (IRepository<TEntity, TParent>)(_repositories[key] = (IRepository)Activator.CreateInstance(repoType, parent, this));
         }
 
-        IPocoRepository<T> IDomainUnitOfWork.Poco<T>()
-        {
-            var key = typeof(T).FullName;
-
-            IRepository repository;
-            if (_repositories.TryGetValue(key, out repository)) return (IPocoRepository<T>)repository;
-
-            return (IPocoRepository<T>)(_repositories[key] = (IRepository)new TestablePocoRepository<T>(this));
-            
-        }
-        IPocoRepository<T, TParent> IDomainUnitOfWork.Poco<T, TParent>(TParent parent)
-        {
-            var key = $"{typeof(TParent).FullName}.{parent.Id}.{typeof(T).FullName}";
-
-            IRepository repository;
-            if (_repositories.TryGetValue(key, out repository))
-                return (IPocoRepository<T, TParent>)repository;
-
-            return (IPocoRepository<T, TParent>)(_repositories[key] = (IRepository)new TestablePocoRepository<T, TParent>(parent, this));
-        }
 
         public IChecker<TEntity> Check<TEntity>(Id id) where TEntity : IEntity
         {

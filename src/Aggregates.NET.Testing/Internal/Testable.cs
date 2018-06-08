@@ -101,44 +101,4 @@ namespace Aggregates.Internal
             return _uow.Check<TChild, TEntity>(_entity, id);
         }
     }
-    class PocoPlanner<T> : IPocoPlanner where T : class, new()
-    {
-        private readonly TestablePocoRepository<T> _repo;
-        private readonly string _bucket;
-        private readonly TestableId _id;
-        private readonly Id[] _parents;
-
-        public PocoPlanner(TestablePocoRepository<T> repo, string bucket, TestableId id, Id[] parents = null)
-        {
-            _repo = repo;
-            _bucket = bucket;
-            _id = id;
-            _parents = parents ?? new Id[] { };
-        }
-
-        public IPocoPlanner HasValue(object poco)
-        {
-            _repo.DefinePoco(_bucket, (Id)_id, _parents, poco as T);
-            return this;
-        }
-    }
-    class PocoChecker<T> : IPocoChecker where T : class, new()
-    {
-        private readonly TestablePocoRepository<T> _repo;
-        private readonly object _poco;
-
-        public PocoChecker(TestablePocoRepository<T> repo, object poco)
-        {
-            _repo = repo;
-            _poco = poco;
-        }
-
-        public IPocoChecker IsEqual(object poco)
-        {
-            if (JsonConvert.SerializeObject(_poco) != JsonConvert.SerializeObject(poco))
-                throw new PocoUnequalException(_poco, poco);
-            return this;
-        }
-
-    }
 }
