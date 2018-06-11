@@ -12,7 +12,7 @@ using Aggregates.Messages;
 
 namespace Aggregates.Internal
 {
-    class UnitOfWork : IDomainUnitOfWork, IUnitOfWork, IDisposable
+    public class UnitOfWork : IDomainUnitOfWork, IUnitOfWork, IDisposable
     {
         private static readonly ConcurrentDictionary<Guid, Guid> EventIds = new ConcurrentDictionary<Guid, Guid>();
 
@@ -28,34 +28,32 @@ namespace Aggregates.Internal
         protected const string CommitHeader = "CommitId";
         public static string NotFound = "<NOT FOUND>";
 
-        protected static readonly ILog Logger = LogProvider.GetLogger("UnitOfWork");
+        internal static readonly ILog Logger = LogProvider.GetLogger("UnitOfWork");
 
         private readonly IRepositoryFactory _repoFactory;
         private readonly IEventFactory _eventFactory;
 
         private bool _disposed;
         private readonly IDictionary<string, IRepository> _repositories;
-        private readonly IDictionary<string, IRepository> _pocoRepositories;
         
-        public Guid CommitId { get; protected set; }
-        public object CurrentMessage { get; protected set; }
-        public IDictionary<string, string> CurrentHeaders { get; protected set; }
+        public Guid CommitId { get; internal set; }
+        public object CurrentMessage { get; internal set; }
+        public IDictionary<string, string> CurrentHeaders { get; internal set; }
 
         public UnitOfWork(IRepositoryFactory repoFactory, IEventFactory eventFactory)
         {
             _repoFactory = repoFactory;
             _eventFactory = eventFactory;
             _repositories = new Dictionary<string, IRepository>();
-            _pocoRepositories = new Dictionary<string, IRepository>();
             CurrentHeaders = new Dictionary<string, string>();
         }
 
-        public void Dispose()
+        void IDisposable.Dispose()
         {
             Dispose(true);
         }
 
-        public virtual void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
             if (_disposed || !disposing)
                 return;
@@ -66,14 +64,6 @@ namespace Aggregates.Internal
             }
 
             _repositories.Clear();
-
-
-            foreach (var repo in _pocoRepositories.Values)
-            {
-                repo.Dispose();
-            }
-
-            _pocoRepositories.Clear();
 
             _disposed = true;
         }
@@ -110,7 +100,6 @@ namespace Aggregates.Internal
             {
                 // On exception Begin and End will run multiple times without a new unit of work instance
                 _repositories.Clear();
-                _pocoRepositories.Clear();
 
                 Guid eventId;
                 EventIds.TryRemove(CommitId, out eventId);
@@ -131,8 +120,7 @@ namespace Aggregates.Internal
             };
 
             var allRepos =
-                _repositories.Values.Concat(_pocoRepositories.Values).Cast<IRepositoryCommit>().ToArray();
-
+                _repositories.Values.Cast<IRepositoryCommit>().ToArray();
 
             var changedStreams = allRepos.Sum(x => x.ChangedStreams);
             

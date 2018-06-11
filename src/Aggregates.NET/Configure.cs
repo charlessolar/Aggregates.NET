@@ -14,6 +14,7 @@ namespace Aggregates
 {
     public class Configuration
     {
+        public static bool Setup => Settings != null;
         public static Configure Settings { get; internal set; }
 
         public static async Task Build(Action<Configure> settings)

@@ -7,7 +7,7 @@ namespace Aggregates
     /// </summary>
     public class AbandonConflictException :Exception
     {
-        public AbandonConflictException() { }
-        public AbandonConflictException(string message) : base(message) { }
+        public AbandonConflictException() : base("Conflict resolution was abandoned") { }
+        public AbandonConflictException(string message) : base($"Conflict resolution was abandoned: {message}") { }
     }
 }

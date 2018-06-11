@@ -37,8 +37,8 @@ namespace Aggregates.Attributes
                 this.Delay = delayMs;
             this.Mode = mode;
 
-            if (Count > 200000)
-                throw new ArgumentException($"{nameof(Count)} too large - maximum is 200000");
+            if (Count > 10000)
+                throw new ArgumentException($"{nameof(Count)} too large - maximum is 10000");
 
             if (!this.Count.HasValue && !this.Delay.HasValue)
                 throw new ArgumentException($"{nameof(Count)} or {nameof(delayMs)} is required to use Delayed attribute");
@@ -52,7 +52,17 @@ namespace Aggregates.Attributes
             if (keys.Any(x => x.Item2 != null && (useKeyProperties || x.Item2.Always)))
             {
                 this.KeyPropertyFunc =
-                    (o) => keys.Where(x => x.Item2 != null && (useKeyProperties || x.Item2.Always)).Select(x => x.Item1.GetValue(o).ToString()).Aggregate((cur, next) => $"{cur}:{next}");
+                    (o) =>
+                    {
+                        if (o.GetType() != this.Type)
+                            throw new ArgumentException($"Incorrect type - {this.Type.FullName} expected, {o.GetType().FullName} given");
+
+                        return keys.Where(x => x.Item2 != null && (useKeyProperties || x.Item2.Always)).Select(x => x.Item1.GetValue(o).ToString()).Aggregate((cur, next) => $"{cur}:{next}");
+                    };
+            }
+            else
+            {
+                this.KeyPropertyFunc = (_) => "";
             }
             
         }

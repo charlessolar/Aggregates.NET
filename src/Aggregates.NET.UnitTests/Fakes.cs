@@ -4,6 +4,7 @@ using Aggregates.Messages;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Aggregates
 {
@@ -116,5 +117,62 @@ namespace Aggregates
         public static FakeEnumeration Two = new FakeEnumeration(2, "two");
 
         public FakeEnumeration(int value, string displayName) : base(value, displayName) { }
+    }
+
+    public class FakeRepository : IRepository<FakeEntity>, IRepositoryCommit
+    {
+        public bool CommitCalled = false;
+        public bool PrepareCalled = false;
+        public bool DisposeCalled = false;
+        public int FakeChangedStreams = 0;
+
+        public int ChangedStreams => FakeChangedStreams;
+
+        public Task Commit(Guid commitId, IDictionary<string, string> commitHeaders)
+        {
+            CommitCalled = true;
+            return Task.CompletedTask;
+        }
+        public Task Prepare(Guid commitId)
+        {
+            PrepareCalled = true;
+            return Task.CompletedTask;
+        }
+
+        public void Dispose()
+        {
+            DisposeCalled = true;
+        }
+
+        public Task<FakeEntity> Get(Id id)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<FakeEntity> Get(string bucket, Id id)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<FakeEntity> New(Id id)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<FakeEntity> New(string bucket, Id id)
+        {
+            throw new NotImplementedException();
+        }
+
+
+        public Task<FakeEntity> TryGet(Id id)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<FakeEntity> TryGet(string bucket, Id id)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

@@ -15,33 +15,11 @@ namespace Aggregates.Internal
 
         public static Task Repeat(Func<Task> action, TimeSpan interval, string description)
         {
-            var cts = new CancellationTokenSource();
-            return Repeat(action, interval, cts.Token, description);
+            return Repeat(action, interval, CancellationToken.None, description);
         }
         public static Task Repeat(Func<Task> action, TimeSpan interval, CancellationToken cancellationToken, string description)
         {
-            return Task.Run(async () =>
-            {
-                while (true)
-                {
-                    try
-                    {
-                        await action().ConfigureAwait(false);
-                    }
-                    catch (Exception e)
-                    {
-                        Logger.WarnEvent("RepeatFailure", e, "[{description:l}]: {ExceptionType} - {ExceptionMessage}", description, e.GetType().Name, e.Message);
-                    }
-                    try
-                    {
-                        await Task.Delay(interval, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        return;
-                    }
-                }
-            }, cancellationToken);
+            return Repeat((_) => action(), null, interval, cancellationToken, description);
         }
 
         public static Task Repeat(Func<object, Task> action, object state, TimeSpan interval, string description)
@@ -105,25 +83,7 @@ namespace Aggregates.Internal
         }
         public static Task Expire(Func<Task> action, TimeSpan when, CancellationToken cancellationToken, string description)
         {
-            return Task.Run(async () =>
-            {
-                try
-                {
-                    await Task.Delay(when, cancellationToken).ConfigureAwait(false);
-                }
-                catch (TaskCanceledException)
-                {
-                    return;
-                }
-                try
-                {
-                    await action().ConfigureAwait(false);
-                }
-                catch (Exception e)
-                {
-                    Logger.WarnEvent("OnceFailure", e, "[{description:l}]: {ExceptionType} - {ExceptionMessage}", description, e.GetType().Name, e.Message);
-                }
-            }, cancellationToken);
+            return Expire((_) => action(), null, when, cancellationToken, description);
         }
     }
 }

@@ -23,37 +23,22 @@ namespace Aggregates.Internal
     class SnapshotReader : ISnapshotReader, IEventSubscriber
     {
         private static readonly ILog Logger = LogProvider.GetLogger("SnapshotReader");
-        
+
         // Todo: upgrade to LRU cache?
         // Store snapshots as strings, so that each request returns a new object which doesn't need to be deep copied
         private static readonly ConcurrentDictionary<string, Tuple<DateTime, string>> Snapshots = new ConcurrentDictionary<string, Tuple<DateTime, string>>();
         private static readonly ConcurrentDictionary<string, long> TruncateBefore = new ConcurrentDictionary<string, long>();
 
-        private static Task _truncate;
-        private static Task _snapshotExpiration;
-        private static int _truncating;
-
-        private CancellationTokenSource _cancelation;
-        private string _endpoint;
-        private Version _version;
-
-        private readonly IMetrics _metrics;
-        private readonly IEventStoreConsumer _consumer;
-        private readonly IMessageSerializer _serializer;
-
-        public SnapshotReader(IMetrics metrics, IStoreEvents store, IEventStoreConsumer consumer, IMessageSerializer serializer)
-        {
-            _metrics = metrics;
-            _consumer = consumer;
-            _serializer = serializer;
-
-            if (Interlocked.CompareExchange(ref _truncating, 1, 0) == 1) return;
-
-            // Writes truncateBefore metadata to snapshot streams to let ES know it can delete old snapshots
-            // its done here so that we actually get the snapshot before its deleted
-            _truncate = Timer.Repeat(async (state) =>
+        private static CancellationTokenSource Cancellation = new CancellationTokenSource();
+        private static Task Truncate = Timer.Repeat(async () =>
             {
-                var eventstore = state as IStoreEvents;
+                // Writes truncateBefore metadata to snapshot streams to let ES know it can delete old snapshots
+                // its done here so that we actually get the snapshot before its deleted
+
+                if (!Configuration.Setup)
+                    return;
+
+                var eventstore = Configuration.Settings.Container.Resolve<IStoreEvents>();
 
                 var truncates = TruncateBefore.Keys.ToList();
 
@@ -69,14 +54,18 @@ namespace Aggregates.Internal
                     }
                     catch
                     {
-                        // does matter if metadata fails to write - we'll try again later
-                    }
+                            // doesn't matter if metadata fails to write - we'll try again later
+                        }
                 }).ConfigureAwait(false);
-            }, store, TimeSpan.FromMinutes(5), "snapshot truncate before");
+            }, TimeSpan.FromMinutes(5), Cancellation.Token, "snapshot truncate before");
 
-            _snapshotExpiration = Timer.Repeat((state) =>
+
+        private static Task SnapshotExpiration = Timer.Repeat(() =>
             {
-                var m = state as IMetrics;
+                if (!Configuration.Setup)
+                    return Task.CompletedTask;
+
+                var m = Configuration.Settings.Container.Resolve<IMetrics>();
 
                 var expired = Snapshots.Where(x => (DateTime.UtcNow - x.Value.Item1) > TimeSpan.FromMinutes(5)).Select(x => x.Key)
                     .ToList();
@@ -87,12 +76,24 @@ namespace Aggregates.Internal
                         m.Decrement("Snapshots Stored", Unit.Items);
 
                 return Task.CompletedTask;
-            }, metrics, TimeSpan.FromMinutes(5), "expires snapshots from the cache");
+            }, TimeSpan.FromMinutes(5), Cancellation.Token, "expires snapshots from the cache");
+
+        private string _endpoint;
+        private Version _version;
+
+        private readonly IMetrics _metrics;
+        private readonly IEventStoreConsumer _consumer;
+        private readonly IMessageSerializer _serializer;
+
+        public SnapshotReader(IMetrics metrics, IStoreEvents store, IEventStoreConsumer consumer, IMessageSerializer serializer)
+        {
+            _metrics = metrics;
+            _consumer = consumer;
+            _serializer = serializer;
         }
 
         public async Task Setup(string endpoint, Version version)
         {
-            _cancelation = new CancellationTokenSource();
             _endpoint = endpoint;
             _version = version;
             await _consumer.EnableProjection("$by_category").ConfigureAwait(false);
@@ -107,13 +108,13 @@ namespace Aggregates.Internal
         }
         public Task Shutdown()
         {
-            _cancelation.Cancel();
+            Cancellation.Cancel();
             return Task.CompletedTask;
         }
 
         private Task Reconnect(string stream)
         {
-            return _consumer.SubscribeToStreamEnd(stream, _cancelation.Token, onEvent, () => Reconnect(stream));
+            return _consumer.SubscribeToStreamEnd(stream, Cancellation.Token, onEvent, () => Reconnect(stream));
         }
 
         private Task onEvent(string stream, long position, IFullEvent e)
@@ -127,7 +128,7 @@ namespace Aggregates.Internal
                 Version = e.Descriptor.Version,
                 Payload = e.Event
             };
-            
+
             Logger.DebugEvent("GotSnapshot", "[{Stream:l}] bucket [{Bucket:l}] entity [{EntityType:l}] version {Version}", snapshot.StreamId, snapshot.Bucket, snapshot.EntityType, snapshot.Version);
             Snapshots.AddOrUpdate(stream, (key) =>
             {
