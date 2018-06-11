@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    class StoreSnapshots : IStoreSnapshots
+    public class StoreSnapshots : IStoreSnapshots
     {
         private static readonly ILog Logger = LogProvider.GetLogger("StoreSnapshots");
 
@@ -18,12 +18,12 @@ namespace Aggregates.Internal
         private readonly ISnapshotReader _snapshots;
         private readonly StreamIdGenerator _streamGen;
 
-        public StoreSnapshots(IMetrics metrics, IStoreEvents store, ISnapshotReader snapshots, StreamIdGenerator streamGen)
+        public StoreSnapshots(IMetrics metrics, IStoreEvents store, ISnapshotReader snapshots)
         {
             _metrics = metrics;
             _store = store;
             _snapshots = snapshots;
-            _streamGen = streamGen;
+            _streamGen = Configuration.Settings.Generator;
         }
 
         public async Task<ISnapshot> GetSnapshot<T>(string bucket, Id streamId, Id[] parents) where T : IEntity

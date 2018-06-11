@@ -62,7 +62,7 @@ namespace Aggregates.Internal
 
             if (snapshotState != null)
             {
-                Logger.DebugEvent("Restored", "[{Stream:l}] bucket [{Bucket:l}] entity [{EntityType:l}] version {Version}", id, bucket, typeof(TEntity).Name, state.Version);
+                Logger.DebugEvent("SnapshotRestored", "[{Stream:l}] bucket [{Bucket:l}] entity [{EntityType:l}] version {Version}", id, bucket, typeof(TEntity).Name, state.Version);
                 state.SnapshotRestored();
             }
 

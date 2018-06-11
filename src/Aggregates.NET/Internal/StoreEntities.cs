@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    class StoreEntities : IStoreEntities
+    public class StoreEntities : IStoreEntities
     {
         private static readonly ILog Logger = LogProvider.GetLogger("StoreEntities");
 
@@ -31,7 +31,6 @@ namespace Aggregates.Internal
             _oobstore = oobstore;
             _factory = factory;
             _uow = uow;
-
         }
 
         public Task<TEntity> New<TEntity, TState>(string bucket, Id id, Id[] parents) where TEntity : IEntity<TState> where TState : class, IState, new()
