@@ -15,7 +15,7 @@ using Aggregates.Messages;
 
 namespace Aggregates.Internal
 {
-    class Repository<TEntity, TState, TParent> : Repository<TEntity, TState>, IRepository<TEntity, TParent> where TParent : IEntity where TEntity : Entity<TEntity, TState, TParent> where TState : class, IState, new()
+    public class Repository<TEntity, TState, TParent> : Repository<TEntity, TState>, IRepository<TEntity, TParent> where TParent : IEntity where TEntity : Entity<TEntity, TState, TParent> where TState : class, IState, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Repository");
 
@@ -85,7 +85,7 @@ namespace Aggregates.Internal
             return entity;
         }
     }
-    class Repository<TEntity, TState> : IRepository<TEntity>, IRepositoryCommit where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
+    public class Repository<TEntity, TState> : IRepository<TEntity>, IRepositoryCommit where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Repository");
 
@@ -111,7 +111,7 @@ namespace Aggregates.Internal
                 Tracked.Values
                     .Where(x => !x.Dirty)
                     .ToArray()
-                    .WhenAllAsync((x) => _store.Verify<TEntity, TState>(x.Bucket, x.Id, x.Parents, x.Version));
+                    .WhenAllAsync((x) => _store.Verify<TEntity, TState>(x));
         }
 
 
@@ -131,12 +131,12 @@ namespace Aggregates.Internal
         }
 
 
-        public void Dispose()
+        void IDisposable.Dispose()
         {
             Dispose(true);
         }
 
-        protected virtual void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
             if (_disposed || !disposing)
                 return;

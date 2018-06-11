@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Aggregates.Exceptions
+namespace Aggregates
 {
     /// <summary>
     /// Used by conflict resolvers to indicate that the event should just be discarded, not merged into the stream

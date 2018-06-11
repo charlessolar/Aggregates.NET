@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Aggregates.Exceptions
+namespace Aggregates
 {
     /// <summary>
     /// Used by conflict resolvers to indicate that the resolution has failed and the command needs to be retried

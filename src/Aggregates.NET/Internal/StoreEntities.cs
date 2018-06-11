@@ -34,7 +34,7 @@ namespace Aggregates.Internal
 
         }
 
-        public Task<TEntity> New<TEntity, TState>(string bucket, Id id, Id[] parents) where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
+        public Task<TEntity> New<TEntity, TState>(string bucket, Id id, Id[] parents) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
             var factory = EntityFactory.For<TEntity>();
 
@@ -49,7 +49,7 @@ namespace Aggregates.Internal
 
             return Task.FromResult(entity);
         }
-        public async Task<TEntity> Get<TEntity, TState>(string bucket, Id id, Id[] parents) where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
+        public async Task<TEntity> Get<TEntity, TState>(string bucket, Id id, Id[] parents) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
             var factory = EntityFactory.For<TEntity>();
 
@@ -69,29 +69,14 @@ namespace Aggregates.Internal
 
             return entity;
         }
-        private async Task<TEntity> GetClean<TEntity, TState>(TEntity dirty) where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
+        public Task Verify<TEntity, TState>(TEntity entity) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
-            var factory = EntityFactory.For<TEntity>();
-            // pull a new snapshot so snapshot.Snapshot is not null
-            // if we just use dity.State.Snapshot then dirty.State.Snapshot.Snapshot will be null which will cause issues
-            var snapshot = await _snapstore.GetSnapshot<TEntity>(dirty.Bucket, dirty.Id, dirty.Parents).ConfigureAwait(false);
-            var events = dirty.State.Committed;
+            if (entity.Dirty)
+                throw new ArgumentException($"Cannot verify version for a dirty entity");
 
-            var entity = factory.Create(dirty.Bucket, dirty.Id, dirty.Parents, events, snapshot?.Payload);
-
-            (entity as INeedDomainUow).Uow = _uow;
-            (entity as INeedEventFactory).EventFactory = _factory;
-            (entity as INeedStore).Store = _eventstore;
-            (entity as INeedStore).OobWriter = _oobstore;
-
-            Logger.DebugEvent("GetClean", "[{EntityId:l}] bucket [{Bucket:l}] entity [{EntityType:l}] version {Version}", dirty.Id, dirty.Bucket, typeof(TEntity).FullName, entity.Version);
-            return entity;
+            return _eventstore.VerifyVersion<TEntity>(entity.Bucket, entity.Id, entity.Parents, entity.Version);
         }
-        public Task Verify<TEntity, TState>(string bucket, Id id, Id[] parents, long version) where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
-        {
-            return _eventstore.VerifyVersion<TEntity>(bucket, id, parents, version);
-        }
-        public async Task Commit<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
+        public async Task Commit<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
 
             var state = entity.State;
@@ -123,18 +108,13 @@ namespace Aggregates.Internal
                     // Todo: cache per entity type
                     var conflictResolution = (OptimisticConcurrencyAttribute)Attribute.GetCustomAttribute(typeof(TEntity), typeof(OptimisticConcurrencyAttribute))
                                           ?? new OptimisticConcurrencyAttribute(ConcurrencyConflict.Throw);
-
-                    // make new clean entity
-                    var clean = await GetClean<TEntity, TState>(entity).ConfigureAwait(false);
-
-                    Logger.DebugEvent("ConflictResolve", "[{EntityId:l}] entity [{EntityType:l}] resolving {ConflictingEvents} events with {ConflictResolver}", entity.Id, typeof(TEntity).FullName, state.Version - clean.Version, conflictResolution.Conflict);
+                    
+                    Logger.DebugEvent("ConflictResolve", "[{EntityId:l}] entity [{EntityType:l}] resolving {ConflictingEvents} events with {ConflictResolver}", entity.Id, typeof(TEntity).FullName, entity.Uncommitted.Count(), conflictResolution.Conflict);
                     var strategy = conflictResolution.Conflict.Build(conflictResolution.Resolver);
 
                     commitHeaders[Defaults.ConflictResolvedHeader] = conflictResolution.Conflict.DisplayName;
 
-                    await strategy.Resolve<TEntity, TState>(clean, domainEvents, commitId, commitHeaders).ConfigureAwait(false);
-                    // Conflict resolved, replace original dirty entity we were trying to save with clean one
-                    entity = clean;
+                    await strategy.Resolve<TEntity, TState>(entity, commitId, commitHeaders).ConfigureAwait(false);
 
                     Logger.DebugEvent("ConflictResolveSuccess", "[{EntityId:l}] entity [{EntityType:l}] resolution success", entity.Id, typeof(TEntity).FullName);
                 }

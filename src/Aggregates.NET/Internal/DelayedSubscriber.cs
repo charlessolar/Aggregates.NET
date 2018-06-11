@@ -16,7 +16,7 @@ using Aggregates.Messages;
 
 namespace Aggregates.Internal
 {
-    class DelayedSubscriber : IEventSubscriber
+    public class DelayedSubscriber : IEventSubscriber
     {
         private static readonly ILog Logger = LogProvider.GetLogger("DelaySubscriber");
         private static readonly ILog SlowLogger = LogProvider.GetLogger("Slow Alarm");

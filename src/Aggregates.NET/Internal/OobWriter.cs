@@ -11,7 +11,7 @@ using Aggregates.Logging;
 
 namespace Aggregates.Internal
 {
-    class OobWriter : IOobWriter
+    public class OobWriter : IOobWriter
     {
         private static readonly ILog Logger = LogProvider.GetLogger("OobWriter");
 
@@ -21,11 +21,11 @@ namespace Aggregates.Internal
 
         private static readonly ConcurrentDictionary<string, int> DaysToLiveKnowns = new ConcurrentDictionary<string, int>();
 
-        public OobWriter(IMessageDispatcher dispatcher, IStoreEvents store, StreamIdGenerator generator)
+        public OobWriter(IMessageDispatcher dispatcher, IStoreEvents store)
         {
             _dispatcher = dispatcher;
             _store = store;
-            _generator = generator;
+            _generator = Configuration.Settings.Generator;
         }
 
         public Task<long> GetSize<TEntity>(string bucket, Id streamId, Id[] parents, string oobId) where TEntity : IEntity
@@ -44,7 +44,7 @@ namespace Aggregates.Internal
             return _store.GetEventsBackwards(stream, start, count);
         }
 
-        public async Task WriteEvents<TEntity>(string bucket, Id streamId, Id[] parents, IFullEvent[] events, Guid CommitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity
+        public async Task WriteEvents<TEntity>(string bucket, Id streamId, Id[] parents, IFullEvent[] events, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity
         {
             Logger.DebugEvent("Write", "{Events} stream [{Stream:l}] bucket [{Bucket:l}]", events.Length, streamId, bucket);
 
@@ -58,7 +58,7 @@ namespace Aggregates.Internal
                 var headers = new Dictionary<string, string>()
                 {
                     [$"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}"] = @event.EventId.ToString(),
-                    [$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = CommitId.ToString(),
+                    [$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = commitId.ToString(),
                     [$"{Defaults.PrefixHeader}.EventId"] = @event.EventId.ToString(),
                     [$"{Defaults.PrefixHeader}.EntityType"] = @event.Descriptor.EntityType,
                     [$"{Defaults.PrefixHeader}.Timestamp"] = @event.Descriptor.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture),
@@ -113,7 +113,8 @@ namespace Aggregates.Internal
             await _dispatcher.Publish(transients.ToArray()).ConfigureAwait(false);
             foreach (var stream in durables)
             {
-                await _store.WriteEvents(stream.Key, stream.Value.ToArray(), commitHeaders).ConfigureAwait(false);
+                // Commit headers were already added to descriptor
+                await _store.WriteEvents(stream.Key, stream.Value.ToArray(), new Dictionary<string, string> { }).ConfigureAwait(false);
                 // Update stream's maxAge if oob channel has a DaysToLive parameter
                 DaysToLiveKnowns.TryGetValue(stream.Key, out var daysToLiveKnown);
 

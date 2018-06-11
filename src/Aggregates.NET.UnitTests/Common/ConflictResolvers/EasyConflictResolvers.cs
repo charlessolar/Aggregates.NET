@@ -12,7 +12,7 @@ using FakeItEasy;
 using FluentAssertions;
 using AutoFixture.Xunit2;
 
-namespace Aggregates.UnitTests.Common.ConflictResolvers
+namespace Aggregates.Common.ConflictResolvers
 {
     public class EasyConflictResolvers : Test
     {
@@ -22,22 +22,10 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
             var sut = new ThrowConflictResolver();
 
             var e = await Record.ExceptionAsync(() => 
-                sut.Resolve<Fakes, FakeState>(Fake<Fakes>(), Fake<IFullEvent[]>(), Fake<Guid>(), Fake<Dictionary<string, string>>()))
+                sut.Resolve<FakeEntity, FakeState>(Fake<FakeEntity>(), Fake<Guid>(), Fake<Dictionary<string, string>>()))
                 .ConfigureAwait(false);
 
             e.Should().BeOfType<ConflictResolutionFailedException>();
-        }
-        [Fact]
-        async Task IgnoreConflictResolverWritesEvents()
-        {
-            var store = Fake<IStoreEvents>();
-            var sut = new IgnoreConflictResolver(store, Fake<StreamIdGenerator>());
-
-            await sut.Resolve<Fakes, FakeState>(Fake<Fakes>(), Fake<IFullEvent[]>(), Fake<Guid>(), Fake<Dictionary<string, string>>()).ConfigureAwait(false);
-
-            A.CallTo(() => 
-                store.WriteEvents<Fakes>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored, A<IFullEvent[]>.Ignored, A<Dictionary<string, string>>.Ignored, A<long?>.Ignored))
-                .Should().HaveHappened();
         }
         [Fact]
         async Task DiscardConflictResolverDoesntThrowOrSave()
@@ -45,13 +33,45 @@ namespace Aggregates.UnitTests.Common.ConflictResolvers
             var store = Fake<IStoreEvents>();
             var sut = new DiscardConflictResolver();
 
-            await sut.Resolve<Fakes, FakeState>(Fake<Fakes>(), Fake<IFullEvent[]>(), Fake<Guid>(), Fake<Dictionary<string, string>>()).ConfigureAwait(false);
+            await sut.Resolve<FakeEntity, FakeState>(Fake<FakeEntity>(), Fake<Guid>(), Fake<Dictionary<string, string>>()).ConfigureAwait(false);
 
             A.CallTo(() =>
-                store.WriteEvents<Fakes>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored, A<IFullEvent[]>.Ignored, A<Dictionary<string, string>>.Ignored, A<long?>.Ignored))
+                store.WriteEvents<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored, A<IFullEvent[]>.Ignored, A<Dictionary<string, string>>.Ignored, A<long?>.Ignored))
                 .Should().NotHaveHappened();
         }
-        
+        [Fact]
+        async Task IgnoreConflictResolverWritesEvents()
+        {
+            var store = Fake<IStoreEvents>();
+            var sut = new IgnoreConflictResolver(store, Fake<IOobWriter>());
+
+            await sut.Resolve<FakeEntity, FakeState>(Fake<FakeEntity>(), Fake<Guid>(), Fake<Dictionary<string, string>>()).ConfigureAwait(false);
+
+            A.CallTo(() => 
+                store.WriteEvents<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored, A<IFullEvent[]>.Ignored, A<Dictionary<string, string>>.Ignored, A<long?>.Ignored))
+                .Should().HaveHappened();
+        }
+
+        [Fact]
+        async Task IgnoreConflictResolverWritesOobEvents()
+        {
+            var store = Fake<IStoreEvents>();
+            var oob = Fake<IOobWriter>();
+            var entity = Fake<FakeEntity>();
+
+            var sut = new IgnoreConflictResolver(store, oob);
+            entity.RaiseEvents(Many<FakeOobEvent.FakeEvent>(3), "test");
+
+            await sut.Resolve<FakeEntity, FakeState>(entity, Fake<Guid>(), Fake<Dictionary<string, string>>()).ConfigureAwait(false);
+
+            // No domain events writen
+            A.CallTo(() =>
+                store.WriteEvents<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored, A<IFullEvent[]>.That.IsEmpty(), A<Dictionary<string, string>>.Ignored, A<long?>.Ignored))
+                .Should().HaveHappened();
+            A.CallTo(() =>
+                oob.WriteEvents<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored, A<IFullEvent[]>.That.Matches(x => x.Length == 3 ), A<Guid>.Ignored, A<Dictionary<string, string>>.Ignored))
+                .Should().HaveHappened();
+        }
 
     }
 }

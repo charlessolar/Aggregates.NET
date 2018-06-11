@@ -152,7 +152,7 @@ namespace Aggregates.Internal
             //Snapshots.TryUpdate(stream, new Tuple<DateTime, ISnapshot>(DateTime.UtcNow, snapshot.Item2), snapshot);
 
             // Explanation:
-            // Snapshots are stored as strings do that each retreive creates a new object (deep copy in C# doesn't work very well)
+            // Snapshots are stored as strings so that each retreive creates a new object (deep copy in C# doesn't work very well)
             // snapshots have a 'Snapshot' property which is supposed to be a clean copy of the state for use in event handlers
             // think: 
             //

@@ -26,7 +26,7 @@ namespace Aggregates.Internal
 
         public IResolveConflicts Build(Type type = null)
         {
-            switch(this.Value)
+            switch (this.Value)
             {
                 case ConcurrencyConflict.Throw:
                     return Configuration.Settings.Container.Resolve<ThrowConflictResolver>();
@@ -47,7 +47,7 @@ namespace Aggregates.Internal
 
     internal class ThrowConflictResolver : IResolveConflicts
     {
-        public Task Resolve<TEntity, TState>(TEntity entity, IFullEvent[] uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : IState, new()
+        public Task Resolve<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
             throw new ConflictResolutionFailedException("No conflict resolution attempted");
         }
@@ -61,26 +61,25 @@ namespace Aggregates.Internal
         internal static readonly ILog Logger = LogProvider.GetLogger("IgnoreConflictResolver");
 
         private readonly IStoreEvents _store;
-        private readonly StreamIdGenerator _streamGen;
+        private readonly IOobWriter _oobStore;
 
-        public IgnoreConflictResolver(IStoreEvents store, StreamIdGenerator streamGen)
+        public IgnoreConflictResolver(IStoreEvents store, IOobWriter oobStore)
         {
             _store = store;
-            _streamGen = streamGen;
+            _oobStore = oobStore;
         }
 
-        public async Task Resolve<TEntity, TState>(TEntity entity, IFullEvent[] uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : IState, new()
+        public async Task Resolve<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
             var state = entity.State;
 
-            Logger.DebugEvent("Resolver", "Resolving {Events} conflicting events to stream [{Stream:l}] type [{EntityType:l}] bucket [{Bucket:l}]", uncommitted.Count(), entity.Id, typeof(TEntity).FullName, entity.Bucket);
+            Logger.DebugEvent("Resolver", "Resolving {Events} conflicting events to stream [{Stream:l}] type [{EntityType:l}] bucket [{Bucket:l}]", entity.Uncommitted.Count(), entity.Id, typeof(TEntity).FullName, entity.Bucket);
 
-            foreach (var u in uncommitted)
-            {
-                state.Apply(u.Event as IEvent);
-            }
+            var domainEvents = entity.Uncommitted.Where(x => x.Descriptor.StreamType == StreamTypes.Domain).ToArray();
+            var oobEvents = entity.Uncommitted.Where(x => x.Descriptor.StreamType == StreamTypes.OOB).ToArray();
 
-            await _store.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.Parents, uncommitted, commitHeaders).ConfigureAwait(false);
+            await _store.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.Parents, domainEvents, commitHeaders).ConfigureAwait(false);
+            await _oobStore.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.Parents, oobEvents, commitId, commitHeaders).ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -90,9 +89,9 @@ namespace Aggregates.Internal
     {
         internal static readonly ILog Logger = LogProvider.GetLogger("DiscardConflictResolver");
 
-        public Task Resolve<TEntity, TState>(TEntity entity, IFullEvent[] uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : IState, new()
+        public Task Resolve<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
-            Logger.DebugEvent("Resolver", "Discarding {Events} conflicting events to stream [{Stream:l}] type [{EntityType:l}] bucket [{Bucket:l}]", uncommitted.Count(), entity.Id, typeof(TEntity).FullName, entity.Bucket);
+            Logger.DebugEvent("Resolver", "Discarding {Events} conflicting events to stream [{Stream:l}] type [{EntityType:l}] bucket [{Bucket:l}]", entity.Uncommitted.Count(), entity.Id, typeof(TEntity).FullName, entity.Bucket);
 
             return Task.CompletedTask;
         }
@@ -104,35 +103,38 @@ namespace Aggregates.Internal
     {
         internal static readonly ILog Logger = LogProvider.GetLogger("ResolveStronglyConflictResolver");
 
-        private readonly IStoreSnapshots _snapstore;
-        private readonly IStoreEvents _eventstore;
-        private readonly StreamIdGenerator _streamGen;
+        private readonly IStoreEntities _store;
 
-        public ResolveStronglyConflictResolver(IStoreSnapshots snapshot, IStoreEvents eventstore, StreamIdGenerator streamGen)
+        public ResolveStronglyConflictResolver(IStoreEntities store)
         {
-            _snapstore = snapshot;
-            _eventstore = eventstore;
-            _streamGen = streamGen;
+            _store = store;
         }
 
-        public async Task Resolve<TEntity, TState>(TEntity entity, IFullEvent[] uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : IState, new()
+        public async Task Resolve<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
-            var state = entity.State;
-            Logger.DebugEvent("Resolver", "Resolving {Events} conflicting events to stream [{Stream:l}] type [{EntityType:l}] bucket [{Bucket:l}]", uncommitted.Count(), entity.Id, typeof(TEntity).FullName, entity.Bucket);
+            Logger.DebugEvent("Resolver", "Resolving {Events} conflicting events to stream [{Stream:l}] type [{EntityType:l}] bucket [{Bucket:l}]", entity.Uncommitted.Count(), entity.Id, typeof(TEntity).FullName, entity.Bucket);
 
-            var latestEvents =
-                await _eventstore.GetEvents<TEntity>(entity.Bucket, entity.Id, entity.Parents, entity.Version).ConfigureAwait(false);
-            Logger.DebugEvent("Behind", "Stream is {Count} events behind store", latestEvents.Count());
+            // Get the latest clean entity
+            var latestEntity = await _store.Get<TEntity, TState>(entity.Bucket, entity.Id, entity.Parents).ConfigureAwait(false);
 
-            for (var i = 0; i < latestEvents.Length; i++)
-                state.Apply(latestEvents[i].Event as IEvent);
+            Logger.DebugEvent("Behind", "Stream is {Count} events behind store", latestEntity.Version - entity.Version);
 
+            var state = latestEntity.State;
             try
             {
-                foreach (var u in uncommitted)
+                foreach (var u in entity.Uncommitted)
                 {
                     if (u.Descriptor.StreamType == StreamTypes.Domain)
-                        entity.Conflict(u.Event as IEvent);
+                    {
+                        try
+                        {
+                            latestEntity.Conflict(u.Event as IEvent);
+                        }
+                        catch (DiscardEventException)
+                        {
+                            // event should be discarded
+                        }
+                    }
                     else if (u.Descriptor.StreamType == StreamTypes.OOB)
                     {
                         // Todo: small hack
@@ -147,7 +149,7 @@ namespace Aggregates.Internal
                         if (u.Descriptor.Headers.ContainsKey(Defaults.OobDaysToLiveKey))
                             int.TryParse(u.Descriptor.Headers[Defaults.OobDaysToLiveKey], out daysToLive);
 
-                        entity.Raise(u.Event as IEvent, id, transient, daysToLive);
+                        latestEntity.Raise(u.Event as IEvent, id, transient, daysToLive);
                     }
                 }
             }
@@ -157,7 +159,7 @@ namespace Aggregates.Internal
                 throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
             }
 
-            await _eventstore.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.Parents, entity.Uncommitted, commitHeaders).ConfigureAwait(false);
+            await _store.Commit<TEntity, TState>(latestEntity, commitId, commitHeaders).ConfigureAwait(false);
         }
     }
 
@@ -178,22 +180,18 @@ namespace Aggregates.Internal
     {
         internal static readonly ILog Logger = LogProvider.GetLogger("ResolveWeaklyConflictResolver");
 
-        private readonly IStoreSnapshots _snapstore;
         private readonly IStoreEvents _eventstore;
         private readonly IDelayedChannel _delay;
-        private readonly StreamIdGenerator _streamGen;
 
 
-        public ResolveWeaklyConflictResolver(IStoreSnapshots snapstore, IStoreEvents eventstore, IDelayedChannel delay, StreamIdGenerator streamGen)
+        public ResolveWeaklyConflictResolver(IStoreEvents eventstore, IDelayedChannel delay)
         {
-            _snapstore = snapstore;
             _eventstore = eventstore;
             _delay = delay;
-            _streamGen = streamGen;
         }
 
 
-        public Task Resolve<TEntity, TState>(TEntity entity, IFullEvent[] uncommitted, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : IState, new()
+        public Task Resolve<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
             throw new NotImplementedException();
         }

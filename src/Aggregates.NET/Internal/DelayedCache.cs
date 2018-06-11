@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 namespace Aggregates.Internal
 {
 
-    class DelayedCache : IDelayedCache, IDisposable
+    public class DelayedCache : IDelayedCache, IDisposable
     {
         class CacheKey
         {
@@ -43,19 +43,21 @@ namespace Aggregates.Internal
         class CachedList
         {
             private object _lock { get; set; }
-            private Queue<IDelayedMessage> _messages;
+            private readonly ITimeProvider _time;
+            private readonly Queue<IDelayedMessage> _messages;
 
             public long Created { get; private set; }
             public long Pulled { get; private set; }
 
             public int Count => _messages.Count;
 
-            public CachedList()
+            public CachedList(ITimeProvider time)
             {
                 _lock = new object();
+                _time = time;
                 _messages = new Queue<IDelayedMessage>();
-                Created = DateTime.UtcNow.Ticks;
-                Pulled = DateTime.UtcNow.Ticks;
+                Created = _time.Now.Ticks;
+                Pulled = _time.Now.Ticks;
             }
 
             public void AddRange(IDelayedMessage[] messages)
@@ -68,7 +70,7 @@ namespace Aggregates.Internal
             }
             public IDelayedMessage[] Dequeue(int? count)
             {
-                Pulled = DateTime.UtcNow.Ticks;
+                Pulled = _time.Now.Ticks;
 
                 count = Math.Min(Count, count ?? int.MaxValue);
 
@@ -95,6 +97,9 @@ namespace Aggregates.Internal
 
         private readonly IMetrics _metrics;
         private readonly IStoreEvents _store;
+        private readonly IRandomProvider _random;
+        private readonly ITimeProvider _time;
+
         private readonly TimeSpan _flushInterval;
         private readonly string _endpoint;
         private readonly int _maxSize;
@@ -106,26 +111,27 @@ namespace Aggregates.Internal
 
         private readonly object _cacheLock;
         private readonly Dictionary<CacheKey, CachedList> _memCache;
-        private readonly Random _rand;
 
         private int _tooLarge;
         private bool _disposed;
 
-        public DelayedCache(IMetrics metrics, IStoreEvents store, TimeSpan flushInterval, string endpoint, int maxSize, int flushSize, TimeSpan delayedExpiration, StreamIdGenerator streamGen)
+        public DelayedCache(IMetrics metrics, IStoreEvents store, IRandomProvider random, ITimeProvider time)
         {
             _metrics = metrics;
             _store = store;
-            _flushInterval = flushInterval;
-            _endpoint = endpoint;
-            _maxSize = maxSize;
-            _flushSize = flushSize;
-            _expiration = delayedExpiration;
-            _streamGen = streamGen;
+            _random = random;
+            _time = time;
+
+            _flushInterval = Configuration.Settings.FlushInterval;
+            _endpoint = Configuration.Settings.Endpoint;
+            _maxSize = Configuration.Settings.MaxDelayed;
+            _flushSize = Configuration.Settings.FlushSize;
+            _expiration = Configuration.Settings.DelayedExpiration;
+            _streamGen = Configuration.Settings.Generator;
             _cts = new CancellationTokenSource();
 
             _cacheLock = new object();
             _memCache = new Dictionary<CacheKey, CachedList>(new CacheKey.EqualityComparer());
-            _rand = new Random();
 
             _thread = new Thread(Threaded)
             { IsBackground = true, Name = $"Delayed Cache Thread" };
@@ -184,7 +190,7 @@ namespace Aggregates.Internal
             lock (_cacheLock)
             {
                 if (!_memCache.TryGetValue(cacheKey, out list))
-                    _memCache[cacheKey] = list = new CachedList();
+                    _memCache[cacheKey] = list = new CachedList(_time);
             }
 
             list.AddRange(messages);
@@ -193,14 +199,14 @@ namespace Aggregates.Internal
         public Task<IDelayedMessage[]> Pull(string channel, string key = null, int? max = null)
         {
             var discovered = pullFromMemCache(channel, key, max);
-            
-            // Check empty key store too, 10% of the time
-            if (_rand.Next(10) == 0 && !string.IsNullOrEmpty(key))
+
+            //// Check empty key store too, 10% of the time
+            if (_random.Chance(10) && !string.IsNullOrEmpty(key))
             {
                 var nonSpecific = pullFromMemCache(channel, null, max);
                 discovered = discovered.Concat(nonSpecific).ToArray();
             }
-            
+
             return Task.FromResult(discovered);
         }
 
@@ -213,7 +219,7 @@ namespace Aggregates.Internal
             var specificKey = new CacheKey(channel, key);
             CachedList temp;
             if (_memCache.TryGetValue(specificKey, out temp))
-                specificAge = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - temp.Pulled);
+                specificAge = TimeSpan.FromTicks(_time.Now.Ticks - temp.Pulled);
             
 
             return Task.FromResult<TimeSpan?>(specificAge);
@@ -262,7 +268,7 @@ namespace Aggregates.Internal
 
             // A list of channels who have expired or have more than 1/5 the max total cache size
             var expiredSpecificChannels =
-                _memCache.Where(x => TimeSpan.FromTicks(DateTime.UtcNow.Ticks - x.Value.Pulled) > _expiration)
+                _memCache.Where(x => TimeSpan.FromTicks(_time.Now.Ticks - x.Value.Pulled) > _expiration)
                     .Select(x => x.Key).Take(Math.Max(1, _memCache.Keys.Count / 5))
                     .ToArray();
 
@@ -284,11 +290,11 @@ namespace Aggregates.Internal
                         StreamType = $"{_endpoint}.{StreamTypes.Delayed}",
                         Bucket = Assembly.GetEntryAssembly()?.FullName ?? "UNKNOWN",
                         StreamId = $"{expired.Channel}.{expired.Key}",
-                        Timestamp = DateTime.UtcNow,
+                        Timestamp = _time.Now,
                         Headers = new Dictionary<string, string>()
                         {
                             ["Expired"] = "true",
-                            ["FlushTime"] = DateTime.UtcNow.ToString("s"),
+                            ["FlushTime"] = _time.Now.ToString("s"),
                         }
                     },
                     Event = x,
@@ -352,11 +358,11 @@ namespace Aggregates.Internal
                                 StreamType = $"{_endpoint}.{StreamTypes.Delayed}",
                                 Bucket = Assembly.GetEntryAssembly()?.FullName ?? "UNKNOWN",
                                 StreamId = $"{expired.Channel}.{expired.Key}",
-                                Timestamp = DateTime.UtcNow,
+                                Timestamp = _time.Now,
                                 Headers = new Dictionary<string, string>()
                                 {
                                     ["Expired"] = "false",
-                                    ["FlushTime"] = DateTime.UtcNow.ToString("s"),
+                                    ["FlushTime"] = _time.Now.ToString("s"),
                                 }
                             },
                             Event = x,

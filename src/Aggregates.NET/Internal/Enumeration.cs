@@ -9,31 +9,11 @@ using System.Text;
 namespace Aggregates.Internal
 {
     // From https://github.com/HeadspringLabs/Enumeration/blob/master/Enumeration.cs
-    [Serializable]
-    [DebuggerDisplay("{DisplayName} - {Value}")]
-    abstract class Enumeration<TEnumeration> : Enumeration<TEnumeration, int>
-        where TEnumeration : Enumeration<TEnumeration>
-    {
-        protected Enumeration(int value, string displayName)
-            : base(value, displayName)
-        {
-        }
-
-        public static TEnumeration FromInt32(int value)
-        {
-            return FromValue(value);
-        }
-
-        public static bool TryFromInt32(int listItemValue, out TEnumeration result)
-        {
-            return TryParse(listItemValue, out result);
-        }
-    }
 
     [DebuggerDisplay("{DisplayName} - {Value}")]
     [Serializable]
     [DataContract]
-    abstract class Enumeration<TEnumeration, TValue> : IComparable<TEnumeration>, IEquatable<TEnumeration>
+    public abstract class Enumeration<TEnumeration, TValue> : IComparable<TEnumeration>, IEquatable<TEnumeration>
         where TEnumeration : Enumeration<TEnumeration, TValue>
         where TValue : IComparable
     {
@@ -48,7 +28,7 @@ namespace Aggregates.Internal
         {
             if (value == null)
             {
-                throw new ArgumentNullException();
+                throw new ArgumentNullException(nameof(value));
             }
 
             Value = value;

@@ -94,7 +94,7 @@ when({{
 }});";
 
             // Todo: replace with `fromCategories([])` when available
-            var appDefinition = string.Format(definition, $"'$ce-{StreamTypes.Domain}','$ce-{StreamTypes.OOB}','$ce-{StreamTypes.Poco}'", stream, functions);
+            var appDefinition = string.Format(definition, $"'$ce-{StreamTypes.Domain}','$ce-{StreamTypes.OOB}'", stream, functions);
             await _consumer.CreateProjection($"{stream}.app.projection", appDefinition).ConfigureAwait(false);
         }
 

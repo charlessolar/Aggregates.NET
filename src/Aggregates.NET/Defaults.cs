@@ -11,7 +11,6 @@ namespace Aggregates
         public static readonly string Domain = "DOMAIN";
         public static readonly string Delayed = "DELAY";
         public static readonly string Snapshot = "SNAPSHOT";
-        public static readonly string Poco = "POCO";
         public static readonly string OOB = "OOB";
     }
 

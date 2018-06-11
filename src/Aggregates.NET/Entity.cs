@@ -215,8 +215,8 @@ namespace Aggregates
 
         public override string ToString()
         {
-            var parents = Parents.Any() ? $" [{Parents.BuildParentsString()}] " : " ";
-            return $"{typeof(TThis).FullName} [{Bucket}]{parents}[{Id}] v{Version}(-{_uncommitted.Count})";
+            var parents = Parents != null && Parents.Any() ? $" [{Parents.BuildParentsString()}] " : " ";
+            return $"{typeof(TThis).FullName} [{Bucket}]{parents}[{Id}] v{Version}({_uncommitted.Count})";
         }
     }
 }

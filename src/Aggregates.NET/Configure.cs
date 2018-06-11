@@ -46,29 +46,29 @@ namespace Aggregates
         public readonly Version AggregatesVersion;
 
         // Log settings
-        public TimeSpan? SlowAlertThreshold { get; private set; }
-        public bool ExtraStats { get; private set; }
+        public TimeSpan? SlowAlertThreshold { get; internal set; }
+        public bool ExtraStats { get; internal set; }
 
         // Data settings
-        public StreamIdGenerator Generator { get; private set; }
-        public int ReadSize { get; private set; }
-        public Compression Compression { get; private set; }
+        public StreamIdGenerator Generator { get; internal set; }
+        public int ReadSize { get; internal set; }
+        public Compression Compression { get; internal set; }
 
         // Messaging settings
-        public string Endpoint { get; private set; }
-        public string UniqueAddress { get; private set; }
-        public int Retries { get; private set; }
-        public int ParallelMessages { get; private set; }
-        public int ParallelEvents { get; private set; }
-        public int MaxConflictResolves { get; private set; }
+        public string Endpoint { get; internal set; }
+        public string UniqueAddress { get; internal set; }
+        public int Retries { get; internal set; }
+        public int ParallelMessages { get; internal set; }
+        public int ParallelEvents { get; internal set; }
+        public int MaxConflictResolves { get; internal set; }
 
         // Delayed cache settings
-        public int FlushSize { get; private set; }
-        public TimeSpan FlushInterval { get; private set; }
-        public TimeSpan DelayedExpiration { get; private set; }
-        public int MaxDelayed { get; private set; }
+        public int FlushSize { get; internal set; }
+        public TimeSpan FlushInterval { get; internal set; }
+        public TimeSpan DelayedExpiration { get; internal set; }
+        public int MaxDelayed { get; internal set; }
 
-        public bool Passive { get; private set; }
+        public bool Passive { get; internal set; }
 
         public string MessageContentType { get; internal set; }
 
@@ -116,6 +116,9 @@ namespace Aggregates
             {
                 var container = c.Container;
 
+                container.Register<IRandomProvider>(new RealRandomProvider(), Lifestyle.Singleton);
+                container.Register<ITimeProvider>(new RealTimeProvider(), Lifestyle.Singleton);
+
                 // Register outselves with ourselves
                 container.Register<IContainer>(container, Lifestyle.Singleton);
                 container.Register<IDelayedChannel, DelayedChannel>(Lifestyle.UnitOfWork);
@@ -124,12 +127,11 @@ namespace Aggregates
                 container.Register<IRepositoryFactory, RepositoryFactory>(Lifestyle.PerInstance);
                 container.Register<IProcessor, Processor>(Lifestyle.PerInstance);
                 container.Register<IStoreSnapshots>((factory) => new StoreSnapshots(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<ISnapshotReader>(), c.Generator), Lifestyle.PerInstance);
-                container.Register<IOobWriter>((factory) => new OobWriter(factory.Resolve<IMessageDispatcher>(), factory.Resolve<IStoreEvents>(), c.Generator), Lifestyle.PerInstance);
+                container.Register<IOobWriter>((factory) => new OobWriter(factory.Resolve<IMessageDispatcher>(), factory.Resolve<IStoreEvents>()), Lifestyle.PerInstance);
                 container.Register<ISnapshotReader, SnapshotReader>(Lifestyle.PerInstance);
 
-                container.Register<ICache, IntelligentCache>(Lifestyle.PerInstance);
                 container.Register<IMetrics, NullMetrics>(Lifestyle.Singleton);
-                container.Register<IDelayedCache>((factory) => new DelayedCache(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), c.FlushInterval, c.Endpoint, c.MaxDelayed, c.FlushSize, c.DelayedExpiration, c.Generator), Lifestyle.Singleton);
+                container.Register<IDelayedCache>((factory) => new DelayedCache(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<IRandomProvider>(), factory.Resolve<ITimeProvider>()), Lifestyle.Singleton);
 
                 container.Register<IEventSubscriber>((factory) => new EventSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IMessaging>(), factory.Resolve<IEventStoreConsumer>(), c.ParallelEvents), Lifestyle.Singleton, "eventsubscriber");
                 container.Register<IEventSubscriber>((factory) => new DelayedSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IMessageDispatcher>(), c.Retries), Lifestyle.Singleton, "delayedsubscriber");

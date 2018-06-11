@@ -32,10 +32,6 @@ namespace Aggregates
                         factory.Resolve<IMetrics>(),
                         factory.Resolve<IMessageSerializer>(),
                         factory.Resolve<IEventMapper>(),
-                        factory.Resolve<ICache>(),
-                        config.Generator,
-                        config.ReadSize,
-                        config.Compression,
                         connections
                         ), Lifestyle.Singleton);
 

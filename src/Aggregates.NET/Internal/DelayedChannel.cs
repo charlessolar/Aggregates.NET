@@ -13,7 +13,7 @@ using Aggregates.Logging;
 
 namespace Aggregates.Internal
 {
-    class DelayedChannel : IDelayedChannel
+    public class DelayedChannel : IDelayedChannel
     {
         private class InFlightInfo
         {

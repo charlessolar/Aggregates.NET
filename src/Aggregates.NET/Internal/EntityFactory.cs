@@ -32,7 +32,7 @@ namespace Aggregates.Internal
         }
     }
 
-    class EntityFactory<TEntity, TState> : IEntityFactory<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
+    public class EntityFactory<TEntity, TState> : IEntityFactory<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger("EntityFactory");
         private readonly Func<TEntity> _factory;

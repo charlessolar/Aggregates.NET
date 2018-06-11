@@ -23,22 +23,21 @@ namespace Aggregates.Internal
         private readonly IMetrics _metrics;
         private readonly IMessageSerializer _serializer;
         private readonly IEventMapper _mapper;
-        private readonly ICache _cache;
         private readonly StreamIdGenerator _generator;
         private readonly IEventStoreConnection[] _clients;
         private readonly int _readsize;
         private readonly Compression _compress;
 
-        public StoreEvents(IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, ICache cache, StreamIdGenerator generator, int readsize, Compression compress, IEventStoreConnection[] connections)
+        public StoreEvents(IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IEventStoreConnection[] connections)
         {
             _metrics = metrics;
             _serializer = serializer;
             _mapper = mapper;
-            _cache = cache;
-            _generator = generator;
             _clients = connections;
-            _readsize = readsize;
-            _compress = compress;
+
+            _generator = Configuration.Settings.Generator;
+            _readsize = Configuration.Settings.ReadSize;
+            _compress = Configuration.Settings.Compression;
         }
 
         public Task<IFullEvent[]> GetEvents<TEntity>(string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
@@ -49,12 +48,6 @@ namespace Aggregates.Internal
 
         public async Task<IFullEvent[]> GetEvents(string stream, long? start = null, int? count = null)
         {
-            // Don't worry about start or count - if stream is in cache its not being written to very often and start/count are unlikely to change
-            var cached = _cache.Retreive(stream) as IFullEvent[];
-            if (cached != null)
-                return cached;
-
-
             var shard = Math.Abs(stream.GetHash() % _clients.Count());
 
             var sliceStart = start ?? StreamPosition.Start;
@@ -113,16 +106,11 @@ namespace Aggregates.Internal
                 };
             }).ToArray();
 
-            _cache.Cache(stream, translatedEvents);
             return translatedEvents;
         }
 
         public async Task<IFullEvent[]> GetEventsBackwards(string stream, long? start = null, int? count = null)
         {
-            var cached = _cache.Retreive(stream) as IFullEvent[];
-            if (cached != null)
-                return cached;
-
             var shard = Math.Abs(stream.GetHash() % _clients.Count());
 
             var events = new List<ResolvedEvent>();
@@ -197,7 +185,6 @@ namespace Aggregates.Internal
                 };
             }).ToArray();
 
-            _cache.Cache(stream, translatedEvents);
             return translatedEvents;
         }
         public Task<IFullEvent[]> GetEventsBackwards<TEntity>(string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
@@ -238,9 +225,6 @@ namespace Aggregates.Internal
         public Task<long> WriteEvents(string stream, IFullEvent[] events,
             IDictionary<string, string> commitHeaders, long? expectedVersion = null)
         {
-            _cache.Evict(stream);
-
-
             var mutators = MutationManager.Registered.ToList();
 
             var translatedEvents = events.Select(e =>
