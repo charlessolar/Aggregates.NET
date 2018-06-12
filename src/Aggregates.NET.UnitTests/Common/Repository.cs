@@ -20,6 +20,12 @@ namespace Aggregates.Common
             entity.Should().NotBeNull();
         }
         [Fact]
+        public async Task ShouldGetEntityFromTryGetWithNullId()
+        {
+            var entity = await Sut.TryGet((Id)null).ConfigureAwait(false);
+            entity.Should().BeNull();
+        }
+        [Fact]
         public async Task ShouldNotGetEntityFromTryGet()
         {
             var store = Fake<IStoreEntities>();

@@ -36,7 +36,7 @@ namespace Aggregates
 
         public override string ToString()
         {
-            return Value.ToString();
+            return Value?.ToString() ?? "null";
         }
 
         public bool Equals(Id other)

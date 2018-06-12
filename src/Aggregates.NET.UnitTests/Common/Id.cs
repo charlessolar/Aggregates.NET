@@ -83,5 +83,12 @@ namespace Aggregates.Common
             (id == (Id)guid).Should().BeTrue();
             (id != (Id)Guid.NewGuid()).Should().BeTrue();
         }
+        [Fact]
+        public void ShouldGetStringWithNullValue()
+        {
+            var id = new Aggregates.Id(null);
+
+            id.ToString().Should().Be("null");
+        }
     }
 }
