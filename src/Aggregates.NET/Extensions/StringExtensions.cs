@@ -17,13 +17,17 @@ namespace Aggregates.Extensions
             while(lines < max)
             {
                 var newline = source.IndexOf("\n", StringComparison.Ordinal);
-                if (newline == -1) break;
+                if (newline == -1)
+                {
+                    ret += source;
+                    break;
+                }
                 ret += source.Substring(0, newline + 1);
                 source = source.Substring(newline + 1);
                 lines++;
             }
 
-            return ret;
+            return ret.Trim();
         }
         // dotnet core GetHashCode returns different values (not deterministic)
         // we just need a simple deterministic hash

@@ -1,4 +1,6 @@
-﻿using Aggregates.Contracts;
+﻿using Aggregates.Attributes;
+using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Internal;
 using Aggregates.Messages;
 using System;
@@ -90,6 +92,7 @@ namespace Aggregates
         }
     }
 
+    [OptimisticConcurrency(ConcurrencyConflict.Custom, resolver: typeof(FakeResolver))]
     public class FakeEntity : Entity<FakeEntity, FakeState>
     {
         private FakeEntity() { }
@@ -104,11 +107,35 @@ namespace Aggregates
             foreach (var @event in events)
                 (this as IEntity<FakeState>).Raise(@event, oobId, transient, daysToLive);
         }
+
+    }
+
+    public class FakeResolver : IResolveConflicts
+    {
+        public bool ShouldSucceed = true;
+        public bool ShouldAbandon = false;
+        public bool WasCalled = false;
+
+        public Task Resolve<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
+        {
+            WasCalled = true;
+            if (!ShouldSucceed)
+                throw new Exception();
+            if (ShouldAbandon)
+                throw new AbandonConflictException();
+            return Task.CompletedTask;
+        }
     }
 
     public class FakeChildEntity : Entity<FakeChildEntity, FakeState, FakeEntity>
     {
         private FakeChildEntity() { }
+
+        public void ApplyEvents<TEvent>(TEvent[] events) where TEvent : IEvent
+        {
+            foreach (var @event in events)
+                (this as IEntity<FakeState>).Apply(@event);
+        }
     }
 
     public class FakeEnumeration : Enumeration<FakeEnumeration, int>
@@ -174,5 +201,9 @@ namespace Aggregates
         {
             throw new NotImplementedException();
         }
+    }
+    public class FakeAppUnitOfWork : IAppUnitOfWork
+    {
+        public dynamic Bag { get; set; }
     }
 }

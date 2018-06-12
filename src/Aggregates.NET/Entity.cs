@@ -33,7 +33,7 @@ namespace Aggregates
         public long Version { get; private set; }
         public TState State { get; private set; }
 
-        public bool Dirty => Uncommitted.Any();
+        public bool Dirty => Uncommitted.Any() || Version == EntityFactory.NewEntityVersion;
 
         public IFullEvent[] Uncommitted => _uncommitted.ToArray();
 

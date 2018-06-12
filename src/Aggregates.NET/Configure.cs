@@ -23,7 +23,7 @@ namespace Aggregates
             settings(config);
 
             if (config.Container == null)
-                throw new ArgumentException("Must designate a container implementation");
+                throw new InvalidOperationException("Must designate a container implementation");
 
             Settings = config;
 
@@ -80,12 +80,7 @@ namespace Aggregates
 
         internal AsyncLocal<IContainer> LocalContainer;
         internal IContainer Container;
-
-        public static Configure Start()
-        {
-            return new Configure();
-        }
-
+        
         public Configure()
         {
             EndpointVersion = Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(0, 0, 0);

@@ -52,7 +52,7 @@ namespace Aggregates.Common
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
 
             var entity2 = await Sut.Get("test").ConfigureAwait(false);
-            entity2.State.Version.Should().Be(2L);
+            entity2.State.Version.Should().Be(5L);
         }
         [Fact]
         public async Task ShouldGetNewEntity()
@@ -67,7 +67,7 @@ namespace Aggregates.Common
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
 
             var entity2 = await Sut.New("test").ConfigureAwait(false);
-            entity2.State.Version.Should().Be(2L);
+            entity2.State.Version.Should().Be(5L);
         }
         [Fact]
         public async Task ShouldHaveNoChangedStreams()

@@ -8,6 +8,5 @@ namespace Aggregates
     public class DiscardEventException : Exception
     {
         public DiscardEventException() { }
-        public DiscardEventException(string message) : base(message) { }
     }
 }

@@ -49,7 +49,7 @@ namespace Aggregates.Internal
     {
         public Task Resolve<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
-            throw new ConflictResolutionFailedException("No conflict resolution attempted");
+            throw new ConflictResolutionFailedException(typeof(TEntity), entity.Bucket, entity.Id, entity.Parents, "No conflict resolution attempted");
         }
     }
 
@@ -156,7 +156,7 @@ namespace Aggregates.Internal
             catch (NoRouteException e)
             {
                 Logger.WarnEvent("ResolveFailure", e, "Failed to resolve conflict: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
-                throw new ConflictResolutionFailedException("Failed to resolve conflict", e);
+                throw new ConflictResolutionFailedException(typeof(TEntity), entity.Bucket, entity.Id, entity.Parents, "Failed to resolve conflict", e);
             }
 
             await _store.Commit<TEntity, TState>(latestEntity, commitId, commitHeaders).ConfigureAwait(false);

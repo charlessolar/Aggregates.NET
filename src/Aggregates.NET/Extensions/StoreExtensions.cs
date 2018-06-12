@@ -83,13 +83,6 @@ namespace Aggregates.Extensions
                 }
             }
         }
-
-        public static string ToLowerCamelCase(this string type)
-        {
-            // Unsure if I want to trim the namespaces or not
-            var name = type.Substring(type.LastIndexOf('.') + 1);
-            return char.ToLower(name[0]) + name.Substring(1);
-        }
-
+        
     }
 }

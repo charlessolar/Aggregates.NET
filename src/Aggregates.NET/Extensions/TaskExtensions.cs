@@ -22,65 +22,11 @@ namespace Aggregates.Extensions
 
                 }));
         }
-        public static async Task<IEnumerable<TReturn>> StartEachAsync<T, TReturn>(
-            this T[] source, int dop, Func<T, Task<TReturn>> body)
-        {
-
-            var ret = await Task.WhenAll(Partitioner.Create(source, loadBalance: true).GetPartitions(dop)
-                .Select(partition => Task.Run(async () =>
-                {
-                    var results = new List<TReturn>();
-                    using (partition)
-                        while (partition.MoveNext())
-                            results.Add(await body(partition.Current).ConfigureAwait(false));
-                    return results;
-                }))).ConfigureAwait(false);
-            return ret.SelectMany(x => x);
-        }
 
         // http://compiledexperience.com/blog/posts/async-extensions/
         public static Task WhenAllAsync<T>(this IEnumerable<T> values, Func<T, Task> asyncAction)
         {
             return Task.WhenAll(values.Select(asyncAction));
-        }
-
-        // http://compiledexperience.com/blog/posts/async-extensions/
-        public static Task<TResult[]> SelectAsync<TSource, TResult>(this IEnumerable<TSource> values, Func<TSource, Task<TResult>> asyncSelector)
-        {
-            return Task.WhenAll(values.Select(asyncSelector));
-        }
-        public static async Task WhenAllSync<T>(this IEnumerable<T> values, Func<T, Task> asyncAction)
-        {
-            foreach (var val in values)
-                await asyncAction.Invoke(val).ConfigureAwait(false);
-        }
-
-        public static async Task WhileAsync<TSource>(this ICollection<TSource> values, Func<TSource, Task> asyncSelector)
-        {
-            while (values.Any())
-            {
-                var value = values.First();
-                values.Remove(value);
-                await asyncSelector.Invoke(value).ConfigureAwait(false);
-            }
-        }
-        public static async Task WhileAsync<TKey, TValue>(this ICollection<KeyValuePair<TKey, TValue>> values, Func<KeyValuePair<TKey, TValue>, Task> asyncSelector)
-        {
-            while (values.Any())
-            {
-                var value = values.First();
-                values.Remove(value);
-                await asyncSelector.Invoke(value).ConfigureAwait(false);
-            }
-        }
-        public static async Task WhileAsync<TKey, TValue>(this ICollection<KeyValuePair<TKey, TValue>> values, Func<KeyValuePair<TKey,TValue>, bool> whereSelector, Func<KeyValuePair<TKey, TValue>, Task> asyncSelector)
-        {
-            while (values.Any(whereSelector))
-            {
-                var value = values.First(whereSelector);
-                values.Remove(value);
-                await asyncSelector.Invoke(value).ConfigureAwait(false);
-            }
         }
 
     }

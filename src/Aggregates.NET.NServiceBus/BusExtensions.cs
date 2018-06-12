@@ -15,13 +15,28 @@ namespace Aggregates
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Command");
 
+        private static void CheckResponse(ICommand command, IMessage msg)
+        {
+            if (msg is Reject)
+            {
+                var reject = (Reject)msg;
+                Logger.Warn($"Command was rejected - Message: {reject.Message}");
+                throw new RejectedException(command.GetType(), reject.Message, reject.Exception);
+            }
+            if (msg is Error)
+            {
+                var error = (Error)msg;
+                Logger.Warn($"Command Fault!\n{error.Message}");
+                throw new RejectedException(command.GetType(), $"Command Fault!\n{error.Message}");
+            }
+        }
         public static async Task Command(this IMessageSession ctx, ICommand command)
         {
             var options = new SendOptions();
             options.SetHeader(Defaults.RequestResponse, "1");
 
             var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
-            response.CommandResponse();
+            CheckResponse(command, response);
         }
         public static async Task Command(this IMessageSession ctx, string destination, ICommand command)
         {
@@ -30,7 +45,7 @@ namespace Aggregates
             options.SetHeader(Defaults.RequestResponse, "1");
 
             var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
-            response.CommandResponse();
+            CheckResponse(command, response);
         }
 
         public static async Task<bool> TimeoutCommand(this IMessageSession ctx, ICommand command, TimeSpan timeout)
@@ -42,7 +57,7 @@ namespace Aggregates
             try
             {
                 var response = await ctx.Request<IMessage>(command, options, cancelation.Token).ConfigureAwait(false);
-                response.CommandResponse();
+                CheckResponse(command, response);
                 return true;
             }
             catch (TaskCanceledException)
@@ -61,7 +76,7 @@ namespace Aggregates
             try
             {
                 var response = await ctx.Request<IMessage>(command, options, cancelation.Token).ConfigureAwait(false);
-                response.CommandResponse();
+                CheckResponse(command, response);
                 return true;
             }
             catch (TaskCanceledException)

@@ -28,13 +28,27 @@ namespace Aggregates
             {
                 var factory = EntityFactory.For<FakeEntity>();
 
-                var entity = factory.Create(Defaults.Bucket, Fake<Id>(), new Id[] { });
+                var entity = factory.Create(Defaults.Bucket, Fake<Id>(), new Id[] { }, Many<FakeDomainEvent.FakeEvent>());
 
                 (entity as INeedDomainUow).Uow = Fake<IDomainUnitOfWork>();
                 (entity as INeedEventFactory).EventFactory = Fake<IEventFactory>();
                 (entity as INeedStore).Store = Fake<IStoreEvents>();
                 (entity as INeedStore).OobWriter = Fake<IOobWriter>();
 
+                return entity;
+            }));
+            Fixture.Customize<FakeChildEntity>(x => x.FromFactory(() =>
+            {
+                var factory = EntityFactory.For<FakeChildEntity>();
+
+                var entity = factory.Create(Defaults.Bucket, Fake<Id>(), new Id[] { }, Many<FakeDomainEvent.FakeEvent>());
+
+                (entity as INeedDomainUow).Uow = Fake<IDomainUnitOfWork>();
+                (entity as INeedEventFactory).EventFactory = Fake<IEventFactory>();
+                (entity as INeedStore).Store = Fake<IStoreEvents>();
+                (entity as INeedStore).OobWriter = Fake<IOobWriter>();
+
+                entity.Parent = Fake<FakeEntity>();
                 return entity;
             }));
         }

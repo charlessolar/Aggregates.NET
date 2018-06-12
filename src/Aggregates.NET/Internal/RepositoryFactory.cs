@@ -2,11 +2,13 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     class RepositoryFactory : IRepositoryFactory
     {
         private static readonly ConcurrentDictionary<Type, object> Factories = new ConcurrentDictionary<Type, object>();

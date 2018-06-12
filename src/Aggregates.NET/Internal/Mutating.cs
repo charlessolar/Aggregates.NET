@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using Aggregates.Contracts;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     class Mutating : IMutating
     {
         public Mutating(object message, IDictionary<string, string> headers)

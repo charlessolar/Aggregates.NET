@@ -77,6 +77,8 @@ namespace Aggregates.Internal
         }
         public async Task Commit<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
+            if (!entity.Dirty)
+                throw new ArgumentException($"Entity {typeof(TEntity).FullName} id {entity.Id} bucket {entity.Bucket} is not dirty");
 
             var state = entity.State;
 
@@ -122,18 +124,14 @@ namespace Aggregates.Internal
                     _metrics.Mark("Conflicts Unresolved", Unit.Items);
                     Logger.ErrorEvent("ConflictResolveAbandon", "[{EntityId:l}] entity [{EntityType:l}] abandonded", entity.Id, typeof(TEntity).FullName);
 
-                    throw new ConflictResolutionFailedException(
-                        $"Aborted conflict resolution for stream [{entity.Id}] entity {entity.GetType().FullName}",
-                        abandon);
+                    throw new ConflictResolutionFailedException(entity.GetType(), entity.Bucket, entity.Id, entity.Parents, "Aborted", abandon);
                 }
                 catch (Exception ex)
                 {
                     _metrics.Mark("Conflicts Unresolved", Unit.Items);
                     Logger.ErrorEvent("ConflictResolveFail", ex, "[{EntityId:l}] entity [{EntityType:l}] failed: {ExceptionType} - {ExceptionMessage}", entity.Id, typeof(TEntity).FullName, ex.GetType().Name, ex.Message);
 
-                    throw new ConflictResolutionFailedException(
-                        $"Failed to resolve conflict for stream [{entity.Id}] entity {entity.GetType().FullName} due to exception",
-                        ex);
+                    throw new ConflictResolutionFailedException(entity.GetType(), entity.Bucket, entity.Id, entity.Parents, "Exception", ex);
                 }
 
             }
@@ -142,15 +140,6 @@ namespace Aggregates.Internal
                 Logger.WarnEvent("CommitFailure", e, "[{EntityId:l}] entity [{EntityType:l}] bucket [{Bucket:l}]: {ExceptionType} - {ExceptionMessage}", entity.Id, typeof(TEntity).Name, entity.Bucket, e.GetType().Name, e.Message);
                 _metrics.Mark("Event Write Errors", Unit.Errors);
                 throw;
-            }
-            catch (DuplicateCommitException)
-            {
-                Logger.Warn("DoubleCommit", "[{EntityId:l}] entity [{EntityType:l}]", entity.Id, typeof(TEntity).FullName);
-
-                _metrics.Mark("Event Write Errors", Unit.Errors);
-                // I was throwing this, but if this happens it means the events for this message have already been committed.  Possibly as a partial message failure earlier. 
-                // Im changing to just discard the changes, perhaps can take a deeper look later if this ever bites me on the ass
-                //throw;
             }
 
             try

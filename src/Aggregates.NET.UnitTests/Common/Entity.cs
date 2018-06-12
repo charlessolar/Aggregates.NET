@@ -33,12 +33,37 @@ namespace Aggregates.Common
         [Fact]
         public void EntityShouldBeNew()
         {
+            // Modify factory to create NEW entity
+            Fixture.Customize<FakeEntity>(x => x.FromFactory(() =>
+            {
+                var factory = Internal.EntityFactory.For<FakeEntity>();
+
+                var entity = factory.Create(Defaults.Bucket, Fake<Id>(), new Id[] { });
+
+                return entity;
+            }));
+
             Sut.Version.Should().Be(Internal.EntityFactory.NewEntityVersion);
         }
         [Fact]
         public void EntityShouldBeClean()
         {
             Sut.Dirty.Should().Be(false);
+        }
+        [Fact]
+        public void NewEntityShouldBeDirty()
+        {
+            // Modify factory to create NEW entity
+            Fixture.Customize<FakeEntity>(x => x.FromFactory(() =>
+            {
+                var factory = Internal.EntityFactory.For<FakeEntity>();
+
+                var entity = factory.Create(Defaults.Bucket, Fake<Id>(), new Id[] { });
+
+                return entity;
+            }));
+
+            Sut.Dirty.Should().Be(true);
         }
         [Fact]
         public void EntityShouldBeDirty()

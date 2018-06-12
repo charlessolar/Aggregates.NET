@@ -399,8 +399,7 @@ namespace Aggregates.Internal
                     {
                         Logger.Fatal(
                             $"Projection [{name}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!\nExisting:\n{existing}\nDesired:\n{definition}");
-                        throw new EndpointVersionException(
-                            $"Projection [{name}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!");
+                        throw new EndpointVersionException(name, existing, definition);
                     }
                 }
                 catch (ProjectionCommandFailedException)

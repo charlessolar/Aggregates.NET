@@ -99,7 +99,7 @@ namespace Aggregates.Common.ConflictResolvers
                 .ConfigureAwait(false);
 
             cleanEntity.State.Conflicts.Should().Be(0);
-            cleanEntity.State.Handles.Should().Be(0);
+            cleanEntity.State.Handles.Should().Be(3);
             cleanEntity.Uncommitted.Where(x => x.Descriptor.StreamType == StreamTypes.OOB).Should().HaveCount(3);
         }
         [Fact]

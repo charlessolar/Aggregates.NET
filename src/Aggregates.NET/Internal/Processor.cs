@@ -8,9 +8,11 @@ using Aggregates.Messages;
 using System.Collections.Concurrent;
 using Aggregates.Extensions;
 using Aggregates.Logging;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     class Processor : IProcessor
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Processor");

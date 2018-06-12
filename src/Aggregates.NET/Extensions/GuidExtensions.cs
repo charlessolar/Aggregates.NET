@@ -16,14 +16,5 @@ namespace Aggregates.Extensions
             return new Guid(canIncrement ? bytes : new byte[16]);
         }
 
-        public static Guid Add(this Guid guid, int add)
-        {
-            while (add > 0)
-            {
-                guid.Increment();
-                add--;
-            }
-            return guid;
-        }
     }
 }

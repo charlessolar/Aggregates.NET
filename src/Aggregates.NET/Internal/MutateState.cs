@@ -58,7 +58,7 @@ namespace Aggregates.Internal
             // route based on event name.
             Action<TState, object> eventMutator;
             if(!_mutators.TryGetValue($"Handle.{eventType}", out eventMutator))
-                throw new NoRouteException($"State {typeof(TState).Name} does not have handler for event {eventType}");
+                throw new NoRouteException(typeof(TState), $"Handle({eventType})");
             eventMutator((TState)state, @event);
         }
         public void Conflict(IState state, IEvent @event)
@@ -75,7 +75,7 @@ namespace Aggregates.Internal
             // route based on event name.
             Action<TState, object> eventMutator;
             if (!_mutators.TryGetValue($"Conflict.{eventType}", out eventMutator))
-                throw new NoRouteException($"State {typeof(TState).Name} does not have handler for event {eventType}");
+                throw new NoRouteException(typeof(TState), $"Conflict({eventType})");
             eventMutator((TState)state, @event);
         }
     }

@@ -26,7 +26,7 @@ namespace Aggregates.Internal
         }
 
         protected const string CommitHeader = "CommitId";
-        public static string NotFound = "<NOT FOUND>";
+        protected const string NotFound = "<NOT FOUND>";
 
         internal static readonly ILog Logger = LogProvider.GetLogger("UnitOfWork");
 
