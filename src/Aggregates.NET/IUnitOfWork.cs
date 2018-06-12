@@ -20,7 +20,7 @@ namespace Aggregates
         dynamic Bag { get; set; }
     }
 
-    public interface IDomainUnitOfWork 
+    public interface IDomainUnitOfWork : IMutate
     {
         IRepository<T> For<T>() where T : IEntity;
         IRepository<TEntity, TParent> For<TEntity, TParent>(TParent parent) where TEntity : IChildEntity<TParent> where TParent : IHaveEntities<TParent>;

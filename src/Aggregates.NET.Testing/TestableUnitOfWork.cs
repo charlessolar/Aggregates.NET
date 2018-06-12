@@ -67,7 +67,8 @@ namespace Aggregates
         public object CurrentMessage => null;
         public IDictionary<string, string> CurrentHeaders => new Dictionary<string, string>();
 
-
+        public IMutating MutateIncoming(IMutating command) { return command; }
+        public IMutating MutateOutgoing(IMutating command) { return command; }
 
         IRepository<T> IDomainUnitOfWork.For<T>()
         {

@@ -146,5 +146,13 @@ namespace Aggregates.Internal
 
         }
 
+        public virtual IMutating MutateIncoming(IMutating command)
+        {
+            return command;
+        }
+        public virtual IMutating MutateOutgoing(IMutating command)
+        {
+            return command;
+        }
     }
 }

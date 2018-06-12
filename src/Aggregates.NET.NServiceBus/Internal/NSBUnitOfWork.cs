@@ -14,7 +14,7 @@ namespace Aggregates.Internal
         public NSBUnitOfWork(IRepositoryFactory repoFactory, IEventFactory eventFactory) : base(repoFactory, eventFactory) { }
 
 
-        public IMutating MutateIncoming(IMutating command)
+        public override IMutating MutateIncoming(IMutating command)
         {
             CurrentMessage = command.Message;
 
@@ -74,7 +74,7 @@ namespace Aggregates.Internal
             return command;
         }
 
-        public IMutating MutateOutgoing(IMutating command)
+        public override IMutating MutateOutgoing(IMutating command)
         {
             foreach (var header in CurrentHeaders)
                 command.Headers[header.Key] = header.Value;

@@ -41,7 +41,6 @@ namespace Aggregates
 
             if (!Configuration.Settings.Passive)
             {
-                //container.Register<IDomainUnitOfWork, NSBUnitOfWork>();
                 MutationManager.RegisterMutator("domain unit of work", typeof(IDomainUnitOfWork));
                 
 
