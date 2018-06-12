@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Aggregates.Contracts;
 using NServiceBus;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     public class EventFactory : IEventFactory
     {
         private readonly IMessageCreator _creator;

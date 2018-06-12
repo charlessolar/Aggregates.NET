@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,7 +12,7 @@ using NServiceBus.Pipeline;
 
 namespace Aggregates.Internal
 {
-    class LocalMessageUnpack : Behavior<IIncomingLogicalMessageContext>
+    public class LocalMessageUnpack : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogProvider.GetLogger("LocalMessageUnpack");
 
@@ -119,6 +120,7 @@ namespace Aggregates.Internal
             }
         }
     }
+    [ExcludeFromCodeCoverage]
     internal class LocalMessageUnpackRegistration : RegisterStep
     {
         public LocalMessageUnpackRegistration(IContainer container) : base(

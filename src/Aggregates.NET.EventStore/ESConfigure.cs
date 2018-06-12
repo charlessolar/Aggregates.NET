@@ -4,12 +4,14 @@ using Aggregates.Internal;
 using EventStore.ClientAPI;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates
 {
+    [ExcludeFromCodeCoverage]
     public static class ESConfigure
     {
         public static Configure EventStore(this Configure config, IEventStoreConnection[] connections)
@@ -23,9 +25,7 @@ namespace Aggregates
                         factory.Resolve<IMetrics>(),
                         factory.Resolve<IMessageSerializer>(),
                         connections,
-                        factory.Resolve<IEventMapper>(),
-                        config.ReadSize,
-                        config.ExtraStats
+                        factory.Resolve<IEventMapper>()
                         ), Lifestyle.Singleton);
                 container.Register<IStoreEvents>((factory) =>
                     new StoreEvents(

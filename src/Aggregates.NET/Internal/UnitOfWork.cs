@@ -25,7 +25,6 @@ namespace Aggregates.Internal
             return EventIds.AddOrUpdate(commitId, commitId, (key, value) => value.Increment());
         }
 
-        protected const string CommitHeader = "CommitId";
         protected const string NotFound = "<NOT FOUND>";
 
         internal static readonly ILog Logger = LogProvider.GetLogger("UnitOfWork");
@@ -114,8 +113,8 @@ namespace Aggregates.Internal
 
             var headers = new Dictionary<string, string>
             {
-                [CommitHeader] = CommitId.ToString(),
-                ["Instance"] = Defaults.Instance.ToString()
+                [$"{Defaults.PrefixHeader}.{Defaults.CommitIdHeader}"] = CommitId.ToString(),
+                [$"{Defaults.PrefixHeader}.Instance"] = Defaults.Instance.ToString()
                 // Todo: what else can we put in here?
             };
 

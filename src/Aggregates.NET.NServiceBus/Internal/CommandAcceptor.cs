@@ -14,10 +14,11 @@ using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
 using Aggregates.Messages;
 using NServiceBus;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {
-    internal class CommandAcceptor : Behavior<IIncomingLogicalMessageContext>
+    public class CommandAcceptor : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogProvider.GetLogger("CommandAcceptor");
 
@@ -65,6 +66,7 @@ namespace Aggregates.Internal
             await next().ConfigureAwait(false);
         }
     }
+    [ExcludeFromCodeCoverage]
     internal class CommandAcceptorRegistration : RegisterStep
     {
         public CommandAcceptorRegistration(IContainer container) : base(

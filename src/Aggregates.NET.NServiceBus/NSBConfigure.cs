@@ -9,9 +9,11 @@ using System.Linq;
 using System.Text;
 using NServiceBus.Transport;
 using System.Threading.Tasks;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates
 {
+    [ExcludeFromCodeCoverage]
     public static class NSBConfigure
     {
         public static Configure NServiceBus(this Configure config, EndpointConfiguration endpointConfig)

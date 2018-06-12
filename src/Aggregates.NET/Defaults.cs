@@ -8,43 +8,42 @@ namespace Aggregates
 {
     public static class StreamTypes
     {
-        public static readonly string Domain = "DOMAIN";
-        public static readonly string Delayed = "DELAY";
-        public static readonly string Snapshot = "SNAPSHOT";
-        public static readonly string OOB = "OOB";
+        public const string Domain = "DOMAIN";
+        public const string Delayed = "DELAY";
+        public const string Snapshot = "SNAPSHOT";
+        public const string OOB = "OOB";
     }
 
     public delegate string StreamIdGenerator(Type entityType, string streamType, string bucket, Id id, Id[] parents);
 
     public static class Defaults
     {
-        public static readonly string PrefixHeader = "Aggregates.NET";
-        public static readonly string MessageIdHeader = "MessageId";
-        public static readonly string CorrelationIdHeader = "CorrelationId";
+        public const string PrefixHeader = "Aggregates.NET";
+        public const string MessageIdHeader = "MessageId";
+        public const string CorrelationIdHeader = "CorrelationId";
 
-        public static readonly string OriginatingHeader = "Originating";
+        public const string OriginatingHeader = "Originating";
 
-        public static readonly string Retries = "Aggregates.NET.Retries";
-        public static readonly string RequestResponse = "Aggregates.NET.Request";
-        public static readonly string ChannelKey = "Aggregates.NET.ChannelKey";
-        public static readonly string OobHeaderKey = "Aggregates.OOB";
-        public static readonly string OobTransientKey = "Aggregates.Transient";
-        public static readonly string OobDaysToLiveKey = "Aggregates.DaysToLive";
-        public static readonly string LocalHeader = "Aggregates.NET.LocalMessage";
-        public static readonly string BulkHeader = "Aggregates.NET.BulkMessage";
-        public static readonly string ConflictResolvedHeader = "ConflictResolver";
+        public const string Retries = "Aggregates.NET.Retries";
+        public const string RequestResponse = "Aggregates.NET.Request";
+        public const string ChannelKey = "Aggregates.NET.ChannelKey";
+        public const string OobHeaderKey = "Aggregates.OOB";
+        public const string OobTransientKey = "Aggregates.Transient";
+        public const string OobDaysToLiveKey = "Aggregates.DaysToLive";
+        public const string LocalHeader = "Aggregates.NET.LocalMessage";
+        public const string BulkHeader = "Aggregates.NET.BulkMessage";
+        public const string ConflictResolvedHeader = "ConflictResolver";
 
-        public static readonly string AggregatesVersionHeader = "Aggregates.NET.Version";
-        public static readonly string EndpointHeader = "Endpoint";
-        public static readonly string InstanceHeader = "Endpoint.Instance";
-        public static readonly string MachineHeader = "Endpoint.Machine";
-        public static readonly string EndpointVersionHeader = "Endpoint.Version";
-
+        public const string AggregatesVersionHeader = "Aggregates.NET.Version";
+        public const string EndpointHeader = "Endpoint";
+        public const string InstanceHeader = "Endpoint.Instance";
+        public const string MachineHeader = "Endpoint.Machine";
+        public const string EndpointVersionHeader = "Endpoint.Version";
+        
+        public const string Bucket = "default";
+        public const string CommitIdHeader = "CommitId";
 
         public static readonly Guid Instance = Guid.NewGuid();
-        public static readonly string Bucket = "default";
-        public static readonly string CommitIdHeader = "CommitId";
-
         public static readonly AsyncLocal<LogLevel?> MinimumLogging = new AsyncLocal<LogLevel?>();
 
     }

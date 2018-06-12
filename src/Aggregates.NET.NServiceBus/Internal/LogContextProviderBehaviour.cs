@@ -4,12 +4,14 @@ using NServiceBus;
 using NServiceBus.Pipeline;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    class LogContextProviderBehaviour : Behavior<IIncomingLogicalMessageContext>
+    [ExcludeFromCodeCoverage]
+    internal class LogContextProviderBehaviour : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogProvider.GetLogger("LogContextProvider");
 
@@ -41,6 +43,7 @@ namespace Aggregates.Internal
             }
         }
     }
+    [ExcludeFromCodeCoverage]
     internal class LogContextProviderRegistration : RegisterStep
     {
         public LogContextProviderRegistration() : base(

@@ -9,7 +9,7 @@ using System.Text;
 
 namespace Aggregates.Internal
 {
-    class NSBUnitOfWork : UnitOfWork, IMutate
+    public class NSBUnitOfWork : UnitOfWork, IMutate
     {
         public NSBUnitOfWork(IRepositoryFactory repoFactory, IEventFactory eventFactory) : base(repoFactory, eventFactory) { }
 
@@ -40,8 +40,6 @@ namespace Aggregates.Internal
                             !h.Equals("WinIdName", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.StartsWith("NServiceBus", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.StartsWith("$", StringComparison.InvariantCultureIgnoreCase) &&
-                            !h.Equals(CommitHeader) &&
-                            !h.Equals(Defaults.CommitIdHeader, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.RequestResponse, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.Retries, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.LocalHeader, StringComparison.InvariantCultureIgnoreCase) &&
@@ -58,13 +56,13 @@ namespace Aggregates.Internal
 
             // Attempt to get MessageId from NServicebus headers
             // If we maintain a good CommitId convention it should solve the message idempotentcy issue (assuming the storage they choose supports it)
-            if (CurrentHeaders.TryGetValue(NSBDefaults.MessageIdHeader, out messageId))
+            if (command.Headers.TryGetValue(Headers.MessageId, out messageId))
                 Guid.TryParse(messageId, out commitId);
-            if (CurrentHeaders.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}", out messageId))
+            if (command.Headers.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}", out messageId))
                 Guid.TryParse(messageId, out commitId);
 
             // Allow the user to send a CommitId along with his message if he wants
-            if (CurrentHeaders.TryGetValue(Defaults.CommitIdHeader, out messageId))
+            if (command.Headers.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.CommitIdHeader}", out messageId))
                 Guid.TryParse(messageId, out commitId);
 
 

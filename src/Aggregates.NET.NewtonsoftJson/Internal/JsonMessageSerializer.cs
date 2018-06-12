@@ -3,6 +3,7 @@ using Aggregates.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -11,6 +12,7 @@ using NewtonSerializer = Newtonsoft.Json.JsonSerializer;
 namespace Aggregates.Internal
 {
     // https://github.com/Particular/NServiceBus.Newtonsoft.Json/blob/develop/src/NServiceBus.Newtonsoft.Json/JsonMessageSerializer.cs
+    [ExcludeFromCodeCoverage]
     class JsonMessageSerializer : IMessageSerializer
     {
         public static readonly UTF8Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);

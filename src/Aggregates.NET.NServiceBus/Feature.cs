@@ -10,6 +10,7 @@ using NServiceBus.Unicast;
 using NServiceBus.Unicast.Messages;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -17,6 +18,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
+    [ExcludeFromCodeCoverage]
     class Feature : NServiceBus.Features.Feature
     {
         public Feature()
@@ -59,7 +61,7 @@ namespace Aggregates
 
             if (Configuration.Settings.SlowAlertThreshold.HasValue)
                 context.Pipeline.Register(
-                    behavior: new TimeExecutionBehavior(Configuration.Settings.SlowAlertThreshold.Value),
+                    behavior: new TimeExecutionBehavior(),
                     description: "times the execution of messages and reports anytime they are slow"
                     );
 
@@ -89,6 +91,7 @@ namespace Aggregates
         }
     }
 
+    [ExcludeFromCodeCoverage]
     class EndpointRunner : FeatureStartupTask
     {
         private static readonly ILog Logger = LogProvider.GetLogger("EndpointRunner");

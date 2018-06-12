@@ -3,9 +3,11 @@ using System;
 using Aggregates.Logging;
 using Aggregates.Extensions;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     class TraceWriter : ITraceWriter
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Json");

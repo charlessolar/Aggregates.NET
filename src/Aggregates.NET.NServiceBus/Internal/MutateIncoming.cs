@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
@@ -10,7 +11,7 @@ using NServiceBus.Pipeline;
 
 namespace Aggregates.Internal
 {
-    internal class MutateIncoming : Behavior<IIncomingLogicalMessageContext>
+    public class MutateIncoming : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogProvider.GetLogger("MutateIncoming");
         
@@ -50,6 +51,7 @@ namespace Aggregates.Internal
             return next();
         }
     }
+    [ExcludeFromCodeCoverage]
     internal class MutateIncomingRegistration : RegisterStep
     {
         public MutateIncomingRegistration() : base(

@@ -7,9 +7,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Internal;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates
 {
+    [ExcludeFromCodeCoverage]
     public static class ContextExtensions
     {
         public static IRepository<T> For<T>(this IMessageHandlerContext context) where T : class, IEntity

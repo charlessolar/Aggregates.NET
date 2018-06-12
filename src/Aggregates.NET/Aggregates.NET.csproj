@@ -23,7 +23,7 @@
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="SourceLink.Create.GitHub" Version="2.8.1" PrivateAssets="All" />
+    <PackageReference Include="SourceLink.Create.GitHub" Version="2.8.2" PrivateAssets="All" />
     <DotNetCliToolReference Include="dotnet-sourcelink-git" Version="2.6.0" />
   </ItemGroup>
 </Project>

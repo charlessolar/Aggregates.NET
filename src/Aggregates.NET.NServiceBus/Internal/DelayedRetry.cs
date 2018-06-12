@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
@@ -7,7 +8,8 @@ using NServiceBus;
 
 namespace Aggregates.Internal
 {
-    class DelayedRetry
+    [ExcludeFromCodeCoverage]
+    public class DelayedRetry
     {
         private readonly IMetrics _metrics;
         private readonly IMessageDispatcher _dispatcher;
@@ -18,7 +20,7 @@ namespace Aggregates.Internal
             _dispatcher = dispatcher;
         }
 
-        public void QueueRetry(IFullMessage message, TimeSpan delay)
+        public virtual void QueueRetry(IFullMessage message, TimeSpan delay)
         {
             _metrics.Increment("Retry Queue", Unit.Message);
             var messageId = Guid.NewGuid().ToString();

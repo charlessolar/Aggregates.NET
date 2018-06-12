@@ -13,6 +13,7 @@
     <PackageReference Include="AutoFixture.AutoFakeItEasy" Version="4.4.0" />
     <PackageReference Include="AutoFixture.Xunit2" Version="4.4.0" />
     <PackageReference Include="FakeItEasy" Version="4.6.0" />
+    <PackageReference Include="NServiceBus.Testing" Version="7.0.0" />
     <PackageReference Include="xunit" Version="2.3.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.3.1" />
     <PackageReference Include="XunitXml.TestLogger" Version="2.0.0" />
@@ -31,6 +32,10 @@
     <ProjectReference Include="..\Aggregates.NET.NServiceBus\Aggregates.NET.NServiceBus.csproj" />
     <ProjectReference Include="..\Aggregates.NET.StructureMap\Aggregates.NET.StructureMap.csproj" />
     <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Testing\" />
   </ItemGroup>
 
 </Project>

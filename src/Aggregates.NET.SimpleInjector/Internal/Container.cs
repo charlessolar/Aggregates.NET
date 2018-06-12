@@ -6,9 +6,11 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using SimpleInjector.Lifestyles;
 using SimpleInjector;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     class Container : IContainer, IDisposable
     {
         private readonly SimpleInjector.Container _container;

@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Newtonsoft.Json;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     class IdJsonConverter : JsonConverter
     {
         public override bool CanConvert(Type objectType) => typeof(Id) == objectType;

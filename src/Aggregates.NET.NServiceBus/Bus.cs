@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -14,6 +15,7 @@ using NServiceBus.Transport;
 
 namespace Aggregates
 {
+    [ExcludeFromCodeCoverage]
     public static class Bus
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Bus");

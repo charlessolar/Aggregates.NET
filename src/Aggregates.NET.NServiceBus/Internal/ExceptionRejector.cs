@@ -8,28 +8,30 @@ using NServiceBus.Transport;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    class ExceptionRejector : Behavior<IIncomingLogicalMessageContext>
+    public class ExceptionRejector : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ConcurrentDictionary<string, int> RetryRegistry = new ConcurrentDictionary<string, int>();
         private static readonly ILog Logger = LogProvider.GetLogger("ExceptionRejector");
 
         private readonly IMetrics _metrics;
-        private readonly int _retries;
         private readonly DelayedRetry _retry;
         private readonly IMessageSerializer _serializer;
+        private readonly int _retries;
 
-        public ExceptionRejector(IMetrics metrics, int retries, DelayedRetry retry, IMessageSerializer serializer)
+        public ExceptionRejector(IMetrics metrics, IMessageSerializer serializer, DelayedRetry retry)
         {
             _metrics = metrics;
-            _retries = retries;
-            _retry = retry;
             _serializer = serializer;
+            _retry = retry;
+
+            _retries = Configuration.Settings.Retries;
         }
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
@@ -90,7 +92,7 @@ namespace Aggregates.Internal
 
                 Logger.ErrorEvent("Fault", e, "[{MessageId:l}] has failed {Retries} times\n{@Headers}\n{ExceptionType} - {ExceptionMessage}", messageId, retries, context.Headers, e.GetType().Name, e.Message);
                 // Only need to reply if the client expects it
-                if (!context.Headers.ContainsKey(Defaults.RequestResponse) || context.Headers[Defaults.RequestResponse] != "1")
+                if (!context.MessageHeaders.ContainsKey(Defaults.RequestResponse) || context.MessageHeaders[Defaults.RequestResponse] != "1")
                     throw;
 
                 // Tell the sender the command was not handled due to a service exception
@@ -106,13 +108,14 @@ namespace Aggregates.Internal
             }
         }
     }
+    [ExcludeFromCodeCoverage]
     internal class ExceptionRejectorRegistration : RegisterStep
     {
         public ExceptionRejectorRegistration(IContainer container) : base(
             stepId: "ExceptionRejector",
             behavior: typeof(ExceptionRejector),
             description: "handles exceptions and retries",
-            factoryMethod: (b) => new ExceptionRejector(container.Resolve<IMetrics>(), Configuration.Settings.Retries, container.Resolve<DelayedRetry>(), container.Resolve<IMessageSerializer>())
+            factoryMethod: (b) => new ExceptionRejector(container.Resolve<IMetrics>(), container.Resolve<IMessageSerializer>(), container.Resolve<DelayedRetry>())
         )
         {
             InsertBefore("MutateIncomingMessages");

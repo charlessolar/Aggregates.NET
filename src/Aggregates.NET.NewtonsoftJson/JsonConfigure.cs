@@ -5,9 +5,11 @@ using Newtonsoft.Json;
 using Aggregates.Contracts;
 using Aggregates.Internal;
 using System.Threading.Tasks;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates
 {
+    [ExcludeFromCodeCoverage]
     public static class JsonConfigure
     {
         public static Configure NewtonsoftJson(this Configure config, JsonConverter[] extraConverters = null)

@@ -8,9 +8,11 @@ using NServiceBus;
 using ICommand = Aggregates.Messages.ICommand;
 using IMessage = Aggregates.Messages.IMessage;
 using Aggregates.Extensions;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates
 {
+    [ExcludeFromCodeCoverage]
     public static class BusExtensions
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Command");

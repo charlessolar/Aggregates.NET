@@ -5,9 +5,11 @@ using System;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     class EventContractResolver : DefaultContractResolver
     {
         private readonly IEventMapper _mapper;
@@ -61,6 +63,7 @@ namespace Aggregates.Internal
         }
     }
 
+    [ExcludeFromCodeCoverage]
     class EventSerializationBinder : DefaultSerializationBinder
     {
         private readonly IEventMapper _mapper;

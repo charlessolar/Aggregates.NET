@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -20,6 +21,7 @@ using Newtonsoft.Json;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     internal class EventStoreConsumer : IEventStoreConsumer, IDisposable
     {
         private static readonly ILog Logger = LogProvider.GetLogger("EventStoreConsumer");
@@ -36,15 +38,15 @@ namespace Aggregates.Internal
         private readonly ConcurrentDictionary<string, Tuple<EventStorePersistentSubscriptionBase, Guid>> _outstandingEvents;
         private bool _disposed;
 
-        public EventStoreConsumer(IMetrics metrics, IMessageSerializer serializer, IEventStoreConnection[] clients, IEventMapper mapper, int readSize, bool extraStats)
+        public EventStoreConsumer(IMetrics metrics, IMessageSerializer serializer, IEventStoreConnection[] clients, IEventMapper mapper)
         {
             _metrics = metrics;
             _serializer = serializer;
             _clients = clients;
             _mapper = mapper;
 
-            _readSize = readSize;
-            _extraStats = extraStats;
+            _readSize = Configuration.Settings.ReadSize;
+            _extraStats = Configuration.Settings.ExtraStats;
             _subLock = new object();
             _subscriptions = new List<EventStoreCatchUpSubscription>();
             _persistentSubs = new List<EventStorePersistentSubscriptionBase>();

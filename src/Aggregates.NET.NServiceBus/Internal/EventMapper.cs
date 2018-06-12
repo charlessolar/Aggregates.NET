@@ -5,9 +5,11 @@ using Aggregates.Contracts;
 using NServiceBus.MessageInterfaces;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     public class EventMapper : IEventMapper
     {
         private readonly IMessageMapper _mapper;

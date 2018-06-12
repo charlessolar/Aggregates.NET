@@ -206,4 +206,26 @@ namespace Aggregates
     {
         public dynamic Bag { get; set; }
     }
+    public class FakeMutator : IMutate
+    {
+        public bool MutatedIncoming = false;
+        public bool MutatedOutgoing = false;
+        public bool ShouldSucceed = false;
+
+        public IMutating MutateIncoming(IMutating mutating)
+        {
+            MutatedIncoming = true;
+            if (!ShouldSucceed)
+                throw new Exception();
+            return mutating;
+        }
+
+        public IMutating MutateOutgoing(IMutating mutating)
+        {
+            MutatedOutgoing = true;
+            if (!ShouldSucceed)
+                throw new Exception();
+            return mutating;
+        }
+    }
 }

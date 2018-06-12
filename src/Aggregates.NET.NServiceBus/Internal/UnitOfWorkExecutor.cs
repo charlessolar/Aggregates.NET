@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
@@ -13,7 +14,7 @@ using NServiceBus.Pipeline;
 
 namespace Aggregates.Internal
 {
-    internal class UnitOfWorkExecutor : Behavior<IIncomingLogicalMessageContext>
+    public class UnitOfWorkExecutor : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ILog Logger = LogProvider.GetLogger("UOW Executor");
         private static readonly ConcurrentDictionary<string, dynamic> Bags = new ConcurrentDictionary<string, dynamic>();
@@ -130,6 +131,7 @@ namespace Aggregates.Internal
             }
         }
     }
+    [ExcludeFromCodeCoverage]
     internal class UowRegistration : RegisterStep
     {
         public UowRegistration(IContainer container) : base(

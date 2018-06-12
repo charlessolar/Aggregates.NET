@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -16,6 +17,7 @@ using Newtonsoft.Json;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     class StoreEvents : IStoreEvents
     {
         private static readonly ILog Logger = LogProvider.GetLogger("StoreEvents");
