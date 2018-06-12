@@ -20,9 +20,9 @@ namespace Aggregates
             return uow.For<T>();
         }
         
-        public static TUnitOfWork App<TUnitOfWork>(this IMessageHandlerContext context) where TUnitOfWork : class, IUnitOfWork
+        public static TUnitOfWork App<TUnitOfWork>(this IMessageHandlerContext context) where TUnitOfWork : class, IAppUnitOfWork
         {
-            var uow = context.Extensions.Get<IUnitOfWork>();
+            var uow = context.Extensions.Get<IAppUnitOfWork>();
             return uow as TUnitOfWork;
         }
         public static Task<TResponse> Service<TService, TResponse>(this IMessageHandlerContext context, TService service)
