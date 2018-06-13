@@ -21,27 +21,27 @@ namespace Aggregates.Internal
         private readonly IStoreSnapshots _snapstore;
         private readonly IOobWriter _oobstore;
         private readonly IEventFactory _factory;
-        private readonly IDomainUnitOfWork _uow;
 
-        public StoreEntities(IMetrics metrics, IStoreEvents eventstore, IStoreSnapshots snapstore, IOobWriter oobstore, IEventFactory factory, IDomainUnitOfWork uow)
+        public StoreEntities(IMetrics metrics, IStoreEvents eventstore, IStoreSnapshots snapstore, IOobWriter oobstore, IEventFactory factory)
         {
             _metrics = metrics;
             _eventstore = eventstore;
             _snapstore = snapstore;
             _oobstore = oobstore;
             _factory = factory;
-            _uow = uow;
         }
 
         public Task<TEntity> New<TEntity, TState>(string bucket, Id id, Id[] parents) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
+            var uow = (Configuration.Settings.LocalContainer.Value ?? Configuration.Settings.Container).Resolve<IDomainUnitOfWork>();
+
             var factory = EntityFactory.For<TEntity>();
 
             Logger.DebugEvent("Create", "[{EntityId:l}] bucket [{Bucket:l}] entity [{EntityType:l}]", id, bucket, typeof(TEntity).FullName);
 
             var entity = factory.Create(bucket, id, parents);
 
-            (entity as INeedDomainUow).Uow = _uow;
+            (entity as INeedDomainUow).Uow = uow;
             (entity as INeedEventFactory).EventFactory = _factory;
             (entity as INeedStore).Store = _eventstore;
             (entity as INeedStore).OobWriter = _oobstore;
@@ -50,6 +50,8 @@ namespace Aggregates.Internal
         }
         public async Task<TEntity> Get<TEntity, TState>(string bucket, Id id, Id[] parents) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
+            var uow = (Configuration.Settings.LocalContainer.Value ?? Configuration.Settings.Container).Resolve<IDomainUnitOfWork>();
+
             var factory = EntityFactory.For<TEntity>();
 
             // Todo: pass parent instead of Id[]?
@@ -59,7 +61,7 @@ namespace Aggregates.Internal
             var entity = factory.Create(bucket, id, parents, events.Select(x => x.Event as IEvent).ToArray(), snapshot?.Payload);
 
 
-            (entity as INeedDomainUow).Uow = _uow;
+            (entity as INeedDomainUow).Uow = uow;
             (entity as INeedEventFactory).EventFactory = _factory;
             (entity as INeedStore).Store = _eventstore;
             (entity as INeedStore).OobWriter = _oobstore;
