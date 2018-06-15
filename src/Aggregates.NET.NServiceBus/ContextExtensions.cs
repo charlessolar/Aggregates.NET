@@ -25,6 +25,14 @@ namespace Aggregates
             var uow = context.Extensions.Get<UnitOfWork.IApplication>();
             return uow as TUnitOfWork;
         }
+        /// <summary>
+        /// Easier access to uow if user implements IGeneric
+        /// </summary>
+        public static UnitOfWork.IGeneric UoW(this IMessageHandlerContext context)
+        {
+            var uow = context.Extensions.Get<UnitOfWork.IApplication>();
+            return uow as UnitOfWork.IGeneric;
+        }
         public static Task<TResponse> Service<TService, TResponse>(this IMessageHandlerContext context, TService service)
             where TService : class, IService<TResponse>
         {
