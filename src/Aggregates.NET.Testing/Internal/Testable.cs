@@ -109,7 +109,7 @@ namespace Aggregates.Internal
         }
     }
     [ExcludeFromCodeCoverage]
-    class ModelChecker<TModel> : IModelChecker<TModel> where TModel : class
+    class ModelChecker<TModel> : IModelChecker<TModel> where TModel : class, new()
     {
         private TestableApplication _app;
         private Id _id;
@@ -194,7 +194,7 @@ namespace Aggregates.Internal
     }
 
     [ExcludeFromCodeCoverage]
-    class ModelPlanner<TModel> : IModelPlanner<TModel> where TModel : class
+    class ModelPlanner<TModel> : IModelPlanner<TModel> where TModel : class, new()
     {
         private TestableApplication _app;
         private Id _id;
@@ -203,6 +203,12 @@ namespace Aggregates.Internal
         {
             _app = app;
             _id = id;
+        }
+
+        public IModelPlanner<TModel> Exists()
+        {
+            _app.Planned[_id] = new TModel();
+            return this;
         }
 
         public IModelPlanner<TModel> Exists(TModel model)

@@ -15,8 +15,8 @@ namespace Aggregates
     }
     public interface ITestableApplication : UnitOfWork.IApplication
     {
-        IModelChecker<TModel> Check<TModel>(Id id) where TModel : class;
-        IModelPlanner<TModel> Plan<TModel>(Id id) where TModel : class;
+        IModelChecker<TModel> Check<TModel>(Id id) where TModel : class, new();
+        IModelPlanner<TModel> Plan<TModel>(Id id) where TModel : class, new();
     }
     public interface IEventChecker<TEntity> where TEntity : IEntity
     {
@@ -46,11 +46,12 @@ namespace Aggregates
         IEventPlanner<TEntity> HasEvent<TEvent>(Action<TEvent> factory);
         IEventPlanner<TEntity> HasSnapshot(object snapshot);
     }
-    public interface IModelPlanner<TModel> where TModel : class
+    public interface IModelPlanner<TModel> where TModel : class, new()
     {
+        IModelPlanner<TModel> Exists();
         IModelPlanner<TModel> Exists(TModel model);
     }
-    public interface IModelChecker<TModel> where TModel : class
+    public interface IModelChecker<TModel> where TModel : class, new()
     {
         IModelChecker<TModel> Added();
         IModelChecker<TModel> Added(Func<TModel, bool> assert);

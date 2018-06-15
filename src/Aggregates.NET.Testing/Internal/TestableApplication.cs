@@ -63,12 +63,12 @@ namespace Aggregates
             return Task.CompletedTask;
         }
 
-        public IModelChecker<TModel> Check<TModel>(Id id) where TModel : class
+        public IModelChecker<TModel> Check<TModel>(Id id) where TModel : class, new()
         {
             return new ModelChecker<TModel>(this, id);
         }
 
-        public IModelPlanner<TModel> Plan<TModel>(Id id) where TModel : class
+        public IModelPlanner<TModel> Plan<TModel>(Id id) where TModel : class, new()
         {
             return new ModelPlanner<TModel>(this, id);
         }
