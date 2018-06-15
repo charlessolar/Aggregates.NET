@@ -192,6 +192,7 @@ namespace Aggregates.Internal
             return this;
         }
     }
+
     [ExcludeFromCodeCoverage]
     class ModelPlanner<TModel> : IModelPlanner<TModel> where TModel : class
     {
