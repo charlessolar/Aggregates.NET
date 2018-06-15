@@ -6,12 +6,20 @@ using Aggregates.Contracts;
 
 namespace Aggregates
 {
+    [ExcludeFromCodeCoverage]
     public static class ContextExtensions
     {
 
         public static TUnitOfWork App<TUnitOfWork>(this IServiceContext context) where TUnitOfWork : class, UnitOfWork.IApplication
         {
             return context.App as TUnitOfWork;
+        }
+        /// <summary>
+        /// Easier access to uow if user implements IGeneric
+        /// </summary>
+        public static UnitOfWork.IGeneric App(this IServiceContext context)
+        {
+            return context.App as UnitOfWork.IGeneric;
         }
 
         public static Task<TResponse> Service<TService, TResponse>(this IServiceContext context, TService service)
