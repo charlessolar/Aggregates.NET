@@ -34,6 +34,10 @@ namespace Aggregates
         public static implicit operator long?(Id id) => id?.GetLongValue();
         public static implicit operator Guid?(Id id) => id?.GetGuidValue();
 
+        public bool IsString() => Value is string;
+        public bool IsLong() => Value is long;
+        public bool IsGuid() => Value is Guid;
+
         public override string ToString()
         {
             return Value?.ToString() ?? "null";
