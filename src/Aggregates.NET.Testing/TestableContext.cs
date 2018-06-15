@@ -34,6 +34,11 @@ namespace Aggregates
             _ctx.Extensions.Set<UnitOfWork.IApplication>(App);
         }
 
+        public TEvent Create<TEvent>(Action<TEvent> action) where TEvent : IEvent
+        {
+            return Test.CreateInstance<TEvent>(action);
+        }
+
 
         public TestableId Id()
         {
