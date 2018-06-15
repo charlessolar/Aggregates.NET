@@ -9,14 +9,14 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     class HandleContext : IServiceContext
     {
-        public HandleContext(Aggregates.UnitOfWork.IDomain uow, Aggregates.UnitOfWork.IApplication app, IContainer container)
+        public HandleContext(Aggregates.UnitOfWork.IDomain domain, Aggregates.UnitOfWork.IApplication app, IContainer container)
         {
-            UoW = uow;
+            Domain = domain;
             App = app;
             Container = container;
         }
 
-        public Aggregates.UnitOfWork.IDomain UoW { get; }
+        public Aggregates.UnitOfWork.IDomain Domain { get; }
         public Aggregates.UnitOfWork.IApplication App { get; }
         public IContainer Container { get; }
     }
