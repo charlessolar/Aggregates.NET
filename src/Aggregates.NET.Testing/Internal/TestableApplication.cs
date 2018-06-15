@@ -24,6 +24,11 @@ namespace Aggregates
         public TestableApplication(IdRegistry ids)
         {
             _ids = ids;
+            Planned = new Dictionary<Id, object>();
+            Added = new Dictionary<Id, object>();
+            Updated = new Dictionary<Id, object>();
+            Deleted = new List<Id>();
+            Read = new List<Id>();
         }
 
         public Task Add<T>(Id id, T document) where T : class
