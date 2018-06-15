@@ -9,7 +9,7 @@ namespace Aggregates
     public static class ContextExtensions
     {
 
-        public static TUnitOfWork App<TUnitOfWork>(this IServiceContext context) where TUnitOfWork : class, IAppUnitOfWork
+        public static TUnitOfWork App<TUnitOfWork>(this IServiceContext context) where TUnitOfWork : class, UnitOfWork.IApplication
         {
             return context.App as TUnitOfWork;
         }

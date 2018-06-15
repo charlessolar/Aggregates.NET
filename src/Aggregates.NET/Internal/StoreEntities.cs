@@ -33,7 +33,7 @@ namespace Aggregates.Internal
 
         public Task<TEntity> New<TEntity, TState>(string bucket, Id id, Id[] parents) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
-            var uow = (Configuration.Settings.LocalContainer.Value ?? Configuration.Settings.Container).Resolve<IDomainUnitOfWork>();
+            var uow = (Configuration.Settings.LocalContainer.Value ?? Configuration.Settings.Container).Resolve<Aggregates.UnitOfWork.IDomain>();
 
             var factory = EntityFactory.For<TEntity>();
 
@@ -50,7 +50,7 @@ namespace Aggregates.Internal
         }
         public async Task<TEntity> Get<TEntity, TState>(string bucket, Id id, Id[] parents) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
-            var uow = (Configuration.Settings.LocalContainer.Value ?? Configuration.Settings.Container).Resolve<IDomainUnitOfWork>();
+            var uow = (Configuration.Settings.LocalContainer.Value ?? Configuration.Settings.Container).Resolve<Aggregates.UnitOfWork.IDomain>();
 
             var factory = EntityFactory.For<TEntity>();
 
@@ -111,7 +111,7 @@ namespace Aggregates.Internal
                     // Todo: cache per entity type
                     var conflictResolution = (OptimisticConcurrencyAttribute)Attribute.GetCustomAttribute(typeof(TEntity), typeof(OptimisticConcurrencyAttribute))
                                           ?? new OptimisticConcurrencyAttribute(ConcurrencyConflict.Throw);
-                    
+
                     Logger.DebugEvent("ConflictResolve", "[{EntityId:l}] entity [{EntityType:l}] resolving {ConflictingEvents} events with {ConflictResolver}", entity.Id, typeof(TEntity).FullName, entity.Uncommitted.Count(), conflictResolution.Conflict);
                     var strategy = conflictResolution.Conflict.Build(conflictResolution.Resolver);
 

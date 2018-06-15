@@ -6,6 +6,6 @@ namespace Aggregates.Contracts
 {
     interface INeedDomainUow
     {
-        IDomainUnitOfWork Uow { get; set; }
+        UnitOfWork.IDomain Uow { get; set; }
     }
 }

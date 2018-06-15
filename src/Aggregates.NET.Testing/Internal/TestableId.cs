@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     public class TestableId : Id
     {
         public readonly string GeneratedIdKey;

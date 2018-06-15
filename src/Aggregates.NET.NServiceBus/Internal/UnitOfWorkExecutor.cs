@@ -49,13 +49,13 @@ namespace Aggregates.Internal
                 return;
             }
 
-            var domainUOW = child.Resolve<IDomainUnitOfWork>();
+            var domainUOW = child.Resolve<Aggregates.UnitOfWork.IDomain>();
             var delayed = child.Resolve<IDelayedChannel>();
-            IAppUnitOfWork appUOW = null;
+            Aggregates.UnitOfWork.IApplication appUOW = null;
             try
             {
                 // IUnitOfWork might not be defined by user
-                appUOW = child.Resolve<IAppUnitOfWork>();
+                appUOW = child.Resolve<Aggregates.UnitOfWork.IApplication>();
                 appUOW.Bag = new System.Dynamic.ExpandoObject();
                 // if this is a retry pull the bag from the registry
                 if (Bags.TryRemove(context.MessageId, out var bag))
@@ -71,8 +71,8 @@ namespace Aggregates.Internal
             context.Extensions.Set(appUOW);
 
 
-            var commitableUow = domainUOW as IUnitOfWork;
-            var commitableAppUow = appUOW as IUnitOfWork;
+            var commitableUow = domainUOW as Aggregates.UnitOfWork.IUnitOfWork;
+            var commitableAppUow = appUOW as Aggregates.UnitOfWork.IUnitOfWork;
             try
             {
                 _metrics.Increment("Messages Concurrent", Unit.Message);

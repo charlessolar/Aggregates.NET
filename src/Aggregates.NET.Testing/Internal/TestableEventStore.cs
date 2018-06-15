@@ -3,6 +3,7 @@ using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -10,15 +11,11 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     class TestableEventStore : IStoreEvents
     {
-        private readonly TestableUnitOfWork _uow;
         private Dictionary<string, IFullEvent[]> _events = new Dictionary<string, IFullEvent[]>();
 
-        public TestableEventStore(TestableUnitOfWork uow)
-        {
-            _uow = uow;
-        }
 
         public bool StreamExists<TEntity>(string bucket, Id streamId, Id[] parents) where TEntity : IEntity
         {

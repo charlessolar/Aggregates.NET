@@ -40,11 +40,11 @@ namespace Aggregates
 
         private readonly IList<IFullEvent> _uncommitted = new List<IFullEvent>();
 
-        private IDomainUnitOfWork Uow => (this as INeedDomainUow).Uow;
+        private UnitOfWork.IDomain Uow => (this as INeedDomainUow).Uow;
         private IEventFactory Factory => (this as INeedEventFactory).EventFactory;
         private IStoreEvents Store => (this as INeedStore).Store;
         private IOobWriter OobWriter => (this as INeedStore).OobWriter;
-        IDomainUnitOfWork INeedDomainUow.Uow { get; set; }
+        UnitOfWork.IDomain INeedDomainUow.Uow { get; set; }
         IEventFactory INeedEventFactory.EventFactory { get; set; }
         IStoreEvents INeedStore.Store { get; set; }
         IOobWriter INeedStore.OobWriter { get; set; }
@@ -117,7 +117,7 @@ namespace Aggregates
         void IEntity<TState>.Apply(IEvent @event)
         {
             State.Apply(@event);
-            var eventId = UnitOfWork.NextEventId(Uow.CommitId);
+            var eventId = Internal.UnitOfWork.NextEventId(Uow.CommitId);
             _uncommitted.Add(new FullEvent
             {
                 Descriptor = new EventDescriptor
@@ -142,7 +142,7 @@ namespace Aggregates
 
         void IEntity<TState>.Raise(IEvent @event, string id, bool transient, int? daysToLive, bool? single)
         {
-            var eventId = UnitOfWork.NextEventId(Uow.CommitId);
+            var eventId = Internal.UnitOfWork.NextEventId(Uow.CommitId);
             var newEvent = new FullEvent
             {
                 Descriptor = new EventDescriptor

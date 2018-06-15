@@ -6,22 +6,34 @@ using System.Text;
 
 namespace Aggregates
 {
-    public interface IChecker<TEntity> where TEntity : IEntity
+    public interface ITestableDomain : UnitOfWork.IDomain
     {
-        IChecker<TChild> Check<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>;
-        IChecker<TChild> Check<TChild>(TestableId id) where TChild : IEntity, IChildEntity<TEntity>;
+        IEventChecker<TEntity> Check<TEntity>(Id id) where TEntity : IEntity;
+        IEventPlanner<TEntity> Plan<TEntity>(Id id) where TEntity : IEntity;
+        IEventChecker<TEntity> Check<TEntity>(string bucket, Id id) where TEntity : IEntity;
+        IEventPlanner<TEntity> Plan<TEntity>(string bucket, Id id) where TEntity : IEntity;
+    }
+    public interface ITestableApplication : UnitOfWork.IApplication
+    {
+        IModelChecker<TModel> Check<TModel>(Id id) where TModel : class;
+        IModelPlanner<TModel> Plan<TModel>(Id id) where TModel : class;
+    }
+    public interface IEventChecker<TEntity> where TEntity : IEntity
+    {
+        IEventChecker<TChild> Check<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>;
+        IEventChecker<TChild> Check<TChild>(TestableId id) where TChild : IEntity, IChildEntity<TEntity>;
         /// <summary>
         /// Check that a specific event was raised
         /// </summary>
-        IChecker<TEntity> Raised<TEvent>(Action<TEvent> factory) where TEvent : Messages.IEvent;
+        IEventChecker<TEntity> Raised<TEvent>(Action<TEvent> factory) where TEvent : Messages.IEvent;
         /// <summary>
         /// Check that a specific type of event was raised
         /// </summary>
-        IChecker<TEntity> Raised<TEvent>() where TEvent : Messages.IEvent;
+        IEventChecker<TEntity> Raised<TEvent>() where TEvent : Messages.IEvent;
         /// <summary>
         /// Check a property on a raised event
         /// </summary>
-        IChecker<TEntity> Raised<TEvent>(Func<TEvent, bool> assert) where TEvent : Messages.IEvent;
+        IEventChecker<TEntity> Raised<TEvent>(Func<TEvent, bool> assert) where TEvent : Messages.IEvent;
     }
     public interface IEventPlanner<TEntity> where TEntity : IEntity
     {
@@ -34,14 +46,29 @@ namespace Aggregates
         IEventPlanner<TEntity> HasEvent<TEvent>(Action<TEvent> factory);
         IEventPlanner<TEntity> HasSnapshot(object snapshot);
     }
+    public interface IModelPlanner<TModel> where TModel : class
+    {
+        IModelPlanner<TModel> Exists(TModel model);
+    }
+    public interface IModelChecker<TModel> where TModel : class
+    {
+        IModelChecker<TModel> Added();
+        IModelChecker<TModel> Added(Func<TModel, bool> assert);
+        IModelChecker<TModel> Added(TModel model);
+        IModelChecker<TModel> Updated();
+        IModelChecker<TModel> Updated(Func<TModel, bool> assert);
+        IModelChecker<TModel> Updated(TModel model);
+        IModelChecker<TModel> Read();
+        IModelChecker<TModel> Deleted();
+    }
 
 
     public interface IRepositoryTest<TEntity> : IRepository where TEntity : IEntity
     {
-        IChecker<TEntity> Check(Id id);
-        IChecker<TEntity> Check(TestableId id);
-        IChecker<TEntity> Check(string bucket, Id id);
-        IChecker<TEntity> Check(string bucket, TestableId id);
+        IEventChecker<TEntity> Check(Id id);
+        IEventChecker<TEntity> Check(TestableId id);
+        IEventChecker<TEntity> Check(string bucket, Id id);
+        IEventChecker<TEntity> Check(string bucket, TestableId id);
         IEventPlanner<TEntity> Plan(Id id);
         IEventPlanner<TEntity> Plan(TestableId id);
         IEventPlanner<TEntity> Plan(string bucket, Id id);
@@ -49,8 +76,8 @@ namespace Aggregates
     }
     public interface IRepositoryTest<TEntity, TParent> : IRepository where TParent : IEntity where TEntity : IEntity, IChildEntity<TParent>
     {
-        IChecker<TEntity> Check(Id id);
-        IChecker<TEntity> Check(TestableId id);
+        IEventChecker<TEntity> Check(Id id);
+        IEventChecker<TEntity> Check(TestableId id);
         IEventPlanner<TEntity> Plan(Id id);
         IEventPlanner<TEntity> Plan(TestableId id);
     }

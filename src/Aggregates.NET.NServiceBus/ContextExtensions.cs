@@ -16,13 +16,13 @@ namespace Aggregates
     {
         public static IRepository<T> For<T>(this IMessageHandlerContext context) where T : class, IEntity
         {
-            var uow = context.Extensions.Get<IDomainUnitOfWork>();
+            var uow = context.Extensions.Get<UnitOfWork.IDomain>();
             return uow.For<T>();
         }
         
-        public static TUnitOfWork App<TUnitOfWork>(this IMessageHandlerContext context) where TUnitOfWork : class, IAppUnitOfWork
+        public static TUnitOfWork App<TUnitOfWork>(this IMessageHandlerContext context) where TUnitOfWork : class, UnitOfWork.IApplication
         {
-            var uow = context.Extensions.Get<IAppUnitOfWork>();
+            var uow = context.Extensions.Get<UnitOfWork.IApplication>();
             return uow as TUnitOfWork;
         }
         public static Task<TResponse> Service<TService, TResponse>(this IMessageHandlerContext context, TService service)

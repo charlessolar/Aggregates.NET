@@ -7,6 +7,7 @@ using NServiceBus.MessageInterfaces.MessageMapper.Reflection;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,12 +15,13 @@ using System.Threading.Tasks;
 namespace Aggregates.Internal
 {
 
+    [ExcludeFromCodeCoverage]
     class TestableRepository<TEntity, TState, TParent> : TestableRepository<TEntity, TState>, IRepository<TEntity, TParent>, IRepositoryTest<TEntity, TParent> where TParent : IEntity where TEntity : Entity<TEntity, TState, TParent> where TState : class, IState, new()
     {
         private readonly TParent _parent;
 
-        public TestableRepository(TParent parent, TestableUnitOfWork uow)
-            : base(uow)
+        public TestableRepository(TParent parent, TestableDomain uow, IdRegistry ids)
+            : base(uow, ids)
         {
             _parent = parent;
         }
@@ -38,7 +40,7 @@ namespace Aggregates.Internal
         }
         public override async Task<TEntity> Get(Id id)
         {
-            id = _uow.MakeId(id);
+            id = _ids.MakeId(id);
             var cacheId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{id}";
             TEntity root;
             if (!Tracked.TryGetValue(cacheId, out root))
@@ -53,7 +55,7 @@ namespace Aggregates.Internal
 
         public override async Task<TEntity> New(Id id)
         {
-            id = _uow.MakeId(id);
+            id = _ids.MakeId(id);
             var cacheId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{id}";
 
             TEntity root;
@@ -68,24 +70,24 @@ namespace Aggregates.Internal
         }
         public override IEventPlanner<TEntity> Plan(Id id)
         {
-            id = _uow.MakeId(id);
+            id = _ids.MakeId(id);
             return Plan((TestableId)id);
         }
         public override IEventPlanner<TEntity> Plan(TestableId id)
         {
-            return new EventPlanner<TEntity, TState>(_uow, _eventstore, _snapstore, _factory, () => Get(id).Result, _parent.Bucket, id, _parent.BuildParents());
+            return new EventPlanner<TEntity, TState>(_uow, _ids, _eventstore, _snapstore, _factory, () => Get(id).Result, _parent.Bucket, id, _parent.BuildParents());
         }
-        public override IChecker<TEntity> Check(Id id)
+        public override IEventChecker<TEntity> Check(Id id)
         {
-            id = _uow.MakeId(id);
+            id = _ids.MakeId(id);
             return Check((TestableId)id);
         }
-        public override IChecker<TEntity> Check(TestableId id)
+        public override IEventChecker<TEntity> Check(TestableId id)
         {
             var cacheId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{id}";
             if (!Tracked.ContainsKey(cacheId))
                 throw new ExistException(typeof(TEntity), _parent.Bucket, id);
-            return new Checker<TEntity, TState>(_uow, _factory, Tracked[cacheId]);
+            return new EventChecker<TEntity, TState>(_uow, _ids, _factory, Tracked[cacheId]);
         }
 
         protected override async Task<TEntity> GetUntracked(string bucket, Id id, Id[] parents)
@@ -106,24 +108,27 @@ namespace Aggregates.Internal
             return entity;
         }
     }
+    [ExcludeFromCodeCoverage]
     class TestableRepository<TEntity, TState> : IRepository<TEntity>, IRepositoryTest<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
         private static readonly IEntityFactory<TEntity> Factory = EntityFactory.For<TEntity>();
 
         protected readonly ConcurrentDictionary<string, TEntity> Tracked = new ConcurrentDictionary<string, TEntity>();
-        protected readonly TestableUnitOfWork _uow;
+        protected readonly TestableDomain _uow;
+        protected readonly IdRegistry _ids;
         protected readonly TestableEventFactory _factory;
         protected readonly TestableOobWriter _oobStore;
         protected readonly TestableEventStore _eventstore;
         protected readonly TestableSnapshotStore _snapstore;
         private bool _disposed;
 
-        public TestableRepository(TestableUnitOfWork uow)
+        public TestableRepository(TestableDomain uow, IdRegistry ids)
         {
             _uow = uow;
+            _ids = ids;
             _factory = new TestableEventFactory(new MessageMapper());
             _oobStore = new TestableOobWriter();
-            _eventstore = new TestableEventStore(uow);
+            _eventstore = new TestableEventStore();
             _snapstore = new TestableSnapshotStore();
         }
 
@@ -151,7 +156,7 @@ namespace Aggregates.Internal
 
         public async Task<TEntity> Get(string bucket, Id id)
         {
-            id = _uow.MakeId(id);
+            id = _ids.MakeId(id);
             var cacheId = $"{bucket}.{id}";
             TEntity root;
             if (!Tracked.TryGetValue(cacheId, out root))
@@ -165,7 +170,7 @@ namespace Aggregates.Internal
         }
         protected virtual async Task<TEntity> GetUntracked(string bucket, Id id, Id[] parents = null)
         {
-            id = _uow.MakeId(id);
+            id = _ids.MakeId(id);
             var snapshot = await _snapstore.GetSnapshot<TEntity>(bucket, id, parents).ConfigureAwait(false);
             var events = await _eventstore.GetEvents<TEntity>(bucket, id, parents, start: snapshot?.Version).ConfigureAwait(false);
 
@@ -186,7 +191,7 @@ namespace Aggregates.Internal
 
         public async Task<TEntity> New(string bucket, Id id)
         {
-            id = _uow.MakeId(id);
+            id = _ids.MakeId(id);
             TEntity root;
             var cacheId = $"{bucket}.{id}";
             if (!Tracked.TryGetValue(cacheId, out root))
@@ -203,7 +208,7 @@ namespace Aggregates.Internal
             if (_eventstore.StreamExists<TEntity>(bucket, id, parents))
                 throw new EntityAlreadyExistsException<TEntity>(bucket, id, parents);
 
-            id = _uow.MakeId(id);
+            id = _ids.MakeId(id);
             var entity = Factory.Create(bucket, id, parents);
 
             (entity as INeedDomainUow).Uow = _uow;
@@ -223,7 +228,7 @@ namespace Aggregates.Internal
             if (id == null)
                 return default(TEntity);
 
-            id = _uow.MakeId(id);
+            id = _ids.MakeId(id);
             try
             {
                 return await Get(bucket, id).ConfigureAwait(false);
@@ -234,7 +239,7 @@ namespace Aggregates.Internal
 
         public virtual IEventPlanner<TEntity> Plan(Id id)
         {
-            id = _uow.MakeId(id);
+            id = _ids.MakeId(id);
             return Plan(Defaults.Bucket, (TestableId)id);
         }
         public virtual IEventPlanner<TEntity> Plan(TestableId id)
@@ -243,34 +248,34 @@ namespace Aggregates.Internal
         }
         public IEventPlanner<TEntity> Plan(string bucket, Id id)
         {
-            id = _uow.MakeId(id);
+            id = _ids.MakeId(id);
             return Plan(bucket, (TestableId)id);
         }
         public IEventPlanner<TEntity> Plan(string bucket, TestableId id)
         {
             //                                                                                       async method isnt async so hack it
-            return new EventPlanner<TEntity, TState>(_uow, _eventstore, _snapstore, _factory, () => Get(bucket, id).Result, bucket, id);
+            return new EventPlanner<TEntity, TState>(_uow, _ids, _eventstore, _snapstore, _factory, () => Get(bucket, id).Result, bucket, id);
         }
-        public virtual IChecker<TEntity> Check(Id id)
+        public virtual IEventChecker<TEntity> Check(Id id)
         {
-            id = _uow.MakeId(id);
+            id = _ids.MakeId(id);
             return Check(Defaults.Bucket, (TestableId)id);
         }
-        public virtual IChecker<TEntity> Check(TestableId id)
+        public virtual IEventChecker<TEntity> Check(TestableId id)
         {
             return Check(Defaults.Bucket, id);
         }
-        public IChecker<TEntity> Check(string bucket, Id id)
+        public IEventChecker<TEntity> Check(string bucket, Id id)
         {
-            id = _uow.MakeId(id);
+            id = _ids.MakeId(id);
             return Check(bucket, (TestableId)id);
         }
-        public IChecker<TEntity> Check(string bucket, TestableId id)
+        public IEventChecker<TEntity> Check(string bucket, TestableId id)
         {
             var cacheId = $"{bucket}.{id}";
             if (!Tracked.ContainsKey(cacheId))
                 throw new ExistException(typeof(TEntity), bucket, id);
-            return new Checker<TEntity, TState>(_uow, _factory, Tracked[cacheId]);
+            return new EventChecker<TEntity, TState>(_uow, _ids, _factory, Tracked[cacheId]);
         }
 
     }

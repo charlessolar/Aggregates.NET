@@ -118,7 +118,7 @@ namespace Aggregates
                 // Register outselves with ourselves
                 container.Register<IContainer>(container, Lifestyle.Singleton);
                 container.Register<IDelayedChannel, DelayedChannel>(Lifestyle.UnitOfWork);
-                container.Register<IDomainUnitOfWork, UnitOfWork>(Lifestyle.UnitOfWork);
+                container.Register<UnitOfWork.IDomain, Internal.UnitOfWork>(Lifestyle.UnitOfWork);
 
                 container.Register<IRepositoryFactory, RepositoryFactory>(Lifestyle.PerInstance);
                 container.Register<IProcessor, Processor>(Lifestyle.PerInstance);

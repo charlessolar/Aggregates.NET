@@ -6,35 +6,46 @@ using NServiceBus.Persistence;
 using NServiceBus.Testing;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates
 {
+    [ExcludeFromCodeCoverage]
     public class TestableContext : IMessageHandlerContext
     {
 
-        public readonly TestableUnitOfWork UoW;
+        public readonly ITestableDomain UoW;
+        public readonly ITestableApplication App;
         private readonly TestableMessageHandlerContext _ctx;
+        private readonly IdRegistry _ids;
 
-        public TestableContext(TestableUnitOfWork uow)
+        public TestableContext()
         {
-            UoW = uow;
+            _ids = new IdRegistry();
             _ctx = new TestableMessageHandlerContext();
-            _ctx.Extensions.Set<IDomainUnitOfWork>(UoW);
+
+            UoW = new TestableDomain(_ids);
+            App = new TestableApplication(_ids);
+
+            _ctx.Extensions.Set<UnitOfWork.IDomain>(UoW);
+            _ctx.Extensions.Set<UnitOfWork.IApplication>(App);
         }
+
 
         public TestableId Id()
         {
-            return UoW.AnyId();
+            return _ids.AnyId();
         }
         public TestableId Id(string named)
         {
-            return UoW.MakeId(named);
+            return _ids.MakeId(named);
         }
         public TestableId Id(int number)
         {
-            return UoW.MakeId(number);
+            return _ids.MakeId(number);
         }
 
         public SynchronizedStorageSession SynchronizedStorageSession => _ctx.SynchronizedStorageSession;
