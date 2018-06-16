@@ -17,6 +17,13 @@ namespace Aggregates
     {
         IModelChecker<TModel> Check<TModel>(Id id) where TModel : class, new();
         IModelPlanner<TModel> Plan<TModel>(Id id) where TModel : class, new();
+        IModelChecker<TModel> Check<TModel>(TestableId id) where TModel : class, new();
+        IModelPlanner<TModel> Plan<TModel>(TestableId id) where TModel : class, new();
+    }
+    public interface ITestableProcessor : IProcessor
+    {
+        IServiceChecker<TService, TResponse> Check<TService, TResponse>(TService service) where TService : IService<TResponse>;
+        IServicePlanner<TService, TResponse> Plan<TService, TResponse>(TService service) where TService : IService<TResponse>;
     }
     public interface IEventChecker<TEntity> where TEntity : IEntity
     {
@@ -61,6 +68,14 @@ namespace Aggregates
         IModelChecker<TModel> Updated(TModel model);
         IModelChecker<TModel> Read();
         IModelChecker<TModel> Deleted();
+    }
+    public interface IServicePlanner<TService, TResponse> where TService : IService<TResponse>
+    {
+        IServicePlanner<TService, TResponse> Response(TResponse response);
+    }
+    public interface IServiceChecker<TService, TResponse> where TService : IService<TResponse>
+    {
+        IServiceChecker<TService, TResponse> Requested();
     }
 
 

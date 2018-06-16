@@ -27,7 +27,7 @@ namespace Aggregates.Common.Extensions
             var container = Fake<IContainer>();
             var processor = Fake<IProcessor>();
             A.CallTo(() => context.Container).Returns(container);
-            A.CallTo(() => container.Resolve<IProcessor>()).Returns(processor);
+            A.CallTo(() => context.Processor).Returns(processor);
 
             context.Service<IService<int>, int>(Fake<IService<int>>());
 
@@ -39,15 +39,12 @@ namespace Aggregates.Common.Extensions
             var context = Fake<IServiceContext>();
             var container = Fake<IContainer>();
             var processor = Fake<IProcessor>();
-            var factory = Fake<IEventFactory>();
-            A.CallTo(() => factory.Create<IService<int>>(A<Action<IService<int>>>.Ignored)).Returns(Fake<IService<int>>());
             A.CallTo(() => context.Container).Returns(container);
-            A.CallTo(() => container.Resolve<IProcessor>()).Returns(processor);
-            A.CallTo(() => container.Resolve<IEventFactory>()).Returns(factory);
+            A.CallTo(() => context.Processor).Returns(processor);
 
             context.Service<IService<int>, int>((_) => { });
 
-            A.CallTo(() => processor.Process<IService<int>, int>(A<IService<int>>.Ignored, A<IContainer>.Ignored)).MustHaveHappened();
+            A.CallTo(() => processor.Process<IService<int>, int>(A<Action<IService<int>>>.Ignored, A<IContainer>.Ignored)).MustHaveHappened();
         }
 
     }

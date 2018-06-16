@@ -15,38 +15,39 @@ namespace Aggregates
         private IdRegistry _ids;
         public dynamic Bag { get; set; }
 
-        internal Dictionary<Id, object> Planned;
-        internal Dictionary<Id, object> Added;
-        internal Dictionary<Id, object> Updated;
-        internal List<Id> Deleted;
-        internal List<Id> Read;
+        internal Dictionary<TestableId, object> Planned;
+        internal Dictionary<TestableId, object> Added;
+        internal Dictionary<TestableId, object> Updated;
+        internal List<TestableId> Deleted;
+        internal List<TestableId> Read;
 
         public TestableApplication(IdRegistry ids)
         {
             _ids = ids;
-            Planned = new Dictionary<Id, object>();
-            Added = new Dictionary<Id, object>();
-            Updated = new Dictionary<Id, object>();
-            Deleted = new List<Id>();
-            Read = new List<Id>();
+            Planned = new Dictionary<TestableId, object>();
+            Added = new Dictionary<TestableId, object>();
+            Updated = new Dictionary<TestableId, object>();
+            Deleted = new List<TestableId>();
+            Read = new List<TestableId>();
         }
 
         public Task Add<T>(Id id, T document) where T : class
         {
-            Added[id] = document;
+            Added[_ids.MakeId(id)] = document;
             return Task.CompletedTask;
         }
 
         public Task Delete<T>(Id id) where T : class
         {
-            Deleted.Add(id);
+            Deleted.Add(_ids.MakeId(id));
             return Task.CompletedTask;
         }
 
         public Task<T> Get<T>(Id id) where T : class
         {
-            Read.Add(id);
-            return Task.FromResult(Planned[id] as T);
+            var testable = _ids.MakeId(id);
+            Read.Add(testable);
+            return Task.FromResult(Planned[testable] as T);
         }
 
         public Task<IQueryResult<T>> Query<T>(IDefinition query) where T : class
@@ -56,26 +57,37 @@ namespace Aggregates
 
         public Task<T> TryGet<T>(Id id) where T : class
         {
-            Read.Add(id);
-            if (Planned.ContainsKey(id))
-                return Task.FromResult(Planned[id] as T);
+            var testable = _ids.MakeId(id);
+            Read.Add(testable);
+            if (Planned.ContainsKey(testable))
+                return Task.FromResult(Planned[testable] as T);
             return Task.FromResult((T)null);
         }
 
         public Task Update<T>(Id id, T document) where T : class
         {
-            Updated[id] = document;
+            Updated[_ids.MakeId(id)] = document;
             return Task.CompletedTask;
         }
 
         public IModelChecker<TModel> Check<TModel>(Id id) where TModel : class, new()
         {
-            return new ModelChecker<TModel>(this, id);
+            return new ModelChecker<TModel>(this, _ids, id);
+        }
+
+        public IModelChecker<TModel> Check<TModel>(TestableId id) where TModel : class, new()
+        {
+            return new ModelChecker<TModel>(this, _ids, id);
         }
 
         public IModelPlanner<TModel> Plan<TModel>(Id id) where TModel : class, new()
         {
-            return new ModelPlanner<TModel>(this, id);
+            return new ModelPlanner<TModel>(this, _ids, id);
+        }
+
+        public IModelPlanner<TModel> Plan<TModel>(TestableId id) where TModel : class, new()
+        {
+            return new ModelPlanner<TModel>(this, _ids, id);
         }
     }
 }

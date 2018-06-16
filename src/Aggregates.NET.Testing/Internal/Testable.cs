@@ -112,12 +112,14 @@ namespace Aggregates.Internal
     class ModelChecker<TModel> : IModelChecker<TModel> where TModel : class, new()
     {
         private TestableApplication _app;
-        private Id _id;
+        private IdRegistry _ids;
+        private TestableId _id;
 
-        public ModelChecker(TestableApplication app, Id id)
+        public ModelChecker(TestableApplication app, IdRegistry ids, Id id)
         {
             _app = app;
-            _id = id;
+            _ids = ids;
+            _id = _ids.MakeId(id);
         }
 
         public IModelChecker<TModel> Added()
@@ -197,12 +199,14 @@ namespace Aggregates.Internal
     class ModelPlanner<TModel> : IModelPlanner<TModel> where TModel : class, new()
     {
         private TestableApplication _app;
-        private Id _id;
+        private IdRegistry _ids;
+        private TestableId _id;
 
-        public ModelPlanner(TestableApplication app, Id id)
+        public ModelPlanner(TestableApplication app, IdRegistry ids, Id id)
         {
             _app = app;
-            _id = id;
+            _ids = ids;
+            _id = _ids.MakeId(id);
         }
 
         public IModelPlanner<TModel> Exists()
@@ -214,6 +218,45 @@ namespace Aggregates.Internal
         public IModelPlanner<TModel> Exists(TModel model)
         {
             _app.Planned[_id] = model;
+            return this;
+        }
+    }
+
+    [ExcludeFromCodeCoverage]
+    class ServicePlanner<TService, TResponse> : IServicePlanner<TService, TResponse> where TService : IService<TResponse>
+    {
+        private TestableProcessor _processor;
+        private TService _service;
+
+        public ServicePlanner(TestableProcessor processor, TService service)
+        {
+            _processor = processor;
+            _service = service;
+        }
+
+        public IServicePlanner<TService, TResponse> Response(TResponse response)
+        {
+            _processor.Planned[JsonConvert.SerializeObject(_service)] = response;
+            return this;
+        }
+    }
+
+    [ExcludeFromCodeCoverage]
+    class ServiceChecker<TService, TResponse> : IServiceChecker<TService, TResponse> where TService : IService<TResponse>
+    {
+        private TestableProcessor _processor;
+        private TService _service;
+
+        public ServiceChecker(TestableProcessor processor, TService service)
+        {
+            _processor = processor;
+            _service = service;
+        }
+
+        public IServiceChecker<TService, TResponse> Requested()
+        {
+            if (!_processor.Requested.Contains(JsonConvert.SerializeObject(_service)))
+                throw new ServiceException<TService>(JsonConvert.SerializeObject(_service));
             return this;
         }
     }

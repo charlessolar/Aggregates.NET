@@ -37,17 +37,20 @@ namespace Aggregates
             where TService : class, IService<TResponse>
         {
             var container = context.Extensions.Get<IContainer>();
-            var processor = container.Resolve<IProcessor>();
+            IProcessor processor;
+            if(!context.Extensions.TryGet<IProcessor>(out processor))
+                processor = container.Resolve<IProcessor>();
             return processor.Process<TService, TResponse>(service, container);
         }
         public static Task<TResponse> Service<TService, TResponse>(this IMessageHandlerContext context, Action<TService> service)
             where TService : class, IService<TResponse>
         {
             var container = context.Extensions.Get<IContainer>();
-            var processor = container.Resolve<IProcessor>();
-            var factory = container.Resolve<IEventFactory>();
+            IProcessor processor;
+            if (!context.Extensions.TryGet<IProcessor>(out processor))
+                processor = container.Resolve<IProcessor>();
 
-            return processor.Process<TService, TResponse>(factory.Create(service), container);
+            return processor.Process<TService, TResponse>(service, container);
         }
 
         public static Task SendToSelf(this IMessageHandlerContext context, Messages.ICommand command)

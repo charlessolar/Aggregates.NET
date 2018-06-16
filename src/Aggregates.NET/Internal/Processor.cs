@@ -32,9 +32,15 @@ namespace Aggregates.Internal
             }
 
             // Todo: both units of work should come from the pipeline not the container
-            var context = new HandleContext(container.Resolve<Aggregates.UnitOfWork.IDomain>(), container.Resolve<Aggregates.UnitOfWork.IApplication>(), container);
+            var context = new HandleContext(container.Resolve<Aggregates.UnitOfWork.IDomain>(), container.Resolve<Aggregates.UnitOfWork.IApplication>(), container.Resolve<IProcessor>(), container);
 
             return handlerFunc(handler, service, context);
+        }
+
+        public Task<TResponse> Process<TService, TResponse>(Action<TService> service, IContainer container) where TService : IService<TResponse>
+        {
+            var factory = container.Resolve<IEventFactory>();
+            return Process<TService, TResponse>(factory.Create(service), container);
         }
     }
 }

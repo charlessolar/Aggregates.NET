@@ -9,6 +9,7 @@ namespace Aggregates
     {
         Aggregates.UnitOfWork.IDomain Domain { get; }
         Aggregates.UnitOfWork.IApplication App { get; }
+        Aggregates.Contracts.IProcessor Processor { get; }
 
         IContainer Container { get; }
     }

@@ -19,6 +19,7 @@ namespace Aggregates
 
         public readonly ITestableDomain UoW;
         public readonly ITestableApplication App;
+        public readonly ITestableProcessor Processor;
         private readonly TestableMessageHandlerContext _ctx;
         private readonly IdRegistry _ids;
 
@@ -29,9 +30,11 @@ namespace Aggregates
 
             UoW = new TestableDomain(_ids);
             App = new TestableApplication(_ids);
+            Processor = new TestableProcessor();
 
             _ctx.Extensions.Set<UnitOfWork.IDomain>(UoW);
             _ctx.Extensions.Set<UnitOfWork.IApplication>(App);
+            _ctx.Extensions.Set<IProcessor>(Processor);
         }
 
         public TEvent Create<TEvent>(Action<TEvent> action) where TEvent : Messages.IEvent

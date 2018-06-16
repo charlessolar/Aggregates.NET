@@ -27,17 +27,13 @@ namespace Aggregates
             where TService : class, IService<TResponse>
         {
             var container = context.Container;
-            var processor = container.Resolve<IProcessor>();
-            return processor.Process<TService, TResponse>(service, container);
+            return context.Processor.Process<TService, TResponse>(service, container);
         }
         public static Task<TResponse> Service<TService, TResponse>(this IServiceContext context, Action<TService> service)
             where TService : class, IService<TResponse>
         {
             var container = context.Container;
-            var processor = container.Resolve<IProcessor>();
-            var factory = container.Resolve<IEventFactory>();
-
-            return processor.Process<TService, TResponse>(factory.Create(service), container);
+            return context.Processor.Process<TService, TResponse>(service, container);
         }
     }
 }
