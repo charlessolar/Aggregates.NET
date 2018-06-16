@@ -13,7 +13,7 @@ namespace Aggregates
         IEventChecker<TEntity> Check<TEntity>(string bucket, Id id) where TEntity : IEntity;
         IEventPlanner<TEntity> Plan<TEntity>(string bucket, Id id) where TEntity : IEntity;
     }
-    public interface ITestableApplication : UnitOfWork.IApplication
+    public interface ITestableApplication : UnitOfWork.IGeneric
     {
         IModelChecker<TModel> Check<TModel>(Id id) where TModel : class, new();
         IModelPlanner<TModel> Plan<TModel>(Id id) where TModel : class, new();
