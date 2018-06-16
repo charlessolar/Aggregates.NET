@@ -18,6 +18,8 @@ namespace Aggregates.Internal
         public TestableProcessor()
         {
             _factory = new TestableEventFactory(new MessageMapper());
+            Planned = new Dictionary<string, object>();
+            Requested = new List<string>();
         }
 
         internal Dictionary<string, object> Planned;

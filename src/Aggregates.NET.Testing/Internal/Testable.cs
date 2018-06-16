@@ -125,72 +125,72 @@ namespace Aggregates.Internal
         public IModelChecker<TModel> Added()
         {
             if (!_app.Added.ContainsKey(Tuple.Create(typeof(TModel), _id)))
-                throw new ModelException<TModel>(_id, "added");
+                throw new ModelException(typeof(TModel), _id, "added");
             return this;
         }
 
         public IModelChecker<TModel> Added(Func<TModel, bool> assert)
         {
             if (!_app.Added.ContainsKey(Tuple.Create(typeof(TModel), _id)))
-                throw new ModelException<TModel>(_id, "added");
+                throw new ModelException(typeof(TModel), _id, "added");
             var model = _app.Added[Tuple.Create(typeof(TModel), _id)] as TModel;
 
             if (!assert(model))
-                throw new ModelException<TModel>(_id, model);
+                throw new ModelException(typeof(TModel), _id, model);
             return this;
         }
 
         public IModelChecker<TModel> Added(TModel check)
         {
             if (!_app.Added.ContainsKey(Tuple.Create(typeof(TModel), _id)))
-                throw new ModelException<TModel>(_id, "added");
+                throw new ModelException(typeof(TModel), _id, "added");
             var model = _app.Added[Tuple.Create(typeof(TModel), _id)] as TModel;
 
             if (JsonConvert.SerializeObject(model) != JsonConvert.SerializeObject(check))
-                throw new ModelException<TModel>(_id, model);
+                throw new ModelException(typeof(TModel), _id, model);
             return this;
         }
 
         public IModelChecker<TModel> Deleted()
         {
             if (!_app.Deleted.Contains(Tuple.Create(typeof(TModel), _id)))
-                throw new ModelException<TModel>(_id, "deleted");
+                throw new ModelException(typeof(TModel), _id, "deleted");
             return this;
         }
 
         public IModelChecker<TModel> Read()
         {
             if (!_app.Read.Contains(Tuple.Create(typeof(TModel), _id)))
-                throw new ModelException<TModel>(_id, "read");
+                throw new ModelException(typeof(TModel), _id, "read");
             return this;
         }
 
         public IModelChecker<TModel> Updated()
         {
             if (!_app.Updated.ContainsKey(Tuple.Create(typeof(TModel), _id)))
-                throw new ModelException<TModel>(_id, "updated");
+                throw new ModelException(typeof(TModel), _id, "updated");
             return this;
         }
 
         public IModelChecker<TModel> Updated(Func<TModel, bool> assert)
         {
             if (!_app.Updated.ContainsKey(Tuple.Create(typeof(TModel), _id)))
-                throw new ModelException<TModel>(_id, "updated");
+                throw new ModelException(typeof(TModel), _id, "updated");
             var model = _app.Updated[Tuple.Create(typeof(TModel), _id)] as TModel;
 
             if (!assert(model))
-                throw new ModelException<TModel>(_id, model);
+                throw new ModelException(typeof(TModel), _id, model);
             return this;
         }
 
         public IModelChecker<TModel> Updated(TModel check)
         {
             if (!_app.Updated.ContainsKey(Tuple.Create(typeof(TModel), _id)))
-                throw new ModelException<TModel>(_id, "updated");
+                throw new ModelException(typeof(TModel), _id, "updated");
             var model = _app.Updated[Tuple.Create(typeof(TModel), _id)] as TModel;
 
             if (JsonConvert.SerializeObject(model) != JsonConvert.SerializeObject(check))
-                throw new ModelException<TModel>(_id, model);
+                throw new ModelException(typeof(TModel), _id, model);
             return this;
         }
     }
@@ -236,7 +236,7 @@ namespace Aggregates.Internal
 
         public IServicePlanner<TService, TResponse> Response(TResponse response)
         {
-            _processor.Planned[JsonConvert.SerializeObject(_service)] = response;
+            _processor.Planned[$"{typeof(TService).FullName}.{JsonConvert.SerializeObject(_service)}"] = response;
             return this;
         }
     }
@@ -255,8 +255,8 @@ namespace Aggregates.Internal
 
         public IServiceChecker<TService, TResponse> Requested()
         {
-            if (!_processor.Requested.Contains(JsonConvert.SerializeObject(_service)))
-                throw new ServiceException<TService>(JsonConvert.SerializeObject(_service));
+            if (!_processor.Requested.Contains($"{typeof(TService).FullName}.{JsonConvert.SerializeObject(_service)}"))
+                throw new ServiceException(typeof(TService), JsonConvert.SerializeObject(_service));
             return this;
         }
     }

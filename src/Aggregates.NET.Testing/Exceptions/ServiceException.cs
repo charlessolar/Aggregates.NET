@@ -4,8 +4,8 @@ using System.Text;
 
 namespace Aggregates.Exceptions
 {
-    public class ServiceException<TService> : Exception
+    public class ServiceException : Exception
     {
-        public ServiceException(string service) : base($"Service {typeof(TService).FullName} body {service} was not requested") { }
+        public ServiceException(Type service, string payload) : base($"Service {service.FullName} body {payload} was not requested") { }
     }
 }
