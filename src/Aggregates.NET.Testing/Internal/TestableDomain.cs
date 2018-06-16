@@ -40,7 +40,7 @@ namespace Aggregates
             IRepository repository;
             if (_repositories.TryGetValue(key, out repository)) return (IRepository<T>)repository;
 
-            return (IRepository<T>)(_repositories[key] = (IRepository)Activator.CreateInstance(repoType, this));
+            return (IRepository<T>)(_repositories[key] = (IRepository)Activator.CreateInstance(repoType, this, _ids));
 
         }
 
@@ -55,7 +55,7 @@ namespace Aggregates
             if (_repositories.TryGetValue(key, out repository))
                 return (IRepository<TEntity, TParent>)repository;
 
-            return (IRepository<TEntity, TParent>)(_repositories[key] = (IRepository)Activator.CreateInstance(repoType, parent, this));
+            return (IRepository<TEntity, TParent>)(_repositories[key] = (IRepository)Activator.CreateInstance(repoType, parent, this, _ids));
         }
 
 
