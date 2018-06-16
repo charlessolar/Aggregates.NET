@@ -124,16 +124,16 @@ namespace Aggregates.Internal
 
         public IModelChecker<TModel> Added()
         {
-            if (!_app.Added.ContainsKey(_id))
+            if (!_app.Added.ContainsKey(Tuple.Create(typeof(TModel), _id)))
                 throw new ModelException<TModel>(_id, "added");
             return this;
         }
 
         public IModelChecker<TModel> Added(Func<TModel, bool> assert)
         {
-            if (!_app.Added.ContainsKey(_id))
+            if (!_app.Added.ContainsKey(Tuple.Create(typeof(TModel), _id)))
                 throw new ModelException<TModel>(_id, "added");
-            var model = _app.Added[_id] as TModel;
+            var model = _app.Added[Tuple.Create(typeof(TModel), _id)] as TModel;
 
             if (!assert(model))
                 throw new ModelException<TModel>(_id, model);
@@ -142,9 +142,9 @@ namespace Aggregates.Internal
 
         public IModelChecker<TModel> Added(TModel check)
         {
-            if (!_app.Added.ContainsKey(_id))
+            if (!_app.Added.ContainsKey(Tuple.Create(typeof(TModel), _id)))
                 throw new ModelException<TModel>(_id, "added");
-            var model = _app.Added[_id] as TModel;
+            var model = _app.Added[Tuple.Create(typeof(TModel), _id)] as TModel;
 
             if (JsonConvert.SerializeObject(model) != JsonConvert.SerializeObject(check))
                 throw new ModelException<TModel>(_id, model);
@@ -153,30 +153,30 @@ namespace Aggregates.Internal
 
         public IModelChecker<TModel> Deleted()
         {
-            if (!_app.Deleted.Contains(_id))
+            if (!_app.Deleted.Contains(Tuple.Create(typeof(TModel), _id)))
                 throw new ModelException<TModel>(_id, "deleted");
             return this;
         }
 
         public IModelChecker<TModel> Read()
         {
-            if (!_app.Read.Contains(_id))
+            if (!_app.Read.Contains(Tuple.Create(typeof(TModel), _id)))
                 throw new ModelException<TModel>(_id, "read");
             return this;
         }
 
         public IModelChecker<TModel> Updated()
         {
-            if (!_app.Updated.ContainsKey(_id))
+            if (!_app.Updated.ContainsKey(Tuple.Create(typeof(TModel), _id)))
                 throw new ModelException<TModel>(_id, "updated");
             return this;
         }
 
         public IModelChecker<TModel> Updated(Func<TModel, bool> assert)
         {
-            if (!_app.Updated.ContainsKey(_id))
+            if (!_app.Updated.ContainsKey(Tuple.Create(typeof(TModel), _id)))
                 throw new ModelException<TModel>(_id, "updated");
-            var model = _app.Updated[_id] as TModel;
+            var model = _app.Updated[Tuple.Create(typeof(TModel), _id)] as TModel;
 
             if (!assert(model))
                 throw new ModelException<TModel>(_id, model);
@@ -185,9 +185,9 @@ namespace Aggregates.Internal
 
         public IModelChecker<TModel> Updated(TModel check)
         {
-            if (!_app.Updated.ContainsKey(_id))
+            if (!_app.Updated.ContainsKey(Tuple.Create(typeof(TModel), _id)))
                 throw new ModelException<TModel>(_id, "updated");
-            var model = _app.Updated[_id] as TModel;
+            var model = _app.Updated[Tuple.Create(typeof(TModel), _id)] as TModel;
 
             if (JsonConvert.SerializeObject(model) != JsonConvert.SerializeObject(check))
                 throw new ModelException<TModel>(_id, model);
@@ -211,13 +211,13 @@ namespace Aggregates.Internal
 
         public IModelPlanner<TModel> Exists()
         {
-            _app.Planned[_id] = new TModel();
+            _app.Planned[Tuple.Create(typeof(TModel), _id)] = new TModel();
             return this;
         }
 
         public IModelPlanner<TModel> Exists(TModel model)
         {
-            _app.Planned[_id] = model;
+            _app.Planned[Tuple.Create(typeof(TModel), _id)] = model;
             return this;
         }
     }

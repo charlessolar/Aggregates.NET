@@ -15,37 +15,37 @@ namespace Aggregates
         private IdRegistry _ids;
         public dynamic Bag { get; set; }
 
-        internal Dictionary<TestableId, object> Planned;
-        internal Dictionary<TestableId, object> Added;
-        internal Dictionary<TestableId, object> Updated;
-        internal List<TestableId> Deleted;
-        internal List<TestableId> Read;
+        internal Dictionary<Tuple<Type,TestableId>, object> Planned;
+        internal Dictionary<Tuple<Type, TestableId>, object> Added;
+        internal Dictionary<Tuple<Type, TestableId>, object> Updated;
+        internal List<Tuple<Type, TestableId>> Deleted;
+        internal List<Tuple<Type, TestableId>> Read;
 
         public TestableApplication(IdRegistry ids)
         {
             _ids = ids;
-            Planned = new Dictionary<TestableId, object>();
-            Added = new Dictionary<TestableId, object>();
-            Updated = new Dictionary<TestableId, object>();
-            Deleted = new List<TestableId>();
-            Read = new List<TestableId>();
+            Planned = new Dictionary<Tuple<Type, TestableId>, object>();
+            Added = new Dictionary<Tuple<Type, TestableId>, object>();
+            Updated = new Dictionary<Tuple<Type, TestableId>, object>();
+            Deleted = new List<Tuple<Type, TestableId>>();
+            Read = new List<Tuple<Type, TestableId>>();
         }
 
         public Task Add<T>(Id id, T document) where T : class
         {
-            Added[_ids.MakeId(id)] = document;
+            Added[Tuple.Create(typeof(T), _ids.MakeId(id))] = document;
             return Task.CompletedTask;
         }
 
         public Task Delete<T>(Id id) where T : class
         {
-            Deleted.Add(_ids.MakeId(id));
+            Deleted.Add(Tuple.Create(typeof(T), _ids.MakeId(id)));
             return Task.CompletedTask;
         }
 
         public Task<T> Get<T>(Id id) where T : class
         {
-            var testable = _ids.MakeId(id);
+            var testable = Tuple.Create(typeof(T), _ids.MakeId(id));
             Read.Add(testable);
             return Task.FromResult(Planned[testable] as T);
         }
@@ -57,7 +57,7 @@ namespace Aggregates
 
         public Task<T> TryGet<T>(Id id) where T : class
         {
-            var testable = _ids.MakeId(id);
+            var testable = Tuple.Create(typeof(T), _ids.MakeId(id));
             Read.Add(testable);
             if (Planned.ContainsKey(testable))
                 return Task.FromResult(Planned[testable] as T);
@@ -66,7 +66,7 @@ namespace Aggregates
 
         public Task Update<T>(Id id, T document) where T : class
         {
-            Updated[_ids.MakeId(id)] = document;
+            Updated[Tuple.Create(typeof(T), _ids.MakeId(id))] = document;
             return Task.CompletedTask;
         }
 
