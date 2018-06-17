@@ -2,12 +2,12 @@
   <Import Project="../Common.props" />
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace>Aggregates</RootNamespace>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <IsPackable>true</IsPackable>
     <Title>Aggregates.NET.Testing</Title>
-    <Description>ES/CQRS framework for NServiceBus and EventStore</Description>
+    <Description>Ease of use framework for testing Aggregates.NET entities and handlers</Description>
   </PropertyGroup>
 
 

@@ -18,7 +18,7 @@ namespace Aggregates
         /// <summary>
         /// Easier access to uow if user implements IGeneric
         /// </summary>
-        public static UnitOfWork.IGeneric UoW(this IServiceContext context)
+        public static UnitOfWork.IGeneric App(this IServiceContext context)
         {
             return context.App as UnitOfWork.IGeneric;
         }
