@@ -51,10 +51,8 @@ namespace Domain
 
         public async Task<MessageState[]> Handle(PreviousMessages query, IServiceContext context)
         {
-            var uow = context.UoW;
-
             // Can use uow to get domain entities
-            var world = await uow.For<World>().TryGet("World");
+            var world = await context.Domain.For<World>().TryGet("World");
             if (world == null)
                 return new MessageState[] { };
 
