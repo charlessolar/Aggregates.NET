@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Aggregates.UnitOfWork
 {
-    public interface IDomain
+    public interface IDomain : IMutate
     {
         IRepository<T> For<T>() where T : IEntity;
         IRepository<TEntity, TParent> For<TEntity, TParent>(TParent parent) where TEntity : IChildEntity<TParent> where TParent : IHaveEntities<TParent>;
