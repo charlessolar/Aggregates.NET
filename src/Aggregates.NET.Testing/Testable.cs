@@ -17,8 +17,6 @@ namespace Aggregates
     {
         IModelChecker<TModel> Check<TModel>(Id id) where TModel : class, new();
         IModelPlanner<TModel> Plan<TModel>(Id id) where TModel : class, new();
-        IModelChecker<TModel> Check<TModel>(TestableId id) where TModel : class, new();
-        IModelPlanner<TModel> Plan<TModel>(TestableId id) where TModel : class, new();
     }
     public interface ITestableProcessor : IProcessor
     {
@@ -28,7 +26,6 @@ namespace Aggregates
     public interface IEventChecker<TEntity> where TEntity : IEntity
     {
         IEventChecker<TChild> Check<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>;
-        IEventChecker<TChild> Check<TChild>(TestableId id) where TChild : IEntity, IChildEntity<TEntity>;
         /// <summary>
         /// Check that a specific event was raised
         /// </summary>
@@ -45,7 +42,6 @@ namespace Aggregates
     public interface IEventPlanner<TEntity> where TEntity : IEntity
     {
         IEventPlanner<TChild> Plan<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>;
-        IEventPlanner<TChild> Plan<TChild>(TestableId id) where TChild : IEntity, IChildEntity<TEntity>;
         /// <summary>
         /// entity will exist to read - for when events arn't needed
         /// </summary>
