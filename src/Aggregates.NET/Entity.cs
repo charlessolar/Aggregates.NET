@@ -25,7 +25,7 @@ namespace Aggregates
     {
         private static readonly ILog Logger = LogProvider.GetLogger(typeof(TThis).Name);
 
-        public static implicit operator TState(Entity<TThis, TState> entity) => entity.State;
+        public static implicit operator TState(Entity<TThis, TState> entity) => entity?.State;
 
         public Id Id { get; private set; }
         public string Bucket { get; private set; }
