@@ -38,6 +38,10 @@ namespace Aggregates
         /// Check a property on a raised event
         /// </summary>
         IEventChecker<TEntity> Raised<TEvent>(Func<TEvent, bool> assert) where TEvent : Messages.IEvent;
+        /// <summary>
+        /// Asserts the entity did not raise any events
+        /// </summary>
+        IEventChecker<TEntity> Unchanged();
     }
     public interface IEventPlanner<TEntity> where TEntity : IEntity
     {

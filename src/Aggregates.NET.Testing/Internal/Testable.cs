@@ -99,6 +99,12 @@ namespace Aggregates.Internal
                 throw new NoMatchingEventException(_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).ToArray());
             return this;
         }
+        public IEventChecker<TEntity> Unchanged()
+        {
+            if (_entity.Uncommitted.Any())
+                throw new RaisedException(_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).ToArray());
+            return this;
+        }
         public IEventChecker<TChild> Check<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>
         {
             return _uow.Check<TChild, TEntity>(_entity, _ids.MakeId(id.ToString()));
