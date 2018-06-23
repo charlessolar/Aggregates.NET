@@ -72,7 +72,8 @@ namespace Aggregates
         /// </summary>
         public static Task LocalSaga(this IMessageHandlerContext context, Func<IMessageSession, Task> saga)
         {
-            return saga(Bus.Instance);
+            Task.Run(() => saga(Bus.Instance));
+            return Task.CompletedTask;
         }
     }
 }
