@@ -45,15 +45,16 @@ namespace Aggregates
 
         public bool Equals(Id other)
         {
-            if (ReferenceEquals(null, other) || this.Value == null) return true;
+            if (ReferenceEquals(null, other) && this.Value == null) return true;
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
+            if (this.Value == null && other.Value == null) return true;
             return Equals(Value, other.Value);
         }
 
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj) || this.Value == null) return true;
+            if (ReferenceEquals(null, obj) && this.Value == null) return true;
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
             return obj.GetType() == this.GetType() && Equals((Id)obj);
@@ -69,12 +70,10 @@ namespace Aggregates
 
         public static bool operator ==(Id left, Id right)
         {
+            if (left?.Value == null && right?.Value == null) return true;
             return Equals(left, right);
         }
 
-        public static bool operator !=(Id left, Id right)
-        {
-            return !Equals(left, right);
-        }
+        public static bool operator !=(Id left, Id right) => !Equals(left, right);
     }
 }

@@ -51,6 +51,15 @@ namespace Aggregates.Common
             id.Equals(null).Should().BeTrue();
         }
         [Fact]
+        public void NullIdValueShouldEqualNull()
+        {
+            Aggregates.Id id = new Id(null);
+            id.Equals(null).Should().BeTrue();
+            (id == new Id(null)).Should().BeTrue();
+            (id == (Id)null).Should().BeTrue();
+            (id != "tt").Should().BeTrue();
+        }
+        [Fact]
         public void TwoIdenticalIdsShouldEqual()
         {
             Aggregates.Id id1 = "test";
