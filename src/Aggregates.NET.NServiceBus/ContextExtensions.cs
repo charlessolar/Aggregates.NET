@@ -70,9 +70,11 @@ namespace Aggregates
         /// <summary>
         /// Allows you to run a series of tasks using the full bus - Request/Response available
         /// </summary>
-        public static Task LocalSaga(this IMessageHandlerContext context, Func<IMessageSession, Task> saga)
+        public static Task LocalSaga(this IMessageHandlerContext context, Func<IMessageSession, Task> saga, bool await = false)
         {
-            Task.Run(() => saga(Bus.Instance));
+            var task = Task.Run(() => saga(Bus.Instance));
+            if (await) task.ConfigureAwait(false).GetAwaiter().GetResult();
+
             return Task.CompletedTask;
         }
     }
