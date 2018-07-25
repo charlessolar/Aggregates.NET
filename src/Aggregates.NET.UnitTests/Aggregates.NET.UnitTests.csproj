@@ -31,11 +31,8 @@
     <ProjectReference Include="..\Aggregates.NET.NewtonsoftJson\Aggregates.NET.NewtonsoftJson.csproj" />
     <ProjectReference Include="..\Aggregates.NET.NServiceBus\Aggregates.NET.NServiceBus.csproj" />
     <ProjectReference Include="..\Aggregates.NET.StructureMap\Aggregates.NET.StructureMap.csproj" />
+    <ProjectReference Include="..\Aggregates.NET.Testing\Aggregates.NET.Testing.csproj" />
     <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Testing\" />
   </ItemGroup>
 
 </Project>

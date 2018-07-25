@@ -53,7 +53,7 @@ namespace Aggregates.Internal
         public IEventPlanner<TChild> Plan<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>
         {
             // Use a factory so its 'lazy' - meaning defining the parent doesn't necessarily have to come before defining child
-            return _uow.Plan<TChild, TEntity>(_entityFactory(), _ids.MakeId(id.ToString()));
+            return _uow.Plan<TChild, TEntity>(_entityFactory(), _ids.MakeId(id));
         }
         public IEventPlanner<TChild> Plan<TChild>(TestableId id) where TChild : IEntity, IChildEntity<TEntity>
         {
@@ -107,7 +107,7 @@ namespace Aggregates.Internal
         }
         public IEventChecker<TChild> Check<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>
         {
-            return _uow.Check<TChild, TEntity>(_entity, _ids.MakeId(id.ToString()));
+            return _uow.Check<TChild, TEntity>(_entity, _ids.MakeId(id));
         }
         public IEventChecker<TChild> Check<TChild>(TestableId id) where TChild : IEntity, IChildEntity<TEntity>
         {
