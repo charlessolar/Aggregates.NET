@@ -24,7 +24,7 @@ namespace Aggregates.Internal
         public TestableId MakeId(int key)
         {
             var generated = new Guid(0, 0, 0, new byte[] { 0, 0, 0, 0, 0, 0, 0, (byte)-_longIdCounter });
-            var id = new TestableId(Constants.GeneratedNumberedId(key), _longIdCounter--, generated.ToString(), generated);
+            var id = new TestableId(Constants.GeneratedNumberedId(key), _longIdCounter--, key.ToString(), generated);
             if (_generatedIds.ContainsKey(id.GeneratedIdKey))
                 return _generatedIds[id.GeneratedIdKey];
             return _generatedIds[id.GeneratedIdKey] = id;
@@ -32,7 +32,7 @@ namespace Aggregates.Internal
         public TestableId MakeId(string key)
         {
             var generated = new Guid(0, 0, 0, new byte[] { 0, 0, 0, 0, 0, 0, 0, (byte)-_longIdCounter });
-            var id = new TestableId(Constants.GenerateNamedId(key), _longIdCounter--, generated.ToString(), generated);
+            var id = new TestableId(Constants.GenerateNamedId(key), _longIdCounter--, key, generated);
             if (_generatedIds.ContainsKey(id.GeneratedIdKey))
                 return _generatedIds[id.GeneratedIdKey];
             return _generatedIds[id.GeneratedIdKey] = id;
@@ -48,7 +48,7 @@ namespace Aggregates.Internal
                 return existing;
 
             var generated = new Guid(0, 0, 0, new byte[] { 0, 0, 0, 0, 0, 0, 0, (byte)-_longIdCounter });
-            var testable = new TestableId(Constants.GenerateNamedId(id.ToString()), _longIdCounter--, generated.ToString(), generated);
+            var testable = new TestableId(Constants.GenerateNamedId(id.ToString()), _longIdCounter--, id.ToString(), generated);
             if (_generatedIds.ContainsKey(testable.GeneratedIdKey))
                 return _generatedIds[testable.GeneratedIdKey];
             return _generatedIds[testable.GeneratedIdKey] = testable;

@@ -41,8 +41,9 @@ namespace Aggregates.Internal
         }
         public bool Equals(TestableId other)
         {
-            if (ReferenceEquals(null, other)) return false;
+            if (ReferenceEquals(null, other) && this.Value == null) return true;
             if (ReferenceEquals(this, other)) return true;
+            if (this.Value == null && other.Value == null) return true;
             return other.LongId == LongId && other.GuidId == GuidId && other.StringId == StringId;
         }
         public new bool Equals(Id other)
