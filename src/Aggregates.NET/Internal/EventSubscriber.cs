@@ -42,18 +42,20 @@ namespace Aggregates.Internal
         private readonly IMetrics _metrics;
         private readonly IMessaging _messaging;
         private readonly int _concurrency;
+        private readonly bool _allEvents;
 
         private readonly IEventStoreConsumer _consumer;
 
         private bool _disposed;
 
 
-        public EventSubscriber(IMetrics metrics, IMessaging messaging, IEventStoreConsumer consumer, int concurrency)
+        public EventSubscriber(IMetrics metrics, IMessaging messaging, IEventStoreConsumer consumer, int concurrency, bool allEvents)
         {
             _metrics = metrics;
             _messaging = messaging;
             _consumer = consumer;
             _concurrency = concurrency;
+            _allEvents = allEvents;
         }
 
         public async Task Setup(string endpoint, Version version)
@@ -82,12 +84,21 @@ namespace Aggregates.Internal
                     .Select(
                         eventType => $"'{eventType.AssemblyQualifiedName}': processEvent")
                     .Aggregate((cur, next) => $"{cur},\n{next}");
+            
+            // endpoint will get all events regardless of version of info
+            // it will be up to them to handle upgrades
+            if (_allEvents)
+                functions = "$any: processEvent";
 
             // Don't tab this '@' will create tabs in projection definition
             var definition = @"
 function processEvent(s,e) {{
     linkTo('{1}', e);
 }}
+options({
+  reorderEvents: true,
+  processingLag: 500
+})
 fromStreams([{0}]).
 when({{
 {2}
