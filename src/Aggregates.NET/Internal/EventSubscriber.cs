@@ -95,10 +95,10 @@ namespace Aggregates.Internal
 function processEvent(s,e) {{
     linkTo('{1}', e);
 }}
-options({
+options({{
   reorderEvents: true,
   processingLag: 500
-})
+}})
 fromStreams([{0}]).
 when({{
 {2}
