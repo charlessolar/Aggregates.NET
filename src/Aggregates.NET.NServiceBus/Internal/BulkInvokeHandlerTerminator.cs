@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Transactions;
@@ -13,6 +14,7 @@ using Aggregates.Messages;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
+using NServiceBus.Sagas;
 
 namespace Aggregates.Internal
 {
@@ -45,6 +47,10 @@ namespace Aggregates.Internal
 
         protected override async Task Terminate(IInvokeHandlerContext context)
         {
+            if (context.Extensions.TryGet(out ActiveSagaInstance saga) && saga.NotFound && ((SagaMetadata)saga.GetType().GetProperty("Metadata", BindingFlags.NonPublic).GetValue(saga)).SagaType == context.MessageHandler.Instance.GetType())
+            {
+                return;
+            }
 
             IDelayedChannel channel = null;
             try
