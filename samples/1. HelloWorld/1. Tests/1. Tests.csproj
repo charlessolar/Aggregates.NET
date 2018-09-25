@@ -27,6 +27,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aggregates.NET.Testing" Version="0.14.33.330" />
+    <PackageReference Include="Aggregates.NET.Testing" Version="0.14.34.331" />
   </ItemGroup>
 </Project>

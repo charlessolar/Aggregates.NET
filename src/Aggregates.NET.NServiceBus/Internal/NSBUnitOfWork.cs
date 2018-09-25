@@ -33,8 +33,7 @@ namespace Aggregates.Internal
                 CurrentHeaders[workHeader] = defaultHeader;
             }
 
-            var messageDefinition = VersionRegistrar.GetDefinition(CurrentMessage.GetType());
-            CurrentHeaders[Defaults.OriginatingMessageHeader] = $"{messageDefinition.Name} v{messageDefinition.Version}";
+            CurrentHeaders[Defaults.OriginatingMessageHeader] = VersionRegistrar.GetVersionedName(CurrentMessage.GetType());
 
             // Copy any application headers the user might have included
             var userHeaders = command.Headers.Keys.Where(h =>

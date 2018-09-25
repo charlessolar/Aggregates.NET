@@ -78,14 +78,12 @@ namespace Aggregates.Internal
             // We don't need snapshots to store the previous snapshot
             // ideally this field would be [JsonIgnore] but we have no dependency on json.net
             snapshot.Snapshot = null;
-
-            var definition = VersionRegistrar.GetDefinition(typeof(T));
-
+            
             var e = new FullEvent
             {
                 Descriptor = new EventDescriptor
                 {
-                    EntityType = $"{definition.Namespace}.{definition.Name} v{definition.Version}",
+                    EntityType = VersionRegistrar.GetVersionedName(typeof(T)),
                     StreamType = StreamTypes.Snapshot,
                     Bucket = snapshot.Bucket,
                     StreamId = snapshot.Id,

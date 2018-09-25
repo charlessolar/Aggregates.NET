@@ -91,7 +91,7 @@ namespace Aggregates.Internal
                 if (descriptor.Compressed)
                     data = data.Decompress();
 
-                var eventType = Type.GetType(e.Event.EventType, false);
+                var eventType = VersionRegistrar.GetNamedType(e.Event.EventType);
                 _mapper.Initialize(eventType);
 
                 var @event = _serializer.Deserialize(eventType, data) as IEvent;
@@ -170,7 +170,7 @@ namespace Aggregates.Internal
                 if (descriptor.Compressed)
                     data = data.Decompress();
 
-                var eventType = Type.GetType(e.Event.EventType, false);
+                var eventType = VersionRegistrar.GetNamedType(e.Event.EventType);
                 _mapper.Initialize(eventType);
 
                 var @event = _serializer.Deserialize(eventType, data) as IEvent;
@@ -250,8 +250,9 @@ namespace Aggregates.Internal
 
                     mutated = mutator.MutateOutgoing(mutated);
                 }
-                foreach (var header in mutated.Headers)
-                    e.Descriptor.Headers[header.Key] = header.Value;
+                var mappedType = e.Event.GetType();
+                if (!mappedType.IsInterface)
+                    mappedType = _mapper.GetMappedTypeFor(mappedType) ?? mappedType;
 
                 var descriptor = new EventDescriptor
                 {
@@ -275,9 +276,10 @@ namespace Aggregates.Internal
                     Headers = e.Descriptor.Headers,
                 };
 
-                var mappedType = e.Event.GetType();
-                if (!mappedType.IsInterface)
-                    mappedType = _mapper.GetMappedTypeFor(mappedType) ?? mappedType;
+                var eventType = VersionRegistrar.GetVersionedName(mappedType);
+                foreach (var header in mutated.Headers)
+                    e.Descriptor.Headers[header.Key] = header.Value;
+
 
                 var @event = _serializer.Serialize(mutated.Message);
 
@@ -290,7 +292,7 @@ namespace Aggregates.Internal
 
                 return new EventData(
                     descriptor.EventId,
-                    mappedType.AssemblyQualifiedName,
+                    eventType,
                     !descriptor.Compressed,
                     @event,
                     metadata

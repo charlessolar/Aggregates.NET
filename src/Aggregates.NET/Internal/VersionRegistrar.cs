@@ -5,11 +5,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Aggregates.Internal
 {
     public class VersionRegistrar
     {
+        private static readonly Regex NameRegex = new Regex(@"^(?<Namespace>\S+)\.(?<Name>\S+)\sv(?<Version>[0-9]+)$", RegexOptions.Compiled);
         private static readonly ILog Logger = LogProvider.GetLogger("VersionRegistrar");
 
         public class VersionDefinition
@@ -60,7 +62,7 @@ namespace Aggregates.Internal
             TypeToDefinition[type] = definition;
         }
 
-        public static VersionDefinition GetDefinition(Type versionedType)
+        public static string GetVersionedName(Type versionedType)
         {
             var contains = false;
 
@@ -73,19 +75,28 @@ namespace Aggregates.Internal
 
             lock (_sync)
             {
-                return TypeToDefinition[versionedType];
+                var definition = TypeToDefinition[versionedType];
+                return $"{definition.Namespace}.{definition.Name} v{definition.Version}";
             }
         }
-        public static Type GetNamedType(string name, int? version)
+        public static Type GetNamedType(string versionedName)
         {
+            var match = NameRegex.Match(versionedName);
+            if (!match.Success)
+                return null;
+
+            var @namespace = match.Groups["Namespace"].Value;
+            var name = match.Groups["Name"].Value;
+            var version = match.Groups["Version"].Value;
+
             lock (_sync)
             {
-                if (!NameToType.TryGetValue(name, out var definitions) || !definitions.Any())
+                if (!NameToType.TryGetValue($"{@namespace}.{name}", out var definitions) || !definitions.Any())
                     return null;
-                if (!version.HasValue)
+                if (!int.TryParse(version, out var intVersion))
                     return definitions.OrderByDescending(x => x.Version).First().Type;
 
-                return definitions.SingleOrDefault(x => x.Version == version)?.Type;
+                return definitions.SingleOrDefault(x => x.Version == intVersion)?.Type;
             }
         }
     }

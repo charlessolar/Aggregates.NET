@@ -94,12 +94,7 @@ namespace Aggregates
 
             Endpoint = "demo";
             // Set sane defaults
-            Generator = new StreamIdGenerator((type, streamType, bucket, stream, parents) =>
-            {
-                var definition = VersionRegistrar.GetDefinition(type);
-
-                return $"{streamType}-{bucket}-[{parents.BuildParentsString()}]-{definition.Namespace}{definition.Name}-{stream}";
-            });
+            Generator = new StreamIdGenerator((type, streamType, bucket, stream, parents) => $"{streamType}-{bucket}-[{parents.BuildParentsString()}]-{VersionRegistrar.GetVersionedName(type)}-{stream}");
             ReadSize = 100;
             Compression = Compression.None;
             UniqueAddress = Guid.NewGuid().ToString("N");

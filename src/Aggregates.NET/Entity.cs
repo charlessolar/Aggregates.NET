@@ -118,14 +118,12 @@ namespace Aggregates
         {
             State.Apply(@event);
             var eventId = Internal.UnitOfWork.NextEventId(Uow.CommitId);
-
-            var definition = VersionRegistrar.GetDefinition(typeof(TThis));
-
+            
             _uncommitted.Add(new FullEvent
             {
                 Descriptor = new EventDescriptor
                 {
-                    EntityType = $"{definition.Namespace}.{definition.Name} v{definition.Version}",
+                    EntityType = VersionRegistrar.GetVersionedName(typeof(TThis)),
                     StreamType = StreamTypes.Domain,
                     Bucket = Bucket,
                     StreamId = Id,
@@ -146,14 +144,12 @@ namespace Aggregates
         void IEntity<TState>.Raise(IEvent @event, string id, bool transient, int? daysToLive, bool? single)
         {
             var eventId = Internal.UnitOfWork.NextEventId(Uow.CommitId);
-
-            var definition = VersionRegistrar.GetDefinition(typeof(TThis));
-
+            
             var newEvent = new FullEvent
             {
                 Descriptor = new EventDescriptor
                 {
-                    EntityType = $"{definition.Namespace}.{definition.Name} v{definition.Version}",
+                    EntityType = VersionRegistrar.GetVersionedName(typeof(TThis)),
                     StreamType = StreamTypes.OOB,
                     Bucket = Bucket,
                     StreamId = Id,

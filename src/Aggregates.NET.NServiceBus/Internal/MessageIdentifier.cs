@@ -19,11 +19,8 @@ namespace Aggregates.Internal
             var messageTypeKey = "NServiceBus.EnclosedMessageTypes";
             if (!headers.TryGetValue(messageTypeKey, out var messageType))
                 return next();
-            
-            if (!headers.TryGetValue(Defaults.MessageVersionHeader, out var messageVersionStr) || !int.TryParse(messageVersionStr, out var messageVersion))
-                messageVersion = 1;
 
-            var mappedType = VersionRegistrar.GetNamedType(messageType, messageVersion);
+            var mappedType = VersionRegistrar.GetNamedType(messageType);
             // no mapped type
             if (mappedType == null)
             {

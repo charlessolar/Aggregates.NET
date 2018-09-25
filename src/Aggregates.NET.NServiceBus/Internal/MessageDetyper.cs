@@ -22,15 +22,15 @@ namespace Aggregates.Internal
             //if (!headers.TryGetValue(messageTypeKey, out var messageType))
             //    return next();
 
-            var definition = VersionRegistrar.GetDefinition(type);
+            var definition = VersionRegistrar.GetVersionedName(type);
             if (definition == null)
             {
                 Logger.WarnEvent("UnknownMessage", "{MessageType} has no known definition", type.FullName);
                 return next();
             }
 
-            context.Headers[messageTypeKey] = definition.Name;
-            context.Headers[Defaults.MessageVersionHeader] = definition.Version.ToString();
+            context.Headers[messageTypeKey] = definition;
+            context.Headers[Defaults.MessageTypeHeader] = definition;
 
             return next();
         }
