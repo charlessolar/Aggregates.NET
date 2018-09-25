@@ -33,7 +33,12 @@ namespace Aggregates.Internal
                 CurrentHeaders[workHeader] = defaultHeader;
             }
 
-            CurrentHeaders[Defaults.OriginatingMessageHeader] = VersionRegistrar.GetVersionedName(CurrentMessage.GetType());
+            Type type = null;
+            if (command.Headers.TryGetValue(Headers.EnclosedMessageTypes, out var messageType))
+                type = Type.GetType(messageType, false);
+
+            CurrentHeaders[Defaults.OriginatingMessageHeader] = type == null ? "<UNKNOWN>" : VersionRegistrar.GetVersionedName(type);
+
 
             // Copy any application headers the user might have included
             var userHeaders = command.Headers.Keys.Where(h =>
@@ -48,7 +53,7 @@ namespace Aggregates.Internal
 
             foreach (var header in userHeaders)
                 CurrentHeaders[header] = command.Headers[header];
-            
+
             if (command.Headers.ContainsKey(Headers.CorrelationId))
                 CurrentHeaders[$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = command.Headers[Headers.CorrelationId];
 
