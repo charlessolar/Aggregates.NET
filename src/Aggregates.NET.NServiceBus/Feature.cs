@@ -66,6 +66,16 @@ namespace Aggregates
 
             var types = settings.GetAvailableTypes();
 
+            VersionRegistrar.Load(types.ToArray());
+            context.Pipeline.Register(
+                behavior: new MessageIdentifier(),
+                description: "identifies incoming messages as Versioned commands/events"
+                );
+            context.Pipeline.Register(
+                behavior: new MessageDetyper(),
+                description: "detypes outgoing messages to Versioned commands/events"
+                );
+
             // Register all service handlers in my IoC so query processor can use them
             foreach (var type in types.Where(IsServiceHandler))
                 container.Register(type, Lifestyle.PerInstance);

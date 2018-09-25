@@ -24,6 +24,7 @@ namespace Aggregates
 
         public const string OriginatingHeader = "Originating";
 
+        public const string MessageVersionHeader = "Aggregates.NET.Version";
         public const string Retries = "Aggregates.NET.Retries";
         public const string RequestResponse = "Aggregates.NET.Request";
         public const string ChannelKey = "Aggregates.NET.ChannelKey";
@@ -34,7 +35,7 @@ namespace Aggregates
         public const string BulkHeader = "Aggregates.NET.BulkMessage";
         public const string ConflictResolvedHeader = "ConflictResolver";
 
-        public const string AggregatesVersionHeader = "Aggregates.NET.Version";
+        public const string AggregatesVersionHeader = "Aggregates.NET.LibraryVersion";
         public const string EndpointHeader = "Endpoint";
         public const string InstanceHeader = "Endpoint.Instance";
         public const string MachineHeader = "Endpoint.Machine";
