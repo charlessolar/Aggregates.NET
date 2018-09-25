@@ -81,10 +81,9 @@ namespace Aggregates.Internal
             var messageType = message.Message.GetType();
             if (!messageType.IsInterface)
                 messageType = _mapper.GetMappedTypeFor(messageType) ?? messageType;
-
-
+            
             var finalHeaders = message.Headers.Merge(headers);
-            finalHeaders[Headers.EnclosedMessageTypes] = messageType.AssemblyQualifiedName;
+            finalHeaders[Headers.EnclosedMessageTypes] = VersionRegistrar.GetVersionedName(messageType);
             finalHeaders[Headers.MessageIntent] = MessageIntentEnum.Send.ToString();
 
 
@@ -179,7 +178,7 @@ namespace Aggregates.Internal
 
                     var finalHeaders = headers.Merge(new Dictionary<string, string>()
                     {
-                        [Headers.EnclosedMessageTypes] = messageType.AssemblyQualifiedName,
+                        [Headers.EnclosedMessageTypes] = VersionRegistrar.GetVersionedName(messageType),
                         [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
                         [Headers.MessageId] = messageId
                     });

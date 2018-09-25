@@ -5,6 +5,7 @@ using Aggregates.Messages;
 
 namespace Aggregates.Contracts
 {
+    [Versioned("DelayedMessage", "Aggregates")]
     public interface IDelayedMessage : IEvent
     {
         string MessageId { get; }

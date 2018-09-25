@@ -317,10 +317,10 @@ namespace Aggregates.Internal
             if (descriptor.Compressed)
                 data = data.Decompress();
 
-            var eventType = Type.GetType(e.Event.EventType, false);
+            var eventType = VersionRegistrar.GetNamedType(e.Event.EventType);
             // Not all types are detected and initialized by NSB - they do it in the pipeline, we have to do it here
             _mapper.Initialize(eventType);
-
+            
             var payload = _serializer.Deserialize(eventType, data) as IEvent;
 
             return callback(e.Event.EventStreamId, e.Event.EventNumber, new FullEvent
