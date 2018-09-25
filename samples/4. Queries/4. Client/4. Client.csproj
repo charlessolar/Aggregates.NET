@@ -18,9 +18,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aggregates.NET.EventStore" Version="0.14.34.331" />
-    <PackageReference Include="Aggregates.NET.NewtonsoftJson" Version="0.14.34.331" />
-    <PackageReference Include="Aggregates.NET.NServiceBus" Version="0.14.34.331" />
-    <PackageReference Include="Aggregates.NET.StructureMap" Version="0.14.34.331" />
+    <PackageReference Include="Aggregates.NET.EventStore" Version="0.14.36.333" />
+    <PackageReference Include="Aggregates.NET.NewtonsoftJson" Version="0.14.36.333" />
+    <PackageReference Include="Aggregates.NET.NServiceBus" Version="0.14.36.333" />
+    <PackageReference Include="Aggregates.NET.StructureMap" Version="0.14.36.333" />
   </ItemGroup>
 </Project>

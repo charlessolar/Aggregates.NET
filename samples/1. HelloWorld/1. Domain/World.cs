@@ -6,6 +6,7 @@ using System.Text;
 
 namespace Domain
 {
+    [Versioned("World", "Samples")]
     public class World : Aggregates.Entity<World, WorldState>
     {
         private World() { }

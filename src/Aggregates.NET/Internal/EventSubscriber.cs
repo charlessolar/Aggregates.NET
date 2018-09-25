@@ -82,7 +82,7 @@ namespace Aggregates.Internal
             var functions =
                 discoveredEvents
                     .Select(
-                        eventType => $"'{eventType.AssemblyQualifiedName}': processEvent")
+                        eventType => $"'{VersionRegistrar.GetVersionedName(eventType)}': processEvent")
                     .Aggregate((cur, next) => $"{cur},\n{next}");
             
             // endpoint will get all events regardless of version of info
