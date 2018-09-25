@@ -7,8 +7,8 @@
 
   <ItemGroup>
     <PackageReference Include="NServiceBus.Newtonsoft.Json" Version="2.1.0" />
-    <PackageReference Include="NServiceBus.RabbitMQ" Version="5.0.0" />
-    <PackageReference Include="NServiceBus.Serilog" Version="4.0.0" />
+    <PackageReference Include="NServiceBus.RabbitMQ" Version="5.0.1" />
+    <PackageReference Include="NServiceBus.Serilog" Version="4.0.2" />
     <PackageReference Include="NServiceBus.StructureMap" Version="7.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
   </ItemGroup>
@@ -16,9 +16,9 @@
     <ProjectReference Include="..\3. Language\3. Language.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Aggregates.NET.EventStore" Version="0.14.17.314" />
-    <PackageReference Include="Aggregates.NET.NewtonsoftJson" Version="0.14.17.314" />
-    <PackageReference Include="Aggregates.NET.NServiceBus" Version="0.14.17.314" />
-    <PackageReference Include="Aggregates.NET.StructureMap" Version="0.14.17.314" />
+    <PackageReference Include="Aggregates.NET.EventStore" Version="0.14.33.330" />
+    <PackageReference Include="Aggregates.NET.NewtonsoftJson" Version="0.14.33.330" />
+    <PackageReference Include="Aggregates.NET.NServiceBus" Version="0.14.33.330" />
+    <PackageReference Include="Aggregates.NET.StructureMap" Version="0.14.33.330" />
   </ItemGroup>
 </Project>

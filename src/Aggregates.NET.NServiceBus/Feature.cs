@@ -66,7 +66,7 @@ namespace Aggregates
 
             var types = settings.GetAvailableTypes();
 
-            VersionRegistrar.Load(types.ToArray());
+            VersionRegistrar.Load(types.Where(x => IsMessageType(x) || IsEntityType(x)).ToArray());
             context.Pipeline.Register(
                 behavior: new MessageIdentifier(),
                 description: "identifies incoming messages as Versioned commands/events"
@@ -97,6 +97,20 @@ namespace Aggregates
                 .Where(@interface => @interface.IsGenericType)
                 .Select(@interface => @interface.GetGenericTypeDefinition())
                 .Any(genericTypeDef => genericTypeDef == typeof(IProvideService<,>));
+        }
+        private static bool IsMessageType(Type type)
+        {
+            if (type.IsAbstract || type.IsGenericTypeDefinition)
+                return false;
+
+            return typeof(Messages.IMessage).IsAssignableFrom(type);
+        }
+        private static bool IsEntityType(Type type)
+        {
+            if (type.IsAbstract || type.IsGenericTypeDefinition)
+                return false;
+
+            return type.IsSubclassOf(typeof(Entity<,>));
         }
     }
 

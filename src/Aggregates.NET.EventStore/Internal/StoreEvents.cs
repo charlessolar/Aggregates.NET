@@ -262,7 +262,7 @@ namespace Aggregates.Internal
                         [Defaults.EndpointHeader] = Configuration.Settings.Endpoint,
                         [Defaults.EndpointVersionHeader] = Configuration.Settings.EndpointVersion.ToString(),
                         [Defaults.AggregatesVersionHeader] = Configuration.Settings.AggregatesVersion.ToString(),
-                        [Defaults.MachineHeader] = Environment.MachineName
+                        [Defaults.MachineHeader] = Environment.MachineName,
                     }),
                     Compressed = _compress.HasFlag(Compression.Events),
                     EntityType = e.Descriptor.EntityType,

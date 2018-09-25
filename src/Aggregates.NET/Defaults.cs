@@ -28,14 +28,18 @@ namespace Aggregates
         public const string Retries = "Aggregates.NET.Retries";
         public const string RequestResponse = "Aggregates.NET.Request";
         public const string ChannelKey = "Aggregates.NET.ChannelKey";
-        public const string OobHeaderKey = "Aggregates.OOB";
-        public const string OobTransientKey = "Aggregates.Transient";
-        public const string OobDaysToLiveKey = "Aggregates.DaysToLive";
         public const string LocalHeader = "Aggregates.NET.LocalMessage";
         public const string BulkHeader = "Aggregates.NET.BulkMessage";
+        public const string OriginatingMessageHeader = "Aggregates.NET.OriginatingMessage";
+
         public const string ConflictResolvedHeader = "ConflictResolver";
 
         public const string AggregatesVersionHeader = "Aggregates.NET.LibraryVersion";
+
+        public const string OobHeaderKey = "Aggregates.OOB";
+        public const string OobTransientKey = "Aggregates.Transient";
+        public const string OobDaysToLiveKey = "Aggregates.DaysToLive";
+
         public const string EndpointHeader = "Endpoint";
         public const string InstanceHeader = "Endpoint.Instance";
         public const string MachineHeader = "Endpoint.Machine";

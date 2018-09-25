@@ -16,11 +16,13 @@ namespace Aggregates.Internal
         {
             public int Version { get; private set; }
             public string Name { get; private set; }
+            public string Namespace { get; private set; }
             public Type Type { get; private set; }
-            public VersionDefinition(string name, int version, Type type)
+            public VersionDefinition(string name, string @namespace, int version, Type type)
             {
                 this.Version = version;
                 this.Name = name;
+                this.Namespace = @namespace;
                 this.Type = type;
             }
         }
@@ -40,29 +42,39 @@ namespace Aggregates.Internal
                     if (versionInfo == null)
                     {
                         Logger.WarnEvent("ShouldVersion", "{TypeName} needs a [Versioned] attribute", type.FullName);
-                        versionInfo = new Versioned(type.Name, 1);
+                        versionInfo = new Versioned(type.Name, type.Assembly.FullName, 1);
                     }
-                    RegisterType(type, versionInfo.Name, versionInfo.Version);
+                    RegisterType(type, versionInfo.Name, versionInfo.Namespace, versionInfo.Version);
                 }
             }
         }
 
-        private static void RegisterType(Type type, string name, int version)
+        private static void RegisterType(Type type, string name, string @namespace, int version)
         {
-            if (!NameToType.TryGetValue(name, out var list))
+            if (!NameToType.TryGetValue($"{@namespace}.{name}", out var list))
                 list = new List<VersionDefinition>();
 
-            var definition = new VersionDefinition(name, version, type);
+            var definition = new VersionDefinition(name, @namespace, version, type);
             list.Add(definition);
-            NameToType[name] = list;
+            NameToType[$"{@namespace}.{name}"] = list;
             TypeToDefinition[type] = definition;
         }
 
-        public static VersionDefinition GetDefinition(Type messageType)
+        public static VersionDefinition GetDefinition(Type versionedType)
         {
-            if (!TypeToDefinition.ContainsKey(messageType))
-                Load(new[] { messageType });
-            return TypeToDefinition[messageType];
+            var contains = false;
+
+            lock (_sync)
+            {
+                contains = TypeToDefinition.ContainsKey(versionedType);
+            }
+            if (!contains)
+                Load(new[] { versionedType });
+
+            lock (_sync)
+            {
+                return TypeToDefinition[versionedType];
+            }
         }
         public static Type GetNamedType(string name, int? version)
         {

@@ -79,11 +79,13 @@ namespace Aggregates.Internal
             // ideally this field would be [JsonIgnore] but we have no dependency on json.net
             snapshot.Snapshot = null;
 
+            var definition = VersionRegistrar.GetDefinition(typeof(T));
+
             var e = new FullEvent
             {
                 Descriptor = new EventDescriptor
                 {
-                    EntityType = typeof(T).AssemblyQualifiedName,
+                    EntityType = $"{definition.Namespace}.{definition.Name} v{definition.Version}",
                     StreamType = StreamTypes.Snapshot,
                     Bucket = snapshot.Bucket,
                     StreamId = snapshot.Id,

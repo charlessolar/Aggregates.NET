@@ -19,7 +19,7 @@ namespace Aggregates
             "NServiceBus.OriginatingMachine",
             "NServiceBus.OriginatingEndpoint"
         };
-        public static readonly string MessageIdHeader = "NServiceBus.MessageId";
-        public static readonly string CorrelationIdHeader = "NServiceBus.CorrelationId";
+        public const string MessageIdHeader = "NServiceBus.MessageId";
+        public const string CorrelationIdHeader = "NServiceBus.CorrelationId";
     }
 }

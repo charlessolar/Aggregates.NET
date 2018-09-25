@@ -32,7 +32,9 @@ namespace Aggregates.Internal
                 var workHeader = $"{Defaults.OriginatingHeader}.{header}";
                 CurrentHeaders[workHeader] = defaultHeader;
             }
-            CurrentHeaders[$"{Defaults.PrefixHeader}.OriginatingType"] = CurrentMessage.GetType().FullName;
+
+            var messageDefinition = VersionRegistrar.GetDefinition(CurrentMessage.GetType());
+            CurrentHeaders[Defaults.OriginatingMessageHeader] = $"{messageDefinition.Name} v{messageDefinition.Version}";
 
             // Copy any application headers the user might have included
             var userHeaders = command.Headers.Keys.Where(h =>
