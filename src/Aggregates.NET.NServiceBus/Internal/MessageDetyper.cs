@@ -30,7 +30,6 @@ namespace Aggregates.Internal
             }
 
             context.Headers[messageTypeKey] = definition;
-            context.Headers[Defaults.MessageTypeHeader] = definition;
 
             return next();
         }

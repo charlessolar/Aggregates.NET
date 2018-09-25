@@ -44,8 +44,9 @@ namespace Aggregates.Internal
                     if (versionInfo == null)
                     {
                         Logger.WarnEvent("ShouldVersion", "{TypeName} needs a [Versioned] attribute", type.FullName);
-                        versionInfo = new Versioned(type.Name, type.Assembly.FullName, 1);
+                        versionInfo = new Versioned(type.Name, type.Assembly.GetName().Name, 1);
                     }
+                    Logger.DebugEvent("VersionedType", "{Namespace}.{TypeName} version {Version} found", versionInfo.Namespace, versionInfo.Name, versionInfo.Version);
                     RegisterType(type, versionInfo.Name, versionInfo.Namespace, versionInfo.Version);
                 }
             }

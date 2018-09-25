@@ -23,8 +23,7 @@ namespace Aggregates
         public const string CorrelationIdHeader = "CorrelationId";
 
         public const string OriginatingHeader = "Originating";
-
-        public const string MessageTypeHeader = "Aggregates.NET.MessageType";
+        
         public const string Retries = "Aggregates.NET.Retries";
         public const string RequestResponse = "Aggregates.NET.Request";
         public const string ChannelKey = "Aggregates.NET.ChannelKey";
