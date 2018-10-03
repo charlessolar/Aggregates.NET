@@ -68,6 +68,9 @@ namespace Aggregates.Internal
                 list = new List<VersionDefinition>();
 
             var definition = new VersionDefinition(name, @namespace, version, type);
+            if (list.Any(x => x.Name == name && x.Namespace == @namespace && x.Version == version))
+                return;
+
             list.Add(definition);
             NameToType[$"{@namespace}.{name}"] = list;
             TypeToDefinition[type] = definition;
