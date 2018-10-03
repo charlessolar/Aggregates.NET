@@ -97,6 +97,7 @@ namespace Aggregates.Internal
 
         private readonly IMetrics _metrics;
         private readonly IStoreEvents _store;
+        private readonly IVersionRegistrar _registrar;
         private readonly IRandomProvider _random;
         private readonly ITimeProvider _time;
 
@@ -115,10 +116,11 @@ namespace Aggregates.Internal
         private int _tooLarge;
         private bool _disposed;
 
-        public DelayedCache(IMetrics metrics, IStoreEvents store, IRandomProvider random, ITimeProvider time)
+        public DelayedCache(IMetrics metrics, IStoreEvents store, IVersionRegistrar registrar, IRandomProvider random, ITimeProvider time)
         {
             _metrics = metrics;
             _store = store;
+            _registrar = registrar;
             _random = random;
             _time = time;
 
@@ -307,7 +309,7 @@ namespace Aggregates.Internal
                     // Stream name to contain the channel, specific key, and the instance id
                     // it doesn't matter whats in the streamname, the category projection will queue it for execution anyway
                     // and a lot of writers to a single stream makes eventstore slow
-                    var streamName = _streamGen(typeof(DelayedCache),
+                    var streamName = _streamGen(_registrar.GetVersionedName(typeof(DelayedCache)),
                         $"{_endpoint}.{StreamTypes.Delayed}", Assembly.GetEntryAssembly()?.FullName ?? "UNKNOWN",
                         $"{expired.Channel}.{expired.Key}", new Id[] { });
                     await _store.WriteEvents(streamName, translatedEvents, null).ConfigureAwait(false);
@@ -371,7 +373,7 @@ namespace Aggregates.Internal
                         {
                             // Todo: might be a good idea to have a lock here so while writing to eventstore no new events can pile up
 
-                            var streamName = _streamGen(typeof(DelayedCache),
+                            var streamName = _streamGen(_registrar.GetVersionedName(typeof(DelayedCache)),
                             $"{_endpoint}.{StreamTypes.Delayed}",
                             Assembly.GetEntryAssembly()?.FullName ?? "UNKNOWN",
                             $"{expired.Channel}.{expired.Key}", new Id[] { });

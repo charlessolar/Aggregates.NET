@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 
 namespace Aggregates.Internal
 {
-    public class VersionRegistrar
+    public class VersionRegistrar : Contracts.IVersionRegistrar
     {
         private static readonly Regex NameRegex = new Regex(@"^(?<Namespace>\S+)\.(?<Name>\S+)\sv(?<Version>[0-9]+)$", RegexOptions.Compiled);
         private static readonly ILog Logger = LogProvider.GetLogger("VersionRegistrar");
@@ -34,7 +34,17 @@ namespace Aggregates.Internal
         private static Dictionary<string, List<VersionDefinition>> NameToType = new Dictionary<string, List<VersionDefinition>>();
         private static Dictionary<Type, VersionDefinition> TypeToDefinition = new Dictionary<Type, VersionDefinition>();
 
-        public static void Load(Type[] types)
+        private Contracts.IMessaging _messaging;
+
+        public VersionRegistrar(Contracts.IMessaging messaging)
+        {
+            _messaging = messaging;
+
+            Load(_messaging.GetMessageTypes().ToArray());
+        }
+
+
+        public void Load(Type[] types)
         {
             lock (_sync)
             {
@@ -52,7 +62,7 @@ namespace Aggregates.Internal
             }
         }
 
-        private static void RegisterType(Type type, string name, string @namespace, int version)
+        private void RegisterType(Type type, string name, string @namespace, int version)
         {
             if (!NameToType.TryGetValue($"{@namespace}.{name}", out var list))
                 list = new List<VersionDefinition>();
@@ -63,7 +73,7 @@ namespace Aggregates.Internal
             TypeToDefinition[type] = definition;
         }
 
-        public static string GetVersionedName(Type versionedType)
+        public string GetVersionedName(Type versionedType)
         {
             var contains = false;
 
@@ -80,7 +90,7 @@ namespace Aggregates.Internal
                 return $"{definition.Namespace}.{definition.Name} v{definition.Version}";
             }
         }
-        public static Type GetNamedType(string versionedName)
+        public Type GetNamedType(string versionedName)
         {
             var match = NameRegex.Match(versionedName);
             if (!match.Success)

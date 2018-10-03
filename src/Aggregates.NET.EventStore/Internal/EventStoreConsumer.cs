@@ -28,6 +28,7 @@ namespace Aggregates.Internal
 
         private readonly IMetrics _metrics;
         private readonly IMessageSerializer _serializer;
+        private readonly IVersionRegistrar _registrar;
         private readonly IEventStoreConnection[] _clients;
         private readonly IEventMapper _mapper;
         private readonly int _readSize;
@@ -38,12 +39,13 @@ namespace Aggregates.Internal
         private readonly ConcurrentDictionary<string, Tuple<EventStorePersistentSubscriptionBase, Guid>> _outstandingEvents;
         private bool _disposed;
 
-        public EventStoreConsumer(IMetrics metrics, IMessageSerializer serializer, IEventStoreConnection[] clients, IEventMapper mapper)
+        public EventStoreConsumer(IMetrics metrics, IMessageSerializer serializer, IVersionRegistrar registrar, IEventStoreConnection[] clients, IEventMapper mapper)
         {
             _metrics = metrics;
             _serializer = serializer;
             _clients = clients;
             _mapper = mapper;
+            _registrar = registrar;
 
             _readSize = Configuration.Settings.ReadSize;
             _extraStats = Configuration.Settings.ExtraStats;
@@ -317,7 +319,7 @@ namespace Aggregates.Internal
             if (descriptor.Compressed)
                 data = data.Decompress();
 
-            var eventType = VersionRegistrar.GetNamedType(e.Event.EventType);
+            var eventType = _registrar.GetNamedType(e.Event.EventType);
             // Not all types are detected and initialized by NSB - they do it in the pipeline, we have to do it here
             _mapper.Initialize(eventType);
             

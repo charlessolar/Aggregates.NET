@@ -25,16 +25,18 @@ namespace Aggregates.Internal
         private readonly IMetrics _metrics;
         private readonly IMessageSerializer _serializer;
         private readonly IEventMapper _mapper;
+        private readonly IVersionRegistrar _registrar;
         private readonly StreamIdGenerator _generator;
         private readonly IEventStoreConnection[] _clients;
         private readonly int _readsize;
         private readonly Compression _compress;
 
-        public StoreEvents(IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IEventStoreConnection[] connections)
+        public StoreEvents(IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IVersionRegistrar registrar, IEventStoreConnection[] connections)
         {
             _metrics = metrics;
             _serializer = serializer;
             _mapper = mapper;
+            _registrar = registrar;
             _clients = connections;
 
             _generator = Configuration.Settings.Generator;
@@ -44,7 +46,7 @@ namespace Aggregates.Internal
 
         public Task<IFullEvent[]> GetEvents<TEntity>(string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
         {
-            var stream = _generator(typeof(TEntity), StreamTypes.Domain, bucket, streamId, parents);
+            var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.Domain, bucket, streamId, parents);
             return GetEvents(stream, start, count);
         }
 
@@ -91,7 +93,7 @@ namespace Aggregates.Internal
                 if (descriptor.Compressed)
                     data = data.Decompress();
 
-                var eventType = VersionRegistrar.GetNamedType(e.Event.EventType);
+                var eventType = _registrar.GetNamedType(e.Event.EventType);
                 _mapper.Initialize(eventType);
 
                 var @event = _serializer.Deserialize(eventType, data) as IEvent;
@@ -170,7 +172,7 @@ namespace Aggregates.Internal
                 if (descriptor.Compressed)
                     data = data.Decompress();
 
-                var eventType = VersionRegistrar.GetNamedType(e.Event.EventType);
+                var eventType = _registrar.GetNamedType(e.Event.EventType);
                 _mapper.Initialize(eventType);
 
                 var @event = _serializer.Deserialize(eventType, data) as IEvent;
@@ -191,7 +193,7 @@ namespace Aggregates.Internal
         }
         public Task<IFullEvent[]> GetEventsBackwards<TEntity>(string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
         {
-            var stream = _generator(typeof(TEntity), StreamTypes.Domain, bucket, streamId, parents);
+            var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.Domain, bucket, streamId, parents);
             return GetEventsBackwards(stream, start, count);
         }
 
@@ -220,7 +222,7 @@ namespace Aggregates.Internal
         }
         public Task<long> Size<TEntity>(string bucket, Id streamId, Id[] parents) where TEntity : IEntity
         {
-            var stream = _generator(typeof(TEntity), StreamTypes.Domain, bucket, streamId, parents);
+            var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.Domain, bucket, streamId, parents);
             return Size(stream);
         }
 
@@ -276,7 +278,7 @@ namespace Aggregates.Internal
                     Headers = e.Descriptor.Headers,
                 };
 
-                var eventType = VersionRegistrar.GetVersionedName(mappedType);
+                var eventType = _registrar.GetVersionedName(mappedType);
                 foreach (var header in mutated.Headers)
                     e.Descriptor.Headers[header.Key] = header.Value;
 
@@ -303,7 +305,7 @@ namespace Aggregates.Internal
         }
         public Task<long> WriteEvents<TEntity>(string bucket, Id streamId, Id[] parents, IFullEvent[] events, IDictionary<string, string> commitHeaders, long? expectedVersion = null) where TEntity : IEntity
         {
-            var stream = _generator(typeof(TEntity), StreamTypes.Domain, bucket, streamId, parents);
+            var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.Domain, bucket, streamId, parents);
             return WriteEvents(stream, events, commitHeaders, expectedVersion);
         }
 
@@ -422,7 +424,7 @@ namespace Aggregates.Internal
         public Task WriteMetadata<TEntity>(string bucket, Id streamId, Id[] parents, long? maxCount = null, long? truncateBefore = null, TimeSpan? maxAge = null,
             TimeSpan? cacheControl = null, bool force = false, IDictionary<string, string> custom = null) where TEntity : IEntity
         {
-            var stream = _generator(typeof(TEntity), StreamTypes.Domain, bucket, streamId, parents);
+            var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.Domain, bucket, streamId, parents);
             return WriteMetadata(stream, maxCount, truncateBefore, maxAge, cacheControl, force, custom);
         }
 
@@ -440,7 +442,7 @@ namespace Aggregates.Internal
         }
         public Task<string> GetMetadata<TEntity>(string bucket, Id streamId, Id[] parents, string key) where TEntity : IEntity
         {
-            var stream = _generator(typeof(TEntity), StreamTypes.Domain, bucket, streamId, parents);
+            var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.Domain, bucket, streamId, parents);
             return GetMetadata(stream, key);
         }
 

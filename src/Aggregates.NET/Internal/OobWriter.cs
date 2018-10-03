@@ -18,29 +18,31 @@ namespace Aggregates.Internal
         private readonly IMessageDispatcher _dispatcher;
         private readonly IStoreEvents _store;
         private readonly StreamIdGenerator _generator;
+        private readonly IVersionRegistrar _registrar;
 
         private static readonly ConcurrentDictionary<string, int> DaysToLiveKnowns = new ConcurrentDictionary<string, int>();
 
-        public OobWriter(IMessageDispatcher dispatcher, IStoreEvents store)
+        public OobWriter(IMessageDispatcher dispatcher, IStoreEvents store, IVersionRegistrar registrar)
         {
             _dispatcher = dispatcher;
             _store = store;
             _generator = Configuration.Settings.Generator;
+            _registrar = registrar;
         }
 
         public Task<long> GetSize<TEntity>(string bucket, Id streamId, Id[] parents, string oobId) where TEntity : IEntity
         {
-            var stream = _generator(typeof(TEntity), StreamTypes.OOB, $"{oobId}.{bucket}", streamId, parents);
+            var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.OOB, $"{oobId}.{bucket}", streamId, parents);
             return _store.Size(stream);
         }
         public Task<IFullEvent[]> GetEvents<TEntity>(string bucket, Id streamId, Id[] parents, string oobId, long? start = null, int? count = null) where TEntity : IEntity
         {
-            var stream = _generator(typeof(TEntity), StreamTypes.OOB, $"{oobId}.{bucket}", streamId, parents);
+            var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.OOB, $"{oobId}.{bucket}", streamId, parents);
             return _store.GetEvents(stream, start, count);
         }
         public Task<IFullEvent[]> GetEventsBackwards<TEntity>(string bucket, Id streamId, Id[] parents, string oobId, long? start = null, int? count = null) where TEntity : IEntity
         {
-            var stream = _generator(typeof(TEntity), StreamTypes.OOB, $"{oobId}.{bucket}", streamId, parents);
+            var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.OOB, $"{oobId}.{bucket}", streamId, parents);
             return _store.GetEventsBackwards(stream, start, count);
         }
 
@@ -76,7 +78,7 @@ namespace Aggregates.Internal
                 if (@event.Descriptor.Headers.ContainsKey(Defaults.OobTransientKey) &&
                     bool.TryParse(@event.Descriptor.Headers[Defaults.OobTransientKey], out var transient) && !transient)
                 {
-                    var stream = _generator(typeof(TEntity), StreamTypes.OOB, $"{id}.{bucket}", streamId, parents);
+                    var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.OOB, $"{id}.{bucket}", streamId, parents);
                     if (!durables.ContainsKey(stream))
                         durables[stream] = new List<IFullEvent>();
 

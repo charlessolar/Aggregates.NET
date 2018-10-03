@@ -45,15 +45,17 @@ namespace Aggregates.Internal
         private readonly bool _allEvents;
 
         private readonly IEventStoreConsumer _consumer;
+        private readonly IVersionRegistrar _registrar;
 
         private bool _disposed;
 
 
-        public EventSubscriber(IMetrics metrics, IMessaging messaging, IEventStoreConsumer consumer, int concurrency, bool allEvents)
+        public EventSubscriber(IMetrics metrics, IMessaging messaging, IEventStoreConsumer consumer, IVersionRegistrar registrar, int concurrency, bool allEvents)
         {
             _metrics = metrics;
             _messaging = messaging;
             _consumer = consumer;
+            _registrar = registrar;
             _concurrency = concurrency;
             _allEvents = allEvents;
         }
@@ -82,7 +84,7 @@ namespace Aggregates.Internal
             var functions =
                 discoveredEvents
                     .Select(
-                        eventType => $"'{VersionRegistrar.GetVersionedName(eventType)}': processEvent")
+                        eventType => $"'{_registrar.GetVersionedName(eventType)}': processEvent")
                     .Aggregate((cur, next) => $"{cur},\n{next}");
             
             // endpoint will get all events regardless of version of info

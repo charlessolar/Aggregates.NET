@@ -14,7 +14,7 @@ namespace Aggregates
         public const string OOB = "OOB";
     }
 
-    public delegate string StreamIdGenerator(Type entityType, string streamType, string bucket, Id id, Id[] parents);
+    public delegate string StreamIdGenerator(string entityType, string streamType, string bucket, Id id, Id[] parents);
 
     public static class Defaults
     {

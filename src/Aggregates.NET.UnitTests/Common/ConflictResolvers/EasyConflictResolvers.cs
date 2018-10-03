@@ -58,6 +58,7 @@ namespace Aggregates.Common.ConflictResolvers
             var store = Fake<IStoreEvents>();
             var oob = Fake<IOobWriter>();
             var entity = Fake<FakeEntity>();
+            (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
 
             var sut = new IgnoreConflictResolver(store, oob);
             entity.RaiseEvents(Many<FakeOobEvent.FakeEvent>(3), "test");

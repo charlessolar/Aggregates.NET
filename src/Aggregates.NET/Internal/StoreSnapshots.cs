@@ -16,19 +16,21 @@ namespace Aggregates.Internal
         private readonly IMetrics _metrics;
         private readonly IStoreEvents _store;
         private readonly ISnapshotReader _snapshots;
+        private readonly IVersionRegistrar _registrar;
         private readonly StreamIdGenerator _streamGen;
 
-        public StoreSnapshots(IMetrics metrics, IStoreEvents store, ISnapshotReader snapshots)
+        public StoreSnapshots(IMetrics metrics, IStoreEvents store, ISnapshotReader snapshots, IVersionRegistrar registrar)
         {
             _metrics = metrics;
             _store = store;
             _snapshots = snapshots;
+            _registrar = registrar;
             _streamGen = Configuration.Settings.Generator;
         }
 
         public async Task<ISnapshot> GetSnapshot<T>(string bucket, Id streamId, Id[] parents) where T : IEntity
         {
-            var streamName = _streamGen(typeof(T), StreamTypes.Snapshot, bucket, streamId, parents);
+            var streamName = _streamGen(_registrar.GetVersionedName(typeof(T)), StreamTypes.Snapshot, bucket, streamId, parents);
 
             Logger.DebugEvent("Get", "[{Stream:l}]", streamName);
             if (_snapshots != null)
@@ -72,7 +74,7 @@ namespace Aggregates.Internal
         public async Task WriteSnapshots<T>(IState snapshot, IDictionary<string, string> commitHeaders) where T : IEntity
         {
             
-            var streamName = _streamGen(typeof(T), StreamTypes.Snapshot, snapshot.Bucket, snapshot.Id, snapshot.Parents);
+            var streamName = _streamGen(_registrar.GetVersionedName(typeof(T)), StreamTypes.Snapshot, snapshot.Bucket, snapshot.Id, snapshot.Parents);
             Logger.DebugEvent("Write", "[{Stream:l}]", streamName);
 
             // We don't need snapshots to store the previous snapshot
@@ -83,7 +85,7 @@ namespace Aggregates.Internal
             {
                 Descriptor = new EventDescriptor
                 {
-                    EntityType = VersionRegistrar.GetVersionedName(typeof(T)),
+                    EntityType = _registrar.GetVersionedName(typeof(T)),
                     StreamType = StreamTypes.Snapshot,
                     Bucket = snapshot.Bucket,
                     StreamId = snapshot.Id,

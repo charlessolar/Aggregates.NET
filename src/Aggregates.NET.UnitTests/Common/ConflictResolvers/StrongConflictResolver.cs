@@ -21,7 +21,9 @@ namespace Aggregates.Common.ConflictResolvers
         {
             var store = Fake<IStoreEntities>();
             var entity = Fake<FakeEntity>();
+            (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             var cleanEntity = Fake<FakeEntity>();
+            (cleanEntity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
 
             var sut = new Internal.ResolveStronglyConflictResolver(store);
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
@@ -39,6 +41,7 @@ namespace Aggregates.Common.ConflictResolvers
         async Task NoRouteExceptionShouldThrowConflictResolutionFailedException()
         {
             var entity = Fake<FakeEntity>();
+            (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
 
             var sut = new Internal.ResolveStronglyConflictResolver(Fake<IStoreEntities>());
             entity.ApplyEvents(Many<FakeNotHandledEvent.UnknownEvent>());
@@ -51,6 +54,7 @@ namespace Aggregates.Common.ConflictResolvers
         async Task ShouldThrowAbandonConflictResolutionException()
         {
             var entity = Fake<FakeEntity>();
+            (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             // The entity we get back from the store during a conflict
             var cleanEntity = Fake<FakeEntity>();
             var store = Fake<IStoreEntities>();
@@ -69,6 +73,7 @@ namespace Aggregates.Common.ConflictResolvers
         async Task ShouldDiscardEventsWhichThrowDiscardEventException()
         {
             var entity = Fake<FakeEntity>();
+            (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             // The entity we get back from the store during a conflict
             var cleanEntity = Fake<FakeEntity>();
             var store = Fake<IStoreEntities>();
@@ -87,8 +92,10 @@ namespace Aggregates.Common.ConflictResolvers
         async Task ShouldIncludeOobEvents()
         {
             var entity = Fake<FakeEntity>();
+            (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             // The entity we get back from the store during a conflict
             var cleanEntity = Fake<FakeEntity>();
+            (cleanEntity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             var store = Fake<IStoreEntities>();
             A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Returns(cleanEntity);
             entity.RaiseEvents(Many<FakeOobEvent.FakeEvent>(), "test");
@@ -106,9 +113,11 @@ namespace Aggregates.Common.ConflictResolvers
         async Task ShouldTransferOobParameters()
         {
             var entity = Fake<FakeEntity>();
+            (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             var store = Fake<IStoreEntities>();
             // The entity we get back from the store during a conflict
             var cleanEntity = Fake<FakeEntity>();
+            (cleanEntity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Returns(cleanEntity);
             entity.RaiseEvents(Many<FakeOobEvent.FakeEvent>(), "test", false, 1);
 

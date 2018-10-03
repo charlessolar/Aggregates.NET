@@ -49,6 +49,8 @@ namespace Aggregates.Common
         public async Task ShouldGetExistingEntityAgain()
         {
             var entity = await Sut.Get("test").ConfigureAwait(false);
+            (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
+
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
 
             var entity2 = await Sut.Get("test").ConfigureAwait(false);
@@ -64,6 +66,8 @@ namespace Aggregates.Common
         public async Task ShouldGetExistingEntityOnNew()
         {
             var entity = await Sut.New("test").ConfigureAwait(false);
+            (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
+
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
 
             var entity2 = await Sut.New("test").ConfigureAwait(false);

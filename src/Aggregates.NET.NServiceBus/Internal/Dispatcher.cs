@@ -20,15 +20,17 @@ namespace Aggregates.Internal
         private readonly IMetrics _metrics;
         private readonly IMessageSerializer _serializer;
         private readonly IEventMapper _mapper;
+        private readonly IVersionRegistrar _registrar;
 
         // A fake message that will travel through the pipeline in order to process events from the context bag
         private static readonly byte[] Marker = new byte[] { 0x7b, 0x7d };
 
-        public Dispatcher(IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper)
+        public Dispatcher(IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IVersionRegistrar registrar)
         {
             _metrics = metrics;
             _serializer = serializer;
             _mapper = mapper;
+            _registrar = registrar;
         }
 
         public Task Publish(IFullMessage[] messages)
@@ -83,7 +85,7 @@ namespace Aggregates.Internal
                 messageType = _mapper.GetMappedTypeFor(messageType) ?? messageType;
             
             var finalHeaders = message.Headers.Merge(headers);
-            finalHeaders[Headers.EnclosedMessageTypes] = VersionRegistrar.GetVersionedName(messageType);
+            finalHeaders[Headers.EnclosedMessageTypes] = _registrar.GetVersionedName(messageType);
             finalHeaders[Headers.MessageIntent] = MessageIntentEnum.Send.ToString();
 
 
@@ -178,7 +180,7 @@ namespace Aggregates.Internal
 
                     var finalHeaders = headers.Merge(new Dictionary<string, string>()
                     {
-                        [Headers.EnclosedMessageTypes] = VersionRegistrar.GetVersionedName(messageType),
+                        [Headers.EnclosedMessageTypes] = _registrar.GetVersionedName(messageType),
                         [Headers.MessageIntent] = MessageIntentEnum.Send.ToString(),
                         [Headers.MessageId] = messageId
                     });

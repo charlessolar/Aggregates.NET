@@ -4,6 +4,7 @@ using NServiceBus.Pipeline;
 using NServiceBus.Unicast.Messages;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,11 +13,13 @@ namespace Aggregates.Internal
     public class MessageIdentifier : Behavior<IIncomingPhysicalMessageContext>
     {
         private static readonly ILog Logger = LogProvider.GetLogger("MessageIdentifier");
-        private MessageMetadataRegistry _registry;
+        private readonly MessageMetadataRegistry _registry;
+        private readonly Contracts.IVersionRegistrar _registrar;
 
-        public MessageIdentifier(MessageMetadataRegistry registry)
+        public MessageIdentifier(MessageMetadataRegistry registry, Contracts.IVersionRegistrar registrar)
         {
             _registry = registry;
+            _registrar = registrar;
         }
 
         public override Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)
@@ -26,7 +29,7 @@ namespace Aggregates.Internal
             if (!headers.TryGetValue(messageTypeKey, out var messageType))
                 return next();
 
-            var mappedType = VersionRegistrar.GetNamedType(messageType);
+            var mappedType = _registrar.GetNamedType(messageType);
             // no mapped type
             if (mappedType == null)
             {
@@ -54,6 +57,17 @@ namespace Aggregates.Internal
             }
 
             return string.Join(";", assemblyQualifiedNames);
+        }
+    }
+    [ExcludeFromCodeCoverage]
+    internal class MessageIdentifierRegistration : RegisterStep
+    {
+        public MessageIdentifierRegistration() : base(
+            stepId: "MessageIdentifier",
+            behavior: typeof(MessageIdentifier),
+            description: "identifies incoming messages as Versioned commands/events",
+            factoryMethod: (b) => new MessageIdentifier(b.Build<MessageMetadataRegistry>(), b.Build<Contracts.IVersionRegistrar>()))
+        {
         }
     }
 }

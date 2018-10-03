@@ -11,7 +11,12 @@ namespace Aggregates.Internal
 {
     public class NSBUnitOfWork : UnitOfWork, IMutate
     {
-        public NSBUnitOfWork(IRepositoryFactory repoFactory, IEventFactory eventFactory) : base(repoFactory, eventFactory) { }
+        private readonly IVersionRegistrar _registrar;
+
+        public NSBUnitOfWork(IRepositoryFactory repoFactory, IEventFactory eventFactory, IVersionRegistrar registrar) : base(repoFactory, eventFactory)
+        {
+            _registrar = registrar;
+        }
 
 
         public override IMutating MutateIncoming(IMutating command)
@@ -41,7 +46,7 @@ namespace Aggregates.Internal
                 type = Type.GetType(messageType, false);
             }
 
-            CurrentHeaders[Defaults.OriginatingMessageHeader] = type == null ? "<UNKNOWN>" : VersionRegistrar.GetVersionedName(type);
+            CurrentHeaders[Defaults.OriginatingMessageHeader] = type == null ? "<UNKNOWN>" : _registrar.GetVersionedName(type);
 
 
             // Copy any application headers the user might have included

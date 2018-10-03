@@ -55,6 +55,7 @@ namespace Aggregates.Common
         public async Task ShouldGetExistingEntityAgain()
         {
             var entity = await Sut.Get("test").ConfigureAwait(false);
+            (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
 
             var entity2 = await Sut.Get("test").ConfigureAwait(false);
@@ -70,6 +71,7 @@ namespace Aggregates.Common
         public async Task ShouldGetExistingEntityOnNew()
         {
             var entity = await Sut.New("test").ConfigureAwait(false);
+            (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
 
             var entity2 = await Sut.New("test").ConfigureAwait(false);
@@ -87,6 +89,7 @@ namespace Aggregates.Common
         public async Task ShouldHaveChangedStreams()
         {
             var entity = await Sut.Get("test").ConfigureAwait(false);
+            (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             Sut.ChangedStreams.Should().Be(0);
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
             Sut.ChangedStreams.Should().Be(1);
@@ -108,6 +111,7 @@ namespace Aggregates.Common
             var store = Fake<IStoreEntities>();
             Inject(store);
             var entity = await Sut.Get("test").ConfigureAwait(false);
+            (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
 
             await (Sut as IRepositoryCommit).Prepare(Guid.NewGuid()).ConfigureAwait(false);
@@ -120,6 +124,7 @@ namespace Aggregates.Common
             var store = Fake<IStoreEntities>();
             Inject(store);
             var entity = await Sut.Get("test").ConfigureAwait(false);
+            (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
 
             await (Sut as IRepositoryCommit).Commit(Guid.NewGuid(), new Dictionary<string,string>()).ConfigureAwait(false);

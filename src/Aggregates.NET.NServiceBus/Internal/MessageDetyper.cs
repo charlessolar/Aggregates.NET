@@ -3,6 +3,7 @@ using Aggregates.Logging;
 using NServiceBus.Pipeline;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,7 +12,12 @@ namespace Aggregates.Internal
     public class MessageDetyper : Behavior<IOutgoingPhysicalMessageContext>
     {
         private static readonly ILog Logger = LogProvider.GetLogger("MessageDetyper");
+        private Contracts.IVersionRegistrar _registrar;
 
+        public MessageDetyper(Contracts.IVersionRegistrar registrar)
+        {
+            _registrar = registrar;
+        }
 
         public override Task Invoke(IOutgoingPhysicalMessageContext context, Func<Task> next)
         {
@@ -31,7 +37,7 @@ namespace Aggregates.Internal
                 return next();
             }
 
-            var definition = VersionRegistrar.GetVersionedName(type);
+            var definition = _registrar.GetVersionedName(type);
             if (definition == null)
             {
                 Logger.WarnEvent("UnknownMessage", "{MessageType} has no known definition", type.FullName);
@@ -41,6 +47,17 @@ namespace Aggregates.Internal
             context.Headers[messageTypeKey] = definition;
 
             return next();
+        }
+    }
+    [ExcludeFromCodeCoverage]
+    internal class MessageDetyperRegistration : RegisterStep
+    {
+        public MessageDetyperRegistration() : base(
+            stepId: "MessageDetyper",
+            behavior: typeof(MessageDetyperRegistration),
+            description: "detypes outgoing messages to Versioned commands/events",
+            factoryMethod: (b) => new MessageDetyper(b.Build<Contracts.IVersionRegistrar>()))
+        {
         }
     }
 }

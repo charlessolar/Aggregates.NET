@@ -68,6 +68,7 @@ namespace Aggregates.Common
         [Fact]
         public void EntityShouldBeDirty()
         {
+            (Sut as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             Sut.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
             Sut.Dirty.Should().Be(true);
         }

@@ -21,14 +21,16 @@ namespace Aggregates.Internal
         private readonly IStoreSnapshots _snapstore;
         private readonly IOobWriter _oobstore;
         private readonly IEventFactory _factory;
+        private readonly IVersionRegistrar _registrar;
 
-        public StoreEntities(IMetrics metrics, IStoreEvents eventstore, IStoreSnapshots snapstore, IOobWriter oobstore, IEventFactory factory)
+        public StoreEntities(IMetrics metrics, IStoreEvents eventstore, IStoreSnapshots snapstore, IOobWriter oobstore, IEventFactory factory, IVersionRegistrar registrar)
         {
             _metrics = metrics;
             _eventstore = eventstore;
             _snapstore = snapstore;
             _oobstore = oobstore;
             _factory = factory;
+            _registrar = registrar;
         }
 
         public Task<TEntity> New<TEntity, TState>(string bucket, Id id, Id[] parents) where TEntity : IEntity<TState> where TState : class, IState, new()
@@ -45,6 +47,7 @@ namespace Aggregates.Internal
             (entity as INeedEventFactory).EventFactory = _factory;
             (entity as INeedStore).Store = _eventstore;
             (entity as INeedStore).OobWriter = _oobstore;
+            (entity as INeedVersionRegistrar).Registrar = _registrar;
 
             return Task.FromResult(entity);
         }
@@ -65,6 +68,7 @@ namespace Aggregates.Internal
             (entity as INeedEventFactory).EventFactory = _factory;
             (entity as INeedStore).Store = _eventstore;
             (entity as INeedStore).OobWriter = _oobstore;
+            (entity as INeedVersionRegistrar).Registrar = _registrar;
 
             Logger.DebugEvent("Get", "[{EntityId:l}] bucket [{Bucket:l}] entity [{EntityType:l}] version {Version}", id, bucket, typeof(TEntity).FullName, entity.Version);
 

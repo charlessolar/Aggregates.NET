@@ -21,7 +21,7 @@ namespace Aggregates
         public TParent Parent { get; internal set; }
     }
 
-    public abstract class Entity<TThis, TState> : IEntity<TState>, IHaveEntities<TThis>, INeedDomainUow, INeedEventFactory, INeedStore where TThis : Entity<TThis, TState> where TState : class, IState, new()
+    public abstract class Entity<TThis, TState> : IEntity<TState>, IHaveEntities<TThis>, INeedDomainUow, INeedEventFactory, INeedStore, INeedVersionRegistrar where TThis : Entity<TThis, TState> where TState : class, IState, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger(typeof(TThis).Name);
 
@@ -44,10 +44,13 @@ namespace Aggregates
         private IEventFactory Factory => (this as INeedEventFactory).EventFactory;
         private IStoreEvents Store => (this as INeedStore).Store;
         private IOobWriter OobWriter => (this as INeedStore).OobWriter;
+        private IVersionRegistrar VersionRegistrar => (this as INeedVersionRegistrar).Registrar;
+
         UnitOfWork.IDomain INeedDomainUow.Uow { get; set; }
         IEventFactory INeedEventFactory.EventFactory { get; set; }
         IStoreEvents INeedStore.Store { get; set; }
         IOobWriter INeedStore.OobWriter { get; set; }
+        IVersionRegistrar INeedVersionRegistrar.Registrar { get; set; }
 
         void IEntity<TState>.Instantiate(TState state)
         {

@@ -32,9 +32,9 @@ namespace Aggregates
 
             context.Container.ConfigureComponent<IEventMapper>((c) => new EventMapper(c.Build<IMessageMapper>()), DependencyLifecycle.InstancePerCall);
 
-            context.Container.ConfigureComponent<UnitOfWork.IDomain>((c) => new NSBUnitOfWork(c.Build<IRepositoryFactory>(), c.Build<IEventFactory>()), DependencyLifecycle.InstancePerUnitOfWork);
+            context.Container.ConfigureComponent<UnitOfWork.IDomain>((c) => new NSBUnitOfWork(c.Build<IRepositoryFactory>(), c.Build<IEventFactory>(), c.Build<IVersionRegistrar>()), DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<IEventFactory>((c) => new EventFactory(c.Build<IMessageCreator>()), DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<IMessageDispatcher>((c) => new Dispatcher(c.Build<IMetrics>(), c.Build<IMessageSerializer>(), c.Build<IEventMapper>()), DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<IMessageDispatcher>((c) => new Dispatcher(c.Build<IMetrics>(), c.Build<IMessageSerializer>(), c.Build<IEventMapper>(), c.Build<IVersionRegistrar>()), DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<IMessaging>((c) => new NServiceBusMessaging(c.Build<MessageHandlerRegistry>(), c.Build<MessageMetadataRegistry>()), DependencyLifecycle.InstancePerCall);
 
             context.Pipeline.Register(new ExceptionRejectorRegistration(container));
@@ -67,14 +67,8 @@ namespace Aggregates
             var types = settings.GetAvailableTypes();
 
             var messageMetadataRegistry = settings.Get<MessageMetadataRegistry>();
-            context.Pipeline.Register(
-                behavior: new MessageIdentifier(messageMetadataRegistry),
-                description: "identifies incoming messages as Versioned commands/events"
-                );
-            context.Pipeline.Register(
-                behavior: new MessageDetyper(),
-                description: "detypes outgoing messages to Versioned commands/events"
-                );
+            context.Pipeline.Register<MessageIdentifierRegistration>();
+            context.Pipeline.Register<MessageDetyperRegistration>();
 
             // Register all service handlers in my IoC so query processor can use them
             foreach (var type in types.Where(IsServiceHandler))
