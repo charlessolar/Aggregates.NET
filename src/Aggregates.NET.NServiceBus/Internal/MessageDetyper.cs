@@ -8,12 +8,12 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public class MessageDetyper : Behavior<IOutgoingLogicalMessageContext>
+    public class MessageDetyper : Behavior<IOutgoingPhysicalMessageContext>
     {
         private static readonly ILog Logger = LogProvider.GetLogger("MessageDetyper");
 
 
-        public override Task Invoke(IOutgoingLogicalMessageContext context, Func<Task> next)
+        public override Task Invoke(IOutgoingPhysicalMessageContext context, Func<Task> next)
         {
             var messageTypeKey = "NServiceBus.EnclosedMessageTypes";
             //var headers = context.Headers;
