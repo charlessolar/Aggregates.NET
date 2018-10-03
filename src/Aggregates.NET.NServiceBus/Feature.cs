@@ -66,8 +66,9 @@ namespace Aggregates
 
             var types = settings.GetAvailableTypes();
 
+            var messageMetadataRegistry = settings.Get<MessageMetadataRegistry>();
             context.Pipeline.Register(
-                behavior: new MessageIdentifier(),
+                behavior: new MessageIdentifier(messageMetadataRegistry),
                 description: "identifies incoming messages as Versioned commands/events"
                 );
             context.Pipeline.Register(

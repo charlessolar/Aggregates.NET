@@ -20,6 +20,9 @@ namespace Aggregates.Internal
             if (!context.Headers.TryGetValue(messageTypeKey, out var messageType))
                 return next();
 
+            if(messageType.IndexOf(';') != -1)
+                messageType = messageType.Substring(0, messageType.IndexOf(';'));
+
             // Don't use context.Message.Instance because it will be IEvent_impl
             var type = Type.GetType(messageType, false);
             if(type == null)

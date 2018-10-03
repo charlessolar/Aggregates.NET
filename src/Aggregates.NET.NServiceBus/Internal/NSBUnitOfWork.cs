@@ -35,7 +35,11 @@ namespace Aggregates.Internal
 
             Type type = null;
             if (command.Headers.TryGetValue(Headers.EnclosedMessageTypes, out var messageType))
+            {
+                if (messageType.IndexOf(';') != -1)
+                    messageType = messageType.Substring(0, messageType.IndexOf(';'));
                 type = Type.GetType(messageType, false);
+            }
 
             CurrentHeaders[Defaults.OriginatingMessageHeader] = type == null ? "<UNKNOWN>" : VersionRegistrar.GetVersionedName(type);
 
