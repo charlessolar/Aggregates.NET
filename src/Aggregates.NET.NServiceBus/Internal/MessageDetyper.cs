@@ -54,7 +54,7 @@ namespace Aggregates.Internal
     {
         public MessageDetyperRegistration() : base(
             stepId: "MessageDetyper",
-            behavior: typeof(MessageDetyperRegistration),
+            behavior: typeof(MessageDetyper),
             description: "detypes outgoing messages to Versioned commands/events",
             factoryMethod: (b) => new MessageDetyper(b.Build<Contracts.IVersionRegistrar>()))
         {
