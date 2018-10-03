@@ -96,8 +96,8 @@ function processEvent(s,e) {{
     linkTo('{1}', e);
 }}
 options({{
-  reorderEvents: true,
-  processingLag: 500
+  reorderEvents: false,
+  processingLag: 0
 }})
 fromStreams([{0}]).
 when({{

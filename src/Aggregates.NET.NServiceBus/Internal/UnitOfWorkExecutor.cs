@@ -95,6 +95,7 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
+                Logger.WarnEvent("UOWException", e, "Received exception while processing message {MessageType}", context.Message.MessageType.Name);
                 _metrics.Mark("Message Errors", Unit.Errors);
                 var trailingExceptions = new List<Exception>();
 
