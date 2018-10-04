@@ -96,10 +96,10 @@ namespace Aggregates.Internal
                     throw;
 
                 // Tell the sender the command was not handled due to a service exception
-                var rejection = context.Builder.Build<Func<Exception, string, Error>>();
+                var rejection = context.Builder.Build<Action<Exception, string, Error>>();
                 // Wrap exception in our object which is serializable
-                await context.Reply(rejection(e,
-                            $"Rejected message after {retries} attempts!"))
+                await context.Reply<Error>((message) => rejection(e,
+                            $"Rejected message after {retries} attempts!", message))
                         .ConfigureAwait(false);
 
                 // Should be the last throw for this message - if RecoveryPolicy is properly set the message will be sent over to error queue

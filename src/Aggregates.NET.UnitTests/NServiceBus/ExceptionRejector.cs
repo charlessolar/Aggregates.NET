@@ -86,7 +86,7 @@ namespace Aggregates.NServiceBus
             context.MessageHeaders[Headers.MessageIntent] = MessageIntentEnum.Send.ToString();
             context.MessageHeaders[Defaults.RequestResponse] = "1";
             context.UpdateMessageInstance(Fake<Messages.IEvent>());
-            context.Builder.Register<Func<Exception, string, Error>>(A.Fake<Func<Exception, string, Error>>());
+            context.Builder.Register<Action<Exception, string, Error>>(A.Fake<Action<Exception, string, Error>>());
 
             var e = await Record.ExceptionAsync(() => Sut.Invoke(context, next)).ConfigureAwait(false);
 

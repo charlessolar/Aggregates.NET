@@ -2,7 +2,7 @@
 
 namespace Aggregates.Messages
 {
-    [Versioned("Reject", "Aggregates")]
+    [Versioned("Reject", "Aggregates", 1)]
     public interface Reject : IMessage
     {
         BusinessException Exception { get; set; }

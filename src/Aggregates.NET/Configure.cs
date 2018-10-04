@@ -138,17 +138,10 @@ namespace Aggregates
 
                 container.Register<StreamIdGenerator>(Generator, Lifestyle.Singleton);
 
-                container.Register<Func<Exception, string, Error>>((factory) =>
+                container.Register<Action<Exception, string, Error>>((ex, error, message) =>
                 {
-                    var eventFactory = factory.Resolve<IEventFactory>();
-                    return (exception, message) =>
-                    {
-                        return eventFactory.Create<Error>(e =>
-                        {
-                            e.Message = $"{message} - {exception.GetType().Name}: {exception.Message}";
-                            e.Trace = exception.AsString();
-                        });
-                    };
+                    message.Message = $"{message} - {ex.GetType().Name}: {ex.Message}";
+                    message.Trace = ex.AsString();
                 }, Lifestyle.Singleton);
 
                 container.Register<Action<Accept>>((_) =>

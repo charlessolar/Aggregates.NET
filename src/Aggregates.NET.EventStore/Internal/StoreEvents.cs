@@ -96,7 +96,10 @@ namespace Aggregates.Internal
                 var eventType = _registrar.GetNamedType(e.Event.EventType);
                 _mapper.Initialize(eventType);
 
-                var @event = _serializer.Deserialize(eventType, data) as IEvent;
+                var @event = _serializer.Deserialize(eventType, data);
+
+                if (!(@event is IEvent))
+                    throw new UnknownMessageException(@event.GetType());
 
                 // Special case if event was written without a version - substitue the position from store
                 if (descriptor.Version == 0)
@@ -105,7 +108,7 @@ namespace Aggregates.Internal
                 return (IFullEvent)new FullEvent
                 {
                     Descriptor = descriptor,
-                    Event = @event,
+                    Event = @event as IEvent,
                     EventId = e.Event.EventId
                 };
             }).ToArray();
@@ -175,8 +178,10 @@ namespace Aggregates.Internal
                 var eventType = _registrar.GetNamedType(e.Event.EventType);
                 _mapper.Initialize(eventType);
 
-                var @event = _serializer.Deserialize(eventType, data) as IEvent;
+                var @event = _serializer.Deserialize(eventType, data);
 
+                if (!(@event is IEvent))
+                    throw new UnknownMessageException(@event.GetType());
                 // Special case if event was written without a version - substitute the position from store
                 if (descriptor.Version == 0)
                     descriptor.Version = e.Event.EventNumber;
@@ -184,7 +189,7 @@ namespace Aggregates.Internal
                 return (IFullEvent)new FullEvent
                 {
                     Descriptor = descriptor,
-                    Event = @event,
+                    Event = @event as IEvent,
                     EventId = e.Event.EventId
                 };
             }).ToArray();
