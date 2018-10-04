@@ -1,4 +1,5 @@
-﻿using Aggregates.Extensions;
+﻿using Aggregates.Contracts;
+using Aggregates.Extensions;
 using Aggregates.Logging;
 using NServiceBus.Pipeline;
 using System;
@@ -12,11 +13,13 @@ namespace Aggregates.Internal
     public class MessageDetyper : Behavior<IOutgoingPhysicalMessageContext>
     {
         private static readonly ILog Logger = LogProvider.GetLogger("MessageDetyper");
-        private Contracts.IVersionRegistrar _registrar;
+        private readonly Contracts.IVersionRegistrar _registrar;
+        private readonly Contracts.IEventMapper _mapper;
 
-        public MessageDetyper(Contracts.IVersionRegistrar registrar)
+        public MessageDetyper(Contracts.IVersionRegistrar registrar, IEventMapper mapper)
         {
             _registrar = registrar;
+            _mapper = mapper;
         }
 
         public override Task Invoke(IOutgoingPhysicalMessageContext context, Func<Task> next)
@@ -36,6 +39,8 @@ namespace Aggregates.Internal
                 Logger.WarnEvent("UnknownType", "{MessageType} sent - but could not load type?", messageType);
                 return next();
             }
+            if (!type.IsInterface)
+                type = _mapper.GetMappedTypeFor(type) ?? type;
 
             var definition = _registrar.GetVersionedName(type);
             if (definition == null)
@@ -56,7 +61,7 @@ namespace Aggregates.Internal
             stepId: "MessageDetyper",
             behavior: typeof(MessageDetyper),
             description: "detypes outgoing messages to Versioned commands/events",
-            factoryMethod: (b) => new MessageDetyper(b.Build<Contracts.IVersionRegistrar>()))
+            factoryMethod: (b) => new MessageDetyper(b.Build<Contracts.IVersionRegistrar>(), b.Build<Contracts.IEventMapper>()))
         {
         }
     }
