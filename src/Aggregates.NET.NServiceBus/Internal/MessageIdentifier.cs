@@ -29,6 +29,10 @@ namespace Aggregates.Internal
             if (!headers.TryGetValue(messageTypeKey, out var messageType))
                 return next();
 
+            // if enclosed type is a full type
+            if (messageType.IndexOf(';') != -1)
+                return next();
+
             var mappedType = _registrar.GetNamedType(messageType);
             // no mapped type
             if (mappedType == null)

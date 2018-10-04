@@ -98,7 +98,7 @@ namespace Aggregates.Internal
         {
             var match = NameRegex.Match(versionedName);
             if (!match.Success)
-                return null;
+                throw new ArgumentException($"{versionedName} is not the right format");
 
             var @namespace = match.Groups["Namespace"].Value;
             var name = match.Groups["Name"].Value;
@@ -107,11 +107,21 @@ namespace Aggregates.Internal
             lock (_sync)
             {
                 if (!NameToType.TryGetValue($"{@namespace}.{name}", out var definitions) || !definitions.Any())
-                    return null;
+                {
+                    Logger.WarnEvent("TypeMissing", "{TypeName} is not registered", versionedName);
+                    throw new ArgumentException($"{versionedName} is not registered");
+                }
                 if (!int.TryParse(version, out var intVersion))
                     return definitions.OrderByDescending(x => x.Version).First().Type;
 
-                return definitions.SingleOrDefault(x => x.Version == intVersion)?.Type;
+                var type = definitions.SingleOrDefault(x => x.Version == intVersion)?.Type;
+                if(type == null)
+                {
+                    Logger.WarnEvent("VersionMissing", "Missing version {Version} for {TypeName}", intVersion, versionedName);
+                    throw new ArgumentException($"Missing version {intVersion} for {versionedName}");
+                }
+
+                return type;
             }
         }
     }

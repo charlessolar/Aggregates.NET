@@ -6,15 +6,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aggregates.NET.EventStore" Version="0.14.39.336" />
-    <PackageReference Include="Aggregates.NET.NewtonsoftJson" Version="0.14.39.336" />
-    <PackageReference Include="Aggregates.NET.NServiceBus" Version="0.14.39.336" />
-    <PackageReference Include="Aggregates.NET.StructureMap" Version="0.14.39.336" />
+    <PackageReference Include="Aggregates.NET.EventStore" Version="0.14.49.346" />
+    <PackageReference Include="Aggregates.NET.NewtonsoftJson" Version="0.14.49.346" />
+    <PackageReference Include="Aggregates.NET.NServiceBus" Version="0.14.49.346" />
+    <PackageReference Include="Aggregates.NET.StructureMap" Version="0.14.49.346" />
     <PackageReference Include="EventStore.ClientAPI.NetCore" Version="4.1.0.23" />
     <PackageReference Include="NServiceBus.Callbacks" Version="3.0.0" />
     <PackageReference Include="NServiceBus.Newtonsoft.Json" Version="2.1.0" />
     <PackageReference Include="NServiceBus.RabbitMQ" Version="5.0.1" />
-    <PackageReference Include="NServiceBus.Serilog" Version="4.0.2" />
+    <PackageReference Include="NServiceBus.Serilog" Version="5.0.1" />
     <PackageReference Include="NServiceBus.StructureMap" Version="7.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
     <PackageReference Include="StructureMap" Version="4.7.0" />
