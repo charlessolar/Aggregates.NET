@@ -151,28 +151,14 @@ namespace Aggregates
                     };
                 }, Lifestyle.Singleton);
 
-                container.Register<Func<Accept>>((factory) =>
+                container.Register<Action<Accept>>((_) =>
                 {
-                    var eventFactory = factory.Resolve<IEventFactory>();
-                    return () => eventFactory.Create<Accept>(x => { });
                 }, Lifestyle.Singleton);
 
-                container.Register<Func<string, Reject>>((factory) =>
+                container.Register<Action<BusinessException, Reject>>((ex, message) =>
                 {
-                    var eventFactory = factory.Resolve<IEventFactory>();
-                    return message => { return eventFactory.Create<Reject>(e => { e.Message = message; }); };
-                }, Lifestyle.Singleton);
-                container.Register<Func<BusinessException, Reject>>((factory) =>
-                {
-                    var eventFactory = factory.Resolve<IEventFactory>();
-                    return exception =>
-                    {
-                        return eventFactory.Create<Reject>(e =>
-                        {
-                            e.Exception = exception;
-                            e.Message = $"{exception.GetType().Name} - {exception.Message}";
-                        });
-                    };
+                    message.Exception = ex;
+                    message.Message= $"{ex.GetType().Name} - {ex.Message}";
                 }, Lifestyle.Singleton);
 
                 return Task.CompletedTask;

@@ -41,8 +41,8 @@ namespace Aggregates.Internal
                     if (context.MessageHeaders.ContainsKey(Defaults.RequestResponse) && context.MessageHeaders[Defaults.RequestResponse] == "1")
                     {
                         // Tell the sender the command was accepted
-                        var accept = context.Builder.Build<Func<Accept>>();
-                        await context.Reply(accept()).ConfigureAwait(false);
+                        var accept = context.Builder.Build<Action<Accept>>();
+                        await context.Reply<Accept>(accept).ConfigureAwait(false);
                     }
                 }
                 catch (BusinessException e)
@@ -54,8 +54,8 @@ namespace Aggregates.Internal
                         return; // Dont throw, business exceptions are not message failures
                     
                     // Tell the sender the command was rejected due to a business exception
-                    var rejection = context.Builder.Build<Func<BusinessException, Reject>>();
-                    await context.Reply(rejection(e)).ConfigureAwait(false);
+                    var rejection = context.Builder.Build<Action<BusinessException, Reject>>();
+                    await context.Reply<Reject>((msg) => rejection(e, msg)).ConfigureAwait(false);
 
                     // ExceptionRejector will filter out BusinessException, throw is just to cancel the UnitOfWork
                     throw;

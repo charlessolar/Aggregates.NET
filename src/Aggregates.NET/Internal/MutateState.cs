@@ -47,6 +47,9 @@ namespace Aggregates.Internal
 
         public void Handle(IState state, IEvent @event)
         {
+            if (@event == null)
+                throw new ArgumentNullException(nameof(@event));
+
             // Todo: cheap hack NSB creates events as IEvent__impl
             // remove the __impl if it exists
             // (message mapper not working here in due to static creation)
@@ -63,6 +66,9 @@ namespace Aggregates.Internal
         }
         public void Conflict(IState state, IEvent @event)
         {
+            if (@event == null)
+                throw new ArgumentNullException(nameof(@event));
+
             // Todo: cheap hack NSB creates events as IEvent__impl
             // remove the __impl if it exists
             // (message mapper not working here in due to static creation)
