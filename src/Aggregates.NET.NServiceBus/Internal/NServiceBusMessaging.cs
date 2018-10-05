@@ -55,7 +55,7 @@ namespace Aggregates.Internal
             if (type.IsAbstract || type.IsGenericTypeDefinition)
                 return false;
 
-            return type.IsSubclassOf(typeof(Entity<,>));
+            return IsSubclassOfRawGeneric(typeof(Entity<,>), type);
         }
         private static bool IsMessageType(Type type)
         {
@@ -63,6 +63,20 @@ namespace Aggregates.Internal
                 return false;
 
             return typeof(Messages.IMessage).IsAssignableFrom(type);
+        }
+        // https://stackoverflow.com/a/457708/223547
+        static bool IsSubclassOfRawGeneric(Type generic, Type toCheck)
+        {
+            while (toCheck != null && toCheck != typeof(object))
+            {
+                var cur = toCheck.IsGenericType ? toCheck.GetGenericTypeDefinition() : toCheck;
+                if (generic == cur)
+                {
+                    return true;
+                }
+                toCheck = toCheck.BaseType;
+            }
+            return false;
         }
     }
 }
