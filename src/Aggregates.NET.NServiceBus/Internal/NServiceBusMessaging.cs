@@ -28,11 +28,19 @@ namespace Aggregates.Internal
 
         public Type[] GetMessageTypes()
         {
-            return _settings.GetAvailableTypes().Where(IsMessageType).Concat(_handlers.GetMessageTypes()).Distinct().ToArray();
+            // include Domain Assemblies because NSB's assembly scanning doesn't catch all types
+            return AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(x => x.DefinedTypes.Where(IsMessageType)).ToArray()
+                .Concat(_settings.GetAvailableTypes().Where(IsMessageType))
+                .Concat(_handlers.GetMessageTypes())
+                .Distinct().ToArray();
         }
         public Type[] GetEntityTypes()
         {
-            return _settings.GetAvailableTypes().Where(IsEntityType).ToArray();
+            return AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(x => x.DefinedTypes.Where(IsEntityType)).ToArray()
+                .Concat(_settings.GetAvailableTypes().Where(IsEntityType))
+                .Distinct().ToArray();
         }
 
         public Type[] GetMessageHierarchy(Type messageType)

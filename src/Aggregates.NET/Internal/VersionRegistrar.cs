@@ -42,6 +42,10 @@ namespace Aggregates.Internal
 
             Load(_messaging.GetMessageTypes());
             Load(_messaging.GetEntityTypes());
+            Load(
+                AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(x => x.DefinedTypes.Where(t =>  typeof(Aggregates.Messages.IMessage).IsAssignableFrom(t))).ToArray()
+                );
         }
 
 
