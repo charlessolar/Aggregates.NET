@@ -40,7 +40,8 @@ namespace Aggregates.Internal
         {
             _messaging = messaging;
 
-            Load(_messaging.GetMessageTypes().ToArray());
+            Load(_messaging.GetMessageTypes());
+            Load(_messaging.GetEntityTypes());
         }
 
 

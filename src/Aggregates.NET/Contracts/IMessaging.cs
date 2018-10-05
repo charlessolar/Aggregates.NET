@@ -5,7 +5,8 @@ namespace Aggregates.Contracts
 {
     public interface IMessaging
     {
-        IEnumerable<Type> GetMessageTypes();
-        IEnumerable<Type> GetMessageHierarchy(Type messageType);
+        Type[] GetMessageTypes();
+        Type[] GetEntityTypes();
+        Type[] GetMessageHierarchy(Type messageType);
     }
 }

@@ -5,6 +5,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
+using NServiceBus;
+using NServiceBus.Settings;
 using NServiceBus.Unicast;
 using NServiceBus.Unicast.Messages;
 
@@ -15,22 +17,42 @@ namespace Aggregates.Internal
     {
         private readonly MessageHandlerRegistry _handlers;
         private readonly MessageMetadataRegistry _metadata;
+        private readonly ReadOnlySettings _settings;
 
-        public NServiceBusMessaging(MessageHandlerRegistry handlers, MessageMetadataRegistry metadata)
+        public NServiceBusMessaging(MessageHandlerRegistry handlers, MessageMetadataRegistry metadata, ReadOnlySettings settings)
         {
             _handlers = handlers;
             _metadata = metadata;
+            _settings = settings;
         }
 
-        public IEnumerable<Type> GetMessageTypes()
+        public Type[] GetMessageTypes()
         {
-            return _handlers.GetMessageTypes();
+            return _settings.GetAvailableTypes().Where(IsMessageType).Concat(_handlers.GetMessageTypes()).Distinct().ToArray();
+        }
+        public Type[] GetEntityTypes()
+        {
+            return _settings.GetAvailableTypes().Where(IsEntityType).ToArray();
         }
 
-        public IEnumerable<Type> GetMessageHierarchy(Type messageType)
+        public Type[] GetMessageHierarchy(Type messageType)
         {
             var metadata = _metadata.GetMessageMetadata(messageType);
             return metadata.MessageHierarchy;
+        }
+        private static bool IsEntityType(Type type)
+        {
+            if (type.IsAbstract || type.IsGenericTypeDefinition)
+                return false;
+
+            return type.IsSubclassOf(typeof(Entity<,>));
+        }
+        private static bool IsMessageType(Type type)
+        {
+            if (type.IsAbstract || type.IsGenericTypeDefinition)
+                return false;
+
+            return typeof(Messages.IMessage).IsAssignableFrom(type);
         }
     }
 }

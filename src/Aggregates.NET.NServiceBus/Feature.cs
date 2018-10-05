@@ -6,6 +6,7 @@ using Aggregates.Messages;
 using NServiceBus;
 using NServiceBus.Features;
 using NServiceBus.MessageInterfaces;
+using NServiceBus.Settings;
 using NServiceBus.Unicast;
 using NServiceBus.Unicast.Messages;
 using System;
@@ -35,7 +36,7 @@ namespace Aggregates
             context.Container.ConfigureComponent<UnitOfWork.IDomain>((c) => new NSBUnitOfWork(c.Build<IRepositoryFactory>(), c.Build<IEventFactory>(), c.Build<IVersionRegistrar>()), DependencyLifecycle.InstancePerUnitOfWork);
             context.Container.ConfigureComponent<IEventFactory>((c) => new EventFactory(c.Build<IMessageCreator>()), DependencyLifecycle.InstancePerCall);
             context.Container.ConfigureComponent<IMessageDispatcher>((c) => new Dispatcher(c.Build<IMetrics>(), c.Build<IMessageSerializer>(), c.Build<IEventMapper>(), c.Build<IVersionRegistrar>()), DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<IMessaging>((c) => new NServiceBusMessaging(c.Build<MessageHandlerRegistry>(), c.Build<MessageMetadataRegistry>()), DependencyLifecycle.InstancePerCall);
+            context.Container.ConfigureComponent<IMessaging>((c) => new NServiceBusMessaging(c.Build<MessageHandlerRegistry>(), c.Build<MessageMetadataRegistry>(), c.Build<ReadOnlySettings>()), DependencyLifecycle.InstancePerCall);
 
             context.Pipeline.Register(new ExceptionRejectorRegistration(container));
 
@@ -91,13 +92,6 @@ namespace Aggregates
                 .Where(@interface => @interface.IsGenericType)
                 .Select(@interface => @interface.GetGenericTypeDefinition())
                 .Any(genericTypeDef => genericTypeDef == typeof(IProvideService<,>));
-        }
-        private static bool IsEntityType(Type type)
-        {
-            if (type.IsAbstract || type.IsGenericTypeDefinition)
-                return false;
-
-            return type.IsSubclassOf(typeof(Entity<,>));
         }
     }
 
