@@ -30,6 +30,7 @@ namespace Aggregates.Internal
         {
             // include Domain Assemblies because NSB's assembly scanning doesn't catch all types
             return AppDomain.CurrentDomain.GetAssemblies()
+                .Where(x => !x.IsDynamic)
                 .SelectMany(x => x.DefinedTypes.Where(IsMessageType)).ToArray()
                 .Concat(_settings.GetAvailableTypes().Where(IsMessageType))
                 .Concat(_handlers.GetMessageTypes())
@@ -38,6 +39,7 @@ namespace Aggregates.Internal
         public Type[] GetEntityTypes()
         {
             return AppDomain.CurrentDomain.GetAssemblies()
+                .Where(x => !x.IsDynamic)
                 .SelectMany(x => x.DefinedTypes.Where(IsEntityType)).ToArray()
                 .Concat(_settings.GetAvailableTypes().Where(IsEntityType))
                 .Distinct().ToArray();
