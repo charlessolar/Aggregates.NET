@@ -32,8 +32,6 @@ namespace Aggregates.Internal
             return AppDomain.CurrentDomain.GetAssemblies()
                 .Where(x => !x.IsDynamic)
                 .SelectMany(x => x.DefinedTypes.Where(IsMessageType)).ToArray()
-                .Concat(_settings.GetAvailableTypes().Where(IsMessageType))
-                .Concat(_handlers.GetMessageTypes())
                 .Distinct().ToArray();
         }
         public Type[] GetEntityTypes()
@@ -41,7 +39,6 @@ namespace Aggregates.Internal
             return AppDomain.CurrentDomain.GetAssemblies()
                 .Where(x => !x.IsDynamic)
                 .SelectMany(x => x.DefinedTypes.Where(IsEntityType)).ToArray()
-                .Concat(_settings.GetAvailableTypes().Where(IsEntityType))
                 .Distinct().ToArray();
         }
 
