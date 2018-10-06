@@ -62,7 +62,7 @@ namespace Aggregates.Internal
             if (type.IsAbstract || type.IsGenericTypeDefinition)
                 return false;
 
-            return typeof(Messages.IMessage).IsAssignableFrom(type);
+            return typeof(Messages.IMessage).IsAssignableFrom(type) && !typeof(IState).IsAssignableFrom(type);
         }
         // https://stackoverflow.com/a/457708/223547
         static bool IsSubclassOfRawGeneric(Type generic, Type toCheck)
