@@ -25,7 +25,10 @@ namespace Aggregates.Internal
             _metadata = metadata;
             _settings = settings;
         }
-
+        public Type[] GetHandledTypes()
+        {
+            return _handlers.GetMessageTypes().ToArray();
+        }
         public Type[] GetMessageTypes()
         {
             // include Domain Assemblies because NSB's assembly scanning doesn't catch all types
@@ -49,14 +52,14 @@ namespace Aggregates.Internal
         }
         private static bool IsEntityType(Type type)
         {
-            if (type.IsAbstract || type.IsGenericTypeDefinition)
+            if (type.IsGenericTypeDefinition)
                 return false;
 
             return IsSubclassOfRawGeneric(typeof(Entity<,>), type);
         }
         private static bool IsMessageType(Type type)
         {
-            if (type.IsAbstract || type.IsGenericTypeDefinition)
+            if (type.IsGenericTypeDefinition)
                 return false;
 
             return typeof(Messages.IMessage).IsAssignableFrom(type) && !typeof(IState).IsAssignableFrom(type);
