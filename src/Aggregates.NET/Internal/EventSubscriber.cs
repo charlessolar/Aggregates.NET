@@ -69,7 +69,7 @@ namespace Aggregates.Internal
             _cancelation = new CancellationTokenSource();
 
             var discoveredEvents =
-                _messaging.GetHandledMessages().Where(x => typeof(IEvent).IsAssignableFrom(x)).OrderBy(x => x.FullName).ToList();
+                _messaging.GetHandledTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).OrderBy(x => x.FullName).ToList();
 
             if (!discoveredEvents.Any())
             {
