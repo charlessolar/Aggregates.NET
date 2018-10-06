@@ -163,6 +163,7 @@ namespace Aggregates.Internal
         }
     }
 
+    [Versioned("ConflictingEvents", "Aggregates", 1)]
     internal class ConflictingEvents : IMessage
     {
         public string EntityType { get; set; }

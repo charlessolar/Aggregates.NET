@@ -72,7 +72,10 @@ namespace Aggregates.Internal
 
             TypeToDefinition[type] = definition;
             if (list.Any(x => x.Name == name && x.Namespace == @namespace && x.Version == version))
+            {
+                Logger.WarnEvent("Duplicate", "Tried to register a duplicate type {Namespace}.{Name} v{Version}", @namespace, name, version);
                 return;
+            }
 
             list.Add(definition);
             NameToType[$"{@namespace}.{name}"] = list;

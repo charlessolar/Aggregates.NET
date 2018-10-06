@@ -18,6 +18,7 @@ using NServiceBus.Sagas;
 
 namespace Aggregates.Internal
 {
+    [Versioned("DelayedMessage", "Aggregates", 1)]
     internal class DelayedMessage : IDelayedMessage
     {
         public string MessageId { get; set; }
