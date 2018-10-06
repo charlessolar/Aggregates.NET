@@ -34,7 +34,11 @@ namespace Aggregates
         }
         public static async Task Command(this IMessageSession ctx, ICommand command)
         {
+            if (string.IsNullOrEmpty(Configuration.Settings.CommandDestination))
+                throw new ArgumentException($"Must use Configuration.SetCommandDestination to use destination-less extension methods");
+
             var options = new SendOptions();
+            options.SetDestination(Configuration.Settings.CommandDestination);
             options.SetHeader(Defaults.RequestResponse, "1");
 
             var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
@@ -52,7 +56,11 @@ namespace Aggregates
 
         public static async Task<bool> TimeoutCommand(this IMessageSession ctx, ICommand command, TimeSpan timeout)
         {
+            if (string.IsNullOrEmpty(Configuration.Settings.CommandDestination))
+                throw new ArgumentException($"Must use Configuration.SetCommandDestination to use destination-less extension methods");
+
             var options = new SendOptions();
+            options.SetDestination(Configuration.Settings.CommandDestination);
             options.SetHeader(Defaults.RequestResponse, "1");
 
             var cancelation = new CancellationTokenSource(timeout);
@@ -93,14 +101,22 @@ namespace Aggregates
         /// </summary>
         public static async Task PassiveCommand<TCommand>(this IMessageSession ctx, Action<TCommand> command) where TCommand : ICommand
         {
+            if (string.IsNullOrEmpty(Configuration.Settings.CommandDestination))
+                throw new ArgumentException($"Must use Configuration.SetCommandDestination to use destination-less extension methods");
+
             var options = new SendOptions();
+            options.SetDestination(Configuration.Settings.CommandDestination);
             options.SetHeader(Defaults.RequestResponse, "0");
 
             await ctx.Send(command, options).ConfigureAwait(false);
         }
         public static async Task PassiveCommand(this IMessageSession ctx, ICommand command)
         {
+            if (string.IsNullOrEmpty(Configuration.Settings.CommandDestination))
+                throw new ArgumentException($"Must use Configuration.SetCommandDestination to use destination-less extension methods");
+
             var options = new SendOptions();
+            options.SetDestination(Configuration.Settings.CommandDestination);
             options.SetHeader(Defaults.RequestResponse, "0");
 
             await ctx.Send(command, options).ConfigureAwait(false);
@@ -123,14 +139,22 @@ namespace Aggregates
         }
         public static async Task PassiveCommand<TCommand>(this IMessageHandlerContext ctx, Action<TCommand> command) where TCommand : ICommand
         {
+            if (string.IsNullOrEmpty(Configuration.Settings.CommandDestination))
+                throw new ArgumentException($"Must use Configuration.SetCommandDestination to use destination-less extension methods");
+
             var options = new SendOptions();
+            options.SetDestination(Configuration.Settings.CommandDestination);
             options.SetHeader(Defaults.RequestResponse, "0");
 
             await ctx.Send(command, options).ConfigureAwait(false);
         }
         public static async Task PassiveCommand(this IMessageHandlerContext ctx, ICommand command)
         {
+            if (string.IsNullOrEmpty(Configuration.Settings.CommandDestination))
+                throw new ArgumentException($"Must use Configuration.SetCommandDestination to use destination-less extension methods");
+
             var options = new SendOptions();
+            options.SetDestination(Configuration.Settings.CommandDestination);
             options.SetHeader(Defaults.RequestResponse, "0");
 
             await ctx.Send(command, options).ConfigureAwait(false);

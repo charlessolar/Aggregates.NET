@@ -72,6 +72,8 @@ namespace Aggregates
         public bool AllEvents { get; internal set; }
         public bool Passive { get; internal set; }
 
+        public string CommandDestination { get; internal set; }
+
         public string MessageContentType { get; internal set; }
 
         internal List<Func<Configure, Task>> RegistrationTasks;
@@ -234,6 +236,11 @@ namespace Aggregates
         public Configure SetMaxDelayed(int max)
         {
             MaxDelayed = max;
+            return this;
+        }
+        public Configure SetCommandDestination(string destination)
+        {
+            CommandDestination = destination;
             return this;
         }
         /// <summary>
