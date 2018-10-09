@@ -120,6 +120,7 @@ namespace Aggregates.Internal
         protected readonly TestableOobWriter _oobStore;
         protected readonly TestableEventStore _eventstore;
         protected readonly TestableSnapshotStore _snapstore;
+        protected readonly TestableVersionRegistrar _registrar;
         private bool _disposed;
 
         public TestableRepository(TestableDomain uow, IdRegistry ids)
@@ -130,6 +131,7 @@ namespace Aggregates.Internal
             _oobStore = new TestableOobWriter();
             _eventstore = new TestableEventStore();
             _snapstore = new TestableSnapshotStore();
+            _registrar = new TestableVersionRegistrar();
         }
 
         public int ChangedStreams => Tracked.Count(x => x.Value.Dirty);
@@ -180,6 +182,7 @@ namespace Aggregates.Internal
             (entity as INeedEventFactory).EventFactory = _factory;
             (entity as INeedStore).Store = _eventstore;
             (entity as INeedStore).OobWriter = _oobStore;
+            (entity as INeedVersionRegistrar).Registrar = _registrar;
 
             return entity;
         }
