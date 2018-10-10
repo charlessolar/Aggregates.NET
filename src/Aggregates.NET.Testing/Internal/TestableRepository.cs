@@ -218,6 +218,7 @@ namespace Aggregates.Internal
             (entity as INeedEventFactory).EventFactory = _factory;
             (entity as INeedStore).Store = _eventstore;
             (entity as INeedStore).OobWriter = _oobStore;
+            (entity as INeedVersionRegistrar).Registrar = _registrar;
 
             return Task.FromResult(entity);
         }
