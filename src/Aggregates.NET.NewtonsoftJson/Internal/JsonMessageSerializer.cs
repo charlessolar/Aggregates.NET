@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Logging;
 using Newtonsoft.Json;
 using System;
@@ -65,7 +66,7 @@ namespace Aggregates.Internal
 
         private static void HandleError(object sender, Newtonsoft.Json.Serialization.ErrorEventArgs args)
         {
-            throw args.ErrorContext.Error;
+            throw new SerializerException(args.ErrorContext.Error, args.ErrorContext.Path);
         }
 
         public void Serialize(object message, Stream stream)
