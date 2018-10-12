@@ -66,6 +66,7 @@ namespace Aggregates.Internal
 
         private static void HandleError(object sender, Newtonsoft.Json.Serialization.ErrorEventArgs args)
         {
+            args.ErrorContext.Handled = true;
             throw new SerializerException(args.ErrorContext.Error, args.ErrorContext.Path);
         }
 
