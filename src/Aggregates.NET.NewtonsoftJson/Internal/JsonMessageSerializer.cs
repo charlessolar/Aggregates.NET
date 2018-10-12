@@ -36,7 +36,7 @@ namespace Aggregates.Internal
             {
                 TypeNameHandling = TypeNameHandling.Auto,
                 Converters = new JsonConverter[] { new Newtonsoft.Json.Converters.StringEnumConverter(), new IdJsonConverter() }.Concat(extraConverters).ToArray(),
-                Error = new EventHandler<Newtonsoft.Json.Serialization.ErrorEventArgs>(HandleError),
+                //Error = new EventHandler<Newtonsoft.Json.Serialization.ErrorEventArgs>(HandleError),
                 ContractResolver = new EventContractResolver(messageMapper, messageFactory),
                 SerializationBinder = new EventSerializationBinder(messageMapper),
                 //TraceWriter = new TraceWriter(),
@@ -64,11 +64,11 @@ namespace Aggregates.Internal
             jsonSerializer = NewtonSerializer.Create(settings);
         }
 
-        private static void HandleError(object sender, Newtonsoft.Json.Serialization.ErrorEventArgs args)
-        {
-            args.ErrorContext.Handled = true;
-            throw new SerializerException(args.ErrorContext.Error, args.ErrorContext.Path);
-        }
+        //private static void HandleError(object sender, Newtonsoft.Json.Serialization.ErrorEventArgs args)
+        //{
+        //    args.ErrorContext.Handled = true;
+        //    throw new SerializerException(args.ErrorContext.Error, args.ErrorContext.Path);
+        //}
 
         public void Serialize(object message, Stream stream)
         {
