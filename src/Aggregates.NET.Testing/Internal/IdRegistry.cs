@@ -7,7 +7,7 @@ using System.Text;
 namespace Aggregates.Internal
 {
     [ExcludeFromCodeCoverage]
-    class IdRegistry
+    public class IdRegistry
     {
         private int _longIdCounter = -1;
         public IReadOnlyDictionary<string, TestableId> GeneratedIds => _generatedIds;

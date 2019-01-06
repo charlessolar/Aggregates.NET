@@ -45,7 +45,7 @@ namespace Aggregates.Internal
             {
                 // If this happens the callback for the message took too long (likely due to a timeout)
                 // normall NSB will report an exception for "No Handlers" - this will just log a warning and ignore
-                Logger.WarnEvent("Overdue", "Overdue Accept/Reject {MessageType} callback - your timeouts might be too short", context.Message.MessageType.Name);
+                Logger.WarnEvent("Overdue", "Overdue Accept/Reject {MessageType} callback - your timeouts might be too short", context.Message.MessageType.FullName);
                 return;
             }
 
@@ -95,7 +95,7 @@ namespace Aggregates.Internal
             }
             catch (Exception e)
             {
-                Logger.WarnEvent("UOWException", e, "Received exception while processing message {MessageType}", context.Message.MessageType.Name);
+                Logger.WarnEvent("UOWException", e, "Received exception while processing message {MessageType}", context.Message.MessageType.FullName);
                 _metrics.Mark("Message Errors", Unit.Errors);
                 var trailingExceptions = new List<Exception>();
 

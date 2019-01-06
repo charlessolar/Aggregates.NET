@@ -20,8 +20,8 @@ namespace Aggregates
         public readonly ITestableDomain UoW;
         public readonly ITestableApplication App;
         public readonly ITestableProcessor Processor;
-        private readonly TestableMessageHandlerContext _ctx;
-        private readonly IdRegistry _ids;
+        protected readonly TestableMessageHandlerContext _ctx;
+        protected readonly IdRegistry _ids;
 
         public TestableContext()
         {

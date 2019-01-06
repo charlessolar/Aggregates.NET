@@ -265,7 +265,7 @@ namespace Aggregates.Internal
             var memCacheTotalSize = _memCache.Values.Sum(x => x.Count);
             _metrics.Update("Delayed Cache Size", Unit.Message, memCacheTotalSize);
 
-            Logger.InfoEvent("Flush", "Cache Size: {CacheSize} Total Channels: {TotalChannels}", memCacheTotalSize, _memCache.Keys.Count);
+            Logger.DebugEvent("Flush", "Cache Size: {CacheSize} Total Channels: {TotalChannels}", memCacheTotalSize, _memCache.Keys.Count);
             var totalFlushed = 0;
 
             // A list of channels who have expired or have more than 1/5 the max total cache size
