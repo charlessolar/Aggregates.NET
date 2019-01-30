@@ -42,6 +42,10 @@ namespace Aggregates
         /// Asserts the entity did not raise any events
         /// </summary>
         IEventChecker<TEntity> Unchanged();
+        /// <summary>
+        /// Asserts the entity did not raise a specific event type
+        /// </summary>
+        IEventChecker<TEntity> NotRaised<TEvent>() where TEvent : Messages.IEvent;
     }
     public interface IEventPlanner<TEntity> where TEntity : IEntity
     {

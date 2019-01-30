@@ -113,6 +113,12 @@ namespace Aggregates.Internal
         {
             return _uow.Check<TChild, TEntity>(_entity, id);
         }
+        public IEventChecker<TEntity> NotRaised<TEvent>() where TEvent : Messages.IEvent
+        {
+            if (_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).OfType<TEvent>().Any())
+                throw new RaisedException(_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).ToArray());
+            return this;
+        }
     }
     [ExcludeFromCodeCoverage]
     class ModelChecker<TModel> : IModelChecker<TModel> where TModel : class, new()
