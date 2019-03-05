@@ -42,14 +42,16 @@ namespace Aggregates.Sagas
                 throw new ArgumentException($"Usage of SAGA depends on Configuration.SetCommandDestination");
         }
 
-        public void Command(Messages.ICommand command)
+        public CommandSaga Command(Messages.ICommand command)
         {
             _commands.Add(command);
+            return this;
         }
 
-        public void OnAbort(Messages.ICommand command)
+        public CommandSaga OnAbort(Messages.ICommand command)
         {
             _abortCommands.Add(command);
+            return this;
         }
 
         public Task Start()
@@ -66,7 +68,7 @@ namespace Aggregates.Sagas
             var options = new SendOptions();
             options.SetDestination(Configuration.Settings.CommandDestination);
             options.SetHeader(Defaults.RequestResponse, "0");
-            options.SetHeader(Defaults.SagaHeader, message.SagaId);
+            //options.SetHeader(Defaults.SagaHeader, message.SagaId);
             
             return _context.Send(message, options);
         }
