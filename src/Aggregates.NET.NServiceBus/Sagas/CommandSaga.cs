@@ -9,28 +9,28 @@ namespace Aggregates.Sagas
 {
     public class StartCommandSaga : Aggregates.Messages.IMessage
     {
-        public Id SagaId { get; set; }
+        public string SagaId { get; set; }
         public Messages.IMessage Originating { get; set; }
         public Messages.ICommand[] Commands { get; set; }
         public Messages.ICommand[] AbortCommands { get; set; }
     }
     public class ContinueCommandSaga : Aggregates.Messages.IMessage
     {
-        public Id SagaId { get; set; }
+        public string SagaId { get; set; }
     }
     public class AbortCommandSaga : Aggregates.Messages.IMessage
     {
-        public Id SagaId { get; set; }
+        public string SagaId { get; set; }
     }
     public class CommandSaga
     {
         private IMessageHandlerContext _context;
-        private Id _sagaId;
+        private string _sagaId;
         private Messages.IMessage _originating;
         private List<Messages.ICommand> _commands;
         private List<Messages.ICommand> _abortCommands;
 
-        internal CommandSaga(IMessageHandlerContext context, Id sagaId, Messages.IMessage originating)
+        internal CommandSaga(IMessageHandlerContext context, string sagaId, Messages.IMessage originating)
         {
             _context = context;
             _sagaId = sagaId;
@@ -83,7 +83,7 @@ namespace Aggregates.Sagas
     {
         public class SagaData : ContainSagaData
         {
-            public Id SagaId { get; set; }
+            public string SagaId { get; set; }
             public int CurrentIndex { get; set; }
             public bool Aborting { get; set; }
             public Aggregates.Messages.IMessage Originating { get; set; }
@@ -92,7 +92,7 @@ namespace Aggregates.Sagas
         }
         public class TimeoutMessage : Messages.IMessage
         {
-            public Id SagaId { get; set; }
+            public string SagaId { get; set; }
         }
 
         protected override void ConfigureHowToFindSaga(SagaPropertyMapper<CommandSagaHandler.SagaData> mapper)
