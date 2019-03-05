@@ -12,6 +12,6 @@ namespace Aggregates.Contracts
         Task SendLocal(IFullMessage[] messages, IDictionary<string, string> headers = null);
         Task Send(IFullMessage[] message, string destination);
         Task Publish(IFullMessage[] message);
-        Task SendToError(IFullMessage message);
+        Task SendToError(Exception ex, IFullMessage message);
     }
 }

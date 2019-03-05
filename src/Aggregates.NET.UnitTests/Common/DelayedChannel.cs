@@ -40,7 +40,7 @@ namespace Aggregates.Common
             await Sut.AddToQueue("test", Fake<IDelayedMessage>()).ConfigureAwait(false);
             await Sut.End().ConfigureAwait(false);
 
-            A.CallTo(() => cache.Add("test", null, A<IDelayedMessage[]>.Ignored)).Should().HaveHappened();
+            A.CallTo(() => cache.Add("test", null, A<IDelayedMessage[]>.Ignored)).Should().HaveHappenedOnce();
         }
         [Fact]
         public async Task UowEndExceptionShouldNotStoreInCache()
@@ -75,7 +75,7 @@ namespace Aggregates.Common
             await Sut.Pull("test").ConfigureAwait(false);
             await Sut.End(new Exception()).ConfigureAwait(false);
 
-            A.CallTo(() => cache.Add("test", null, A<IDelayedMessage[]>.Ignored)).Should().HaveHappened();
+            A.CallTo(() => cache.Add("test", null, A<IDelayedMessage[]>.Ignored)).Should().HaveHappenedOnce();
         }
         [Fact]
         public async Task PullChannelWithUncomitted()

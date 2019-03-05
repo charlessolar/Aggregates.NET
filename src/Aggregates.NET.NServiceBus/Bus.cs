@@ -29,7 +29,8 @@ namespace Aggregates
         public static async Task<IEndpointInstance> Start(EndpointConfiguration configuration)
         {
             BusOnline = false;
-            Instance = await global::NServiceBus.Endpoint.Start(configuration).ConfigureAwait(false);
+            var endpointInstance = await global::NServiceBus.Endpoint.Start(configuration).ConfigureAwait(false);
+            Instance = endpointInstance;
             // Take IEndpointInstance and pull out the info we need for eventstore consuming
 
             // We want eventstore to push message directly into NSB
@@ -108,7 +109,7 @@ namespace Aggregates
                     Logger.DebugEvent("PipelineStep", "{Index}: {StepType}", i, behaviors[i].GetType().FullName);
 
                 BusOnline = true;
-                return Instance;
+                return endpointInstance;
             }
             catch (Exception e)
             {

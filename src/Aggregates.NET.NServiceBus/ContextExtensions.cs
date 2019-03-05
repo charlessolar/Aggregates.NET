@@ -74,8 +74,7 @@ namespace Aggregates
             // Don't know if this is the best way to get the current message
             var currentMessage = (context as IInvokeHandlerContext)?.MessageBeingHandled as Messages.IMessage;
 
-            return new CommandSaga(sagaId, currentMessage);
+            return new CommandSaga(context, sagaId, currentMessage);
         }
-        public static Task
     }
 }

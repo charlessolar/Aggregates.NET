@@ -55,7 +55,7 @@ namespace Aggregates.Internal
             // catch exceptions, send message to error queue
             catch (SagaWasAborted ex)
             {
-                await _dispatcher.SendToError(new FullMessage
+                await _dispatcher.SendToError(ex, new FullMessage
                 {
                     Message = ex.Originating,
                     Headers = context.Headers
@@ -63,7 +63,7 @@ namespace Aggregates.Internal
             }
             catch (SagaAbortionFailureException ex)
             {
-                await _dispatcher.SendToError(new FullMessage
+                await _dispatcher.SendToError(ex, new FullMessage
                 {
                     Message = ex.Originating,
                     Headers = context.Headers
@@ -87,5 +87,5 @@ namespace Aggregates.Internal
             InsertBefore("ExceptionRejector");
         }
     }
-}
+
 }

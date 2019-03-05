@@ -8,13 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AutoFixture" Version="4.5.0" />
-    <PackageReference Include="AutoFixture.AutoFakeItEasy" Version="4.5.0" />
-    <PackageReference Include="AutoFixture.Xunit2" Version="4.5.0" />
-    <PackageReference Include="FakeItEasy" Version="4.9.1" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.8.0" />
-    <PackageReference Include="xunit" Version="2.4.0" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.0">
+    <PackageReference Include="AutoFixture" Version="4.8.0" />
+    <PackageReference Include="AutoFixture.AutoFakeItEasy" Version="4.8.0" />
+    <PackageReference Include="AutoFixture.Xunit2" Version="4.8.0" />
+    <PackageReference Include="FakeItEasy" Version="5.1.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.0.1" />
+    <PackageReference Include="xunit" Version="2.4.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
@@ -26,6 +26,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aggregates.NET.Testing" Version="0.14.49.346" />
+    <PackageReference Include="Aggregates.NET.Testing" Version="0.14.71.368" />
   </ItemGroup>
 </Project>

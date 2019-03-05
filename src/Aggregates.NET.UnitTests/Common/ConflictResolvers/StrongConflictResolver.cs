@@ -34,7 +34,7 @@ namespace Aggregates.Common.ConflictResolvers
 
             A.CallTo(() =>
                 store.Commit<FakeEntity, FakeState>(cleanEntity, A<Guid>.Ignored, A<Dictionary<string, string>>.Ignored))
-                .Should().HaveHappened();
+                .Should().HaveHappenedOnce();
             cleanEntity.State.Conflicts.Should().Be(3);
         }
         [Fact]

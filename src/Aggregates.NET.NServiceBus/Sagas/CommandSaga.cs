@@ -153,7 +153,7 @@ namespace Aggregates.Sagas
                 return Handle(new AbortCommandSaga { SagaId = Data.SagaId }, context);
 
             // a timeout while aborting........
-            throw new SagaAbortionFailureException();
+            throw new SagaAbortionFailureException(Data.Originating);
         }
         private async Task SendNextCommand(IMessageHandlerContext context)
         {

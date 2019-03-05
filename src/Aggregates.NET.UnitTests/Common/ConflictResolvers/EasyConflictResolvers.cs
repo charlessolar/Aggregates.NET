@@ -49,7 +49,7 @@ namespace Aggregates.Common.ConflictResolvers
 
             A.CallTo(() => 
                 store.WriteEvents<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored, A<IFullEvent[]>.Ignored, A<Dictionary<string, string>>.Ignored, A<long?>.Ignored))
-                .Should().HaveHappened();
+                .Should().HaveHappenedOnce();
         }
 
         [Fact]
@@ -68,10 +68,10 @@ namespace Aggregates.Common.ConflictResolvers
             // No domain events writen
             A.CallTo(() =>
                 store.WriteEvents<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored, A<IFullEvent[]>.That.IsEmpty(), A<Dictionary<string, string>>.Ignored, A<long?>.Ignored))
-                .Should().HaveHappened();
+                .Should().HaveHappenedOnce();
             A.CallTo(() =>
                 oob.WriteEvents<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored, A<IFullEvent[]>.That.Matches(x => x.Length == 3 ), A<Guid>.Ignored, A<Dictionary<string, string>>.Ignored))
-                .Should().HaveHappened();
+                .Should().HaveHappenedOnce();
         }
 
     }

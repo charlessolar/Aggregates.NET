@@ -26,9 +26,9 @@ namespace Aggregates
 
         protected override string Identifier => "call";
         
-        public void HaveHappened(Repeated repeatConstraint = null)
+        public void HaveHappenedOnce()
         {
-            _configuration.MustHaveHappened(repeatConstraint ?? Repeated.AtLeast.Once);
+            _configuration.MustHaveHappenedOnceExactly();
         }
 
         public void NotHaveHappened()
