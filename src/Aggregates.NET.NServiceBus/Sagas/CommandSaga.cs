@@ -69,10 +69,10 @@ namespace Aggregates.Sagas
             options.SetDestination(Configuration.Settings.CommandDestination);
             options.SetHeader(Defaults.RequestResponse, "0");
             options.SetHeader(Defaults.SagaHeader, message.SagaId);
-            
+
             return _context.Send(message, options);
         }
-        
+
     }
     public class CommandSagaHandler :
         Saga<CommandSagaHandler.SagaData>,
@@ -103,11 +103,14 @@ namespace Aggregates.Sagas
         }
         public Task Handle(StartCommandSaga message, IMessageHandlerContext context)
         {
-            Data.SagaId = message.SagaId;
-            Data.CurrentIndex = 0;
-            Data.Originating = message.Originating;
-            Data.Commands = message.Commands;
-            Data.AbortCommands = message.AbortCommands;
+            Data = new SagaData
+            {
+                SagaId = message.SagaId,
+                CurrentIndex = 0,
+                Originating = message.Originating,
+                Commands = message.Commands,
+                AbortCommands = message.AbortCommands,
+            };
 
             // Send first command
             return SendNextCommand(context);
