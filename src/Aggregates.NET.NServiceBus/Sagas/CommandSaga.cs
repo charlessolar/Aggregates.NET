@@ -68,7 +68,7 @@ namespace Aggregates.Sagas
             var options = new SendOptions();
             options.SetDestination(Configuration.Settings.CommandDestination);
             options.SetHeader(Defaults.RequestResponse, "0");
-            //options.SetHeader(Defaults.SagaHeader, message.SagaId);
+            options.SetHeader(Defaults.SagaHeader, message.SagaId);
             
             return _context.Send(message, options);
         }

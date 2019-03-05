@@ -41,9 +41,8 @@ namespace Aggregates.Internal
                     {
                         SagaId = sagaId
                     });
-                    await next().ConfigureAwait(false);
                 }
-                else
+                else if (context.Message.MessageType == typeof(Messages.Reject))
                 {
                     // substitute Reject with "AbortSaga"
                     context.UpdateMessageInstance(new Sagas.AbortCommandSaga
@@ -51,6 +50,8 @@ namespace Aggregates.Internal
                         SagaId = sagaId
                     });
                 }
+
+                await next().ConfigureAwait(false);
             }
             // catch exceptions, send message to error queue
             catch (SagaWasAborted ex)
