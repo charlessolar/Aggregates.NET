@@ -29,6 +29,7 @@ namespace Aggregates
         public const string ChannelKey = "Aggregates.NET.ChannelKey";
         public const string LocalHeader = "Aggregates.NET.LocalMessage";
         public const string BulkHeader = "Aggregates.NET.BulkMessage";
+        public const string SagaHeader = "Aggregates.NET.Saga";
         public const string OriginatingMessageHeader = "Aggregates.NET.OriginatingMessage";
 
         public const string ConflictResolvedHeader = "ConflictResolver";

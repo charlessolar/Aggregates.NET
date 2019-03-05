@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Internal;
 using NServiceBus;
+using NServiceBus.Callbacks.Testing;
 using NServiceBus.Extensibility;
 using NServiceBus.Persistence;
 using NServiceBus.Testing;
@@ -21,6 +22,7 @@ namespace Aggregates
         public readonly ITestableApplication App;
         public readonly ITestableProcessor Processor;
         protected readonly TestableMessageHandlerContext _ctx;
+        protected readonly TestableCallbackAwareSession _session;
         protected readonly IdRegistry _ids;
 
         public TestableContext()
@@ -36,6 +38,10 @@ namespace Aggregates
             _ctx.Extensions.Set<UnitOfWork.IApplication>(App);
             _ctx.Extensions.Set<IProcessor>(Processor);
             _ctx.Extensions.Set<IContainer>(new TestableContainer());
+
+            // Set the bus instance to a testable session via NSB.Testing
+            _session = new TestableCallbackAwareSession();
+            Bus.Instance = _session;
         }
 
         public TEvent Create<TEvent>(Action<TEvent> action) where TEvent : Messages.IEvent
@@ -110,6 +116,25 @@ namespace Aggregates
         public Task Send<T>(Action<T> messageConstructor, SendOptions options)
         {
             return _ctx.Send(messageConstructor, options);
+        }
+
+        public void AcceptCommand<TCommand>() where TCommand : class, Aggregates.Messages.ICommand
+        {
+            AcceptCommand<TCommand>((command) => command.GetType() == typeof(TCommand));
+        }
+        public void RejectCommand<TCommand>() where TCommand : class, Aggregates.Messages.ICommand
+        {
+            RejectCommand<TCommand>((command) => command.GetType() == typeof(TCommand));
+        }
+        public void AcceptCommand<TCommand>(Func<TCommand, bool> match) where TCommand : class, Aggregates.Messages.ICommand
+        {
+            var accept = Test.CreateInstance<Messages.Accept>();
+            _session.When<TCommand, Messages.Accept>(match, accept);
+        }
+        public void RejectCommand<TCommand>(Func<TCommand, bool> match) where TCommand : class, Aggregates.Messages.ICommand
+        {
+            var reject = Test.CreateInstance<Messages.Reject>();
+            _session.When<TCommand, Messages.Reject>(match, reject);
         }
 
         public RepliedMessage<object>[] RepliedMessages => _ctx.RepliedMessages;

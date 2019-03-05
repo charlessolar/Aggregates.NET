@@ -43,10 +43,12 @@ namespace Aggregates
             if (!Configuration.Settings.Passive)
             {
                 MutationManager.RegisterMutator("domain unit of work", typeof(UnitOfWork.IDomain));
-                
+
 
                 context.Pipeline.Register(new UowRegistration(container));
                 context.Pipeline.Register(new CommandAcceptorRegistration(container));
+                context.Pipeline.Register(new SagaBehaviourRegistration(container));
+
                 // Remove NSBs unit of work since we do it ourselves
                 context.Pipeline.Remove("ExecuteUnitOfWork");
 

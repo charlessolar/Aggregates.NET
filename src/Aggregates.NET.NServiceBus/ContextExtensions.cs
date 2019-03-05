@@ -8,6 +8,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Internal;
 using System.Diagnostics.CodeAnalysis;
+using Aggregates.Sagas;
+using NServiceBus.Pipeline;
 
 namespace Aggregates
 {
@@ -67,15 +69,13 @@ namespace Aggregates
             return Task.CompletedTask;
         }
 
-        /// <summary>
-        /// Allows you to run a series of tasks using the full bus - Request/Response available
-        /// </summary>
-        public static Task LocalSaga(this IMessageHandlerContext context, Func<IMessageSession, Task> saga, bool await = false)
+        public static CommandSaga Saga(this IMessageHandlerContext context, Id sagaId)
         {
-            var task = Task.Run(() => saga(Bus.Instance));
-            if (await) task.ConfigureAwait(false).GetAwaiter().GetResult();
+            // Don't know if this is the best way to get the current message
+            var currentMessage = (context as IInvokeHandlerContext)?.MessageBeingHandled as Messages.IMessage;
 
-            return Task.CompletedTask;
+            return new CommandSaga(sagaId, currentMessage);
         }
+        public static Task
     }
 }

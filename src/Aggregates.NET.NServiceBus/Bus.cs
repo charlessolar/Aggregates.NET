@@ -20,7 +20,7 @@ namespace Aggregates
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Bus");
 
-        public static IEndpointInstance Instance { get; private set; }
+        public static IMessageSession Instance { get; internal set; }
         internal static Func<MessageContext, Task> OnMessage;
         internal static Func<ErrorContext, Task<ErrorHandleResult>> OnError;
         internal static PushRuntimeSettings PushSettings;

@@ -38,11 +38,16 @@ namespace Aggregates.Internal
                     await next().ConfigureAwait(false);
 
                     // Only need to reply if the client expects it
-                    if (context.MessageHeaders.ContainsKey(Defaults.RequestResponse) && context.MessageHeaders[Defaults.RequestResponse] == "1")
+                    if (context.Headers.ContainsKey(Defaults.RequestResponse) && context.Headers[Defaults.RequestResponse] == "1")
                     {
+                        // if part of saga be sure to transfer that header
+                        var replyOptions = new ReplyOptions();
+                        if (context.Headers.TryGetValue(Defaults.SagaHeader, out var sagaId))
+                            replyOptions.SetHeader(Defaults.SagaHeader, sagaId);
+
                         // Tell the sender the command was accepted
                         var accept = context.Builder.Build<Action<Accept>>();
-                        await context.Reply<Accept>(accept).ConfigureAwait(false);
+                        await context.Reply<Accept>(accept, replyOptions).ConfigureAwait(false);
                     }
                 }
                 catch (BusinessException e)
@@ -50,12 +55,17 @@ namespace Aggregates.Internal
                     _metrics.Mark("Business Exceptions", Unit.Errors);
                     
                     Logger.InfoEvent("BusinessException", "{MessageId} {MessageType} rejected {Message}", context.MessageId, context.Message.MessageType.FullName, e.Message);
-                    if (!context.MessageHeaders.ContainsKey(Defaults.RequestResponse) || context.MessageHeaders[Defaults.RequestResponse] != "1")
+                    if (!context.Headers.ContainsKey(Defaults.RequestResponse) || context.Headers[Defaults.RequestResponse] != "1")
                         return; // Dont throw, business exceptions are not message failures
-                    
+
+                    // if part of saga be sure to transfer that header
+                    var replyOptions = new ReplyOptions();
+                    if (context.Headers.TryGetValue(Defaults.SagaHeader, out var sagaId))
+                        replyOptions.SetHeader(Defaults.SagaHeader, sagaId);
+
                     // Tell the sender the command was rejected due to a business exception
                     var rejection = context.Builder.Build<Action<BusinessException, Reject>>();
-                    await context.Reply<Reject>((msg) => rejection(e, msg)).ConfigureAwait(false);
+                    await context.Reply<Reject>((msg) => rejection(e, msg), replyOptions).ConfigureAwait(false);
 
                     // ExceptionRejector will filter out BusinessException, throw is just to cancel the UnitOfWork
                     throw;

@@ -233,5 +233,21 @@ namespace Aggregates.Internal
             }).ConfigureAwait(false);
 
         }
+
+        public async Task SendToError(Exception ex, IFullMessage message)
+        {
+            var transportTransaction = new TransportTransaction();
+
+            var messageBytes = _serializer.Serialize(message.Message);
+
+            var headers = new Dictionary<string, string>(message.Headers);
+
+            var errorContext = new ErrorContext(ex, headers,
+                Guid.NewGuid().ToString(),
+                messageBytes, transportTransaction,
+                int.MaxValue);
+            if ((await Bus.OnError(errorContext).ConfigureAwait(false)) != ErrorHandleResult.Handled)
+                throw new InvalidOperationException("Failed to send message error queue");
+        }
     }
 }

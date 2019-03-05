@@ -92,14 +92,19 @@ namespace Aggregates.Internal
 
                 Logger.ErrorEvent("Fault", e, "[{MessageId:l}] has failed {Retries} times\n{@Headers}\n{ExceptionType} - {ExceptionMessage}", messageId, retries, context.Headers, e.GetType().Name, e.Message);
                 // Only need to reply if the client expects it
-                if (!context.MessageHeaders.ContainsKey(Defaults.RequestResponse) || context.MessageHeaders[Defaults.RequestResponse] != "1")
+                if (!context.Headers.ContainsKey(Defaults.RequestResponse) || context.Headers[Defaults.RequestResponse] != "1")
                     throw;
+
+                // if part of saga be sure to transfer that header
+                var replyOptions = new ReplyOptions();
+                if (context.Headers.TryGetValue(Defaults.SagaHeader, out var sagaId))
+                    replyOptions.SetHeader(Defaults.SagaHeader, sagaId);
 
                 // Tell the sender the command was not handled due to a service exception
                 var rejection = context.Builder.Build<Action<Exception, string, Error>>();
                 // Wrap exception in our object which is serializable
                 await context.Reply<Error>((message) => rejection(e,
-                            $"Rejected message after {retries} attempts!", message))
+                            $"Rejected message after {retries} attempts!", message), replyOptions)
                         .ConfigureAwait(false);
 
                 // Should be the last throw for this message - if RecoveryPolicy is properly set the message will be sent over to error queue
