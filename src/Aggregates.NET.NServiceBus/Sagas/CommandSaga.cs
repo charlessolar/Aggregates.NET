@@ -103,14 +103,10 @@ namespace Aggregates.Sagas
         }
         public Task Handle(StartCommandSaga message, IMessageHandlerContext context)
         {
-            Data = new SagaData
-            {
-                SagaId = message.SagaId,
-                CurrentIndex = 0,
-                Originating = message.Originating,
-                Commands = message.Commands,
-                AbortCommands = message.AbortCommands,
-            };
+            Data.CurrentIndex = 0;
+            Data.Originating = message.Originating;
+            Data.Commands = message.Commands;
+            Data.AbortCommands = message.AbortCommands;            
 
             // Send first command
             return SendNextCommand(context);
