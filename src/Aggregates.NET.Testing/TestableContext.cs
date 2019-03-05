@@ -38,10 +38,7 @@ namespace Aggregates
             _ctx.Extensions.Set<UnitOfWork.IApplication>(App);
             _ctx.Extensions.Set<IProcessor>(Processor);
             _ctx.Extensions.Set<IContainer>(new TestableContainer());
-
-            // Set the bus instance to a testable session via NSB.Testing
-            _session = new TestableCallbackAwareSession();
-            Bus.Instance = _session;
+            
         }
 
         public TEvent Create<TEvent>(Action<TEvent> action) where TEvent : Messages.IEvent
