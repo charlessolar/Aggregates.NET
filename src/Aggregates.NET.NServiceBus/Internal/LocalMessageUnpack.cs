@@ -25,7 +25,7 @@ namespace Aggregates.Internal
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
-            var originalheaders = new Dictionary<string, string>(context.Headers);
+            var originalheaders = context.MessageHeaders.ToDictionary(kv => kv.Key, kv => kv.Value);
             var originalInstance = context.Message.Instance;
 
             // Stupid hack to get events from ES and messages from NSB into the same pipeline

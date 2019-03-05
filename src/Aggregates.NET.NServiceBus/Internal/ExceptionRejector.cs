@@ -63,7 +63,7 @@ namespace Aggregates.Internal
                     var message = new FullMessage
                     {
                         Message = context.Message.Instance as Messages.IMessage,
-                        Headers = context.Headers
+                        Headers = context.MessageHeaders.ToDictionary(kv => kv.Key, kv => kv.Value)
                     };
 
                     // todo: Not ideal for this to be here -
@@ -90,14 +90,14 @@ namespace Aggregates.Internal
                 // At this point message is dead - should be moved to error queue, send message to client that their request was rejected due to error 
                 _metrics.Mark("Message Faults", Unit.Errors);
 
-                Logger.ErrorEvent("Fault", e, "[{MessageId:l}] has failed {Retries} times\n{@Headers}\n{ExceptionType} - {ExceptionMessage}", messageId, retries, context.Headers, e.GetType().Name, e.Message);
+                Logger.ErrorEvent("Fault", e, "[{MessageId:l}] has failed {Retries} times\n{@Headers}\n{ExceptionType} - {ExceptionMessage}", messageId, retries, context.MessageHeaders, e.GetType().Name, e.Message);
                 // Only need to reply if the client expects it
-                if (!context.Headers.ContainsKey(Defaults.RequestResponse) || context.Headers[Defaults.RequestResponse] != "1")
+                if (!context.MessageHeaders.ContainsKey(Defaults.RequestResponse) || context.MessageHeaders[Defaults.RequestResponse] != "1")
                     throw;
 
                 // if part of saga be sure to transfer that header
                 var replyOptions = new ReplyOptions();
-                if (context.Headers.TryGetValue(Defaults.SagaHeader, out var sagaId))
+                if (context.MessageHeaders.TryGetValue(Defaults.SagaHeader, out var sagaId))
                     replyOptions.SetHeader(Defaults.SagaHeader, sagaId);
 
                 // Tell the sender the command was not handled due to a service exception

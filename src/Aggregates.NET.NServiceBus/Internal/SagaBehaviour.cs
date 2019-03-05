@@ -26,7 +26,7 @@ namespace Aggregates.Internal
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
             // check header if was a saga message
-            if (!context.Headers.TryGetValue(Defaults.SagaHeader, out var sagaId))
+            if (!context.MessageHeaders.TryGetValue(Defaults.SagaHeader, out var sagaId))
             {
                 await next().ConfigureAwait(false);
                 return;

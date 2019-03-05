@@ -38,11 +38,11 @@ namespace Aggregates.Internal
                     await next().ConfigureAwait(false);
 
                     // Only need to reply if the client expects it
-                    if (context.Headers.ContainsKey(Defaults.RequestResponse) && context.Headers[Defaults.RequestResponse] == "1")
+                    if (context.MessageHeaders.ContainsKey(Defaults.RequestResponse) && context.MessageHeaders[Defaults.RequestResponse] == "1")
                     {
                         // if part of saga be sure to transfer that header
                         var replyOptions = new ReplyOptions();
-                        if (context.Headers.TryGetValue(Defaults.SagaHeader, out var sagaId))
+                        if (context.MessageHeaders.TryGetValue(Defaults.SagaHeader, out var sagaId))
                             replyOptions.SetHeader(Defaults.SagaHeader, sagaId);
 
                         // Tell the sender the command was accepted
@@ -55,12 +55,12 @@ namespace Aggregates.Internal
                     _metrics.Mark("Business Exceptions", Unit.Errors);
                     
                     Logger.InfoEvent("BusinessException", "{MessageId} {MessageType} rejected {Message}", context.MessageId, context.Message.MessageType.FullName, e.Message);
-                    if (!context.Headers.ContainsKey(Defaults.RequestResponse) || context.Headers[Defaults.RequestResponse] != "1")
+                    if (!context.MessageHeaders.ContainsKey(Defaults.RequestResponse) || context.MessageHeaders[Defaults.RequestResponse] != "1")
                         return; // Dont throw, business exceptions are not message failures
 
                     // if part of saga be sure to transfer that header
                     var replyOptions = new ReplyOptions();
-                    if (context.Headers.TryGetValue(Defaults.SagaHeader, out var sagaId))
+                    if (context.MessageHeaders.TryGetValue(Defaults.SagaHeader, out var sagaId))
                         replyOptions.SetHeader(Defaults.SagaHeader, sagaId);
 
                     // Tell the sender the command was rejected due to a business exception
