@@ -28,11 +28,11 @@ namespace Aggregates.Internal
         public string ChannelKey { get; set; }
         public string SpecificKey { get; set; }
     }
-    internal class BulkInvokeHandlerTerminator : PipelineTerminator<IInvokeHandlerContext>
+    public class BulkInvokeHandlerTerminator : PipelineTerminator<IInvokeHandlerContext>
     {
         private static readonly ILog Logger = LogProvider.GetLogger("BulkInvokeHandler");
         private static readonly ILog SlowLogger = LogProvider.GetLogger("Slow Alarm");
-        
+
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
         private static readonly object Lock = new object();
         private static readonly HashSet<string> IsNotDelayed = new HashSet<string>();
@@ -48,7 +48,7 @@ namespace Aggregates.Internal
 
         protected override async Task Terminate(IInvokeHandlerContext context)
         {
-            if (context.Extensions.TryGet(out ActiveSagaInstance saga) && saga.NotFound && ((SagaMetadata)saga.GetType().GetProperty("Metadata", BindingFlags.NonPublic).GetValue(saga)).SagaType == context.MessageHandler.Instance.GetType())
+            if (context.Extensions.TryGet(out ActiveSagaInstance saga) && saga.NotFound && ((SagaMetadata)(saga.GetType().GetProperty("Metadata", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(saga))).SagaType == context.MessageHandler.Instance.GetType())
             {
                 return;
             }
@@ -65,7 +65,7 @@ namespace Aggregates.Internal
                 // Catch in case IDelayedChannel isn't registered which shouldn't happen unless a user registered Consumer without GetEventStore
             }
 
-                var msgType = context.MessageBeingHandled.GetType();
+            var msgType = context.MessageBeingHandled.GetType();
             if (!msgType.IsInterface)
                 msgType = _mapper.GetMappedTypeFor(msgType) ?? msgType;
 
@@ -94,14 +94,14 @@ namespace Aggregates.Internal
             // originally came in
             if (!string.IsNullOrEmpty(contextChannelKey))
                 return;
-            
+
 
             if (IsDelayed.ContainsKey(channelKey))
             {
                 DelayedAttribute delayed;
                 IsDelayed.TryGetValue(channelKey, out delayed);
 
-                
+
                 var specificKey = "";
                 if (delayed.KeyPropertyFunc != null)
                 {
@@ -142,14 +142,14 @@ namespace Aggregates.Internal
                     age = await channel.Age(channelKey, key: specificKey).ConfigureAwait(false);
                 if (delayed.Count.HasValue)
                     size = await channel.Size(channelKey, key: specificKey).ConfigureAwait(false);
-                
+
                 if (!ShouldExecute(delayed, size, age))
                     return;
-                                
+
                 context.Extensions.Set<bool>("BulkInvoked", true);
-                
+
                 Logger.DebugEvent("Threshold", "Count [{Count}] DelayMs [{DelayMs}] bulk procesing Size [{Size}] Age [{Age}] - [{Channel:l}] key [{Key:l}]", delayed.Count, delayed.Delay, size, age?.TotalMilliseconds, channelKey, specificKey);
-                
+
                 await InvokeDelayedChannel(channel, channelKey, specificKey, delayed, messageHandler, context).ConfigureAwait(false);
 
                 return;
@@ -163,7 +163,7 @@ namespace Aggregates.Internal
                 lock (Lock) IsNotDelayed.Add(channelKey);
             else
                 IsDelayed.TryAdd(channelKey, single);
-            
+
             await Terminate(context).ConfigureAwait(false);
         }
 
@@ -182,9 +182,9 @@ namespace Aggregates.Internal
             var msgs = await channel.Pull(channelKey, key: specificKey, max: attr.Count).ConfigureAwait(false);
 
             var messages = msgs as IDelayedMessage[] ?? msgs.ToArray();
-            
+
             var count = messages.Length;
-            
+
             using (var ctx = _metrics.Begin("Bulk Messages Time"))
             {
                 switch (attr.Mode)
@@ -197,15 +197,15 @@ namespace Aggregates.Internal
                         await handler.Invoke(messages[0].Message, context).ConfigureAwait(false);
                         break;
                     case DeliveryMode.Last:
-                        await handler.Invoke(messages[messages.Length-1].Message, context).ConfigureAwait(false);
+                        await handler.Invoke(messages[messages.Length - 1].Message, context).ConfigureAwait(false);
                         break;
                     case DeliveryMode.FirstAndLast:
                         await handler.Invoke(messages[0].Message, context).ConfigureAwait(false);
                         await handler.Invoke(messages[messages.Length - 1].Message, context).ConfigureAwait(false);
                         break;
                 }
-                
-                if(ctx.Elapsed > TimeSpan.FromSeconds(5))
+
+                if (ctx.Elapsed > TimeSpan.FromSeconds(5))
                     SlowLogger.InfoEvent("Invoked", "{Count} messages channel [{Channel:l}] key [{Key:l}] took {Milliseconds} ms", count, channelKey, specificKey, ctx.Elapsed.TotalMilliseconds);
                 Logger.DebugEvent("Invoked", "{Count} messages channel [{Channel:l}] key [{Key:l}] took {Milliseconds} ms", count, channelKey, specificKey, ctx.Elapsed.TotalMilliseconds);
 
