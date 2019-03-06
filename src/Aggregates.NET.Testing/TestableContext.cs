@@ -126,16 +126,26 @@ namespace Aggregates
         public void AcceptCommand<TCommand>(Func<TCommand, bool> match) where TCommand : class, Aggregates.Messages.ICommand
         {
             var accept = Test.CreateInstance<Messages.Accept>();
-            _session.When<TCommand, Messages.Accept>(match, accept);
+            _session.When(match, accept);
         }
         public void RejectCommand<TCommand>(Func<TCommand, bool> match) where TCommand : class, Aggregates.Messages.ICommand
         {
             var reject = Test.CreateInstance<Messages.Reject>();
-            _session.When<TCommand, Messages.Reject>(match, reject);
+            _session.When(match, reject);
         }
 
         public RepliedMessage<object>[] RepliedMessages => _ctx.RepliedMessages;
         public string[] ForwardedMessages => _ctx.ForwardedMessages;
-        public SentMessage<object>[] SentMessages => _ctx.SentMessages;
+        public SentMessage<object>[] SentMessages
+        {
+            get
+            {
+                // Combine commands sent via "Saga" into sent messages
+                var sagas = _ctx.SentMessages.Where(x => x.Message is Sagas.StartCommandSaga);
+                var translatedCommands = sagas.SelectMany(x => (x.Message as Sagas.StartCommandSaga).Commands.Select(y => new SentMessage<object>(y, x.Options)));
+
+                return _ctx.SentMessages.Where(x => !(x.Message is Sagas.StartCommandSaga)).Concat(translatedCommands).ToArray();
+            }
+        }
     }
 }
