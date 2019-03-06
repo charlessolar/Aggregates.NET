@@ -1,8 +1,8 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
-    <RootNamespace>_3._Tests</RootNamespace>
+    <RootNamespace>_5._Tests</RootNamespace>
 
     <IsPackable>false</IsPackable>
   </PropertyGroup>
@@ -20,9 +20,10 @@
     </PackageReference>
     <DotNetCliToolReference Include="dotnet-xunit" Version="2.3.1" />
   </ItemGroup>
+
   <ItemGroup>
-    <ProjectReference Include="..\3. Domain\3. Domain.csproj" />
-    <ProjectReference Include="..\3. Language\3. Language.csproj" />
+    <ProjectReference Include="..\5. Domain\5. Domain.csproj" />
+    <ProjectReference Include="..\5. Language\5. Language.csproj" />
   </ItemGroup>
 
   <ItemGroup>

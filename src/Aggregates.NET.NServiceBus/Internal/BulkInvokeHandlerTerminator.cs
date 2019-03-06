@@ -49,9 +49,8 @@ namespace Aggregates.Internal
         protected override async Task Terminate(IInvokeHandlerContext context)
         {
             if (context.Extensions.TryGet(out ActiveSagaInstance saga) && saga.NotFound && ((SagaMetadata)(saga.GetType().GetProperty("Metadata", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(saga))).SagaType == context.MessageHandler.Instance.GetType())
-            {
                 return;
-            }
+            
 
             IDelayedChannel channel = null;
             try

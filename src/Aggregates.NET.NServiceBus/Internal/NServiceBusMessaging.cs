@@ -71,9 +71,8 @@ namespace Aggregates.Internal
             {
                 var cur = toCheck.IsGenericType ? toCheck.GetGenericTypeDefinition() : toCheck;
                 if (generic == cur)
-                {
                     return true;
-                }
+                
                 toCheck = toCheck.BaseType;
             }
             return false;

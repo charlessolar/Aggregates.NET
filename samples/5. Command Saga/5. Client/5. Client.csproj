@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\1. Language\1. Language.csproj" />
+    <ProjectReference Include="..\5. Language\5. Language.csproj" />
   </ItemGroup>
 
   <ItemGroup>

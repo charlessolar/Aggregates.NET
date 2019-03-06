@@ -42,7 +42,7 @@ namespace Domain
         {
             Console.Title = "Domain";
             Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
+                .MinimumLevel.Warning()
                 .Enrich.FromLogContext()
                .WriteTo.Console(outputTemplate: "[{Level}] {Message}{NewLine}{Exception}")
                .CreateLogger();
@@ -116,6 +116,7 @@ namespace Domain
                     .EventStore(new[] { client })
                     .NewtonsoftJson()
                     .NServiceBus(config)
+                    .SetCommandDestination("domain")
                     );
 
             return Aggregates.Bus.Instance;

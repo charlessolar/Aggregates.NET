@@ -1,4 +1,5 @@
 ﻿using Aggregates;
+using Aggregates.Extensions;
 using EventStore.ClientAPI;
 using EventStore.ClientAPI.SystemData;
 using Language;
@@ -18,12 +19,13 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Domain
+namespace Client
 {
     class Endpoint
     {
         static readonly ManualResetEvent QuitEvent = new ManualResetEvent(false);
         private static StructureMap.IContainer _container;
+
         private static void UnhandledExceptionTrapper(object sender, UnhandledExceptionEventArgs e)
         {
             Log.Fatal("<{EventId:l}> Unhandled exception {Exception}", "Unhandled", e.ExceptionObject);
@@ -40,14 +42,14 @@ namespace Domain
 
         private static void Main(string[] args)
         {
-            Console.Title = "Domain";
+            Console.Title = "Client";
             Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
+                .MinimumLevel.Warning()
                 .Enrich.FromLogContext()
                .WriteTo.Console(outputTemplate: "[{Level}] {Message}{NewLine}{Exception}")
                .CreateLogger();
-
-
+            
+           
             AppDomain.CurrentDomain.UnhandledException += UnhandledExceptionTrapper;
             AppDomain.CurrentDomain.FirstChanceException += ExceptionTrapper;
 
@@ -67,24 +69,49 @@ namespace Domain
             });
 
             var bus = InitBus().Result;
-            
-            Console.WriteLine("Press CTRL+C to exit...");
-            Console.CancelKeyPress += (sender, eArgs) =>
+
+            var running = true;
+
+            Console.WriteLine($"Use 'exit' to stop");
+            Console.SetCursorPosition(Console.CursorLeft, Console.WindowTop + Console.WindowHeight - 2);
+            Console.WriteLine("Please enter a message to send:");
+            do
             {
-                QuitEvent.Set();
-                eArgs.Cancel = true;
-            };
-            QuitEvent.WaitOne();
+                var message = Console.ReadLine();
+
+                // clear input
+                var current = Console.CursorTop - 1;
+                Console.SetCursorPosition(0, Console.CursorTop - 1);
+                Console.Write(new string(' ', Console.WindowWidth));
+                Console.SetCursorPosition(0, current + 1);
+
+                if (message.ToUpper() == "EXIT")
+                    running = false;
+                else
+                {
+                    try
+                    {
+                        bus.Command("domain", new SayHello { Message = message }).Wait();
+                    }
+                    catch (AggregateException e)
+                    {
+                        var rejection = e.InnerException;
+
+                        Log.Warning("<{EventId:l}> Command rejected due to: {Message}", "Rejection", rejection.Message);
+                    }
+                }
+
+            } while (running);
 
             bus.Stop().Wait();
         }
 
         private static async Task<IEndpointInstance> InitBus()
         {
-            var endpoint = "domain";
+            var endpoint = "client";
+
 
             var config = new EndpointConfiguration(endpoint);
-
 
             Log.Information("<{EventId:l}> Initializing Service Bus", "Init");
 
@@ -96,7 +123,7 @@ namespace Domain
             config.UsePersistence<InMemoryPersistence>();
             config.UseContainer<StructureMapBuilder>(c => c.ExistingContainer(_container));
 
-            if (Log.Logger.IsEnabled(Serilog.Events.LogEventLevel.Debug))
+            if (Log.IsEnabled(Serilog.Events.LogEventLevel.Debug))
             {
                 ////config.EnableCriticalTimePerformanceCounter();
                 config.Pipeline.Register(
@@ -107,7 +134,6 @@ namespace Domain
 
             config.Pipeline.Remove("LogErrorOnInvalidLicense");
             //config.EnableFeature<RoutedFeature>();
-
 
             var client = await ConfigureStore();
 
@@ -160,14 +186,14 @@ namespace Domain
                     .SetGossipTimeout(TimeSpan.FromMinutes(5))
                     .Build();
 
-                client = EventStoreConnection.Create(settings, clusterSettings, "Domain");
+                client = EventStoreConnection.Create(settings, clusterSettings, "Events");
             }
             else
-                client = EventStoreConnection.Create(settings, endpoints.First(), "Domain");
+                client = EventStoreConnection.Create(settings, endpoints.First(), "Events");
 
 
             await client.ConnectAsync();
-
+            
             return client;
         }
 
@@ -176,15 +202,18 @@ namespace Domain
     {
         public override Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
+
             Log.Debug("<{EventId:l}> Received message '{MessageType}'.\n" +
                             "ToString() of the message yields: {MessageBody}\n" +
                             "Message headers:\n{MessageHeaders}", "Incoming",
                             context.Message.MessageType != null ? context.Message.MessageType.AssemblyQualifiedName : "unknown",
                 context.Message.Instance,
                 string.Join(", ", context.MessageHeaders.Select(h => h.Key + ":" + h.Value).ToArray()));
-            
+
+
             return next();
 
         }
+        
     }
 }
