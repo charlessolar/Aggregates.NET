@@ -53,6 +53,7 @@ namespace Aggregates
 
                 settings.Set("Retries", config.Retries);
                 settings.Set("SlowAlertThreshold", config.SlowAlertThreshold);
+                settings.Set("CommandDestination", config.CommandDestination);
 
                 // Set immediate retries to 0 - we handle retries ourselves any message which throws should be sent to error queue
                 endpointConfig.Recoverability().Immediate(x =>

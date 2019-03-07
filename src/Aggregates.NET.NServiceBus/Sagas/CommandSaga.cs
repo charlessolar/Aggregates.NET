@@ -17,12 +17,12 @@ namespace Aggregates.Sagas
         private List<Messages.ICommand> _abortCommands;
         private string _domainDestination;
 
-        internal CommandSaga(IMessageHandlerContext context, string sagaId, Messages.IMessage originating, string domainDestimation = null)
+        internal CommandSaga(IMessageHandlerContext context, string sagaId, Messages.IMessage originating, string domainDestimation)
         {
             _context = context;
             _sagaId = sagaId;
             _originating = originating;
-            _domainDestination = string.IsNullOrEmpty(domainDestimation) ? Configuration.Settings.CommandDestination : domainDestimation;
+            _domainDestination = domainDestimation;
             _commands = new List<Messages.ICommand>();
             _abortCommands = new List<Messages.ICommand>();
 
