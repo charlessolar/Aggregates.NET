@@ -16,9 +16,9 @@
     <ProjectReference Include="..\4. Language\4. Language.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Aggregates.NET.EventStore" Version="0.14.81.378" />
-    <PackageReference Include="Aggregates.NET.NewtonsoftJson" Version="0.14.81.378" />
-    <PackageReference Include="Aggregates.NET.NServiceBus" Version="0.14.81.378" />
-    <PackageReference Include="Aggregates.NET.StructureMap" Version="0.14.81.378" />
+    <PackageReference Include="Aggregates.NET.EventStore" Version="0.14.85.382" />
+    <PackageReference Include="Aggregates.NET.NewtonsoftJson" Version="0.14.85.382" />
+    <PackageReference Include="Aggregates.NET.NServiceBus" Version="0.14.85.382" />
+    <PackageReference Include="Aggregates.NET.StructureMap" Version="0.14.85.382" />
   </ItemGroup>
 </Project>

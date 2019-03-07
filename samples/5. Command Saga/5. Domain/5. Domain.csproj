@@ -6,10 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aggregates.NET.EventStore" Version="0.14.81.378" />
-    <PackageReference Include="Aggregates.NET.NewtonsoftJson" Version="0.14.81.378" />
-    <PackageReference Include="Aggregates.NET.NServiceBus" Version="0.14.81.378" />
-    <PackageReference Include="Aggregates.NET.StructureMap" Version="0.14.81.378" />
+    <PackageReference Include="Aggregates.NET.EventStore" Version="0.14.85.382" />
+    <PackageReference Include="Aggregates.NET.NewtonsoftJson" Version="0.14.85.382" />
+    <PackageReference Include="Aggregates.NET.NServiceBus" Version="0.14.85.382" />
+    <PackageReference Include="Aggregates.NET.StructureMap" Version="0.14.85.382" />
     <PackageReference Include="EventStore.ClientAPI.NetCore" Version="4.1.0.23" />
     <PackageReference Include="NServiceBus.Callbacks" Version="3.0.0" />
     <PackageReference Include="NServiceBus.Newtonsoft.Json" Version="2.2.0" />

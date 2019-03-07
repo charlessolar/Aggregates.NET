@@ -5,6 +5,7 @@ using AutoFixture.Xunit2;
 using Domain;
 using Language;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -20,25 +21,18 @@ namespace Tests
     public class World
     {
         [Theory, AutoFakeItEasyData]
-        public async Task should_send_two_hellos_after_first(
+        public async Task should_send_two_echos(
             TestableContext context,
             Handler handler
             )
         {
-            context.UoW.Plan<Domain.World>("World").HasEvent<SaidHello>(x =>
-            {
-                x.Message = "foo";
-            });
+            context.Extensions.Set("CommandDestination", "domain");
 
-            await handler.Handle(new SayHello
-            {
-                Message = "test"
-            }, context).ConfigureAwait(false);
+            var @event = context.Create<SaidHello>(x => { });
 
-            context.UoW.Check<Domain.World>("World").Raised<SaidHello>(x =>
-            {
-                x.Message = "test";
-            });
+            await handler.Handle(@event, context).ConfigureAwait(false);
+
+            Assert.Equal(2, context.SentMessages.Select(x => x.Message).OfType<Echo>().Count());             
         }
     }
 }
