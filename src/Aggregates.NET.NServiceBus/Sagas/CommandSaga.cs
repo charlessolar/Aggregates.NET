@@ -15,17 +15,19 @@ namespace Aggregates.Sagas
         private Messages.IMessage _originating;
         private List<Messages.ICommand> _commands;
         private List<Messages.ICommand> _abortCommands;
+        private string _domainDestination;
 
-        internal CommandSaga(IMessageHandlerContext context, string sagaId, Messages.IMessage originating)
+        internal CommandSaga(IMessageHandlerContext context, string sagaId, Messages.IMessage originating, string domainDestimation = null)
         {
             _context = context;
             _sagaId = sagaId;
             _originating = originating;
+            _domainDestination = string.IsNullOrEmpty(domainDestimation) ? Configuration.Settings.CommandDestination : domainDestimation;
             _commands = new List<Messages.ICommand>();
             _abortCommands = new List<Messages.ICommand>();
 
-            if (string.IsNullOrEmpty(Configuration.Settings.CommandDestination))
-                throw new ArgumentException($"Usage of SAGA depends on Configuration.SetCommandDestination");
+            if (string.IsNullOrEmpty(_domainDestination))
+                throw new ArgumentException($"Usage of SAGA needs a domain destination or specify Configuration.SetCommandDestination");
         }
 
         public CommandSaga Command(Messages.ICommand command)
@@ -52,7 +54,7 @@ namespace Aggregates.Sagas
 
 
             var options = new SendOptions();
-            options.SetDestination(Configuration.Settings.CommandDestination);
+            options.SetDestination(_domainDestination);
             options.SetHeader(Defaults.RequestResponse, "0");
             options.SetHeader(Defaults.SagaHeader, message.SagaId);
 

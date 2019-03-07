@@ -69,12 +69,12 @@ namespace Aggregates
             return Task.CompletedTask;
         }
 
-        public static CommandSaga Saga(this IMessageHandlerContext context, Id sagaId)
+        public static CommandSaga Saga(this IMessageHandlerContext context, Id sagaId, string domainDestination = null)
         {
             // Don't know if this is the best way to get the current message
             var currentMessage = (context as IInvokeHandlerContext)?.MessageBeingHandled as Messages.IMessage;
 
-            return new CommandSaga(context, sagaId, currentMessage);
+            return new CommandSaga(context, sagaId, currentMessage, domainDestination);
         }
     }
 }
