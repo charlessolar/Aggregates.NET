@@ -71,6 +71,9 @@ namespace Aggregates
 
         public static CommandSaga Saga(this IMessageHandlerContext context, Id sagaId, string domainDestination = null)
         {
+            if (domainDestination == null)
+                domainDestination = Configuration.Settings.CommandDestination;
+
             if (string.IsNullOrEmpty(domainDestination) && !context.Extensions.TryGet("CommandDestination", out domainDestination))
                 throw new ArgumentException("Configuration lacks CommandDestination [Configuration.SetCommandDestination]");
             // Don't know if this is the best way to get the current message
