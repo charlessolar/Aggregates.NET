@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Aggregates.Internal;
 using Aggregates.Messages;
 
 namespace Aggregates.Contracts
@@ -9,9 +10,9 @@ namespace Aggregates.Contracts
     {
         Id Id { get; }
         string Bucket { get; }
-        Id[] Parents { get; }
 
         long Version { get; }
+        long StateVersion { get; }
         bool Dirty { get; }
         IFullEvent[] Uncommitted { get; }
     }
@@ -26,8 +27,12 @@ namespace Aggregates.Contracts
         void Apply(IEvent @event);
         void Raise(IEvent @event, string id, bool transient = false, int? daysToLive = null, bool? single = null);
     }
-    public interface IChildEntity<out TParent> where TParent : IEntity
+    public interface IChildEntity : IEntity
     {
-        TParent Parent { get; }
+        IEntity Parent { get; }
+    }
+    public interface IChildEntity<out TParent> : IChildEntity where TParent : IEntity
+    {
+        new TParent Parent { get; }
     }
 }

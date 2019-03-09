@@ -29,7 +29,7 @@ namespace Aggregates.Common
         public async Task ShouldNotGetEntityFromTryGet()
         {
             var store = Fake<IStoreEntities>();
-            A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Throws<NotFoundException>();
+            A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Throws<NotFoundException>();
             Inject(store);
 
             var entity = await Sut.TryGet("test").ConfigureAwait(false);
@@ -45,7 +45,7 @@ namespace Aggregates.Common
         public async Task ShouldGetExceptionFromGetUnknown()
         {
             var store = Fake<IStoreEntities>();
-            A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Throws<NotFoundException>();
+            A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Throws<NotFoundException>();
             Inject(store);
 
             var e = await Record.ExceptionAsync(() => Sut.Get("test")).ConfigureAwait(false);

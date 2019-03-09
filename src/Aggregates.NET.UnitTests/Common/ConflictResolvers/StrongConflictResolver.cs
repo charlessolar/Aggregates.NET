@@ -27,7 +27,7 @@ namespace Aggregates.Common.ConflictResolvers
 
             var sut = new Internal.ResolveStronglyConflictResolver(store);
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
-            A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Returns(cleanEntity);
+            A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Returns(cleanEntity);
 
             await sut.Resolve<FakeEntity, FakeState>(entity, Fake<Guid>(), Fake<Dictionary<string, string>>())
                 .ConfigureAwait(false);
@@ -58,7 +58,7 @@ namespace Aggregates.Common.ConflictResolvers
             // The entity we get back from the store during a conflict
             var cleanEntity = Fake<FakeEntity>();
             var store = Fake<IStoreEntities>();
-            A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Returns(cleanEntity);
+            A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Returns(cleanEntity);
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
 
             cleanEntity.State.ThrowAbandon = true;
@@ -77,7 +77,7 @@ namespace Aggregates.Common.ConflictResolvers
             // The entity we get back from the store during a conflict
             var cleanEntity = Fake<FakeEntity>();
             var store = Fake<IStoreEntities>();
-            A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Returns(cleanEntity);
+            A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Returns(cleanEntity);
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
 
             cleanEntity.State.ThrowDiscard = true;
@@ -97,7 +97,7 @@ namespace Aggregates.Common.ConflictResolvers
             var cleanEntity = Fake<FakeEntity>();
             (cleanEntity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             var store = Fake<IStoreEntities>();
-            A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Returns(cleanEntity);
+            A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Returns(cleanEntity);
             entity.RaiseEvents(Many<FakeOobEvent.FakeEvent>(), "test");
 
             var sut = new Internal.ResolveStronglyConflictResolver(store);
@@ -118,7 +118,7 @@ namespace Aggregates.Common.ConflictResolvers
             // The entity we get back from the store during a conflict
             var cleanEntity = Fake<FakeEntity>();
             (cleanEntity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
-            A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Returns(cleanEntity);
+            A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Returns(cleanEntity);
             entity.RaiseEvents(Many<FakeOobEvent.FakeEvent>(), "test", false, 1);
 
             var sut = new Internal.ResolveStronglyConflictResolver(store);

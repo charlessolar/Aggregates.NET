@@ -16,9 +16,11 @@ namespace Aggregates
 {
     public abstract class Entity<TThis, TState, TParent> : Entity<TThis, TState>, IChildEntity<TParent> where TParent : IEntity where TThis : Entity<TThis, TState, TParent> where TState : class, IState, new()
     {
+        IEntity IChildEntity.Parent => Parent;
         TParent IChildEntity<TParent>.Parent => Parent;
 
         public TParent Parent { get; internal set; }
+        
     }
 
     public abstract class Entity<TThis, TState> : IEntity<TState>, IHaveEntities<TThis>, INeedDomainUow, INeedEventFactory, INeedStore, INeedVersionRegistrar where TThis : Entity<TThis, TState> where TState : class, IState, new()
@@ -29,9 +31,9 @@ namespace Aggregates
 
         public Id Id { get; private set; }
         public string Bucket { get; private set; }
-        public Id[] Parents { get; private set; }
         public long Version { get; private set; }
         public TState State { get; private set; }
+        public long StateVersion => State.Version;
 
         public bool Dirty => Uncommitted.Any() || Version == EntityFactory.NewEntityVersion;
 
@@ -52,11 +54,11 @@ namespace Aggregates
         IOobWriter INeedStore.OobWriter { get; set; }
         IVersionRegistrar INeedVersionRegistrar.Registrar { get; set; }
 
+
         void IEntity<TState>.Instantiate(TState state)
         {
             Id = state.Id;
             Bucket = state.Bucket;
-            Parents = state.Parents;
             Version = state.Version;
             State = state;
 
@@ -86,29 +88,6 @@ namespace Aggregates
         {
             return Uow.For<TEntity, TThis>(this as TThis);
         }
-        public Task<long> GetSize(string oob = null)
-        {
-            if (!string.IsNullOrEmpty(oob))
-                return OobWriter.GetSize<TThis>(Bucket, Id, Parents, oob);
-
-            return Store.Size<TThis>(Bucket, Id, Parents);
-        }
-
-        public Task<IFullEvent[]> GetEvents(long start, int count, string oob = null)
-        {
-            if (!string.IsNullOrEmpty(oob))
-                return OobWriter.GetEvents<TThis>(Bucket, Id, Parents, oob, start, count);
-
-            return Store.GetEvents<TThis>(Bucket, Id, Parents, start, count);
-        }
-
-        public Task<IFullEvent[]> GetEventsBackwards(long start, int count, string oob = null)
-        {
-            if (!string.IsNullOrEmpty(oob))
-                return OobWriter.GetEventsBackwards<TThis>(Bucket, Id, Parents, oob, start, count);
-
-            return Store.GetEventsBackwards<TThis>(Bucket, Id, Parents, start, count);
-        }
 
         void IEntity<TState>.Conflict(IEvent @event)
         {
@@ -120,57 +99,14 @@ namespace Aggregates
         void IEntity<TState>.Apply(IEvent @event)
         {
             State.Apply(@event);
-            var eventId = Internal.UnitOfWork.NextEventId(Uow.CommitId);
-            
-            _uncommitted.Add(new FullEvent
-            {
-                Descriptor = new EventDescriptor
-                {
-                    EntityType = VersionRegistrar.GetVersionedName(typeof(TThis)),
-                    StreamType = StreamTypes.Domain,
-                    Bucket = Bucket,
-                    StreamId = Id,
-                    Parents = Parents,
-                    Timestamp = DateTime.UtcNow,
-                    Version = State.Version,
-                    Headers = new Dictionary<string, string>()
-                    {
-                        [$"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}"] = eventId.ToString(),
-                        [$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = Uow.CommitId.ToString()
-                    }
-                },
-                EventId = eventId,
-                Event = @event
-            });
+
+            var newEvent = FullEventFactory.Event(VersionRegistrar, Uow, this, @event);
+            _uncommitted.Add(newEvent);
         }
 
         void IEntity<TState>.Raise(IEvent @event, string id, bool transient, int? daysToLive, bool? single)
         {
-            var eventId = Internal.UnitOfWork.NextEventId(Uow.CommitId);
-            
-            var newEvent = new FullEvent
-            {
-                Descriptor = new EventDescriptor
-                {
-                    EntityType = VersionRegistrar.GetVersionedName(typeof(TThis)),
-                    StreamType = StreamTypes.OOB,
-                    Bucket = Bucket,
-                    StreamId = Id,
-                    Parents = Parents,
-                    Timestamp = DateTime.UtcNow,
-                    Version = State.Version,
-                    Headers = new Dictionary<string, string>()
-                    {
-                        [$"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}"] = eventId.ToString(),
-                        [$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = Uow.CommitId.ToString(),
-                        [Defaults.OobHeaderKey] = id,
-                        [Defaults.OobTransientKey] = transient.ToString(),
-                        [Defaults.OobDaysToLiveKey] = daysToLive.ToString()
-                    }
-                },
-                EventId = eventId,
-                Event = @event
-            };
+            var newEvent = FullEventFactory.OOBEvent(VersionRegistrar, Uow, this, @event, id, transient, daysToLive);
 
             if (single.HasValue && single == true &&
                 _uncommitted.Any(x => x.Descriptor.Headers.ContainsKey(Defaults.OobHeaderKey) && x.Descriptor.Headers[Defaults.OobHeaderKey] == id))
@@ -220,8 +156,8 @@ namespace Aggregates
 
         public override string ToString()
         {
-            var parents = Parents != null && Parents.Any() ? $" [{Parents.BuildParentsString()}] " : " ";
-            return $"{typeof(TThis).FullName} [{Bucket}]{parents}[{Id}] v{Version}({_uncommitted.Count})";
+            //var parents = Parents != null && Parents.Any() ? $" [{Parents.BuildParentsString()}] " : " ";
+            return $"{typeof(TThis).FullName} [{Bucket}] [{Id}] v{Version}({_uncommitted.Count})";
         }
     }
 }

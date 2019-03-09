@@ -41,11 +41,11 @@ namespace Aggregates.Internal
         public override async Task<TEntity> Get(Id id)
         {
             id = _ids.MakeId(id);
-            var cacheId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{id}";
+            var cacheId = $"{_parent.Bucket}.{_parent.Id}.{id}";
             TEntity root;
             if (!Tracked.TryGetValue(cacheId, out root))
             {
-                root = await GetUntracked(_parent.Bucket, id, _parent.BuildParents()).ConfigureAwait(false);
+                root = await GetUntracked(_parent.Bucket, id, _parent).ConfigureAwait(false);
                 if (!Tracked.TryAdd(cacheId, root))
                     throw new InvalidOperationException($"Could not add cache key [{cacheId}] to repo tracked");
             }
@@ -56,12 +56,12 @@ namespace Aggregates.Internal
         public override async Task<TEntity> New(Id id)
         {
             id = _ids.MakeId(id);
-            var cacheId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{id}";
+            var cacheId = $"{_parent.Bucket}.{_parent.Id}.{id}";
 
             TEntity root;
             if (!Tracked.TryGetValue(cacheId, out root))
             {
-                root = await NewUntracked(_parent.Bucket, id, _parent.BuildParents()).ConfigureAwait(false);
+                root = await NewUntracked(_parent.Bucket, id, _parent).ConfigureAwait(false);
                 if (!Tracked.TryAdd(cacheId, root))
                     throw new InvalidOperationException($"Could not add cache key [{cacheId}] to repo tracked");
             }
@@ -75,7 +75,7 @@ namespace Aggregates.Internal
         }
         public override IEventPlanner<TEntity> Plan(TestableId id)
         {
-            return new EventPlanner<TEntity, TState>(_uow, _ids, _eventstore, _snapstore, _factory, () => Get(id).Result, _parent.Bucket, id, _parent.BuildParents());
+            return new EventPlanner<TEntity, TState>(_uow, _ids, _eventstore, _snapstore, _factory, () => Get(id).Result, _parent.Bucket, id, _parent);
         }
         public override IEventChecker<TEntity> Check(Id id)
         {
@@ -84,24 +84,24 @@ namespace Aggregates.Internal
         }
         public override IEventChecker<TEntity> Check(TestableId id)
         {
-            var cacheId = $"{_parent.Bucket}.{_parent.BuildParentsString()}.{id}";
+            var cacheId = $"{_parent.Bucket}.{_parent.Id}.{id}";
             if (!Tracked.ContainsKey(cacheId))
                 throw new ExistException(typeof(TEntity), _parent.Bucket, id);
             return new EventChecker<TEntity, TState>(_uow, _ids, _factory, Tracked[cacheId]);
         }
 
-        protected override async Task<TEntity> GetUntracked(string bucket, Id id, Id[] parents)
+        protected override async Task<TEntity> GetUntracked(string bucket, Id id, IEntity parent)
         {
-            var entity = await base.GetUntracked(bucket, id, parents).ConfigureAwait(false);
+            var entity = await base.GetUntracked(bucket, id, parent).ConfigureAwait(false);
 
             entity.Parent = _parent;
 
             return entity;
         }
 
-        protected override async Task<TEntity> NewUntracked(string bucket, Id id, Id[] parents)
+        protected override async Task<TEntity> NewUntracked(string bucket, Id id, IEntity parent)
         {
-            var entity = await base.NewUntracked(bucket, id, parents).ConfigureAwait(false);
+            var entity = await base.NewUntracked(bucket, id, parent).ConfigureAwait(false);
 
             entity.Parent = _parent;
 
@@ -136,6 +136,15 @@ namespace Aggregates.Internal
 
         public int ChangedStreams => Tracked.Count(x => x.Value.Dirty);
 
+        private IParentDescriptor[] getParents(IEntity entity)
+        {
+            if (entity == null || !(entity is IChildEntity))
+                return null;
+
+            var parents = getParents((entity as IChildEntity).Parent)?.ToList() ?? new List<IParentDescriptor>();
+            parents.Add(new ParentDescriptor { EntityType = _registrar.GetVersionedName(entity.GetType()), Id = entity.Id });
+            return parents.ToArray();
+        }
         public void Dispose()
         {
             Dispose(true);
@@ -170,13 +179,13 @@ namespace Aggregates.Internal
 
             return root;
         }
-        protected virtual async Task<TEntity> GetUntracked(string bucket, Id id, Id[] parents = null)
+        protected virtual async Task<TEntity> GetUntracked(string bucket, Id id, IEntity parent = null)
         {
             id = _ids.MakeId(id);
-            var snapshot = await _snapstore.GetSnapshot<TEntity>(bucket, id, parents).ConfigureAwait(false);
-            var events = await _eventstore.GetEvents<TEntity>(bucket, id, parents, start: snapshot?.Version).ConfigureAwait(false);
+            var snapshot = await _snapstore.GetSnapshot<TEntity>(bucket, id, parent.GetParentIds()).ConfigureAwait(false);
+            var events = await _eventstore.GetEvents<TEntity>(bucket, id, parent.GetParentIds(), start: snapshot?.Version).ConfigureAwait(false);
 
-            var entity = Factory.Create(bucket, id, parents, events.Select(x => x.Event as Messages.IEvent).ToArray(), snapshot?.Payload);
+            var entity = Factory.Create(bucket, id, getParents(parent), events.Select(x => x.Event as Messages.IEvent).ToArray(), snapshot?.Payload);
 
             (entity as INeedDomainUow).Uow = _uow;
             (entity as INeedEventFactory).EventFactory = _factory;
@@ -205,14 +214,14 @@ namespace Aggregates.Internal
             }
             return root;
         }
-        protected virtual Task<TEntity> NewUntracked(string bucket, Id id, Id[] parents = null)
+        protected virtual Task<TEntity> NewUntracked(string bucket, Id id, IEntity parent = null)
         {
             // If the test wants to NEW an existing stream, mimic what would happen (AlreadyExistsException)
-            if (_eventstore.StreamExists<TEntity>(bucket, id, parents))
-                throw new EntityAlreadyExistsException<TEntity>(bucket, id, parents);
+            if (_eventstore.StreamExists<TEntity>(bucket, id, parent.GetParentIds()))
+                throw new EntityAlreadyExistsException<TEntity>(bucket, id, parent.GetParentIds());
 
             id = _ids.MakeId(id);
-            var entity = Factory.Create(bucket, id, parents);
+            var entity = Factory.Create(bucket, id, getParents(parent));
 
             (entity as INeedDomainUow).Uow = _uow;
             (entity as INeedEventFactory).EventFactory = _factory;

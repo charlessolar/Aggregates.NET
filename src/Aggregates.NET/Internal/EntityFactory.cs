@@ -42,7 +42,7 @@ namespace Aggregates.Internal
             _factory = ReflectionExtensions.BuildCreateEntityFunc<TEntity>();
         }
 
-        public TEntity Create(string bucket, Id id, Id[] parents = null, IEvent[] events = null, object snapshot = null)
+        public TEntity Create(string bucket, Id id, IParentDescriptor[] parents = null, IEvent[] events = null, object snapshot = null)
         {
             // Todo: Can use a simple duck type helper incase snapshot type != TState due to refactor or something
             if (snapshot != null && !(snapshot is TState))

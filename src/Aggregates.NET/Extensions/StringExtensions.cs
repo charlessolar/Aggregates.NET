@@ -1,4 +1,7 @@
-﻿using System;
+﻿using Aggregates.Contracts;
+using Aggregates.Internal;
+using System;
+using System.Linq;
 
 namespace Aggregates.Extensions
 {
@@ -43,6 +46,20 @@ namespace Aggregates.Extensions
                 }
                 return hash;
             }
+        }
+        public static string Flatten(this Id[] ids)
+        {
+            if (ids == null || !ids.Any())
+                return "";
+            return ids.Aggregate((cur, next) => $"{cur}:{next}");
+        }
+        public static Id[] GetParentIds(this IEntity entity)
+        {
+            if (!(entity is IChildEntity))
+                return new Id[] { };
+            var parents = (entity as IChildEntity).Parent.GetParentIds().ToList();
+            parents.Add((entity as IChildEntity).Parent.Id);
+            return parents.ToArray();
         }
     }
 }

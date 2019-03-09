@@ -49,7 +49,7 @@ namespace Aggregates.Internal
     {
         public Task Resolve<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
-            throw new ConflictResolutionFailedException(typeof(TEntity), entity.Bucket, entity.Id, entity.Parents, "No conflict resolution attempted");
+            throw new ConflictResolutionFailedException(typeof(TEntity), entity.Bucket, entity.Id, entity.GetParentIds(), "No conflict resolution attempted");
         }
     }
 
@@ -78,8 +78,8 @@ namespace Aggregates.Internal
             var domainEvents = entity.Uncommitted.Where(x => x.Descriptor.StreamType == StreamTypes.Domain).ToArray();
             var oobEvents = entity.Uncommitted.Where(x => x.Descriptor.StreamType == StreamTypes.OOB).ToArray();
 
-            await _store.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.Parents, domainEvents, commitHeaders).ConfigureAwait(false);
-            await _oobStore.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.Parents, oobEvents, commitId, commitHeaders).ConfigureAwait(false);
+            await _store.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.GetParentIds(), domainEvents, commitHeaders).ConfigureAwait(false);
+            await _oobStore.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.GetParentIds(), oobEvents, commitId, commitHeaders).ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -115,7 +115,7 @@ namespace Aggregates.Internal
             Logger.DebugEvent("Resolver", "Resolving {Events} conflicting events to stream [{Stream:l}] type [{EntityType:l}] bucket [{Bucket:l}]", entity.Uncommitted.Count(), entity.Id, typeof(TEntity).FullName, entity.Bucket);
 
             // Get the latest clean entity
-            var latestEntity = await _store.Get<TEntity, TState>(entity.Bucket, entity.Id, entity.Parents).ConfigureAwait(false);
+            var latestEntity = await _store.Get<TEntity, TState>(entity.Bucket, entity.Id, entity is IChildEntity ? (entity as IChildEntity).Parent : null).ConfigureAwait(false);
 
             Logger.DebugEvent("Behind", "Stream is {Count} events behind store", latestEntity.Version - entity.Version);
 
@@ -156,7 +156,7 @@ namespace Aggregates.Internal
             catch (NoRouteException e)
             {
                 Logger.WarnEvent("ResolveFailure", e, "Failed to resolve conflict: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
-                throw new ConflictResolutionFailedException(typeof(TEntity), entity.Bucket, entity.Id, entity.Parents, "Failed to resolve conflict", e);
+                throw new ConflictResolutionFailedException(typeof(TEntity), entity.Bucket, entity.Id, entity.GetParentIds(), "Failed to resolve conflict", e);
             }
 
             await _store.Commit<TEntity, TState>(latestEntity, commitId, commitHeaders).ConfigureAwait(false);

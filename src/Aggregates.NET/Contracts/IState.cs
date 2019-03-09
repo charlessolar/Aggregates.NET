@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Aggregates.Internal;
 using Aggregates.Messages;
 
 namespace Aggregates.Contracts
@@ -9,7 +10,7 @@ namespace Aggregates.Contracts
     {
         Id Id { get; set;  }
         string Bucket { get; set; }
-        Id[] Parents { get; set; }
+        IParentDescriptor[] Parents { get; set; }
 
         long Version { get; set;  }
 

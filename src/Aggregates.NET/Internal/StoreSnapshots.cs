@@ -74,7 +74,7 @@ namespace Aggregates.Internal
         public async Task WriteSnapshots<T>(IState snapshot, IDictionary<string, string> commitHeaders) where T : IEntity
         {
             
-            var streamName = _streamGen(_registrar.GetVersionedName(typeof(T)), StreamTypes.Snapshot, snapshot.Bucket, snapshot.Id, snapshot.Parents);
+            var streamName = _streamGen(_registrar.GetVersionedName(typeof(T)), StreamTypes.Snapshot, snapshot.Bucket, snapshot.Id, snapshot.Parents.Select(x => x.Id).ToArray());
             Logger.DebugEvent("Write", "[{Stream:l}]", streamName);
 
             // We don't need snapshots to store the previous snapshot

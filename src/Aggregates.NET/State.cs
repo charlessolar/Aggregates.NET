@@ -28,7 +28,7 @@ namespace Aggregates
             get => (this as IState).Bucket;
             set => (this as IState).Bucket = value;
         }
-        public Id[] Parents
+        public IParentDescriptor[] Parents
         {
             get => (this as IState).Parents;
             set => (this as IState).Parents = value;
@@ -46,7 +46,7 @@ namespace Aggregates
         // Trick so we can set these fields ourselves without a constructor
         Id IState.Id { get; set; }
         string IState.Bucket { get; set; }
-        Id[] IState.Parents { get; set; }
+        IParentDescriptor[] IState.Parents { get; set; }
         long IState.Version { get; set; }
         IState IState.Snapshot { get; set; }
         IEvent[] IState.Committed => _committed.ToArray();

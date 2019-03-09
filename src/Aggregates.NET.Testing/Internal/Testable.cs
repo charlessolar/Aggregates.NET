@@ -1,5 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Exceptions;
+using Aggregates.Extensions;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -20,9 +21,9 @@ namespace Aggregates.Internal
         private Func<TEntity> _entityFactory;
         private string _bucket;
         private TestableId _id;
-        private Id[] _parents;
+        private IEntity _parent;
 
-        public EventPlanner(TestableDomain uow, IdRegistry ids, TestableEventStore events, TestableSnapshotStore snapshots, TestableEventFactory factory, Func<TEntity> entityFactory, string bucket, TestableId id, Id[] parents = null)
+        public EventPlanner(TestableDomain uow, IdRegistry ids, TestableEventStore events, TestableSnapshotStore snapshots, TestableEventFactory factory, Func<TEntity> entityFactory, string bucket, TestableId id, IEntity parent = null)
         {
             _ids = ids;
             _uow = uow;
@@ -32,17 +33,17 @@ namespace Aggregates.Internal
             _entityFactory = entityFactory;
             _bucket = bucket;
             _id = id;
-            _parents = parents ?? new Id[] { };
+            _parent = parent;
         }
 
         public IEventPlanner<TEntity> Exists()
         {
-            _events.Exists<TEntity>(_bucket, _id, _parents);
+            _events.Exists<TEntity>(_bucket, _id, _parent.GetParentIds());
             return this;
         }
         public IEventPlanner<TEntity> HasEvent<TEvent>(Action<TEvent> factory)
         {
-            _events.AddEvent<TEntity>(_bucket, _id, _parents, (Messages.IEvent)_factory.Create(factory));
+            _events.AddEvent<TEntity>(_bucket, _id, _parent.GetParentIds(), (Messages.IEvent)_factory.Create(factory));
             return this;
         }
         public IEventPlanner<TEntity> HasSnapshot(object snapshot)

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Aggregates.Internal;
+using System;
 using System.Collections.Generic;
 
 namespace Aggregates.Contracts
@@ -14,7 +15,7 @@ namespace Aggregates.Contracts
         string StreamType { get; }
         string Bucket { get; }
         Id StreamId { get; }
-        Id[] Parents { get; }
+        IParentDescriptor[] Parents { get; }
 
         long Version { get; }
         DateTime Timestamp { get; }

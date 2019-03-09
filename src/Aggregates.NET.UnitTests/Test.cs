@@ -28,7 +28,7 @@ namespace Aggregates
             {
                 var factory = EntityFactory.For<FakeEntity>();
 
-                var entity = factory.Create(Defaults.Bucket, Fake<Id>(), new Id[] { }, Many<FakeDomainEvent.FakeEvent>());
+                var entity = factory.Create(Defaults.Bucket, Fake<Id>(), null, Many<FakeDomainEvent.FakeEvent>());
 
                 (entity as INeedDomainUow).Uow = Fake<UnitOfWork.IDomain>();
                 (entity as INeedEventFactory).EventFactory = Fake<IEventFactory>();
@@ -41,7 +41,7 @@ namespace Aggregates
             {
                 var factory = EntityFactory.For<FakeChildEntity>();
 
-                var entity = factory.Create(Defaults.Bucket, Fake<Id>(), new Id[] { }, Many<FakeDomainEvent.FakeEvent>());
+                var entity = factory.Create(Defaults.Bucket, Fake<Id>(), null, Many<FakeDomainEvent.FakeEvent>());
 
                 (entity as INeedDomainUow).Uow = Fake<UnitOfWork.IDomain>();
                 (entity as INeedEventFactory).EventFactory = Fake<IEventFactory>();

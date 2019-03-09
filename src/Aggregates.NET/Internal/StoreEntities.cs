@@ -33,7 +33,16 @@ namespace Aggregates.Internal
             _registrar = registrar;
         }
 
-        public Task<TEntity> New<TEntity, TState>(string bucket, Id id, Id[] parents) where TEntity : IEntity<TState> where TState : class, IState, new()
+        private IParentDescriptor[] getParents(IEntity entity)
+        {
+            if (entity == null)
+                return null;
+            
+            var parents = getParents((entity as IChildEntity)?.Parent)?.ToList() ?? new List<IParentDescriptor>();
+            parents.Add(new ParentDescriptor { EntityType = _registrar.GetVersionedName(entity.GetType()), Id = entity.Id });
+            return parents.ToArray();
+        }
+        public Task<TEntity> New<TEntity, TState>(string bucket, Id id, IEntity parent) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
             var uow = (Configuration.Settings.LocalContainer.Value ?? Configuration.Settings.Container).Resolve<Aggregates.UnitOfWork.IDomain>();
 
@@ -41,7 +50,7 @@ namespace Aggregates.Internal
 
             Logger.DebugEvent("Create", "[{EntityId:l}] bucket [{Bucket:l}] entity [{EntityType:l}]", id, bucket, typeof(TEntity).FullName);
 
-            var entity = factory.Create(bucket, id, parents);
+            var entity = factory.Create(bucket, id, getParents(parent));
 
             (entity as INeedDomainUow).Uow = uow;
             (entity as INeedEventFactory).EventFactory = _factory;
@@ -51,15 +60,16 @@ namespace Aggregates.Internal
 
             return Task.FromResult(entity);
         }
-        public async Task<TEntity> Get<TEntity, TState>(string bucket, Id id, Id[] parents) where TEntity : IEntity<TState> where TState : class, IState, new()
+        public async Task<TEntity> Get<TEntity, TState>(string bucket, Id id, IEntity parent) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
             var uow = (Configuration.Settings.LocalContainer.Value ?? Configuration.Settings.Container).Resolve<Aggregates.UnitOfWork.IDomain>();
 
             var factory = EntityFactory.For<TEntity>();
 
+            var parents = getParents(parent);
             // Todo: pass parent instead of Id[]?
-            var snapshot = await _snapstore.GetSnapshot<TEntity>(bucket, id, parents).ConfigureAwait(false);
-            var events = await _eventstore.GetEvents<TEntity>(bucket, id, parents, start: snapshot?.Version).ConfigureAwait(false);
+            var snapshot = await _snapstore.GetSnapshot<TEntity>(bucket, id, parents?.Select(x => x.Id).ToArray()).ConfigureAwait(false);
+            var events = await _eventstore.GetEvents<TEntity>(bucket, id, parents?.Select(x => x.Id).ToArray(), start: snapshot?.Version).ConfigureAwait(false);
 
             var entity = factory.Create(bucket, id, parents, events.Select(x => x.Event as IEvent).ToArray(), snapshot?.Payload);
 
@@ -79,7 +89,7 @@ namespace Aggregates.Internal
             if (entity.Dirty)
                 throw new ArgumentException($"Cannot verify version for a dirty entity");
 
-            return _eventstore.VerifyVersion<TEntity>(entity.Bucket, entity.Id, entity.Parents, entity.Version);
+            return _eventstore.VerifyVersion<TEntity>(entity.Bucket, entity.Id, entity.GetParentIds(), entity.Version);
         }
         public async Task Commit<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
@@ -95,7 +105,7 @@ namespace Aggregates.Internal
             {
                 if (domainEvents.Any())
                 {
-                    await _eventstore.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.Parents,
+                    await _eventstore.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.GetParentIds(),
                         domainEvents, commitHeaders, entity.Version).ConfigureAwait(false);
                 }
             }
@@ -107,7 +117,7 @@ namespace Aggregates.Internal
                 if (entity.Version == EntityFactory.NewEntityVersion)
                 {
                     Logger.DebugEvent("AlreadyExists", "[{EntityId:l}] entity [{EntityType:l}] already exists", entity.Id, typeof(TEntity).FullName);
-                    throw new EntityAlreadyExistsException<TEntity>(entity.Bucket, entity.Id, entity.Parents);
+                    throw new EntityAlreadyExistsException<TEntity>(entity.Bucket, entity.Id, entity.GetParentIds());
                 }
 
                 try
@@ -130,14 +140,14 @@ namespace Aggregates.Internal
                     _metrics.Mark("Conflicts Unresolved", Unit.Items);
                     Logger.ErrorEvent("ConflictResolveAbandon", "[{EntityId:l}] entity [{EntityType:l}] abandonded", entity.Id, typeof(TEntity).FullName);
 
-                    throw new ConflictResolutionFailedException(entity.GetType(), entity.Bucket, entity.Id, entity.Parents, "Aborted", abandon);
+                    throw new ConflictResolutionFailedException(entity.GetType(), entity.Bucket, entity.Id, entity.GetParentIds(), "Aborted", abandon);
                 }
                 catch (Exception ex)
                 {
                     _metrics.Mark("Conflicts Unresolved", Unit.Items);
                     Logger.ErrorEvent("ConflictResolveFail", ex, "[{EntityId:l}] entity [{EntityType:l}] failed: {ExceptionType} - {ExceptionMessage}", entity.Id, typeof(TEntity).FullName, ex.GetType().Name, ex.Message);
 
-                    throw new ConflictResolutionFailedException(entity.GetType(), entity.Bucket, entity.Id, entity.Parents, "Exception", ex);
+                    throw new ConflictResolutionFailedException(entity.GetType(), entity.Bucket, entity.Id, entity.GetParentIds(), "Exception", ex);
                 }
 
             }
@@ -151,7 +161,7 @@ namespace Aggregates.Internal
             try
             {
                 if (oobEvents.Any())
-                    await _oobstore.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.Parents, oobEvents, commitId, commitHeaders).ConfigureAwait(false);
+                    await _oobstore.WriteEvents<TEntity>(entity.Bucket, entity.Id, entity.GetParentIds(), oobEvents, commitId, commitHeaders).ConfigureAwait(false);
 
                 if (entity.State.ShouldSnapshot())
                 {
