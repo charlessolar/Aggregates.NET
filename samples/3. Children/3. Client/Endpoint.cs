@@ -89,7 +89,7 @@ namespace Client
                 {
                     try
                     {
-                        bus.Command("domain", new SayHello { Message = message }).Wait();
+                        bus.Command("domain", new SayHello { MessageId = Guid.NewGuid(), Message = message }).Wait();
                     }
                     catch (AggregateException e)
                     {

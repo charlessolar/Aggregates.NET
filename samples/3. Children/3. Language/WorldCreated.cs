@@ -1,4 +1,5 @@
-﻿using Aggregates.Messages;
+﻿using Aggregates;
+using Aggregates.Messages;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace Language
 {
+    [Versioned("WorldCreated", "Language")]
     public interface WorldCreated : IEvent
     {
     }

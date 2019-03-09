@@ -68,15 +68,15 @@ namespace Aggregates.Internal
 
         private static IParentDescriptor[] getParents(IVersionRegistrar versionRegistry, IEntity entity)
         {
+            if (entity == null)
+                return null;
             if (!(entity is IChildEntity))
                 return null;
 
-            var parents = getParents(versionRegistry, (entity as IChildEntity).Parent)?.ToList() ?? new List<IParentDescriptor>();
-            parents.Add(new ParentDescriptor
-            {
-                EntityType = versionRegistry.GetVersionedName(entity.GetType()),
-                Id = entity.Id
-            });
+            var child = entity as IChildEntity;
+
+            var parents = getParents(versionRegistry, child.Parent)?.ToList() ?? new List<IParentDescriptor>();
+            parents.Add(new ParentDescriptor { EntityType = versionRegistry.GetVersionedName(child.Parent.GetType()), Id = child.Parent.Id });
             return parents.ToArray();
         }
     }
