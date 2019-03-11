@@ -4,9 +4,8 @@ using System.Text;
 
 namespace Aggregates.Contracts
 {
-    public interface IParentDescriptor
+    interface INeedChildTracking
     {
-        string EntityType { get; set; }
-        Id StreamId { get; set; }
+        ITrackChildren Tracker { get; set; }
     }
 }

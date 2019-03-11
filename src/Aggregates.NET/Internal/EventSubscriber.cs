@@ -21,9 +21,7 @@ namespace Aggregates.Internal
 
         private static readonly ILog Logger = LogProvider.GetLogger("EventSubscriber");
         
-        // todo: events don't stay here long, but if there are events here and the instance crashes the events won't 
-        // be processed
-        private static readonly BlockingCollection<Tuple<string, long, IFullEvent>> WaitingEvents= new BlockingCollection<Tuple<string, long, IFullEvent>>();
+        private static readonly BlockingCollection<Tuple<string, long, IFullEvent>> WaitingEvents = new BlockingCollection<Tuple<string, long, IFullEvent>>();
 
         private class ThreadParam
         {
@@ -68,6 +66,7 @@ namespace Aggregates.Internal
             await _consumer.EnableProjection("$by_category").ConfigureAwait(false);
             _cancelation = new CancellationTokenSource();
 
+            // Todo: creating the projection is dependant on EventStore - which defeats the purpose of the different assembly
             var discoveredEvents =
                 _messaging.GetHandledTypes().Where(x => typeof(IEvent).IsAssignableFrom(x)).OrderBy(x => x.FullName).ToList();
 
@@ -77,7 +76,7 @@ namespace Aggregates.Internal
                 return;
             }
 
-            // Dont use - we dont need category projection projecting our projection
+            // Dont use "-" we dont need category projection projecting our projection
             var stream = $"{_endpoint}.{_version}".Replace("-", "");
 
             // Link all events we are subscribing to to a stream
@@ -101,14 +100,14 @@ options({{
   reorderEvents: false,
   processingLag: 0
 }})
-fromStreams([{0}]).
+fromCategories([{0}]).
 when({{
 {2}
 }});";
-
-            // Todo: replace with `fromCategories([])` when available
-            var appDefinition = string.Format(definition, $"'$ce-{StreamTypes.Domain}','$ce-{StreamTypes.OOB}'", stream, functions);
+            
+            var appDefinition = string.Format(definition, $"'{StreamTypes.Domain}','{StreamTypes.OOB}'", stream, functions);
             await _consumer.CreateProjection($"{stream}.app.projection", appDefinition).ConfigureAwait(false);
+            
         }
 
         public async Task Connect()

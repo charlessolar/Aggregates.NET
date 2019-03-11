@@ -142,7 +142,7 @@ namespace Aggregates.Internal
                 return null;
 
             var parents = getParents((entity as IChildEntity).Parent)?.ToList() ?? new List<IParentDescriptor>();
-            parents.Add(new ParentDescriptor { EntityType = _registrar.GetVersionedName(entity.GetType()), Id = entity.Id });
+            parents.Add(new ParentDescriptor { EntityType = _registrar.GetVersionedName(entity.GetType()), StreamId = entity.Id });
             return parents.ToArray();
         }
         public void Dispose()

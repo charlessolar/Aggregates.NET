@@ -23,7 +23,7 @@ namespace Aggregates
         
     }
 
-    public abstract class Entity<TThis, TState> : IEntity<TState>, IHaveEntities<TThis>, INeedDomainUow, INeedEventFactory, INeedStore, INeedVersionRegistrar where TThis : Entity<TThis, TState> where TState : class, IState, new()
+    public abstract class Entity<TThis, TState> : IEntity<TState>, IHaveEntities<TThis>, INeedDomainUow, INeedEventFactory, INeedStore, INeedVersionRegistrar, INeedChildTracking where TThis : Entity<TThis, TState> where TState : class, IState, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger(typeof(TThis).Name);
 
@@ -47,12 +47,14 @@ namespace Aggregates
         private IStoreEvents Store => (this as INeedStore).Store;
         private IOobWriter OobWriter => (this as INeedStore).OobWriter;
         private IVersionRegistrar VersionRegistrar => (this as INeedVersionRegistrar).Registrar;
+        private ITrackChildren ChildrenTracker => (this as INeedChildTracking).Tracker;
 
         UnitOfWork.IDomain INeedDomainUow.Uow { get; set; }
         IEventFactory INeedEventFactory.EventFactory { get; set; }
         IStoreEvents INeedStore.Store { get; set; }
         IOobWriter INeedStore.OobWriter { get; set; }
         IVersionRegistrar INeedVersionRegistrar.Registrar { get; set; }
+        ITrackChildren INeedChildTracking.Tracker { get; set; }
 
 
         void IEntity<TState>.Instantiate(TState state)
@@ -87,6 +89,17 @@ namespace Aggregates
         public IRepository<TEntity, TThis> For<TEntity>() where TEntity : class, IChildEntity<TThis>
         {
             return Uow.For<TEntity, TThis>(this as TThis);
+        }
+        public Task<TEntity[]> Children<TEntity>() where TEntity : class, IChildEntity<TThis>
+        {
+            try
+            {
+                return ChildrenTracker.GetChildren<TEntity, TThis>(this as TThis);
+            }
+            catch
+            {
+                throw new InvalidOperationException("Failed to get children - perhaps children tracking is not enabled? ( Configure.SetTrackChildren )");
+            }
         }
 
         void IEntity<TState>.Conflict(IEvent @event)

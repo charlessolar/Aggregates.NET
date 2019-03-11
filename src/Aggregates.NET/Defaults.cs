@@ -12,6 +12,7 @@ namespace Aggregates
         public const string Delayed = "DELAY";
         public const string Snapshot = "SNAPSHOT";
         public const string OOB = "OOB";
+        public const string Children = "CHILDREN";
     }
 
     public delegate string StreamIdGenerator(string entityType, string streamType, string bucket, Id id, Id[] parents);

@@ -53,6 +53,13 @@ namespace Aggregates
 
                 await subscribers.WhenAllAsync(x => x.Connect()).ConfigureAwait(false);
 
+                // Only setup children projection if client wants it
+                if (c.TrackChildren)
+                {
+                    var tracker = c.Container.Resolve<ITrackChildren>();
+                    await tracker.Setup(c.Endpoint, Assembly.GetEntryAssembly().GetName().Version).ConfigureAwait(false);
+                }
+
             });
             config.ShutdownTasks.Add(async (c) =>
             {

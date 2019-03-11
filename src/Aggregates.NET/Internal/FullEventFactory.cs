@@ -76,7 +76,7 @@ namespace Aggregates.Internal
             var child = entity as IChildEntity;
 
             var parents = getParents(versionRegistry, child.Parent)?.ToList() ?? new List<IParentDescriptor>();
-            parents.Add(new ParentDescriptor { EntityType = versionRegistry.GetVersionedName(child.Parent.GetType()), Id = child.Parent.Id });
+            parents.Add(new ParentDescriptor { EntityType = versionRegistry.GetVersionedName(child.Parent.GetType()), StreamId = child.Parent.Id });
             return parents.ToArray();
         }
     }

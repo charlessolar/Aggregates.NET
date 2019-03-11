@@ -22,8 +22,9 @@ namespace Aggregates.Internal
         private readonly IOobWriter _oobstore;
         private readonly IEventFactory _factory;
         private readonly IVersionRegistrar _registrar;
+        private readonly ITrackChildren _childTracker;
 
-        public StoreEntities(IMetrics metrics, IStoreEvents eventstore, IStoreSnapshots snapstore, IOobWriter oobstore, IEventFactory factory, IVersionRegistrar registrar)
+        public StoreEntities(IMetrics metrics, IStoreEvents eventstore, IStoreSnapshots snapstore, IOobWriter oobstore, IEventFactory factory, IVersionRegistrar registrar, ITrackChildren childTracker)
         {
             _metrics = metrics;
             _eventstore = eventstore;
@@ -31,6 +32,7 @@ namespace Aggregates.Internal
             _oobstore = oobstore;
             _factory = factory;
             _registrar = registrar;
+            _childTracker = childTracker;
         }
 
         private IParentDescriptor[] getParents(IEntity entity)
@@ -39,7 +41,7 @@ namespace Aggregates.Internal
                 return null;
             
             var parents = getParents((entity as IChildEntity)?.Parent)?.ToList() ?? new List<IParentDescriptor>();
-            parents.Add(new ParentDescriptor { EntityType = _registrar.GetVersionedName(entity.GetType()), Id = entity.Id });
+            parents.Add(new ParentDescriptor { EntityType = _registrar.GetVersionedName(entity.GetType()), StreamId = entity.Id });
             return parents.ToArray();
         }
         public Task<TEntity> New<TEntity, TState>(string bucket, Id id, IEntity parent) where TEntity : IEntity<TState> where TState : class, IState, new()
@@ -57,6 +59,7 @@ namespace Aggregates.Internal
             (entity as INeedStore).Store = _eventstore;
             (entity as INeedStore).OobWriter = _oobstore;
             (entity as INeedVersionRegistrar).Registrar = _registrar;
+            (entity as INeedChildTracking).Tracker = _childTracker;
 
             return Task.FromResult(entity);
         }
@@ -68,8 +71,8 @@ namespace Aggregates.Internal
 
             var parents = getParents(parent);
             // Todo: pass parent instead of Id[]?
-            var snapshot = await _snapstore.GetSnapshot<TEntity>(bucket, id, parents?.Select(x => x.Id).ToArray()).ConfigureAwait(false);
-            var events = await _eventstore.GetEvents<TEntity>(bucket, id, parents?.Select(x => x.Id).ToArray(), start: snapshot?.Version).ConfigureAwait(false);
+            var snapshot = await _snapstore.GetSnapshot<TEntity>(bucket, id, parents?.Select(x => x.StreamId).ToArray()).ConfigureAwait(false);
+            var events = await _eventstore.GetEvents<TEntity>(bucket, id, parents?.Select(x => x.StreamId).ToArray(), start: snapshot?.Version).ConfigureAwait(false);
 
             var entity = factory.Create(bucket, id, parents, events.Select(x => x.Event as IEvent).ToArray(), snapshot?.Payload);
 
@@ -79,6 +82,7 @@ namespace Aggregates.Internal
             (entity as INeedStore).Store = _eventstore;
             (entity as INeedStore).OobWriter = _oobstore;
             (entity as INeedVersionRegistrar).Registrar = _registrar;
+            (entity as INeedChildTracking).Tracker = _childTracker;
 
             Logger.DebugEvent("Get", "[{EntityId:l}] bucket [{Bucket:l}] entity [{EntityType:l}] version {Version}", id, bucket, typeof(TEntity).FullName, entity.Version);
 

@@ -69,7 +69,7 @@ namespace Aggregates.Internal
                     current =
                         await _clients[shard].ReadStreamEventsForwardAsync(stream, sliceStart, readsize, false)
                             .ConfigureAwait(false);
-                    
+
                     events.AddRange(current.Events);
                     sliceStart = current.NextEventNumber;
                 } while (!current.IsEndOfStream && (!count.HasValue || (events.Count != count.Value)));
@@ -81,7 +81,7 @@ namespace Aggregates.Internal
 
             if (current.Status == SliceReadStatus.StreamNotFound)
                 throw new NotFoundException(stream, _clients[shard].Settings.GossipSeeds[0].EndPoint.Address);
-            
+
 
             var translatedEvents = events.Select(e =>
             {
@@ -90,6 +90,22 @@ namespace Aggregates.Internal
 
                 var descriptor = _serializer.Deserialize<EventDescriptor>(metadata);
 
+                if (descriptor == null || descriptor.EventId == Guid.Empty)
+                {
+                    // Assume we read from a children projection
+                    // (theres no way to set metadata in projection states)
+
+                    var children = _serializer.Deserialize<ChildrenProjection>(data);
+                    if (!(children is IEvent))
+                        throw new UnknownMessageException(e.Event.EventType);
+
+                    return new FullEvent
+                    {
+                        Descriptor = null,
+                        Event = children as IEvent,
+                        EventId = Guid.Empty
+                    };
+                }
                 if (descriptor.Compressed)
                     data = data.Decompress();
 
@@ -99,7 +115,7 @@ namespace Aggregates.Internal
                 var @event = _serializer.Deserialize(eventType, data);
 
                 if (!(@event is IEvent))
-                    throw new UnknownMessageException(@event.GetType());
+                    throw new UnknownMessageException(e.Event.EventType);
 
                 // Special case if event was written without a version - substitue the position from store
                 if (descriptor.Version == 0)
@@ -147,7 +163,7 @@ namespace Aggregates.Internal
                         current =
                             await _clients[shard].ReadStreamEventsBackwardAsync(stream, sliceStart, take, false)
                                 .ConfigureAwait(false);
-                        
+
                         events.AddRange(current.Events);
 
                         sliceStart = current.NextEventNumber;
@@ -172,6 +188,21 @@ namespace Aggregates.Internal
 
                 var descriptor = _serializer.Deserialize<EventDescriptor>(metadata);
 
+                if (descriptor == null || descriptor.EventId == Guid.Empty)
+                {
+                    // Assume we read from a children projection
+                    // (theres no way to set metadata in projection states)
+
+                    var children = _serializer.Deserialize<ChildrenProjection>(data);
+                    if (!(children is IEvent))
+                        throw new UnknownMessageException(e.Event.EventType);
+                    return new FullEvent
+                    {
+                        Descriptor = null,
+                        Event = children as IEvent,
+                        EventId = Guid.Empty
+                    };
+                }
                 if (descriptor.Compressed)
                     data = data.Decompress();
 
@@ -181,7 +212,7 @@ namespace Aggregates.Internal
                 var @event = _serializer.Deserialize(eventType, data);
 
                 if (!(@event is IEvent))
-                    throw new UnknownMessageException(@event.GetType());
+                    throw new UnknownMessageException(e.Event.EventType);
                 // Special case if event was written without a version - substitute the position from store
                 if (descriptor.Version == 0)
                     descriptor.Version = e.Event.EventNumber;
@@ -192,6 +223,7 @@ namespace Aggregates.Internal
                     Event = @event as IEvent,
                     EventId = e.Event.EventId
                 };
+
             }).ToArray();
 
             return translatedEvents;
@@ -438,7 +470,7 @@ namespace Aggregates.Internal
             var shard = Math.Abs(stream.GetHash() % _clients.Count());
 
             var existing = await _clients[shard].GetStreamMetadataAsync(stream).ConfigureAwait(false);
-            
+
             Logger.DebugEvent("Read", "Metadata stream [{Stream:l}] {Metadata}", stream, existing.StreamMetadata?.AsJsonString());
             string property = "";
             if (!existing.StreamMetadata?.TryGetValue(key, out property) ?? false)

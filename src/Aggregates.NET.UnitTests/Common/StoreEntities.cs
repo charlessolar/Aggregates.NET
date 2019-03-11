@@ -36,7 +36,7 @@ namespace Aggregates.Common
             A.CallTo(() => parent.Id).Returns("parent");
             var entity = await Sut.New<FakeChildEntity, FakeState>("test", "test", parent).ConfigureAwait(false);
             entity.Version.Should().Be(Internal.EntityFactory.NewEntityVersion);
-            entity.State.Parents.Any(x => x.Id == "parent").Should().BeTrue();
+            entity.State.Parents.Any(x => x.StreamId == "parent").Should().BeTrue();
         }
         [Fact]
         public async Task ShouldGetEntityNoSnapshot()
@@ -84,7 +84,7 @@ namespace Aggregates.Common
 
             var entity = await Sut.Get<FakeChildEntity, FakeState>("test", "test", parent).ConfigureAwait(false);
 
-            entity.State.Parents.Any(x => x.Id == "parent").Should().BeTrue();
+            entity.State.Parents.Any(x => x.StreamId == "parent").Should().BeTrue();
         }
         [Fact]
         public async Task ShouldVerifyVersion()
