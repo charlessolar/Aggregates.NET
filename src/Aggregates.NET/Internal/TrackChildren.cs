@@ -47,14 +47,14 @@ namespace Aggregates.Internal
 
             // Don't tab this '@' will create tabs in projection definition
             var definition = @"
-options({
+options({{
     $includeLinks: false,
     reorderEvents: false,
     processingLag: 0
-});
+}});
 
 fromCategory('{0}')
-.partitionBy(function(event) {
+.partitionBy(function(event) {{
     let metadata = JSON.parse(event.metadataRaw);
     if(metadata.Parents === null || metadata.Parents.length === 0)
         return undefined;
@@ -63,22 +63,22 @@ fromCategory('{0}')
     let streamId = 'CHILDREN' + '-' + metadata.Bucket + '-[' + metadata.Parents.join(':') + ']-' + lastParent.EntityType + '-' + lastParent.Id;
         
     return streamId;
-})
-.when({
-    $init: function() {
-        return {
+}})
+.when({{
+    $init: function() {{
+        return {{
             Children: []
-        };
-    },
-    $any: function(state, event) {
+        }};
+    }},
+    $any: function(state, event) {{
         let metadata = JSON.parse(event.metadataRaw);
         if(metadata.Version !== 0)
             return state;
             
-        state.Children.push({ EntityType: metadata.EntityType, StreamId: metadata.StreamId });
+        state.Children.push({{ EntityType: metadata.EntityType, StreamId: metadata.StreamId }});
         return state;
-    }
-})
+    }}
+}})
 .outputState();";
 
             var appDefinition = string.Format(definition, StreamTypes.Domain);
