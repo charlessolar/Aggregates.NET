@@ -27,13 +27,17 @@ namespace Aggregates.Internal
             _registrar = registrar;
         }
 
-        private IParentDescriptor[] getParents(IEntity entity)
+        private IParentDescriptor[] getParents( IEntity entity)
         {
             if (entity == null)
                 return null;
+            if (!(entity is IChildEntity))
+                return null;
 
-            var parents = getParents((entity as IChildEntity)?.Parent)?.ToList() ?? new List<IParentDescriptor>();
-            parents.Add(new ParentDescriptor { EntityType = _registrar.GetVersionedName(entity.GetType()), StreamId = entity.Id });
+            var child = entity as IChildEntity;
+
+            var parents = getParents(child.Parent)?.ToList() ?? new List<IParentDescriptor>();
+            parents.Add(new ParentDescriptor { EntityType = _registrar.GetVersionedName(child.Parent.GetType()), StreamId = child.Parent.Id });
             return parents.ToArray();
         }
         public async Task Setup(string endpoint, Version version)
