@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    class TrackChildren : ITrackChildren
+    public class TrackChildren : ITrackChildren
     {
         private string _endpoint;
         private Version _version;
