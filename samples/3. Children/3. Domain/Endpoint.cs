@@ -115,6 +115,7 @@ namespace Domain
                     .EventStore(new[] { client })
                     .NewtonsoftJson()
                     .NServiceBus(config)
+                    .SetTrackChildren()
                     );
 
             return Aggregates.Bus.Instance;
