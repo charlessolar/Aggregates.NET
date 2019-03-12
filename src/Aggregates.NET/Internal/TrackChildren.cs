@@ -60,7 +60,7 @@ fromCategory('{0}')
         return undefined;
     let lastParent = metadata.Parents.pop();
         
-    let streamId = 'CHILDREN' + '-' + metadata.Bucket + '-[' + metadata.Parents.join(':') + ']-' + lastParent.EntityType + '-' + lastParent.Id;
+    let streamId = 'CHILDREN' + '-' + metadata.Bucket + '-[' + metadata.Parents.join(':') + ']-' + lastParent.EntityType + '-' + lastParent.StreamId;
         
     return streamId;
 }})
