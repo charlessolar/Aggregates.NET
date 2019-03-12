@@ -1,4 +1,6 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Extensions;
+using Aggregates.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,8 +9,10 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    public class TrackChildren : ITrackChildren
+    class TrackChildren : ITrackChildren
     {
+        private static readonly ILog Logger = LogProvider.GetLogger("TrackChildren");
+
         private string _endpoint;
         private Version _version;
 
@@ -81,6 +85,7 @@ fromCategory('{0}')
 }})
 .outputState();";
 
+            Logger.DebugEvent("Setup", "Setup children tracking projection {Name}", $"aggregates.net.children.{ _version}");
             var appDefinition = string.Format(definition, StreamTypes.Domain);
             await _consumer.CreateProjection($"aggregates.net.children.{_version}", appDefinition).ConfigureAwait(false);
         }
@@ -91,8 +96,12 @@ fromCategory('{0}')
 
             var parents = getParents(parent);
 
+            var parentEntityType = _registrar.GetVersionedName(typeof(TParent));
             var childEntityType = _registrar.GetVersionedName(typeof(TEntity));
-            var stream = streamGen(childEntityType, StreamTypes.Children, parent.Bucket, parent.Id, parents?.Select(x => x.StreamId).ToArray());
+
+            Logger.DebugEvent("Children", "Getting children for entity type {EntityType} stream id {Id}", parentEntityType, parent.Id);
+
+            var stream = streamGen(parentEntityType, StreamTypes.Children, parent.Bucket, parent.Id, parents?.Select(x => x.StreamId).ToArray());
 
             // ES generated stream name
             var fullStream = $"$projections-aggregates.net.children.{_version}-{stream}-result";
@@ -103,11 +112,16 @@ fromCategory('{0}')
 
             var state = stateEvents[0];
             var children = state.Event as ChildrenProjection;
-            if (children == null || !children.Children.Any())
+
+            var desiredChildren = children?.Children.Where(x => x.EntityType == childEntityType).ToArray();
+
+            if (children == null || !desiredChildren.Any())
                 return new TEntity[] { };
 
+            Logger.DebugEvent("Hydrating", "Hydrating {Count} children of entity type {EntityType} stream id {Id}", desiredChildren.Length, parentEntityType, parent.Id);
+
             var entities = new List<TEntity>();
-            foreach (var child in children.Children.Where(x => x.EntityType == childEntityType))
+            foreach (var child in desiredChildren)
             {
                 var childEntity = await uow.For<TEntity, TParent>(parent).Get(child.StreamId).ConfigureAwait(false);
                 entities.Add(childEntity);

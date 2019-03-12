@@ -135,7 +135,7 @@ namespace Aggregates
                 container.Register<IMetrics, NullMetrics>(Lifestyle.Singleton);
                 container.Register<IDelayedCache>((factory) => new DelayedCache(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<IVersionRegistrar>(), factory.Resolve<IRandomProvider>(), factory.Resolve<ITimeProvider>()), Lifestyle.Singleton);
 
-                container.Register<ITrackChildren>((factory) => new TrackChildren(factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IStoreEvents>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.Singleton);
+                container.Register<ITrackChildren, TrackChildren>(Lifestyle.PerInstance);
 
                 container.Register<IEventSubscriber>((factory) => new EventSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IMessaging>(), factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IVersionRegistrar>(), c.ParallelEvents, c.AllEvents), Lifestyle.Singleton, "eventsubscriber");
                 container.Register<IEventSubscriber>((factory) => new DelayedSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IMessageDispatcher>(), c.Retries), Lifestyle.Singleton, "delayedsubscriber");
