@@ -1,18 +1,19 @@
 // Install addins.
-#addin "nuget:?package=Cake.FileHelpers&version=3.0.0"
-#addin "nuget:?package=Cake.Powershell&version=0.4.5"
-#addin "nuget:?package=Cake.Incubator&version=2.0.2"
-#addin "nuget:?package=Cake.Docker&version=0.9.3"
-#addin "nuget:?package=Cake.Curl&version=3.0.0"
-#addin "nuget:?package=Cake.Sonar&version=1.1.0"
-#addin "nuget:?package=Cake.Coveralls&version=0.8.0"
+#addin "nuget:?package=Cake.FileHelpers&version=3.2.0"
+#addin "nuget:?package=Cake.Incubator&version=5.0.1"
+#addin "nuget:?package=Cake.Docker&version=0.10.0"
+#addin "nuget:?package=Cake.Curl&version=4.0.0"
+//#addin "nuget:?package=Cake.Sonar&version=1.1.18"
+#addin "nuget:?package=Cake.OpenCoverToCoberturaConverter&version=0.1.1.2"
+#addin "nuget:?package=Cake.Coveralls&version=0.10.0"
 
 // Install tools.
-#tool "nuget:?package=GitReleaseManager&version=0.7.1"
-#tool "nuget:?package=GitVersion.CommandLine&version=3.6.5"
-#tool "nuget:?package=OpenCover&version=4.6.519"
-#tool "nuget:?package=xunit.runner.console&version=2.3.1"
-#tool "nuget:?package=MSBuild.SonarQube.Runner.Tool&version=4.3.0"
+#tool "nuget:?package=GitReleaseManager&version=0.8.0"
+#tool "nuget:?package=GitVersion.CommandLine&version=4.0.0"
+#tool "nuget:?package=OpenCover&version=4.7.922"
+//#tool "nuget:?package=MSBuild.SonarQube.Runner.Tool&version=4.3.0"
+#tool "nuget:?package=OpenCoverToCoberturaConverter&version=0.3.2"
+#tool "nuget:?package=ReportGenerator&version=4.1.5"
 #tool "nuget:?package=coveralls.io&version=1.4.2"
 
 // Load other scripts.
@@ -374,44 +375,10 @@ Task("Create-VSTS-Artifacts")
     commands.AddBuildTag(parameters.Version.SemVersion);
 });
 
-Task("SonarBegin")
-  .Does(() => {
-    var apiKey = EnvironmentVariable("SONAR_KEY");
-    if(string.IsNullOrEmpty(apiKey)) {
-        throw new InvalidOperationException("Could not resolve SonarCloud API key.");
-    }
-
-    SonarBegin(new SonarBeginSettings {
-        Url = "https://sonarcloud.io",
-        Login = apiKey,
-        Key = "Aggregates.NET",
-        Organization = "volak-github",
-        Verbose = true,
-        OpenCoverReportsPath = parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./OpenCover.xml").ToString(),
-        VsTestReportsPath = parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./report.xml").ToString()
-    });
-  });
-
-Task("SonarEnd")
-  .Does(() => {
-    var apiKey = EnvironmentVariable("SONAR_KEY");
-    if(string.IsNullOrEmpty(apiKey)) {
-        throw new InvalidOperationException("Could not resolve SonarCloud API key.");
-    }
-    SonarEnd(new SonarEndSettings {
-        Login = apiKey
-    });
-  });
-
 //////////////////////////////////////////////////////////////////////
 // TASK TARGETS
 //////////////////////////////////////////////////////////////////////
 
-Task("Sonar")
-  .IsDependentOn("SonarBegin")
-  .IsDependentOn("Build")
-  .IsDependentOn("Run-Unit-Tests")
-  .IsDependentOn("SonarEnd");
  
 Task("Package")
   .IsDependentOn("Zip-Files")
@@ -421,7 +388,6 @@ Task("Default")
   .IsDependentOn("Package");
 
 Task("AppVeyor")
-  //.IsDependentOn("Sonar")
   .IsDependentOn("Upload-AppVeyor-Artifacts")
   .IsDependentOn("Upload-Test-Coverage")
   .IsDependentOn("Publish-NuGet");
