@@ -72,7 +72,7 @@ namespace Aggregates
         public static CommandSaga Saga(this IMessageHandlerContext context, Id sagaId, string domainDestination = null)
         {
             if (domainDestination == null)
-                domainDestination = Configuration.Settings.CommandDestination;
+                domainDestination = Configuration.Settings?.CommandDestination;
 
             if (string.IsNullOrEmpty(domainDestination) && !context.Extensions.TryGet("CommandDestination", out domainDestination))
                 throw new ArgumentException("Configuration lacks CommandDestination [Configuration.SetCommandDestination]");
