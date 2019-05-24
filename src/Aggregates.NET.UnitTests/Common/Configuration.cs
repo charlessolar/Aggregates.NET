@@ -94,47 +94,47 @@ namespace Aggregates.Common
             e.Should().BeOfType<Exception>();
             Aggregates.Configuration.Setup.Should().BeFalse();
         }
-        [Fact]
-        public async Task ShouldSetOptions()
-        {
-            await Aggregates.Configuration.Build(config =>
-            {
-                config.Container = Fake<IContainer>();
-                config.SetEndpointName("test");
-                config.SetSlowAlertThreshold(TimeSpan.FromSeconds(1));
-                config.SetExtraStats(true);
-                config.SetStreamIdGenerator((type, streamType, bucket, stream, parents) => "test");
-                config.SetReadSize(1);
-                config.SetCompression(Compression.All);
-                config.SetUniqueAddress("test");
-                config.SetRetries(1);
-                config.SetParallelMessages(1);
-                config.SetParallelEvents(1);
-                config.SetMaxConflictResolves(1);
-                config.SetFlushSize(1);
-                config.SetFlushInterval(TimeSpan.FromSeconds(1));
-                config.SetDelayedExpiration(TimeSpan.FromSeconds(1));
-                config.SetMaxDelayed(1);
-                config.SetPassive();
-            }).ConfigureAwait(false);
+        //[Fact]
+        //public async Task ShouldSetOptions()
+        //{
+        //    await Aggregates.Configuration.Build(config =>
+        //    {
+        //        config.Container = Fake<IContainer>();
+        //        config.SetEndpointName("test");
+        //        config.SetSlowAlertThreshold(TimeSpan.FromSeconds(1));
+        //        config.SetExtraStats(true);
+        //        config.SetStreamIdGenerator((type, streamType, bucket, stream, parents) => "test");
+        //        config.SetReadSize(1);
+        //        config.SetCompression(Compression.All);
+        //        config.SetUniqueAddress("test");
+        //        config.SetRetries(1);
+        //        config.SetParallelMessages(1);
+        //        config.SetParallelEvents(1);
+        //        config.SetMaxConflictResolves(1);
+        //        config.SetFlushSize(1);
+        //        config.SetFlushInterval(TimeSpan.FromSeconds(1));
+        //        config.SetDelayedExpiration(TimeSpan.FromSeconds(1));
+        //        config.SetMaxDelayed(1);
+        //        config.SetPassive();
+        //    }).ConfigureAwait(false);
 
-            Aggregates.Configuration.Settings.Endpoint.Should().Be("test");
-            Aggregates.Configuration.Settings.SlowAlertThreshold.Should().Be(TimeSpan.FromSeconds(1));
-            Aggregates.Configuration.Settings.ExtraStats.Should().BeTrue();
-            Aggregates.Configuration.Settings.Generator(null, null, null, null, null).Should().Be("test");
-            Aggregates.Configuration.Settings.ReadSize.Should().Be(1);
-            Aggregates.Configuration.Settings.Compression.Should().Be(Compression.All);
-            Aggregates.Configuration.Settings.UniqueAddress.Should().Be("test");
-            Aggregates.Configuration.Settings.Retries.Should().Be(1);
-            Aggregates.Configuration.Settings.ParallelMessages.Should().Be(1);
-            Aggregates.Configuration.Settings.ParallelEvents.Should().Be(1);
-            Aggregates.Configuration.Settings.MaxConflictResolves.Should().Be(1);
-            Aggregates.Configuration.Settings.FlushSize.Should().Be(1);
-            Aggregates.Configuration.Settings.FlushInterval.Should().Be(TimeSpan.FromSeconds(1));
-            Aggregates.Configuration.Settings.DelayedExpiration.Should().Be(TimeSpan.FromSeconds(1));
-            Aggregates.Configuration.Settings.MaxDelayed.Should().Be(1);
-            Aggregates.Configuration.Settings.Passive.Should().BeTrue();
-        }
+        //    Aggregates.Configuration.Settings.Endpoint.Should().Be("test");
+        //    Aggregates.Configuration.Settings.SlowAlertThreshold.Should().Be(TimeSpan.FromSeconds(1));
+        //    Aggregates.Configuration.Settings.ExtraStats.Should().BeTrue();
+        //    Aggregates.Configuration.Settings.Generator(null, null, null, null, null).Should().Be("test");
+        //    Aggregates.Configuration.Settings.ReadSize.Should().Be(1);
+        //    Aggregates.Configuration.Settings.Compression.Should().Be(Compression.All);
+        //    Aggregates.Configuration.Settings.UniqueAddress.Should().Be("test");
+        //    Aggregates.Configuration.Settings.Retries.Should().Be(1);
+        //    Aggregates.Configuration.Settings.ParallelMessages.Should().Be(1);
+        //    Aggregates.Configuration.Settings.ParallelEvents.Should().Be(1);
+        //    Aggregates.Configuration.Settings.MaxConflictResolves.Should().Be(1);
+        //    Aggregates.Configuration.Settings.FlushSize.Should().Be(1);
+        //    Aggregates.Configuration.Settings.FlushInterval.Should().Be(TimeSpan.FromSeconds(1));
+        //    Aggregates.Configuration.Settings.DelayedExpiration.Should().Be(TimeSpan.FromSeconds(1));
+        //    Aggregates.Configuration.Settings.MaxDelayed.Should().Be(1);
+        //    Aggregates.Configuration.Settings.Passive.Should().BeTrue();
+        //}
 
     }
 }
