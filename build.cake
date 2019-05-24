@@ -421,7 +421,7 @@ Task("Default")
   .IsDependentOn("Package");
 
 Task("AppVeyor")
-  .IsDependentOn("Sonar")
+  //.IsDependentOn("Sonar")
   .IsDependentOn("Upload-AppVeyor-Artifacts")
   .IsDependentOn("Upload-Test-Coverage")
   .IsDependentOn("Publish-NuGet");
