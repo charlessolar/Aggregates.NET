@@ -91,6 +91,7 @@ namespace Aggregates
             WasSnapshotting = true;
         }
     }
+    public class FakeChildState : State<FakeChildState, FakeState> { }
 
     [OptimisticConcurrency(ConcurrencyConflict.Custom, resolver: typeof(FakeResolver))]
     public class FakeEntity : Entity<FakeEntity, FakeState>
@@ -127,14 +128,14 @@ namespace Aggregates
         }
     }
 
-    public class FakeChildEntity : Entity<FakeChildEntity, FakeState, FakeEntity>
+    public class FakeChildEntity : Entity<FakeChildEntity, FakeChildState, FakeEntity>
     {
         private FakeChildEntity() { }
 
         public void ApplyEvents<TEvent>(TEvent[] events) where TEvent : IEvent
         {
             foreach (var @event in events)
-                (this as IEntity<FakeState>).Apply(@event);
+                (this as IEntity<FakeChildState>).Apply(@event);
         }
     }
 

@@ -118,7 +118,8 @@ namespace Aggregates.Extensions
             where TEntity : IChildEntity<TParent> where TParent : IEntity
         {
             var stateType = typeof(TEntity).BaseType.GetGenericArguments()[1];
-            var repoType = typeof(Repository<,,>).MakeGenericType(typeof(TEntity), stateType, typeof(TParent));
+            var stateParentType = typeof(TParent).BaseType.GetGenericArguments()[1];
+            var repoType = typeof(Repository<,,,>).MakeGenericType(typeof(TEntity), stateType, typeof(TParent), stateParentType);
 
             // doing my own open-generics implementation so I don't have to depend on an IoC container supporting it
             var ctor = repoType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(TParent), typeof(IStoreEntities) }, null);

@@ -15,7 +15,7 @@ using Aggregates.Messages;
 
 namespace Aggregates.Internal
 {
-    public class Repository<TEntity, TState, TParent> : Repository<TEntity, TState>, IRepository<TEntity, TParent> where TParent : IEntity where TEntity : Entity<TEntity, TState, TParent> where TState : class, IState, new()
+    public class Repository<TEntity, TState, TParent, TStateParent> : Repository<TEntity, TState>, IRepository<TEntity, TParent> where TParent : Entity<TParent, TStateParent> where TEntity : Entity<TEntity, TState, TParent> where TState : State<TState, TStateParent>, new() where TStateParent : State<TStateParent>, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Repository");
 
@@ -72,6 +72,7 @@ namespace Aggregates.Internal
             var entity = await base.GetUntracked(bucket, id, parent).ConfigureAwait(false);
 
             entity.Parent = _parent;
+            (entity.State as State<TState, TStateParent>).Parent = _parent.State;
 
             return entity;
         }
@@ -87,7 +88,7 @@ namespace Aggregates.Internal
 
 
     }
-    public class Repository<TEntity, TState> : IRepository<TEntity>, IRepositoryCommit where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
+    public class Repository<TEntity, TState> : IRepository<TEntity>, IRepositoryCommit where TEntity : Entity<TEntity, TState> where TState : State<TState>, new()
     {
         private static readonly ILog Logger = LogProvider.GetLogger("Repository");
 
@@ -103,7 +104,6 @@ namespace Aggregates.Internal
         public Repository(IStoreEntities store)
         {
             _store = store;
-
         }
         Task IRepositoryCommit.Prepare(Guid commitId)
         {

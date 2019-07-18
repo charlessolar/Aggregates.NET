@@ -11,7 +11,7 @@ using Xunit;
 
 namespace Aggregates.Common
 {
-    public class ChildRepository : TestSubject<Internal.Repository<FakeChildEntity, FakeState, FakeEntity>>
+    public class ChildRepository : TestSubject<Internal.Repository<FakeChildEntity, FakeChildState, FakeEntity, FakeState>>
     {
         [Fact]
         public async Task ShouldGetEntityFromTryGet()
@@ -23,7 +23,7 @@ namespace Aggregates.Common
         public async Task ShouldNotGetEntityFromTryGet()
         {
             var store = Fake<IStoreEntities>();
-            A.CallTo(() => store.Get<FakeChildEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Throws<NotFoundException>();
+            A.CallTo(() => store.Get<FakeChildEntity, FakeChildState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Throws<NotFoundException>();
             Inject(store);
 
             var entity = await Sut.TryGet("test").ConfigureAwait(false);
@@ -39,7 +39,7 @@ namespace Aggregates.Common
         public async Task ShouldGetExceptionFromGetUnknown()
         {
             var store = Fake<IStoreEntities>();
-            A.CallTo(() => store.Get<FakeChildEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Throws<NotFoundException>();
+            A.CallTo(() => store.Get<FakeChildEntity, FakeChildState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Throws<NotFoundException>();
             Inject(store);
 
             var e = await Record.ExceptionAsync(() => Sut.Get("test")).ConfigureAwait(false);

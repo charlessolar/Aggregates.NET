@@ -34,7 +34,7 @@ namespace Aggregates.Common
         {
             var parent = Fake<IEntity>();
             A.CallTo(() => parent.Id).Returns("parent");
-            var entity = await Sut.New<FakeChildEntity, FakeState>("test", "test", parent).ConfigureAwait(false);
+            var entity = await Sut.New<FakeChildEntity, FakeChildState>("test", "test", parent).ConfigureAwait(false);
             entity.Version.Should().Be(Internal.EntityFactory.NewEntityVersion);
             entity.State.Parents.Any(x => x.StreamId == "parent").Should().BeTrue();
         }
@@ -82,7 +82,7 @@ namespace Aggregates.Common
             A.CallTo(() => parent.Id).Returns("parent");
             A.CallTo(() => Snapstore.GetSnapshot<FakeChildEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Returns(Task.FromResult((ISnapshot)null));
 
-            var entity = await Sut.Get<FakeChildEntity, FakeState>("test", "test", parent).ConfigureAwait(false);
+            var entity = await Sut.Get<FakeChildEntity, FakeChildState>("test", "test", parent).ConfigureAwait(false);
 
             entity.State.Parents.Any(x => x.StreamId == "parent").Should().BeTrue();
         }

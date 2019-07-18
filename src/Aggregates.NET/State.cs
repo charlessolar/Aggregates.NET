@@ -10,6 +10,10 @@ using Aggregates.Extensions;
 
 namespace Aggregates
 {
+    public abstract class State<TThis, TParent> : State<TThis> where TParent : State<TParent> where TThis : State<TThis>
+    {
+        public TParent Parent { get; internal set; }
+    }
     public abstract class State<TThis> : IState where TThis : State<TThis>
     {
         private static readonly ILog Logger = LogProvider.GetLogger(typeof(TThis).Name);
