@@ -61,12 +61,12 @@ options({{
     processingLag: 0
 }});
 
-function createParents(parents) {
+function createParents(parents) {{
     if(!parents || !parents.length || parents.length == 0)
         return '';
 
-    return parents.map(function(x) { return x.StreamId; }).join(':');
-}
+    return parents.map(function(x) {{ return x.StreamId; }}).join(':');
+}}
 
 fromCategory('{0}')
 .partitionBy(function(event) {{
