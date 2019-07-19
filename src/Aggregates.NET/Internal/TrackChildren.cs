@@ -62,7 +62,7 @@ options({{
 }});
 
 function createParents(parents) {{
-    if(!parents || !parents.length || parents.length == 0)
+    if(!parents || !parents.length || parents.length === 0)
         return '';
 
     return parents.map(function(x) {{ return x.StreamId; }}).join(':');
@@ -71,7 +71,7 @@ function createParents(parents) {{
 fromCategory('{0}')
 .partitionBy(function(event) {{
     let metadata = JSON.parse(event.metadataRaw);
-    if(metadata.Parents === null || metadata.Parents.length === 0)
+    if(metadata.Parents === null || metadata.Parents.length == 0)
         return undefined;
     let lastParent = metadata.Parents.pop();
         
