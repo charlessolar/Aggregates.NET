@@ -61,6 +61,13 @@ options({{
     processingLag: 0
 }});
 
+function createParents(parents) {
+    if(!parents || !parents.length || parents.length == 0)
+        return '';
+
+    return parents.map(function(x) { return x.StreamId; }).join(':');
+}
+
 fromCategory('{0}')
 .partitionBy(function(event) {{
     let metadata = JSON.parse(event.metadataRaw);
@@ -68,7 +75,7 @@ fromCategory('{0}')
         return undefined;
     let lastParent = metadata.Parents.pop();
         
-    let streamId = 'CHILDREN' + '-' + metadata.Bucket + '-[' + metadata.Parents.join(':') + ']-' + lastParent.EntityType + '-' + lastParent.StreamId;
+    let streamId = 'CHILDREN' + '-' + metadata.Bucket + '-[' + createParents(metadata.Parents) + ']-' + lastParent.EntityType + '-' + lastParent.StreamId;
         
     return streamId;
 }})
