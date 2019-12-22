@@ -16,7 +16,8 @@ namespace Aggregates.Common
         [Fact]
         public async Task ShouldGetEntityFromTryGet()
         {
-            var entity = await Sut.TryGet("test").ConfigureAwait(false);
+            var task = Sut.TryGet("test");
+            var entity = await task.ConfigureAwait(false);
             entity.Should().NotBeNull();
         }
         [Fact]

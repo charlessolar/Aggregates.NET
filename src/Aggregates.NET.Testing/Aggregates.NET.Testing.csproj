@@ -19,14 +19,18 @@
 
 
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="NServiceBus.Callbacks.Testing" Version="3.0.0" />
-    <PackageReference Include="NServiceBus.Testing" Version="7.0.0" />
+    <PackageReference Include="NServiceBus.Testing" Version="7.2.0" />
   </ItemGroup>
   
   <ItemGroup>
     <ProjectReference Include="..\Aggregates.NET.NServiceBus\Aggregates.NET.NServiceBus.csproj" />
     <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="1.0.0" />
   </ItemGroup>
 
 </Project>

@@ -14,4 +14,5 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Aggregates.NET.NewtonsoftJson")]
 [assembly: InternalsVisibleTo("Aggregates.NET.StructureMap")]
 [assembly: InternalsVisibleTo("Aggregates.NET.SimpleInjector")]
+[assembly: InternalsVisibleTo("Aggregates.NET.Microsoft")]
 [assembly: InternalsVisibleTo("Aggregates.NET.Testing")]

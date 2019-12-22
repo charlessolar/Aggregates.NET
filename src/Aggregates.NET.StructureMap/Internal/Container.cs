@@ -40,12 +40,16 @@ namespace Aggregates.Internal
         {
             _container.Configure(x => x.For(concrete).Use(concrete).SetLifecycleTo(ConvertLifestyle(lifestyle)));
         }
-        public void Register<TInterface>(TInterface instance, Contracts.Lifestyle lifestyle) where TInterface : class
+        public void Register(Type serviceType, object instance, Contracts.Lifestyle lifestyle)
         {
-            _container.Configure(x => x.For<TInterface>().Use(instance).SetLifecycleTo(ConvertLifestyle(lifestyle)));
+            _container.Configure(x => x.For(serviceType).Use(instance).SetLifecycleTo(ConvertLifestyle(lifestyle)));
+        }
+        public void Register<TInterface>(TInterface instance, Contracts.Lifestyle lifestyle) 
+        {
+            _container.Configure(x => x.For<TInterface>().Use(() => instance).SetLifecycleTo(ConvertLifestyle(lifestyle)));
         }
 
-        public void Register<TInterface>(Func<IContainer, TInterface> factory, Contracts.Lifestyle lifestyle, string name = null) where TInterface : class
+        public void Register<TInterface>(Func<IContainer, TInterface> factory, Contracts.Lifestyle lifestyle, string name = null)
         {
             _container.Configure(x =>
             {
@@ -55,34 +59,42 @@ namespace Aggregates.Internal
                 use.SetLifecycleTo(ConvertLifestyle(lifestyle));
             });
         }
-        public void Register<TInterface, TConcrete>(Contracts.Lifestyle lifestyle, string name = null) where TInterface : class where TConcrete : class, TInterface
+        public void Register<TInterface, TConcrete>(Contracts.Lifestyle lifestyle, string name = null)
         {
             _container.Configure(x =>
             {
-                var use = x.For<TInterface>().Use<TConcrete>();
+                var use = x.For(typeof(TInterface)).Use(typeof(TConcrete));
                 if (!string.IsNullOrEmpty(name))
                     use.Named(name);
                 use.SetLifecycleTo(ConvertLifestyle(lifestyle));
             });
+        }
+        public bool HasService(Type service)
+        {
+            return _container.GetInstance(service) != null;
         }
 
         public object Resolve(Type resolve)
         {
             return _container.GetInstance(resolve);
         }
-        public TResolve Resolve<TResolve>() where TResolve : class
+        public TResolve Resolve<TResolve>()
         {
             return _container.GetInstance<TResolve>();
         }
-        public IEnumerable<TResolve> ResolveAll<TResolve>() where TResolve : class
+        public IEnumerable<TResolve> ResolveAll<TResolve>()
         {
             return _container.GetAllInstances<TResolve>();
+        }
+        public IEnumerable<object> ResolveAll(Type service)
+        {
+            return (IEnumerable<object>)_container.GetAllInstances(service);
         }
         public object TryResolve(Type resolve)
         {
             return _container.TryGetInstance(resolve);
         }
-        public TResolve TryResolve<TResolve>() where TResolve : class
+        public TResolve TryResolve<TResolve>()
         {
             return _container.TryGetInstance<TResolve>();
         }

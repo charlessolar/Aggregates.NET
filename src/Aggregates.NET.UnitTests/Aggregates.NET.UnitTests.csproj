@@ -8,12 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentAssertions" Version="5.6.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.0.1" />
-    <PackageReference Include="AutoFixture.AutoFakeItEasy" Version="4.8.0" />
-    <PackageReference Include="AutoFixture.Xunit2" Version="4.8.0" />
-    <PackageReference Include="FakeItEasy" Version="5.1.0" />
-    <PackageReference Include="NServiceBus.Testing" Version="7.0.0" />
+    <PackageReference Include="FluentAssertions" Version="5.9.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.4.0" />
+    <PackageReference Include="AutoFixture.AutoFakeItEasy" Version="4.11.0" />
+    <PackageReference Include="AutoFixture.Xunit2" Version="4.11.0" />
+    <PackageReference Include="FakeItEasy" Version="5.4.0" />
+    <PackageReference Include="NServiceBus.Testing" Version="7.2.0" />
     <PackageReference Include="xunit" Version="2.4.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1">
       <PrivateAssets>all</PrivateAssets>
@@ -36,6 +36,10 @@
     <ProjectReference Include="..\Aggregates.NET.StructureMap\Aggregates.NET.StructureMap.csproj" />
     <ProjectReference Include="..\Aggregates.NET.Testing\Aggregates.NET.Testing.csproj" />
     <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="1.0.0" />
   </ItemGroup>
 
 </Project>

@@ -17,17 +17,27 @@ namespace Aggregates.Internal
             throw new NotImplementedException();
         }
 
+        public bool HasService(Type serviceType)
+        {
+            throw new NotImplementedException();
+        }
+
         public void Register(Type concrete, Lifestyle lifestyle)
         {
             throw new NotImplementedException();
         }
 
-        public void Register<TInterface>(TInterface instance, Lifestyle lifestyle) where TInterface : class
+        public void Register<TInterface>(TInterface instance, Lifestyle lifestyle)
         {
             throw new NotImplementedException();
         }
 
-        public void Register<TInterface>(Func<IContainer, TInterface> factory, Lifestyle lifestyle, string name = null) where TInterface : class
+        public void Register<TInterface>(Func<IContainer, TInterface> factory, Lifestyle lifestyle, string name = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Register(Type concrete, object instance, Lifestyle lifestyle)
         {
             throw new NotImplementedException();
         }
@@ -37,12 +47,17 @@ namespace Aggregates.Internal
             throw new NotImplementedException();
         }
 
-        public TResolve Resolve<TResolve>() where TResolve : class
+        public TResolve Resolve<TResolve>()
         {
             throw new NotImplementedException();
         }
 
-        public IEnumerable<TResolve> ResolveAll<TResolve>() where TResolve : class
+        public IEnumerable<TResolve> ResolveAll<TResolve>()
+        {
+            throw new NotImplementedException();
+        }
+
+        public IEnumerable<object> ResolveAll(Type resolve)
         {
             throw new NotImplementedException();
         }
@@ -52,7 +67,7 @@ namespace Aggregates.Internal
             throw new NotImplementedException();
         }
 
-        public TResolve TryResolve<TResolve>() where TResolve : class
+        public TResolve TryResolve<TResolve>()
         {
             throw new NotImplementedException();
         }

@@ -82,7 +82,7 @@ namespace Aggregates
 
         public Task HandleCurrentMessageLater()
         {
-            return _ctx.HandleCurrentMessageLater();
+            throw new NotImplementedException();
         }
 
         public Task Publish(object message, PublishOptions options)

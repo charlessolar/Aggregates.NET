@@ -53,13 +53,19 @@ namespace Aggregates.Internal
             if (_child) return;
             _container.Register(concrete, concrete, ConvertLifestyle(lifestyle));
         }
-        public void Register<TInterface>(TInterface instance, Contracts.Lifestyle lifestyle) where TInterface : class
+        public void Register(Type service, object instance, Contracts.Lifestyle lifestyle)
         {
             if (_child) return;
-            _container.Register<TInterface>(() => instance, ConvertLifestyle(lifestyle));
+            _container.Register(service, () => instance, ConvertLifestyle(lifestyle));
+        }
+        public void Register<TInterface>(TInterface instance, Contracts.Lifestyle lifestyle)
+        {
+            if (_child) return;
+            _container.Register(instance.GetType(), () => instance, ConvertLifestyle(lifestyle));
+            //_container.Register<TInterface>(() => instance, ConvertLifestyle(lifestyle));
         }
 
-        public void Register<TInterface>(Func<IContainer, TInterface> factory, Contracts.Lifestyle lifestyle, string name = null) where TInterface : class
+        public void Register<TInterface>(Func<IContainer, TInterface> factory, Contracts.Lifestyle lifestyle, string name = null) 
         {
             if (_child) return;
 
@@ -69,14 +75,14 @@ namespace Aggregates.Internal
                 if (!_namedCollections.ContainsKey(typeof(TInterface)))
                     _namedCollections[typeof(TInterface)] = new List<SimpleInjector.Registration>();
 
-                _namedCollections[typeof(TInterface)].Add(ConvertLifestyle(lifestyle).CreateRegistration<TInterface>(() => factory(this), _container));
+                _namedCollections[typeof(TInterface)].Add(ConvertLifestyle(lifestyle).CreateRegistration(typeof(TInterface), () => factory(this), _container));
 
-                _container.Collection.Register<TInterface>(_namedCollections[typeof(TInterface)]);
+                _container.Collection.Register(typeof(TInterface), _namedCollections[typeof(TInterface)]);
                 return;
             }
-            _container.Register(() => factory(this), ConvertLifestyle(lifestyle));
+            _container.Register(typeof(TInterface), () => factory(this), ConvertLifestyle(lifestyle));
         }
-        public void Register<TInterface, TConcrete>(Contracts.Lifestyle lifestyle, string name = null) where TInterface : class where TConcrete : class, TInterface
+        public void Register<TInterface, TConcrete>(Contracts.Lifestyle lifestyle, string name = null) 
         {
             if (_child) return;
 
@@ -86,25 +92,33 @@ namespace Aggregates.Internal
                 if (!_namedCollections.ContainsKey(typeof(TInterface)))
                     _namedCollections[typeof(TInterface)] = new List<SimpleInjector.Registration>();
 
-                _namedCollections[typeof(TInterface)].Add(ConvertLifestyle(lifestyle).CreateRegistration<TConcrete>( _container));
+                _namedCollections[typeof(TInterface)].Add(ConvertLifestyle(lifestyle).CreateRegistration(typeof(TConcrete), _container));
 
-                _container.Collection.Register<TInterface>(_namedCollections[typeof(TInterface)]);
+                _container.Collection.Register(typeof(TInterface), _namedCollections[typeof(TInterface)]);
                 return;
             }
-            _container.Register<TInterface, TConcrete>(ConvertLifestyle(lifestyle));
+            _container.Register(typeof(TInterface), typeof(TConcrete), ConvertLifestyle(lifestyle));
+        }
+        public bool HasService(Type service)
+        {
+            return _container.GetCurrentRegistrations().Any(x => x.ServiceType == service);
         }
 
         public object Resolve(Type resolve)
         {
             return _container.GetInstance(resolve);
         }
-        public TResolve Resolve<TResolve>() where TResolve : class
+        public TResolve Resolve<TResolve>()
         {
-            return _container.GetInstance<TResolve>();
+            return (TResolve)_container.GetInstance(typeof(TResolve));
         }
-        public IEnumerable<TResolve> ResolveAll<TResolve>() where TResolve : class
+        public IEnumerable<TResolve> ResolveAll<TResolve>()
         {
-            return _container.GetAllInstances<TResolve>();
+            return _container.GetAllInstances(typeof(TResolve)).Cast<TResolve>();
+        }
+        public IEnumerable<object> ResolveAll(Type resolve)
+        {
+            return _container.GetAllInstances(resolve);
         }
         public object TryResolve(Type resolve)
         {
@@ -117,15 +131,15 @@ namespace Aggregates.Internal
                 return null;
             }
         }
-        public TResolve TryResolve<TResolve>() where TResolve : class
+        public TResolve TryResolve<TResolve>()
         {
             try
             {
-                return _container.GetInstance<TResolve>();
+                return (TResolve)_container.GetInstance(typeof(TResolve));
             }
             catch (ActivationException)
             {
-                return null;
+                return default(TResolve);
             }
         }
 

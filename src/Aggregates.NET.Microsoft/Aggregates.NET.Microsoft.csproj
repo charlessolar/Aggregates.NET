@@ -7,13 +7,9 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     
     <IsPackable>true</IsPackable>
-    <Title>Aggregates.NET.NewtonsoftJson</Title>
-    <Description>NewtonsoftJson support for Aggregates.NET</Description>
+    <Title>Aggregates.NET.Microsoft</Title>
+    <Description>Microsoft Container support for Aggregates.NET</Description>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj" />
@@ -23,6 +19,10 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="3.1.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27004.2008
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29424.173
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET", "src\Aggregates.NET\Aggregates.NET.csproj", "{B9A11078-E76E-487E-BA87-C15C184411E6}"
 EndProject
@@ -18,6 +18,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET.SimpleInjector", "src\Aggregates.NET.SimpleInjector\Aggregates.NET.SimpleInjector.csproj", "{4A6EE14F-F404-4594-A907-2C6F4D849104}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET.Testing", "src\Aggregates.NET.Testing\Aggregates.NET.Testing.csproj", "{FF9301FF-749D-40B2-82CF-FE79A37652E9}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET.Microsoft", "src\Aggregates.NET.Microsoft\Aggregates.NET.Microsoft.csproj", "{554067F5-41F6-434C-B0D5-B05254789763}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -57,6 +59,10 @@ Global
 		{FF9301FF-749D-40B2-82CF-FE79A37652E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FF9301FF-749D-40B2-82CF-FE79A37652E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FF9301FF-749D-40B2-82CF-FE79A37652E9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{554067F5-41F6-434C-B0D5-B05254789763}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{554067F5-41F6-434C-B0D5-B05254789763}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{554067F5-41F6-434C-B0D5-B05254789763}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{554067F5-41F6-434C-B0D5-B05254789763}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
