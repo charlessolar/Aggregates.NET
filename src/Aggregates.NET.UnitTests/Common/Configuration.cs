@@ -23,7 +23,7 @@ namespace Aggregates.Common
 
             Aggregates.Configuration.Setup.Should().BeTrue();
         }
-        
+
 
         [Fact]
         public async Task ShouldRequireContainerDefinition()
@@ -49,7 +49,7 @@ namespace Aggregates.Common
             called.Should().BeTrue();
         }
         [Fact]
-        public async Task ShouldCallSetupTasks()
+        public async Task ShouldNotCallSetupTasks()
         {
             bool called = false;
             await Aggregates.Configuration.Build(config =>
@@ -62,7 +62,7 @@ namespace Aggregates.Common
                 });
             }).ConfigureAwait(false);
 
-            called.Should().BeTrue();
+            called.Should().BeFalse();
         }
         [Fact]
         public async Task ShouldNotBeSetupAfterRegistrationException()
@@ -82,14 +82,16 @@ namespace Aggregates.Common
         [Fact]
         public async Task ShouldNotBeSetupAfterSetupException()
         {
-            var e = await Record.ExceptionAsync(() => Aggregates.Configuration.Build(config =>
+            await Aggregates.Configuration.Build(config =>
             {
                 config.Container = Fake<IContainer>();
                 config.SetupTasks.Add((_) =>
                 {
                     throw new Exception();
                 });
-            })).ConfigureAwait(false);
+            });
+
+            var e = await Record.ExceptionAsync(() => Aggregates.Configuration.Start()).ConfigureAwait(false);
 
             e.Should().BeOfType<Exception>();
             Aggregates.Configuration.Setup.Should().BeFalse();

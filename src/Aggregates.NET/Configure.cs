@@ -14,6 +14,7 @@ namespace Aggregates
 {
     public class Configuration
     {
+
         public static bool Setup => Settings != null;
         public static Configure Settings { get; internal set; }
 
@@ -30,7 +31,21 @@ namespace Aggregates
             try
             {
                 await config.RegistrationTasks.WhenAllAsync(x => x(config)).ConfigureAwait(false);
-                await config.SetupTasks.WhenAllAsync(x => x(config)).ConfigureAwait(false);
+            }
+            catch
+            {
+                Settings = null;
+                throw;
+            }
+        }
+        public static async Task Start()
+        {
+            if (Settings == null)
+                throw new InvalidOperationException("Settings must be built");
+
+            try
+            {
+                await Settings.SetupTasks.WhenAllAsync(x => x(Settings)).ConfigureAwait(false);
             }
             catch
             {
@@ -121,25 +136,31 @@ namespace Aggregates
 
                 // Register outselves with ourselves
                 container.Register<IContainer>(container, Lifestyle.Singleton);
-                container.Register<IDelayedChannel, DelayedChannel>(Lifestyle.UnitOfWork);
-                container.Register<UnitOfWork.IDomain, Internal.UnitOfWork>(Lifestyle.UnitOfWork);
 
-                container.Register<IRepositoryFactory, RepositoryFactory>(Lifestyle.PerInstance);
                 container.Register<IProcessor, Processor>(Lifestyle.PerInstance);
-                container.Register<IStoreSnapshots>((factory) => new StoreSnapshots(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<ISnapshotReader>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.PerInstance);
-                container.Register<IOobWriter>((factory) => new OobWriter(factory.Resolve<IMessageDispatcher>(), factory.Resolve<IStoreEvents>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.PerInstance);
-                container.Register<ISnapshotReader, SnapshotReader>(Lifestyle.PerInstance);
-                container.Register<IStoreEntities, StoreEntities>(Lifestyle.PerInstance);
                 container.Register<IVersionRegistrar, VersionRegistrar>(Lifestyle.Singleton);
 
+                if (!c.Passive)
+                {
+                    container.Register<UnitOfWork.IDomain, Internal.UnitOfWork>(Lifestyle.UnitOfWork);
+
+                    container.Register<IDelayedChannel, DelayedChannel>(Lifestyle.UnitOfWork);
+                    container.Register<IRepositoryFactory, RepositoryFactory>(Lifestyle.PerInstance);
+                    container.Register<IStoreSnapshots>((factory) => new StoreSnapshots(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<ISnapshotReader>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.PerInstance);
+                    container.Register<IOobWriter>((factory) => new OobWriter(factory.Resolve<IMessageDispatcher>(), factory.Resolve<IStoreEvents>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.PerInstance);
+                    container.Register<ISnapshotReader, SnapshotReader>(Lifestyle.PerInstance);
+                    container.Register<IStoreEntities, StoreEntities>(Lifestyle.PerInstance);
+                    container.Register<IDelayedCache>((factory) => new DelayedCache(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<IVersionRegistrar>(), factory.Resolve<IRandomProvider>(), factory.Resolve<ITimeProvider>()), Lifestyle.Singleton);
+
+                    container.Register<IEventSubscriber>((factory) => new EventSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IMessaging>(), factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IVersionRegistrar>(), c.ParallelEvents, c.AllEvents), Lifestyle.Singleton, "eventsubscriber");
+                    container.Register<IEventSubscriber>((factory) => new DelayedSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IMessageDispatcher>(), c.Retries), Lifestyle.Singleton, "delayedsubscriber");
+                    container.Register<IEventSubscriber>((factory) => (IEventSubscriber)factory.Resolve<ISnapshotReader>(), Lifestyle.Singleton, "snapshotreader");
+
+                    container.Register<ITrackChildren, TrackChildren>(Lifestyle.Singleton);
+
+                }
                 container.Register<IMetrics, NullMetrics>(Lifestyle.Singleton);
-                container.Register<IDelayedCache>((factory) => new DelayedCache(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<IVersionRegistrar>(), factory.Resolve<IRandomProvider>(), factory.Resolve<ITimeProvider>()), Lifestyle.Singleton);
 
-                container.Register<ITrackChildren, TrackChildren>(Lifestyle.Singleton);
-
-                container.Register<IEventSubscriber>((factory) => new EventSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IMessaging>(), factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IVersionRegistrar>(), c.ParallelEvents, c.AllEvents), Lifestyle.Singleton, "eventsubscriber");
-                container.Register<IEventSubscriber>((factory) => new DelayedSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IMessageDispatcher>(), c.Retries), Lifestyle.Singleton, "delayedsubscriber");
-                container.Register<IEventSubscriber>((factory) => (IEventSubscriber)factory.Resolve<ISnapshotReader>(), Lifestyle.Singleton, "snapshotreader");
 
                 container.Register<StreamIdGenerator>(Generator, Lifestyle.Singleton);
 

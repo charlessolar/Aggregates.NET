@@ -31,13 +31,6 @@ namespace Aggregates
             var settings = context.Settings;
             var container = Configuration.Settings.Container;
 
-            context.Container.ConfigureComponent<IEventMapper>((c) => new EventMapper(c.Build<IMessageMapper>()), DependencyLifecycle.InstancePerCall);
-
-            context.Container.ConfigureComponent<UnitOfWork.IDomain>((c) => new NSBUnitOfWork(c.Build<IRepositoryFactory>(), c.Build<IEventFactory>(), c.Build<IVersionRegistrar>()), DependencyLifecycle.InstancePerUnitOfWork);
-            context.Container.ConfigureComponent<IEventFactory>((c) => new EventFactory(c.Build<IMessageCreator>()), DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<IMessageDispatcher>((c) => new Dispatcher(c.Build<IMetrics>(), c.Build<IMessageSerializer>(), c.Build<IEventMapper>(), c.Build<IVersionRegistrar>()), DependencyLifecycle.InstancePerCall);
-            context.Container.ConfigureComponent<IMessaging>((c) => new NServiceBusMessaging(c.Build<MessageHandlerRegistry>(), c.Build<MessageMetadataRegistry>(), c.Build<ReadOnlySettings>()), DependencyLifecycle.InstancePerCall);
-
             context.Pipeline.Register(new ExceptionRejectorRegistration(container));
 
             if (!Configuration.Settings.Passive)

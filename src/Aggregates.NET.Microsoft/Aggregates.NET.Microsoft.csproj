@@ -11,6 +11,11 @@
     <Description>Microsoft Container support for Aggregates.NET</Description>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj" />
   </ItemGroup>

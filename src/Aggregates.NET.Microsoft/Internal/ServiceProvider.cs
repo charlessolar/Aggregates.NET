@@ -10,17 +10,14 @@ using System.Text;
 namespace Aggregates.Internal
 {
     [ExcludeFromCodeCoverage]
-    class Container : IContainer
+    public class ServiceProvider : IContainer
     {
-        private readonly IServiceCollection _serviceCollection;
         private readonly IServiceProvider _provider;
 
-        public Container(IServiceCollection serviceCollection, IServiceProvider provider)
+        public ServiceProvider(IServiceProvider provider)
         {
-            _serviceCollection = serviceCollection;
             _provider = provider;
         }
-
         public void Dispose()
         {
         }
@@ -38,55 +35,11 @@ namespace Aggregates.Internal
             }
             throw new ArgumentException($"Unknown lifestyle {lifestyle}");
         }
-
-        public void Register(Type concrete, Contracts.Lifestyle lifestyle)
-        {
-            _serviceCollection.TryAdd(new ServiceDescriptor(concrete, ConvertLifestyle(lifestyle)));
-            RegisterInterfaces(concrete);
-        }
-        public void Register<TInterface>(TInterface instance, Contracts.Lifestyle lifestyle) 
-        {
-            _serviceCollection.TryAdd(new ServiceDescriptor(instance.GetType(), (_) => instance, ConvertLifestyle(lifestyle)));
-            RegisterInterfaces(typeof(TInterface));
-        }
-        public void Register(Type componentType, object instance, Contracts.Lifestyle lifestyle)
-        {
-            _serviceCollection.TryAdd(new ServiceDescriptor(componentType, (_) => instance, ConvertLifestyle(lifestyle)));
-            RegisterInterfaces(componentType);
-        }
-
-        public void Register<TInterface>(Func<IContainer, TInterface> factory, Contracts.Lifestyle lifestyle, string name = null) 
-        {
-            // todo: support name? or remove name?
-
-            _serviceCollection.TryAdd(new ServiceDescriptor(typeof(TInterface), (provider) => factory(this), ConvertLifestyle(lifestyle)));
-            RegisterInterfaces(typeof(TInterface));
-        }
-        public void Register<TInterface, TConcrete>(Contracts.Lifestyle lifestyle, string name = null)
-        {
-            _serviceCollection.TryAdd(new ServiceDescriptor(typeof(TInterface), typeof(TConcrete), ConvertLifestyle(lifestyle)));
-            RegisterInterfaces(typeof(TInterface));
-        }
-        public bool HasService(Type componentType)
-        {
-            return _serviceCollection.Any(sd => sd.ServiceType == componentType);
-        }
-        void RegisterInterfaces(Type component)
-        {
-            var interfaces = component.GetInterfaces();
-            foreach (var serviceType in interfaces)
-            {
-                // see https://andrewlock.net/how-to-register-a-service-with-multiple-interfaces-for-in-asp-net-core-di/
-                _serviceCollection.Add(new ServiceDescriptor(serviceType, sp => sp.GetService(component), ServiceLifetime.Transient));
-            }
-        }
-
-
         public object Resolve(Type resolve)
         {
             return _provider.GetService(resolve);
         }
-        public TResolve Resolve<TResolve>() 
+        public TResolve Resolve<TResolve>()
         {
             return _provider.GetService<TResolve>();
         }
@@ -124,6 +77,36 @@ namespace Aggregates.Internal
         public IContainer GetChildContainer()
         {
             return new ChildScope(_provider.CreateScope());
+        }
+
+        public void Register(Type concrete, Lifestyle lifestyle)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Register(Type concrete, object instance, Lifestyle lifestyle)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Register<TInterface>(TInterface instance, Lifestyle lifestyle)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Register<TInterface, TConcrete>(Lifestyle lifestyle, string name = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Register<TInterface>(Func<IContainer, TInterface> factory, Lifestyle lifestyle, string name = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool HasService(Type serviceType)
+        {
+            throw new NotImplementedException();
         }
 
         class ChildScope : IContainer, IDisposable
