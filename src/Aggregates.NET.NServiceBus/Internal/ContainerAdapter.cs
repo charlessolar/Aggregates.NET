@@ -3,6 +3,7 @@ using NServiceBus;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Linq;
 
 namespace Aggregates.Internal
 {
@@ -82,7 +83,7 @@ namespace Aggregates.Internal
 
         public IEnumerable<T> BuildAll<T>()
         {
-            return (IEnumerable<T>)BuildAll(typeof(T));
+            return BuildAll(typeof(T)).Cast<T>();
         }
 
         public IEnumerable<object> BuildAll(Type typeToBuild)
@@ -126,7 +127,7 @@ namespace Aggregates.Internal
 
             public IEnumerable<T> BuildAll<T>()
             {
-                return (IEnumerable<T>)BuildAll(typeof(T));
+                return BuildAll(typeof(T)).Cast<T>();
             }
 
             public IEnumerable<object> BuildAll(Type typeToBuild)
