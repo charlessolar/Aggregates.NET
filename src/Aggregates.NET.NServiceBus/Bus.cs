@@ -29,7 +29,7 @@ namespace Aggregates
         public static async Task<IEndpointInstance> Start(IStartableEndpointWithExternallyManagedContainer nsb)
         {
             BusOnline = false;
-            Instance = await nsb.Start(new Internal.ContainerAdapter(Configuration.Settings.Container)).ConfigureAwait(false);
+            Instance = await nsb.Start(new Internal.ContainerAdapter()).ConfigureAwait(false);
             // Take IEndpointInstance and pull out the info we need for eventstore consuming
 
             // We want eventstore to push message directly into NSB

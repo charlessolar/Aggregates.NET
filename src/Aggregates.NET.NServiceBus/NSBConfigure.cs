@@ -80,7 +80,7 @@ namespace Aggregates
                 // NSB doesn't have an endpoint name setter other than the constructor, hack it in
                 settings.Set("NServiceBus.Routing.EndpointName", c.Endpoint);
 
-                startableEndpoint = EndpointWithExternallyManagedContainer.Create(endpointConfig, new Internal.ContainerAdapter(c.Container));
+                startableEndpoint = EndpointWithExternallyManagedContainer.Create(endpointConfig, new Internal.ContainerAdapter());
 
                 return Task.CompletedTask;
             });

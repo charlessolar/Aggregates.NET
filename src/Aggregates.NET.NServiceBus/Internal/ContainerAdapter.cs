@@ -9,18 +9,12 @@ namespace Aggregates.Internal
 {
     public class ContainerAdapter : IConfigureComponents, IBuilder
     {
-        private readonly Contracts.IContainer _container;
-
-
-        public ContainerAdapter(Contracts.IContainer container)
-        {
-            _container = container;
-        }
+        private Contracts.IContainer Container => Configuration.Settings.LocalContainer.Value ?? Configuration.Settings.Container;
 
 
         public void ConfigureComponent(Type concreteComponent, DependencyLifecycle dependencyLifecycle)
         {
-            _container.Register(concreteComponent, Map(dependencyLifecycle));
+            Container.Register(concreteComponent, Map(dependencyLifecycle));
         }
 
         public void ConfigureComponent<T>(DependencyLifecycle dependencyLifecycle)
@@ -32,12 +26,12 @@ namespace Aggregates.Internal
         public void ConfigureComponent<T>(Func<T> componentFactory, DependencyLifecycle dependencyLifecycle) 
         {
             var componentType = typeof(T);
-            _container.Register<T>((_) => componentFactory(), Map(dependencyLifecycle));
+            Container.Register<T>((_) => componentFactory(), Map(dependencyLifecycle));
         }
 
         public void ConfigureComponent<T>(Func<IBuilder, T> componentFactory, DependencyLifecycle dependencyLifecycle)
         {
-            _container.Register<T>((_) => componentFactory(this), Map(dependencyLifecycle));
+            Container.Register<T>((c) => componentFactory(this), Map(dependencyLifecycle));
         }
 
         public bool HasComponent<T>()
@@ -47,12 +41,12 @@ namespace Aggregates.Internal
 
         public bool HasComponent(Type componentType)
         {
-            return _container.HasService(componentType);
+            return Container.HasService(componentType);
         }
 
         public void RegisterSingleton(Type lookupType, object instance)
         {
-            _container.Register(lookupType, instance, Contracts.Lifestyle.Singleton);
+            Container.Register(lookupType, instance, Contracts.Lifestyle.Singleton);
         }
 
         public void RegisterSingleton<T>(T instance)
@@ -73,7 +67,7 @@ namespace Aggregates.Internal
 
         public object Build(Type typeToBuild)
         {
-            return _container.Resolve(typeToBuild) ?? throw new Exception($"Unable to build {typeToBuild.FullName}. Ensure the type has been registered correctly with the container.");
+            return Container.Resolve(typeToBuild) ?? throw new Exception($"Unable to build {typeToBuild.FullName}. Ensure the type has been registered correctly with the container.");
         }
 
         public T Build<T>()
@@ -88,7 +82,7 @@ namespace Aggregates.Internal
 
         public IEnumerable<object> BuildAll(Type typeToBuild)
         {
-            return _container.ResolveAll(typeToBuild);
+            return Container.ResolveAll(typeToBuild);
         }
 
         public void BuildAndDispatch(Type typeToBuild, Action<object> action)
@@ -98,7 +92,7 @@ namespace Aggregates.Internal
 
         public IBuilder CreateChildBuilder()
         {
-            return new ChildScopeAdapter(_container.GetChildContainer());
+            return new ChildScopeAdapter(Container.GetChildContainer());
         }
         public void Dispose()
         {
