@@ -108,7 +108,7 @@ namespace Aggregates.Internal
         {
             if (!HasComponent(resolve))
             {
-                throw new ActivationException("The requested type is not registered yet");
+                throw new ActivationException($"The requested type {resolve.FullName} is not registered yet");
             }
 
             return _container.GetInstance(resolve);
