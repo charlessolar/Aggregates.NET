@@ -34,7 +34,7 @@ namespace Aggregates.Internal
             IContainer container;
 
             if (!context.Extensions.TryGet<IContainer>(out container))
-                container = Configuration.Settings.Container;
+                container = Configuration.Settings.Container.GetChildContainer();
 
             foreach (var type in mutators)
             {
