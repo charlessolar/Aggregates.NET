@@ -106,19 +106,38 @@ namespace Aggregates.Internal
 
         public object Resolve(Type resolve)
         {
+            if (!HasComponent(resolve))
+            {
+                throw new ActivationException("The requested type is not registered yet");
+            }
+
             return _container.GetInstance(resolve);
         }
         public TResolve Resolve<TResolve>()
         {
-            return (TResolve)_container.GetInstance(typeof(TResolve));
+            return (TResolve)Resolve(typeof(TResolve));
         }
         public IEnumerable<TResolve> ResolveAll<TResolve>()
         {
-            return _container.GetAllInstances(typeof(TResolve)).Cast<TResolve>();
+            return ResolveAll(typeof(TResolve)).Cast<TResolve>();
         }
         public IEnumerable<object> ResolveAll(Type resolve)
         {
-            return _container.GetAllInstances(resolve);
+            if (HasComponent(resolve))
+            {
+
+                try
+                {
+                    return _container.GetAllInstances(resolve);
+                }
+                catch (Exception)
+                {
+                    // Urgh!
+                    return new[] { _container.GetInstance(resolve) };
+                }
+            }
+
+            return new object[] { };
         }
         public object TryResolve(Type resolve)
         {
@@ -142,7 +161,14 @@ namespace Aggregates.Internal
                 return default(TResolve);
             }
         }
-
+        public bool HasComponent(Type componentType)
+        {
+            return GetExistingRegistrationsFor(componentType).Any();
+        }
+        IEnumerable<Registration> GetExistingRegistrationsFor(Type implementedInterface)
+        {
+            return _container.GetCurrentRegistrations().Where(r => r.ServiceType == implementedInterface).Select(r => r.Registration);
+        }
         public IContainer GetChildContainer()
         {
             return new Container(_container, child: true);
