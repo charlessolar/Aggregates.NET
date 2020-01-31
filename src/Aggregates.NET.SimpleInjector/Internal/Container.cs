@@ -52,6 +52,7 @@ namespace Aggregates.Internal
         public void Register(Type concrete, Contracts.Lifestyle lifestyle)
         {
             if (_child) return;
+
             _container.Register(concrete, concrete, ConvertLifestyle(lifestyle));
             RegisterInterfaces(concrete, lifestyle);
         }
@@ -69,7 +70,7 @@ namespace Aggregates.Internal
             //_container.Register<TInterface>(() => instance, ConvertLifestyle(lifestyle));
         }
 
-        public void Register<TInterface>(Func<IContainer, TInterface> factory, Contracts.Lifestyle lifestyle, string name = null) 
+        public void Register<TInterface>(Func<IContainer, TInterface> factory, Contracts.Lifestyle lifestyle, string name = null)
         {
             if (_child) return;
 
@@ -85,8 +86,9 @@ namespace Aggregates.Internal
                 return;
             }
             _container.Register(typeof(TInterface), () => factory(this), ConvertLifestyle(lifestyle));
+            RegisterInterfaces(typeof(TInterface), lifestyle);
         }
-        public void Register<TInterface, TConcrete>(Contracts.Lifestyle lifestyle, string name = null) 
+        public void Register<TInterface, TConcrete>(Contracts.Lifestyle lifestyle, string name = null)
         {
             if (_child) return;
 
@@ -102,6 +104,7 @@ namespace Aggregates.Internal
                 return;
             }
             _container.Register(typeof(TInterface), typeof(TConcrete), ConvertLifestyle(lifestyle));
+            RegisterInterfaces(typeof(TInterface), lifestyle);
         }
         void RegisterInterfaces(Type component, Contracts.Lifestyle lifestyle)
         {

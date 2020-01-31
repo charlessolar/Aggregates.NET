@@ -44,7 +44,7 @@ namespace Aggregates.Internal
         }
         public void Register<TInterface>(TInterface instance, Contracts.Lifestyle lifestyle) 
         {
-            _serviceCollection.TryAdd(new ServiceDescriptor(instance.GetType(), (_) => instance, ConvertLifestyle(lifestyle)));
+            _serviceCollection.TryAdd(new ServiceDescriptor(instance.GetType(), (_) => instance, ConvertLifestyle(lifestyle))); 
             RegisterInterfaces(typeof(TInterface));
         }
         public void Register(Type componentType, object instance, Contracts.Lifestyle lifestyle)
@@ -67,13 +67,16 @@ namespace Aggregates.Internal
         }
         public bool HasService(Type componentType)
         {
-            return _serviceCollection.Any(sd => sd.ServiceType == componentType);
+            return _serviceCollection.Any(sd => sd.ServiceType == componentType && sd.ImplementationType != null);
         }
         void RegisterInterfaces(Type component)
         {
             var interfaces = component.GetInterfaces();
             foreach (var serviceType in interfaces)
             {
+                if (HasService(serviceType))
+                    continue;
+
                 // see https://andrewlock.net/how-to-register-a-service-with-multiple-interfaces-for-in-asp-net-core-di/
                 _serviceCollection.Add(new ServiceDescriptor(serviceType, sp => sp.GetService(component), ServiceLifetime.Transient));
             }

@@ -41,11 +41,9 @@ namespace Aggregates.Internal
 
         public void Register(Type concrete, Contracts.Lifestyle lifestyle)
         {
-            ConfiguredInstance configuredInstance = null;
             _container.Configure(x =>
             {
-                configuredInstance = x.For(concrete).Use(concrete);
-                configuredInstance.SetLifecycleTo(ConvertLifestyle(lifestyle));
+                x.For(concrete).Use(concrete).SetLifecycleTo(ConvertLifestyle(lifestyle));
 
                 foreach (var implementedInterface in GetAllInterfacesImplementedBy(concrete))
                 {
@@ -55,11 +53,9 @@ namespace Aggregates.Internal
         }
         public void Register(Type serviceType, object instance, Contracts.Lifestyle lifestyle)
         {
-            ObjectInstance configuredInstance = null;
             _container.Configure(x =>
             {
-                configuredInstance = x.For(serviceType).Use(instance);
-                configuredInstance.SetLifecycleTo(ConvertLifestyle(lifestyle));
+                x.For(serviceType).Use(instance).SetLifecycleTo(ConvertLifestyle(lifestyle));
 
                 foreach (var implementedInterface in GetAllInterfacesImplementedBy(serviceType))
                 {
@@ -69,11 +65,9 @@ namespace Aggregates.Internal
         }
         public void Register<TInterface>(TInterface instance, Contracts.Lifestyle lifestyle)
         {
-            LambdaInstance<TInterface, TInterface> configuredInstance = null;
             _container.Configure(x =>
             {
-                configuredInstance = x.For<TInterface>().Use(() => instance);
-                configuredInstance.SetLifecycleTo(ConvertLifestyle(lifestyle));
+                x.For<TInterface>().Use(() => instance).SetLifecycleTo(ConvertLifestyle(lifestyle));
 
                 foreach (var implementedInterface in GetAllInterfacesImplementedBy(typeof(TInterface)))
                 {
@@ -85,10 +79,9 @@ namespace Aggregates.Internal
         public void Register<TInterface>(Func<IContainer, TInterface> factory, Contracts.Lifestyle lifestyle, string name = null)
         {
 
-            LambdaInstance<TInterface, TInterface> configuredInstance = null;
             _container.Configure(x =>
             {
-                var use = configuredInstance = x.For<TInterface>().Use(y => factory(this));
+                var use = x.For<TInterface>().Use(y => factory(this));
                 if (!string.IsNullOrEmpty(name))
                     use.Named(name);
                 use.SetLifecycleTo(ConvertLifestyle(lifestyle));
@@ -101,10 +94,9 @@ namespace Aggregates.Internal
         }
         public void Register<TInterface, TConcrete>(Contracts.Lifestyle lifestyle, string name = null)
         {
-            ConfiguredInstance configuredInstance = null;
             _container.Configure(x =>
             {
-                var use = configuredInstance = x.For(typeof(TInterface)).Use(typeof(TConcrete));
+                var use = x.For(typeof(TInterface)).Use(typeof(TConcrete));
                 if (!string.IsNullOrEmpty(name))
                     use.Named(name);
                 use.SetLifecycleTo(ConvertLifestyle(lifestyle));
