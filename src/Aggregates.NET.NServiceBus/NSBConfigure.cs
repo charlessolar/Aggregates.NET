@@ -50,12 +50,12 @@ namespace Aggregates
 
                 container.Register(factory => new Aggregates.Internal.DelayedRetry(factory.Resolve<IMetrics>(), factory.Resolve<IMessageDispatcher>()), Lifestyle.Singleton);
 
-                container.Register<IEventMapper>((factory) => new EventMapper(factory.Resolve<IMessageMapper>()), Lifestyle.PerInstance);
+                container.Register<IEventMapper>((factory) => new EventMapper(factory.Resolve<IMessageMapper>()), Lifestyle.Singleton);
 
                 container.Register<UnitOfWork.IDomain>((factory) => new NSBUnitOfWork(factory.Resolve<IRepositoryFactory>(), factory.Resolve<IEventFactory>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.UnitOfWork);
-                container.Register<IEventFactory>((factory) => new EventFactory(factory.Resolve<IMessageCreator>()), Lifestyle.PerInstance);
-                container.Register<IMessageDispatcher>((factory) => new Dispatcher(factory.Resolve<IMetrics>(), factory.Resolve<IMessageSerializer>(), factory.Resolve<IEventMapper>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.PerInstance);
-                container.Register<IMessaging>((factory) => new NServiceBusMessaging(factory.Resolve<MessageHandlerRegistry>(), factory.Resolve<MessageMetadataRegistry>(), factory.Resolve<ReadOnlySettings>()), Lifestyle.PerInstance);
+                container.Register<IEventFactory>((factory) => new EventFactory(factory.Resolve<IMessageCreator>()), Lifestyle.Singleton);
+                container.Register<IMessageDispatcher>((factory) => new Dispatcher(factory.Resolve<IMetrics>(), factory.Resolve<IMessageSerializer>(), factory.Resolve<IEventMapper>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.Singleton);
+                container.Register<IMessaging>((factory) => new NServiceBusMessaging(factory.Resolve<MessageHandlerRegistry>(), factory.Resolve<MessageMetadataRegistry>(), factory.Resolve<ReadOnlySettings>()), Lifestyle.Singleton);
 
                 var settings = endpointConfig.GetSettings();
 

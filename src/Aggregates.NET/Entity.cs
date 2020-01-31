@@ -156,6 +156,12 @@ namespace Aggregates
             (this as IEntity<TState>).Raise(instance, id, transient, daysToLive, single);
         }
 
+        /// <summary>
+        /// A rule for throwing business exceptions based on state
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="expression">returns TRUE if should throw</param>
+        /// <param name="message"></param>
         public void Rule(string name, Func<TState, bool> expression, string message = "")
         {
             if (expression(State))
