@@ -8,6 +8,7 @@ using System.Text;
 
 namespace Aggregates.Internal
 {
+    // somewhat from https://github.com/Particular/NServiceBus.StructureMap/blob/master/src/NServiceBus.StructureMap/StructureMapObjectBuilder.cs
     [ExcludeFromCodeCoverage]
     class Container : IContainer
     {
@@ -40,13 +41,6 @@ namespace Aggregates.Internal
 
         public void Register(Type concrete, Contracts.Lifestyle lifestyle)
         {
-            lock (configuredInstances)
-            {
-                if (configuredInstances.ContainsKey(concrete))
-                {
-                    return;
-                }
-            }
             ConfiguredInstance configuredInstance = null;
             _container.Configure(x =>
             {
@@ -58,20 +52,9 @@ namespace Aggregates.Internal
                     x.For(implementedInterface).Use(c => c.GetInstance(concrete));
                 }
             });
-            lock (configuredInstances)
-            {
-                configuredInstances.Add(concrete, configuredInstance);
-            }
         }
         public void Register(Type serviceType, object instance, Contracts.Lifestyle lifestyle)
         {
-            lock (configuredInstances)
-            {
-                if (configuredInstances.ContainsKey(serviceType))
-                {
-                    return;
-                }
-            }
             ObjectInstance configuredInstance = null;
             _container.Configure(x =>
             {
@@ -83,20 +66,9 @@ namespace Aggregates.Internal
                     x.For(implementedInterface).Use(c => c.GetInstance(serviceType));
                 }
             });
-            lock (configuredInstances)
-            {
-                configuredInstances.Add(serviceType, configuredInstance);
-            }
         }
         public void Register<TInterface>(TInterface instance, Contracts.Lifestyle lifestyle)
         {
-            lock (configuredInstances)
-            {
-                if (configuredInstances.ContainsKey(typeof(TInterface)))
-                {
-                    return;
-                }
-            }
             LambdaInstance<TInterface, TInterface> configuredInstance = null;
             _container.Configure(x =>
             {
@@ -108,22 +80,10 @@ namespace Aggregates.Internal
                     x.For(implementedInterface).Use(c => c.GetInstance<TInterface>());
                 }
             });
-            lock (configuredInstances)
-            {
-                configuredInstances.Add(typeof(TInterface), configuredInstance);
-            }
         }
 
         public void Register<TInterface>(Func<IContainer, TInterface> factory, Contracts.Lifestyle lifestyle, string name = null)
         {
-            lock (configuredInstances)
-            {
-                if (configuredInstances.ContainsKey(typeof(TInterface)))
-                {
-                    return;
-                }
-            }
-
 
             LambdaInstance<TInterface, TInterface> configuredInstance = null;
             _container.Configure(x =>
@@ -138,20 +98,9 @@ namespace Aggregates.Internal
                     x.For(implementedInterface).Use(c => c.GetInstance<TInterface>());
                 }
             });
-            lock (configuredInstances)
-            {
-                configuredInstances.Add(typeof(TInterface), configuredInstance);
-            }
         }
         public void Register<TInterface, TConcrete>(Contracts.Lifestyle lifestyle, string name = null)
         {
-            lock (configuredInstances)
-            {
-                if (configuredInstances.ContainsKey(typeof(TInterface)))
-                {
-                    return;
-                }
-            }
             ConfiguredInstance configuredInstance = null;
             _container.Configure(x =>
             {
@@ -160,10 +109,6 @@ namespace Aggregates.Internal
                     use.Named(name);
                 use.SetLifecycleTo(ConvertLifestyle(lifestyle));
             });
-            lock (configuredInstances)
-            {
-                configuredInstances.Add(typeof(TInterface), configuredInstance);
-            }
         }
         public bool HasService(Type componentType)
         {
@@ -203,6 +148,5 @@ namespace Aggregates.Internal
         {
             return new Container(_container.GetNestedContainer());
         }
-        Dictionary<Type, Instance> configuredInstances = new Dictionary<Type, Instance>();
     }
 }

@@ -110,6 +110,8 @@ namespace Aggregates.Internal
 
         private async Task Commit()
         {
+            if (CommitId == Guid.Empty)
+                throw new InvalidOperationException("Cannot commit - CommitId cannot be empty. This needs to be a unique GUID id");
 
             var headers = new Dictionary<string, string>
             {

@@ -45,6 +45,7 @@ namespace Aggregates.Common
             Inject<IRepository<FakeEntity>>(repo);
 
             Sut.For<FakeEntity>();
+            Sut.CommitId = Guid.NewGuid();
             await (Sut as Aggregates.UnitOfWork.IUnitOfWork).End().ConfigureAwait(false);
 
             repo.CommitCalled.Should().BeTrue();
@@ -68,6 +69,7 @@ namespace Aggregates.Common
             Inject<IRepository<FakeEntity>>(repo);
 
             Sut.For<FakeEntity>();
+            Sut.CommitId = Guid.NewGuid();
             await (Sut as Aggregates.UnitOfWork.IUnitOfWork).End().ConfigureAwait(false);
 
             repo.PrepareCalled.Should().BeTrue();
