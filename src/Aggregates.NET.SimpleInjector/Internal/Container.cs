@@ -10,6 +10,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {
+    // somewhat from https://github.com/WilliamBZA/NServicebus.SimpleInjector/blob/master/src/NServiceBus.SimpleInjector/SimpleInjectorObjectBuilder.cs
     [ExcludeFromCodeCoverage]
     class Container : IContainer, IDisposable
     {
@@ -52,16 +53,19 @@ namespace Aggregates.Internal
         {
             if (_child) return;
             _container.Register(concrete, concrete, ConvertLifestyle(lifestyle));
+            RegisterInterfaces(concrete, lifestyle);
         }
         public void Register(Type service, object instance, Contracts.Lifestyle lifestyle)
         {
             if (_child) return;
             _container.Register(service, () => instance, ConvertLifestyle(lifestyle));
+            RegisterInterfaces(service, lifestyle);
         }
         public void Register<TInterface>(TInterface instance, Contracts.Lifestyle lifestyle)
         {
             if (_child) return;
             _container.Register(instance.GetType(), () => instance, ConvertLifestyle(lifestyle));
+            RegisterInterfaces(instance.GetType(), lifestyle);
             //_container.Register<TInterface>(() => instance, ConvertLifestyle(lifestyle));
         }
 
@@ -98,6 +102,23 @@ namespace Aggregates.Internal
                 return;
             }
             _container.Register(typeof(TInterface), typeof(TConcrete), ConvertLifestyle(lifestyle));
+        }
+        void RegisterInterfaces(Type component, Contracts.Lifestyle lifestyle)
+        {
+            var registration = GetRegistrationFromDependencyLifecycle(lifestyle, component);
+
+            var interfaces = component.GetInterfaces();
+            foreach (var serviceType in interfaces)
+            {
+                if (HasComponent(serviceType))
+                {
+                    var existingRegistrations = GetExistingRegistrationsFor(serviceType);
+
+                    _container.Collection.Register(serviceType, existingRegistrations.Union(new[] { registration }));
+                }
+                else 
+                    _container.AddRegistration(serviceType, registration);
+            }
         }
         public bool HasService(Type service)
         {
@@ -168,6 +189,20 @@ namespace Aggregates.Internal
         IEnumerable<Registration> GetExistingRegistrationsFor(Type implementedInterface)
         {
             return _container.GetCurrentRegistrations().Where(r => r.ServiceType == implementedInterface).Select(r => r.Registration);
+        }
+        Registration GetRegistrationFromDependencyLifecycle(Contracts.Lifestyle dependencyLifecycle, Type component)
+        {
+            return ConvertLifestyle(dependencyLifecycle).CreateRegistration(component, _container);
+        }
+
+        Registration GetRegistrationFromDependencyLifecycle(Contracts.Lifestyle dependencyLifecycle, Type component, Func<object> creator)
+        {
+            return ConvertLifestyle(dependencyLifecycle).CreateRegistration(component, creator, _container);
+        }
+
+        Registration GetRegistrationFromDependencyLifecycle(Contracts.Lifestyle dependencyLifecycle, Type component, object instance)
+        {
+            return GetRegistrationFromDependencyLifecycle(dependencyLifecycle, component, () => instance);
         }
         public IContainer GetChildContainer()
         {
