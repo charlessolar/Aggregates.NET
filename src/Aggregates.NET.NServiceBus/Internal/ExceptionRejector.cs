@@ -116,11 +116,11 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     internal class ExceptionRejectorRegistration : RegisterStep
     {
-        public ExceptionRejectorRegistration(IContainer container) : base(
+        public ExceptionRejectorRegistration() : base(
             stepId: "ExceptionRejector",
             behavior: typeof(ExceptionRejector),
             description: "handles exceptions and retries",
-            factoryMethod: (b) => new ExceptionRejector(container.Resolve<IMetrics>(), container.Resolve<IMessageSerializer>(), container.Resolve<DelayedRetry>())
+            factoryMethod: (b) => new ExceptionRejector(b.Build<IMetrics>(), b.Build<IMessageSerializer>(), b.Build<DelayedRetry>())
         )
         {
             InsertBefore("MutateIncomingMessages");

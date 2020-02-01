@@ -135,11 +135,11 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     internal class UowRegistration : RegisterStep
     {
-        public UowRegistration(IContainer container) : base(
+        public UowRegistration() : base(
             stepId: "UnitOfWorkExecution",
             behavior: typeof(UnitOfWorkExecutor),
             description: "Begins and Ends unit of work for your application",
-            factoryMethod: (b) => new UnitOfWorkExecutor(container.Resolve<IMetrics>())
+            factoryMethod: (b) => new UnitOfWorkExecutor(b.Build<IMetrics>())
         )
         {
             InsertAfterIfExists("ExceptionRejector");

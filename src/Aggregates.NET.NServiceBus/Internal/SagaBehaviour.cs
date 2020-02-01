@@ -78,11 +78,11 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     internal class SagaBehaviourRegistration : RegisterStep
     {
-        public SagaBehaviourRegistration(IContainer container) : base(
+        public SagaBehaviourRegistration() : base(
             stepId: "SagaBehaviour",
             behavior: typeof(SagaBehaviour),
             description: "Handles internal sagas for consecutive command support",
-            factoryMethod: (b) => new SagaBehaviour(container.Resolve<IMetrics>(), container.Resolve<IMessageDispatcher>())
+            factoryMethod: (b) => new SagaBehaviour(b.Build<IMetrics>(), b.Build<IMessageDispatcher>())
         )
         {
             InsertBefore("ExceptionRejector");

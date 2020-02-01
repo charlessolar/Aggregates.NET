@@ -31,27 +31,27 @@ namespace Aggregates
             var settings = context.Settings;
             var container = Configuration.Settings.Container;
 
-            context.Pipeline.Register(new ExceptionRejectorRegistration(container));
+            context.Pipeline.Register<ExceptionRejectorRegistration>();
 
             if (!Configuration.Settings.Passive)
             {
                 MutationManager.RegisterMutator("domain unit of work", typeof(UnitOfWork.IDomain));
 
 
-                context.Pipeline.Register(new UowRegistration(container));
-                context.Pipeline.Register(new CommandAcceptorRegistration(container));
-                context.Pipeline.Register(new SagaBehaviourRegistration(container));
+                context.Pipeline.Register<UowRegistration>();
+                context.Pipeline.Register<CommandAcceptorRegistration>();
+                context.Pipeline.Register<SagaBehaviourRegistration>();
 
                 // Remove NSBs unit of work since we do it ourselves
                 context.Pipeline.Remove("ExecuteUnitOfWork");
 
                 // bulk invoke only possible with consumer feature because it uses the eventstore as a sink when overloaded
                 context.Pipeline.Replace("InvokeHandlers", (b) =>
-                    new BulkInvokeHandlerTerminator(container.Resolve<IMetrics>(), b.Build<IEventMapper>()),
+                    new BulkInvokeHandlerTerminator(b.Build<IMetrics>(), b.Build<IEventMapper>()),
                     "Replaces default invoke handlers with one that supports our custom delayed invoker");
             }
 
-            context.Pipeline.Register(new LocalMessageUnpackRegistration(container));
+            context.Pipeline.Register<LocalMessageUnpackRegistration>();
             context.Pipeline.Register<LogContextProviderRegistration>();
 
             if (Configuration.Settings.SlowAlertThreshold.HasValue)

@@ -123,11 +123,11 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     internal class LocalMessageUnpackRegistration : RegisterStep
     {
-        public LocalMessageUnpackRegistration(IContainer container) : base(
+        public LocalMessageUnpackRegistration() : base(
             stepId: "LocalMessageUnpack",
             behavior: typeof(LocalMessageUnpack),
             description: "Pulls local message from context",
-            factoryMethod: (b) => new LocalMessageUnpack(container.Resolve<IMetrics>())
+            factoryMethod: (b) => new LocalMessageUnpack(b.Build<IMetrics>())
         )
         {
             InsertAfterIfExists("UnitOfWorkExecution");

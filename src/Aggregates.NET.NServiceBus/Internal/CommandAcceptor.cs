@@ -79,11 +79,11 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     internal class CommandAcceptorRegistration : RegisterStep
     {
-        public CommandAcceptorRegistration(IContainer container) : base(
+        public CommandAcceptorRegistration() : base(
             stepId: "CommandAcceptor",
             behavior: typeof(CommandAcceptor),
             description: "Filters [BusinessException] from processing failures",
-            factoryMethod: (b) => new CommandAcceptor(container.Resolve<IMetrics>())
+            factoryMethod: (b) => new CommandAcceptor(b.Build<IMetrics>())
         )
         {
             // If a command fails business exception uow still needs to error out
