@@ -89,7 +89,7 @@ namespace Aggregates.Internal
             {
                 var existingRegistrations = GetExistingRegistrationsFor(serviceType);
 
-                _container.Collection.Register(serviceType, existingRegistrations.Union(new[] { registration }));
+                _container.Collection.Register(serviceType, existingRegistrations.Where(x => x.ImplementationType != registration.ImplementationType).Union(new[] { registration }));
             }
             else
                 _container.AddRegistration(serviceType, registration);

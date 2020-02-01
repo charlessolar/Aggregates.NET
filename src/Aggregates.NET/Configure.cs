@@ -142,7 +142,9 @@ namespace Aggregates
 
                 if (!c.Passive)
                 {
-                    container.Register<UnitOfWork.IDomain, Internal.UnitOfWork>(Lifestyle.UnitOfWork);
+                    // A library which managing UOW needs to register the domain unit of work. 
+                    // DI containers are designed to append registrations if multiple are present
+                    //container.Register<UnitOfWork.IDomain, Internal.UnitOfWork>(Lifestyle.UnitOfWork);
 
                     container.Register<IDelayedChannel, DelayedChannel>(Lifestyle.UnitOfWork);
                     container.Register<IRepositoryFactory, RepositoryFactory>(Lifestyle.Singleton);
