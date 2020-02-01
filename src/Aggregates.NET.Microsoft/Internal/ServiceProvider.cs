@@ -106,7 +106,14 @@ namespace Aggregates.Internal
 
         public bool HasService(Type serviceType)
         {
-            throw new NotImplementedException();
+            try
+            {
+                return _provider.GetService(serviceType) != null;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         class ChildScope : IContainer, IDisposable
