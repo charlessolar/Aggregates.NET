@@ -14,7 +14,7 @@ namespace Aggregates
     [ExcludeFromCodeCoverage]
     public static class ESConfigure
     {
-        public static Configure EventStore(this Configure config, IEventStoreConnection[] connections)
+        public static Configure EventStore(this Configure config, params IEventStoreConnection[] connections)
         {
             config.RegistrationTasks.Add((c) =>
             {

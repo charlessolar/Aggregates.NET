@@ -15,14 +15,12 @@ namespace Aggregates.Internal
     class Container : IContainer, IDisposable
     {
         private readonly SimpleInjector.Container _container;
-        private readonly Dictionary<Type, List<SimpleInjector.Registration>> _namedCollections;
         private readonly bool _child;
 
         public Container(SimpleInjector.Container container, bool child=false)
         {
             _container = container;
             _child = child;
-            _namedCollections = new Dictionary<Type, List<SimpleInjector.Registration>>();
 
             // No support for child containers, but the scoped lifestyle can kind of due to trick
             AsyncScopedLifestyle.BeginScope(_container);
@@ -52,80 +50,63 @@ namespace Aggregates.Internal
         public void Register(Type concrete, Contracts.Lifestyle lifestyle)
         {
             if (_child) return;
-
-            _container.Register(concrete, concrete, ConvertLifestyle(lifestyle));
-            RegisterInterfaces(concrete, lifestyle);
+            
+            var registration = ConvertLifestyle(lifestyle).CreateRegistration(concrete, _container);
+            addRegistration(concrete, registration);
         }
         public void Register(Type service, object instance, Contracts.Lifestyle lifestyle)
         {
             if (_child) return;
-            _container.Register(service, () => instance, ConvertLifestyle(lifestyle));
-            RegisterInterfaces(service, lifestyle);
+            var registration = ConvertLifestyle(lifestyle).CreateRegistration(service, () => instance, _container);
+            addRegistration(service, registration);
         }
         public void Register<TInterface>(TInterface instance, Contracts.Lifestyle lifestyle)
         {
             if (_child) return;
-            _container.Register(instance.GetType(), () => instance, ConvertLifestyle(lifestyle));
-            RegisterInterfaces(instance.GetType(), lifestyle);
-            //_container.Register<TInterface>(() => instance, ConvertLifestyle(lifestyle));
+            var registration = ConvertLifestyle(lifestyle).CreateRegistration(typeof(TInterface), () => instance, _container);
+            addRegistration(typeof(TInterface), registration);
         }
 
         public void Register<TInterface>(Func<IContainer, TInterface> factory, Contracts.Lifestyle lifestyle, string name = null)
         {
             if (_child) return;
 
-            // Trick to accomplish what named instances are meant to - registering multiple of the same interface.
-            if (!string.IsNullOrEmpty(name))
-            {
-                if (!_namedCollections.ContainsKey(typeof(TInterface)))
-                    _namedCollections[typeof(TInterface)] = new List<SimpleInjector.Registration>();
+            var registration = ConvertLifestyle(lifestyle).CreateRegistration(typeof(TInterface), () => factory(this), _container);
 
-                _namedCollections[typeof(TInterface)].Add(ConvertLifestyle(lifestyle).CreateRegistration(typeof(TInterface), () => factory(this), _container));
+            addRegistration(typeof(TInterface), registration);
 
-                _container.Collection.Register(typeof(TInterface), _namedCollections[typeof(TInterface)]);
-                return;
-            }
-            _container.Register(typeof(TInterface), () => factory(this), ConvertLifestyle(lifestyle));
-            RegisterInterfaces(typeof(TInterface), lifestyle);
         }
         public void Register<TInterface, TConcrete>(Contracts.Lifestyle lifestyle, string name = null)
         {
             if (_child) return;
 
-            // Trick to accomplish what named instances are meant to - registering multiple of the same interface.
-            if (!string.IsNullOrEmpty(name))
-            {
-                if (!_namedCollections.ContainsKey(typeof(TInterface)))
-                    _namedCollections[typeof(TInterface)] = new List<SimpleInjector.Registration>();
-
-                _namedCollections[typeof(TInterface)].Add(ConvertLifestyle(lifestyle).CreateRegistration(typeof(TConcrete), _container));
-
-                _container.Collection.Register(typeof(TInterface), _namedCollections[typeof(TInterface)]);
-                return;
-            }
-            _container.Register(typeof(TInterface), typeof(TConcrete), ConvertLifestyle(lifestyle));
-            RegisterInterfaces(typeof(TInterface), lifestyle);
+            var registration = ConvertLifestyle(lifestyle).CreateRegistration(typeof(TConcrete), _container);
+            addRegistration(typeof(TInterface), registration);
         }
-        void RegisterInterfaces(Type component, Contracts.Lifestyle lifestyle)
+        private void addRegistration(Type serviceType, Registration registration)
         {
-            var registration = GetRegistrationFromDependencyLifecycle(lifestyle, component);
+            if (HasComponent(serviceType))
+            {
+                var existingRegistrations = GetExistingRegistrationsFor(serviceType);
+
+                _container.Collection.Register(serviceType, existingRegistrations.Union(new[] { registration }));
+            }
+            else
+                _container.AddRegistration(serviceType, registration);
+
+            RegisterInterfaces(serviceType, registration.Lifestyle);
+        }
+        private void RegisterInterfaces(Type component, SimpleInjector.Lifestyle lifestyle)
+        {
+            var registration = lifestyle.CreateRegistration(component, _container);
 
             var interfaces = component.GetInterfaces();
             foreach (var serviceType in interfaces)
-            {
-                if (HasComponent(serviceType))
-                {
-                    var existingRegistrations = GetExistingRegistrationsFor(serviceType);
-
-                    _container.Collection.Register(serviceType, existingRegistrations.Union(new[] { registration }));
-                }
-                else 
-                    _container.AddRegistration(serviceType, registration);
-            }
+                addRegistration(serviceType, registration);
         }
         public bool HasService(Type service)
         {
-            return _container.GetCurrentRegistrations().Any(x => x.ServiceType == service);
+            return HasComponent(service);
         }
 
         public object Resolve(Type resolve)

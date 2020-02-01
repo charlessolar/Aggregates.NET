@@ -145,11 +145,11 @@ namespace Aggregates
                     container.Register<UnitOfWork.IDomain, Internal.UnitOfWork>(Lifestyle.UnitOfWork);
 
                     container.Register<IDelayedChannel, DelayedChannel>(Lifestyle.UnitOfWork);
-                    container.Register<IRepositoryFactory, RepositoryFactory>(Lifestyle.PerInstance);
-                    container.Register<IStoreSnapshots>((factory) => new StoreSnapshots(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<ISnapshotReader>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.PerInstance);
-                    container.Register<IOobWriter>((factory) => new OobWriter(factory.Resolve<IMessageDispatcher>(), factory.Resolve<IStoreEvents>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.PerInstance);
-                    container.Register<ISnapshotReader, SnapshotReader>(Lifestyle.PerInstance);
-                    container.Register<IStoreEntities, StoreEntities>(Lifestyle.PerInstance);
+                    container.Register<IRepositoryFactory, RepositoryFactory>(Lifestyle.Singleton);
+                    container.Register<IStoreSnapshots>((factory) => new StoreSnapshots(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<ISnapshotReader>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.Singleton);
+                    container.Register<IOobWriter>((factory) => new OobWriter(factory.Resolve<IMessageDispatcher>(), factory.Resolve<IStoreEvents>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.Singleton);
+                    container.Register<ISnapshotReader, SnapshotReader>(Lifestyle.Singleton);
+                    container.Register<IStoreEntities, StoreEntities>(Lifestyle.Singleton);
                     container.Register<IDelayedCache>((factory) => new DelayedCache(factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<IVersionRegistrar>(), factory.Resolve<IRandomProvider>(), factory.Resolve<ITimeProvider>()), Lifestyle.Singleton);
 
                     container.Register<IEventSubscriber>((factory) => new EventSubscriber(factory.Resolve<IMetrics>(), factory.Resolve<IMessaging>(), factory.Resolve<IEventStoreConsumer>(), factory.Resolve<IVersionRegistrar>(), c.ParallelEvents, c.AllEvents), Lifestyle.Singleton, "eventsubscriber");
