@@ -170,11 +170,12 @@ Task("Run-Unit-Tests")
 
     var settings = new OpenCoverSettings 
     {
+		// Forces error in build when tests fail
+		ReturnTargetCodeOffset = 0
+
         MergeOutput = true,
         SkipAutoProps = true,
         OldStyle = true,
-        Register = "user",
-        ArgumentCustomization = builder => builder.Append("-hideskipped:File"),
     };
     settings.WithFilter("+[Aggregates*]*").ExcludeByAttribute("*.ExcludeFromCodeCoverage*").ExcludeByFile("*/*Designer.cs");
 
