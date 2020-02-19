@@ -99,7 +99,7 @@ public class BuildParameters
         if(buildSystem.GitHubActions.IsRunningOnGitHubActions) {
             buildNumber = -1;
             int.TryParse(context.Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER"), out buildNumber);
-            branch = buildSystem.GitHubActions.Environment.Workflow.Ref.replace("refs/heads/", "");
+            branch = buildSystem.GitHubActions.Environment.Workflow.Ref.Replace("refs/heads/", "");
             repository = buildSystem.GitHubActions.Environment.Workflow.Repository;
         }
 
