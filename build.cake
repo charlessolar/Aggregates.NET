@@ -9,7 +9,7 @@
 
 // Install tools.
 #tool "nuget:?package=GitReleaseManager&version=0.10.3"
-#tool "nuget:?package=GitVersion.CommandLine&version=4.0.0"
+#tool "nuget:?package=GitVersion.CommandLine&version=5.1.3"
 #tool "nuget:?package=OpenCover&version=4.7.922"
 //#tool "nuget:?package=MSBuild.SonarQube.Runner.Tool&version=4.3.0"
 #tool "nuget:?package=OpenCoverToCoberturaConverter&version=0.3.4"
