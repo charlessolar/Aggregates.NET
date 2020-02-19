@@ -171,7 +171,7 @@ Task("Run-Unit-Tests")
     var settings = new OpenCoverSettings 
     {
 		// Forces error in build when tests fail
-		ReturnTargetCodeOffset = 0
+		ReturnTargetCodeOffset = 0,
 
         MergeOutput = true,
         SkipAutoProps = true,
