@@ -182,7 +182,7 @@ Task("Run-Unit-Tests")
         OpenCover(t => t
             .DotNetCoreTest(project.ProjectPath.ToString(), new DotNetCoreTestSettings
             {
-                Framework = "netcoreapp3.0",
+                Framework = "netcoreapp2.0",
                 NoBuild = true,
                 NoRestore = true,
                 Configuration = parameters.Configuration,
