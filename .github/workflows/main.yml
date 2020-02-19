@@ -11,10 +11,9 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v1
     - uses: ecampidoglio/cake-action@v1.1.1
       env:
         NUGET_URL: https://api.nuget.org/v3/index.json 
       with:
         target: GitHub
-        cake-bootstrap: true
