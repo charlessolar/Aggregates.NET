@@ -13,6 +13,7 @@ public class BuildParameters
     public bool IsRunningOnWindows { get; private set; }
     public bool IsRunningOnVSTS { get; private set; }
     public bool IsRunningOnAppVeyor { get; private set; }
+    public bool IsRunningOnGitHub { get; private set; }
     public bool IsReleaseBuild { get; private set; }
     public string Repository { get; private set; }
     public BuildCredentials GitHub { get; private set; }
@@ -95,6 +96,12 @@ public class BuildParameters
             branch = buildSystem.TFBuild.Environment.Repository.Branch;
             repository = context.Environment.GetEnvironmentVariable("BUILD_REPOSITORY_URI");
         }
+        if(buildSystem.GitHubActions.IsRunningOnGitHubActions) {
+            
+            buildNumber = context.Environment.GetEnvironmentVariable("GITHUB_RUN_ID");
+            branch = buildSystem.GitHubActions.Environment.Workflow.Ref;
+            repository = buildSystem.GitHubActions.Environment.Workflow.Repository;
+        }
 
 
         return new BuildParameters {
@@ -106,6 +113,7 @@ public class BuildParameters
             IsRunningOnWindows = context.IsRunningOnWindows(),
             IsRunningOnAppVeyor = buildSystem.AppVeyor.IsRunningOnAppVeyor,
             IsRunningOnVSTS = isVSTS,
+            IsRunningOnGitHub = buildSystem.GitHubActions.IsRunningOnGitHubActions,
             Repository = repository,
             GitHub = BuildCredentials.GetGitHubCredentials(context),
             Artifactory = BuildCredentials.GetArtifactoryCredentials(context, buildSystem.IsLocalBuild),
@@ -120,7 +128,7 @@ public class BuildParameters
 
     private static bool IsReleasing(string target)
     {
-        var targets = new [] { "AppVeyor", "VSTS-Publish", "Publish", "Publish-NuGet" };
+        var targets = new [] { "AppVeyor", "GitHub", "VSTS-Publish", "Publish", "Publish-NuGet" };
         return targets.Any(t => StringComparer.OrdinalIgnoreCase.Equals(t, target));
     }
 

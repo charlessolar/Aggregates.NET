@@ -391,6 +391,9 @@ Task("AppVeyor")
   .IsDependentOn("Upload-AppVeyor-Artifacts")
   .IsDependentOn("Upload-Test-Coverage")
   .IsDependentOn("Publish-NuGet");
+Task("GitHub")
+  .IsDependentOn("Upload-Test-Coverage")
+  .IsDependentOn("Publish-NuGet");
 
 Task("VSTS")
   .IsDependentOn("Create-VSTS-Artifacts");
