@@ -87,13 +87,13 @@ public class BuildParameters
         var pr = false;
         if(buildSystem.AppVeyor.IsRunningOnAppVeyor) {
             buildNumber = buildSystem.AppVeyor.Environment.Build.Number;
-            branch = buildSystem.AppVeyor.Environment.Repository.SourceBranchName;
+            branch = buildSystem.AppVeyor.Environment.Repository.Branch;
             pr = buildSystem.AppVeyor.Environment.PullRequest.IsPullRequest;
             repository = "https://github.com/volak/Aggregates.NET";
         }
         if(isVSTS) {
             buildNumber = buildSystem.TFBuild.Environment.Build.Id;
-            branch = buildSystem.TFBuild.Environment.Repository.Branch;
+            branch = buildSystem.TFBuild.Environment.Repository.SourceBranchName;
             repository = context.Environment.GetEnvironmentVariable("BUILD_REPOSITORY_URI");
         }
         if(buildSystem.GitHubActions.IsRunningOnGitHubActions) {
