@@ -18,7 +18,6 @@ public class BuildVersion
         var gitversion = context.GitVersion(new GitVersionSettings {
             UpdateAssemblyInfoFilePath = "./src/SharedAssemblyInfo.cs",
             UpdateAssemblyInfo = !parameters.IsLocalBuild,
-            OutputType = GitVersionOutput.Json,
         });
 
         string version = string.Concat(gitversion.Major, ".", gitversion.Minor);

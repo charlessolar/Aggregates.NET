@@ -66,6 +66,7 @@ Setup(context =>
     Information("IsRunningOnUnix: " + parameters.IsRunningOnUnix);
     Information("IsRunningOnWindows: " + parameters.IsRunningOnWindows);
     Information("IsRunningOnVSTS: " + parameters.IsRunningOnVSTS);
+    Information("IsRunningOnGitHub: " + parameters.IsRunningOnGitHub);
     Information("IsReleaseBuild: " + parameters.IsReleaseBuild);
     Information("IsPullRequest: " + parameters.IsPullRequest);
     Information("IsMaster: " + parameters.IsMaster + " Branch: " + parameters.Branch);
