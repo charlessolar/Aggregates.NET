@@ -78,7 +78,7 @@ public class BuildParameters
         var target = context.Argument("target", "Default");
         var buildSystem = context.BuildSystem();
 
-        var isVSTS = buildSystem.TFBuild.IsRunningOnVSTS || buildSystem.TFBuild.IsRunningOnTFS;
+        var isVSTS = buildSystem.TFBuild.IsRunningOnAzurePipelinesHosted || buildSystem.TFBuild.IsRunningOnAzurePipelines;
 
         var repository = "";
 
@@ -87,7 +87,7 @@ public class BuildParameters
         var pr = false;
         if(buildSystem.AppVeyor.IsRunningOnAppVeyor) {
             buildNumber = buildSystem.AppVeyor.Environment.Build.Number;
-            branch = buildSystem.AppVeyor.Environment.Repository.Branch;
+            branch = buildSystem.AppVeyor.Environment.Repository.SourceBranchName;
             pr = buildSystem.AppVeyor.Environment.PullRequest.IsPullRequest;
             repository = "https://github.com/volak/Aggregates.NET";
         }
@@ -97,8 +97,8 @@ public class BuildParameters
             repository = context.Environment.GetEnvironmentVariable("BUILD_REPOSITORY_URI");
         }
         if(buildSystem.GitHubActions.IsRunningOnGitHubActions) {
-            
-            buildNumber = context.Environment.GetEnvironmentVariable("GITHUB_RUN_ID");
+            buildNumber = -1;
+            int.TryParse(context.Environment.GetEnvironmentVariable("GITHUB_RUN_ID"), out buildNumber);
             branch = buildSystem.GitHubActions.Environment.Workflow.Ref;
             repository = buildSystem.GitHubActions.Environment.Workflow.Repository;
         }

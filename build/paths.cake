@@ -32,7 +32,7 @@ public class BuildPaths
             var projectDir = project.GetDirectory();
 
             var output = info.OutputType;
-            var binDir = info.OutputPath;
+            var binDir = info.OutputPaths[0];
             Func<IEnumerable<FilePath>> getBinaries = () => {
                 return 
                         context.GetFiles(binDir + "/*");
