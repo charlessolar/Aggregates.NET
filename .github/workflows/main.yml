@@ -17,3 +17,4 @@ jobs:
         NUGET_URL: https://api.nuget.org/v3/index.json 
       with:
         target: GitHub
+        cake-bootstrap: true
