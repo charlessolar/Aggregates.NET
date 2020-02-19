@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 [assembly: AssemblyProduct("Aggregates.NET")]
 [assembly: AssemblyDescription(".NET event sourced domain driven design model via NServiceBus and EventStore")]
-[assembly: AssemblyCopyright("Copyright © Charles Solar 2018")]
+[assembly: AssemblyCopyright("Copyright © Charles Solar 2020")]
 [assembly: AssemblyVersion("0.15.0.0")]
 [assembly: AssemblyFileVersion("0.15.0.0")]
 [assembly: AssemblyInformationalVersion("0.15.0.0")]

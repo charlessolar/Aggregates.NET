@@ -22,11 +22,16 @@
     <RepositoryUrl>https://github.com/volak/Aggregates.NET</RepositoryUrl>
     <PackageProjectUrl>https://github.com/volak/Aggregates.NET</PackageProjectUrl>
     <PackageIconUrl>https://raw.githubusercontent.com/volak/Aggregates.NET/master/icon.png</PackageIconUrl>
-    <PackageLicenseUrl>http://opensource.org/licenses/MIT</PackageLicenseUrl>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <NeutralLanguage>en-US</NeutralLanguage>
     
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../icon.png" Pack="true" PackagePath="\"/>
+    <None Include="../../LICENSE" Pack="true" PackagePath="\"/>
+</ItemGroup>
 </Project>

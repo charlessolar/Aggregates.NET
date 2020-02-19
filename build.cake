@@ -1,19 +1,19 @@
 // Install addins.
-#addin "nuget:?package=Cake.FileHelpers&version=3.2.0"
-#addin "nuget:?package=Cake.Incubator&version=5.0.1"
-#addin "nuget:?package=Cake.Docker&version=0.10.0"
-#addin "nuget:?package=Cake.Curl&version=4.0.0"
+#addin "nuget:?package=Cake.FileHelpers&version=3.2.1"
+#addin "nuget:?package=Cake.Incubator&version=5.1.0"
+#addin "nuget:?package=Cake.Docker&version=0.11.0"
+#addin "nuget:?package=Cake.Curl&version=4.1.0"
 //#addin "nuget:?package=Cake.Sonar&version=1.1.18"
-#addin "nuget:?package=Cake.OpenCoverToCoberturaConverter&version=0.1.1.2"
+#addin "nuget:?package=Cake.OpenCoverToCoberturaConverter&version=0.1.7.7"
 #addin "nuget:?package=Cake.Coveralls&version=0.10.0"
 
 // Install tools.
-#tool "nuget:?package=GitReleaseManager&version=0.8.0"
+#tool "nuget:?package=GitReleaseManager&version=0.10.3"
 #tool "nuget:?package=GitVersion.CommandLine&version=4.0.0"
 #tool "nuget:?package=OpenCover&version=4.7.922"
 //#tool "nuget:?package=MSBuild.SonarQube.Runner.Tool&version=4.3.0"
-#tool "nuget:?package=OpenCoverToCoberturaConverter&version=0.3.2"
-#tool "nuget:?package=ReportGenerator&version=4.1.5"
+#tool "nuget:?package=OpenCoverToCoberturaConverter&version=0.3.4"
+#tool "nuget:?package=ReportGenerator&version=4.4.7"
 #tool "nuget:?package=coveralls.io&version=1.4.2"
 
 // Load other scripts.
@@ -182,7 +182,7 @@ Task("Run-Unit-Tests")
         OpenCover(t => t
             .DotNetCoreTest(project.ProjectPath.ToString(), new DotNetCoreTestSettings
             {
-                Framework = "netcoreapp2.0",
+                Framework = "netcoreapp3.0",
                 NoBuild = true,
                 NoRestore = true,
                 Configuration = parameters.Configuration,
