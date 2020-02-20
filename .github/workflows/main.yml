@@ -11,6 +11,13 @@ jobs:
     runs-on: windows-latest
 
     steps:
+    - name: Cache
+      uses: actions/cache@v1.1.2
+      with:
+        path: tools
+        key: ${{ runner.os }}-${{ hashFiles('build.cake') }}
+    - name: Setup Nuget.exe
+      uses: warrenbuckley/Setup-Nuget@v1
     - uses: actions/checkout@v1
     - uses: ecampidoglio/cake-action@v1.1.1
       env:
