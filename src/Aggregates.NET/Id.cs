@@ -13,7 +13,7 @@ namespace Aggregates
         // provides a hook for testing
         protected virtual long GetLongValue()
         {
-            if (!isLong())
+            if (!IsLong())
                 throw new InvalidOperationException("Id value is not a long");
 
             return (long)Value;
