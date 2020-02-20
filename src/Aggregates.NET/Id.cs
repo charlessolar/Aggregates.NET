@@ -13,22 +13,22 @@ namespace Aggregates
         // provides a hook for testing
         protected virtual long GetLongValue()
         {
-            if (!(Value is long))
+            if (!IsLong())
                 throw new InvalidOperationException("Id value is not a long");
 
             return (long)Value;
         }
         protected virtual Guid GetGuidValue()
         {
-            if (!(Value is Guid))
+            if (!IsGuid())
                 throw new InvalidOperationException("Id value is not a Guid");
 
             return (Guid)Value;
         }
         protected virtual string GetStringValue()
         {
-            if (!(Value is string))
-                throw new InvalidOperationException("Id value is not a string");
+            if (!IsString())
+                return ToString();
 
             return (string)Value;
         }
