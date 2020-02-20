@@ -14,6 +14,8 @@ jobs:
     - uses: actions/checkout@v1
     - uses: ecampidoglio/cake-action@v1.1.1
       env:
-        NUGET_URL: https://api.nuget.org/v3/index.json 
+        NUGET_URL: https://api.nuget.org/v3/index.json
+        NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        COVERALLS_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
       with:
         target: GitHub
