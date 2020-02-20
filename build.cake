@@ -152,6 +152,7 @@ Task("Build")
                 .Append(GetDotNetCoreArgsVersions(parameters.Version))
                 .Append("/p:ci=true")
                 .Append("/p:SourceLinkEnabled=true")
+                .Append("/p:SourceLinkCreate=true")
     });
 
 
@@ -171,7 +172,7 @@ Task("Run-Unit-Tests")
     var settings = new OpenCoverSettings 
     {
 		// Forces error in build when tests fail
-		ReturnTargetCodeOffset = 0,
+		//ReturnTargetCodeOffset = 0,
 
         MergeOutput = true,
         SkipAutoProps = true,
@@ -179,25 +180,38 @@ Task("Run-Unit-Tests")
     };
     settings.WithFilter("+[Aggregates*]*").ExcludeByAttribute("*.ExcludeFromCodeCoverage*").ExcludeByFile("*/*Designer.cs");
 
+    var reportFile = parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./OpenCover.xml");
     foreach(var project in parameters.Packages.Tests) 
     {
         OpenCover(t => t
             .DotNetCoreTest(project.ProjectPath.ToString(), new DotNetCoreTestSettings
             {
-                Framework = "netcoreapp2.0",
+                Framework = "netcoreapp3.1",
                 NoBuild = true,
                 NoRestore = true,
                 Configuration = parameters.Configuration,
                 ResultsDirectory = parameters.Paths.Directories.TestResultsDir,
                 ArgumentCustomization = builder => builder.Append("--logger \"trx;LogFileName=./report.xml\"")
             }),
-            parameters.Paths.Directories.TestResultsDir.CombineWithFilePath("./OpenCover.xml"),
+            reportFile,
             settings
         );
     }
+    CreateReport(reportFile, ReportGeneratorReportType.Badges, "badges");
+    CreateReport(reportFile, ReportGeneratorReportType.Html, "html");
+    CreateReport(reportFile, ReportGeneratorReportType.HtmlInline_AzurePipelines, "htmlInline_AzurePipelines");
+    CreateReport(reportFile, ReportGeneratorReportType.HtmlInline_AzurePipelines_Dark, "htmlInline_AzurePipelines_Dark");
 
 });
 
+void CreateReport(FilePath reportFile, ReportGeneratorReportType type, string subfolder) {
+    
+    var reportSettings = new ReportGeneratorSettings() {
+        ClassFilters = new[] { "-System*", "-Microsoft*" },
+        ReportTypes = new[] { type }
+    };
+    ReportGenerator(reportFile, parameters.Paths.Directories.TestResultsDir.Combine(subfolder), reportSettings);
+}
 
 Task("Upload-Test-Coverage")
     .WithCriteria(() => !parameters.IsLocalBuild)
