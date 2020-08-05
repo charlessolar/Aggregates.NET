@@ -73,7 +73,7 @@ namespace Aggregates.Internal
             var clientsToken = CancellationTokenSource.CreateLinkedTokenSource(token);
             foreach (var client in _clients)
             {
-                Logger.InfoEvent("BeginSubscribe", "[{Stream:l}] store {Store}", stream, client.Settings.GossipSeeds[0].EndPoint.Address);
+                Logger.InfoEvent("BeginSubscribe", "[{Stream:l}] store {Store}", stream, client.Settings.GossipSeeds[0].EndPoint);
 
                 var settings = new CatchUpSubscriptionSettings(1000, 50, Logger.IsDebugEnabled(), true);
                 var startingNumber = 0L;
@@ -103,7 +103,7 @@ namespace Aggregates.Internal
             {
                 try
                 {
-                    Logger.InfoEvent("EndSubscribe", "End of [{Stream:l}] store {Store}", stream, client.Settings.GossipSeeds[0].EndPoint.Address);
+                    Logger.InfoEvent("EndSubscribe", "End of [{Stream:l}] store {Store}", stream, client.Settings.GossipSeeds[0].EndPoint);
                     // Subscribe to the end
                     var lastEvent =
                         await client.ReadStreamEventsBackwardAsync(stream, StreamPosition.End, 1, true).ConfigureAwait(false);
@@ -136,7 +136,7 @@ namespace Aggregates.Internal
             var clientsToken = CancellationTokenSource.CreateLinkedTokenSource(token);
             foreach (var client in _clients)
             {
-                Logger.InfoEvent("PersistentSubscribe", "Persistent [{Stream:l}] group [{Group:l}] store {Store}", stream, group, client.Settings.GossipSeeds[0].EndPoint.Address);
+                Logger.InfoEvent("PersistentSubscribe", "Persistent [{Stream:l}] group [{Group:l}] store {Store}", stream, group, client.Settings.GossipSeeds[0].EndPoint);
 
 
                 var settings = PersistentSubscriptionSettings.Create()
@@ -189,7 +189,7 @@ namespace Aggregates.Internal
             var clientsToken = CancellationTokenSource.CreateLinkedTokenSource(token);
             foreach (var client in _clients)
             {
-                Logger.InfoEvent("PersistentSubscribe", "Persistent [{Stream:l}] group [{Group:l}] store {Store}", stream, group, client.Settings.GossipSeeds[0].EndPoint.Address);
+                Logger.InfoEvent("PersistentSubscribe", "Persistent [{Stream:l}] group [{Group:l}] store {Store}", stream, group, client.Settings.GossipSeeds[0].EndPoint);
 
 
                 var settings = PersistentSubscriptionSettings.Create()
@@ -364,8 +364,7 @@ namespace Aggregates.Internal
             foreach (var connection in _clients)
             {
                 var manager = new ProjectionsManager(connection.Settings.Log,
-                    new IPEndPoint(connection.Settings.GossipSeeds[0].EndPoint.Address,
-                        connection.Settings.ExternalGossipPort), TimeSpan.FromSeconds(30));
+                    connection.Settings.GossipSeeds[0].EndPoint, TimeSpan.FromSeconds(30));
                 try
                 {
                     await manager.EnableAsync(name, connection.Settings.DefaultUserCredentials).ConfigureAwait(false);
@@ -387,8 +386,7 @@ namespace Aggregates.Internal
             {
 
                 var manager = new ProjectionsManager(client.Settings.Log,
-                    new IPEndPoint(client.Settings.GossipSeeds[0].EndPoint.Address,
-                        client.Settings.ExternalGossipPort), TimeSpan.FromSeconds(5));
+                    client.Settings.GossipSeeds[0].EndPoint, TimeSpan.FromSeconds(5));
 
                 try
                 {

@@ -80,7 +80,7 @@ namespace Aggregates.Internal
             }
 
             if (current.Status == SliceReadStatus.StreamNotFound)
-                throw new NotFoundException(stream, _clients[shard].Settings.GossipSeeds[0].EndPoint.Address);
+                throw new NotFoundException(stream, _clients[shard].Settings.GossipSeeds[0].EndPoint);
 
 
             var translatedEvents = events.Select(e =>
@@ -176,7 +176,7 @@ namespace Aggregates.Internal
                 }
 
                 if (current.Status == SliceReadStatus.StreamNotFound)
-                    throw new NotFoundException(stream, _clients[shard].Settings.GossipSeeds[0].EndPoint.Address);
+                    throw new NotFoundException(stream, _clients[shard].Settings.GossipSeeds[0].EndPoint);
 
             }
 
