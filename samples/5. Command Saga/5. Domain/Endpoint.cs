@@ -94,7 +94,7 @@ namespace Domain
             config.UseSerialization<NewtonsoftSerializer>();
 
             config.UsePersistence<InMemoryPersistence>();
-            config.UseContainer<StructureMapBuilder>(c => c.ExistingContainer(_container));
+            
 
             if (Log.Logger.IsEnabled(Serilog.Events.LogEventLevel.Debug))
             {
@@ -118,6 +118,8 @@ namespace Domain
                     .NServiceBus(config)
                     .SetCommandDestination("domain")
                     );
+
+            await Aggregates.Configuration.Start().ConfigureAwait(false);
 
             return Aggregates.Bus.Instance;
         }

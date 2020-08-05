@@ -24,7 +24,6 @@ namespace Aggregates
     {
         public Feature()
         {
-            DependsOn("NServiceBus.Features.ReceiveFeature");
         }
         protected override void Setup(FeatureConfigurationContext context)
         {

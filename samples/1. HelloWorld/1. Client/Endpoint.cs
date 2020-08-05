@@ -121,7 +121,6 @@ namespace Client
             config.UseSerialization<NewtonsoftSerializer>();
 
             config.UsePersistence<InMemoryPersistence>();
-            config.UseContainer<StructureMapBuilder>(c => c.ExistingContainer(_container));
 
             if (Log.IsEnabled(Serilog.Events.LogEventLevel.Debug))
             {
@@ -145,7 +144,9 @@ namespace Client
                     .EventStore(new[] { client })
                     .NewtonsoftJson()
                     .NServiceBus(config)
-                    );
+                    ).ConfigureAwait(false);
+
+            await Aggregates.Configuration.Start().ConfigureAwait(false);
 
             return Aggregates.Bus.Instance;
         }
