@@ -47,6 +47,7 @@ namespace Aggregates.Internal
             _mapper = mapper;
             _registrar = registrar;
 
+
             _readSize = Configuration.Settings.ReadSize;
             _extraStats = Configuration.Settings.ExtraStats;
             _subLock = new object();
@@ -271,7 +272,7 @@ namespace Aggregates.Internal
 
             var eventId = $"{e.Event.EventId}:{e.Event.EventStreamId}:{e.Event.EventNumber}";
             _outstandingEvents[eventId] = new Tuple<EventStorePersistentSubscriptionBase, Guid>(sub, e.OriginalEvent.EventId);
-            
+
             try
             {
                 await EventAppeared(e, token, callback).ConfigureAwait(false);
@@ -322,7 +323,7 @@ namespace Aggregates.Internal
             var eventType = _registrar.GetNamedType(e.Event.EventType);
             // Not all types are detected and initialized by NSB - they do it in the pipeline, we have to do it here
             _mapper.Initialize(eventType);
-            
+
             var payload = _serializer.Deserialize(eventType, data) as IEvent;
 
             return callback(e.Event.EventStreamId, e.Event.EventNumber, new FullEvent
@@ -355,16 +356,20 @@ namespace Aggregates.Internal
             // Run via task because we are currently on the thread that would process a reconnect and we shouldn't block it
             Task.Run(disconnected);
         }
-
+        private string GetHttpSchema(ConnectionSettings settings)
+        {
+            return settings.UseSslConnection ? "https" : "http";
+        }
 
 
         public async Task<bool> EnableProjection(string name)
         {
-
             foreach (var connection in _clients)
             {
+                var httpSchema = GetHttpSchema(connection.Settings);
+
                 var manager = new ProjectionsManager(connection.Settings.Log,
-                    connection.Settings.GossipSeeds[0].EndPoint, TimeSpan.FromSeconds(30));
+                    connection.Settings.GossipSeeds[0].EndPoint, TimeSpan.FromSeconds(30), httpSchema: httpSchema);
                 try
                 {
                     await manager.EnableAsync(name, connection.Settings.DefaultUserCredentials).ConfigureAwait(false);
@@ -385,8 +390,10 @@ namespace Aggregates.Internal
             foreach (var client in _clients)
             {
 
+                var httpSchema = GetHttpSchema(client.Settings);
+
                 var manager = new ProjectionsManager(client.Settings.Log,
-                    client.Settings.GossipSeeds[0].EndPoint, TimeSpan.FromSeconds(5));
+                    client.Settings.GossipSeeds[0].EndPoint, TimeSpan.FromSeconds(5), httpSchema: httpSchema);
 
                 try
                 {
