@@ -403,8 +403,10 @@ namespace Aggregates.Internal
 
                 var httpSchema = GetHttpSchema(client.Settings);
 
+                var endpoint = ChangePort(client.Settings.GossipSeeds[0].EndPoint, client.Settings.GossipPort);
+
                 var manager = new ProjectionsManager(client.Settings.Log,
-                    client.Settings.GossipSeeds[0].EndPoint, TimeSpan.FromSeconds(5), httpSchema: httpSchema);
+                    endpoint, TimeSpan.FromSeconds(30), httpSchema: httpSchema);
 
                 try
                 {
