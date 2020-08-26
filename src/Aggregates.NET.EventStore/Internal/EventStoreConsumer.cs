@@ -360,7 +360,16 @@ namespace Aggregates.Internal
         {
             return settings.UseSslConnection ? "https" : "http";
         }
+        private EndPoint ChangePort(EndPoint endpoint, int newPort)
+        {
+            if (endpoint is IPEndPoint)
+                return new IPEndPoint((endpoint as IPEndPoint).Address, newPort);
+            if (endpoint is DnsEndPoint)
+                return new DnsEndPoint((endpoint as DnsEndPoint).Host, newPort);
 
+            throw new ArgumentOutOfRangeException(nameof(endpoint), endpoint?.GetType(),
+                    "An invalid endpoint has been provided");
+        }
 
         public async Task<bool> EnableProjection(string name)
         {
@@ -368,8 +377,10 @@ namespace Aggregates.Internal
             {
                 var httpSchema = GetHttpSchema(connection.Settings);
 
+                var endpoint = ChangePort(connection.Settings.GossipSeeds[0].EndPoint, connection.Settings.GossipPort);
+
                 var manager = new ProjectionsManager(connection.Settings.Log,
-                    connection.Settings.GossipSeeds[0].EndPoint, TimeSpan.FromSeconds(30), httpSchema: httpSchema);
+                    endpoint, TimeSpan.FromSeconds(30), httpSchema: httpSchema);
                 try
                 {
                     await manager.EnableAsync(name, connection.Settings.DefaultUserCredentials).ConfigureAwait(false);
