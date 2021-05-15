@@ -183,6 +183,7 @@ namespace Client
 
             var cred = new UserCredentials("admin", "changeit");
             var settings = EventStore.ClientAPI.ConnectionSettings.Create()
+                .DisableTls()
                 .KeepReconnecting()
                 .KeepRetrying()
                 .SetGossipSeedEndPoints(endpoints)
