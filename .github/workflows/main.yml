@@ -12,14 +12,14 @@ jobs:
 
     steps:
     - name: Get the sources
-        uses: actions/checkout@v2
+      uses: actions/checkout@v2
     - name: Cache
       uses: actions/cache@v1.1.2
       with:
         path: tools
         key: ${{ runner.os }}-${{ hashFiles('build.cake') }}
     - name: Run Cake script
-        uses: cake-build/cake-action@v1
+      uses: cake-build/cake-action@v1
       env:
         NUGET_URL: https://api.nuget.org/v3/index.json
         NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
