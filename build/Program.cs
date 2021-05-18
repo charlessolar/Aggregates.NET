@@ -51,7 +51,6 @@ namespace Build
             }
         }
     }
-
     public sealed class BuildLifetime : FrostingLifetime<Helpers.BuildParameters>
     {
         public override void Setup(BuildParameters context)
@@ -324,6 +323,7 @@ namespace Build
                 {
                     Configuration = context.BuildConfiguration,
                     NoRestore = true,
+                    NoLogo = true,
                     MSBuildSettings = context.MsBuildSettings,
                     OutputDirectory = context.Paths.Directories.ArtifactsBin.Combine(project.AssemblyName)
                 });
@@ -368,6 +368,7 @@ namespace Build
                         IncludeSymbols = true,
                         NoBuild = true,
                         NoRestore = true,
+                        NoLogo = true,
                         Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Normal,
                         MSBuildSettings = context.MsBuildSettings
                     }
@@ -403,7 +404,7 @@ namespace Build
                 context.NuGetPush(package.PackagePath, new NuGetPushSettings
                 {
                     ApiKey = context.ApiKey,
-                    Source = packageDir
+                    Source = packageDir,
                 });
             }
         }

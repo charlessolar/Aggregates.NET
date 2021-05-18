@@ -18,9 +18,10 @@ namespace Build.Helpers
     public class BuildParameters : FrostingContext
     {
 
-        public BuildParameters(ICakeContext context)
+        public BuildParameters(SetupContext context)
             : base(context)
         {
+            Target = context.TargetTask.Name;
             initialize(context);
         }
 
@@ -33,7 +34,6 @@ namespace Build.Helpers
         public bool IsRunningOnVSTS { get; private set; }
         public bool IsRunningOnAppVeyor { get; private set; }
         public bool IsRunningOnGitHub { get; private set; }
-        public bool IsReleaseBuild { get; private set; }
         public bool ResultsRequested { get; private set; }
         public string Repository { get; private set; }
         public BuildCredentials GitHub { get; private set; }
@@ -59,7 +59,13 @@ namespace Build.Helpers
                 return !IsMaster;
             }
         }
-
+        public bool IsReleaseBuild
+        {
+            get
+            {
+                return (IsRunningOnAppVeyor || IsRunningOnGitHub || IsRunningOnVSTS) && !IsLocalBuild;
+            }
+        }
         public bool ShouldPublish
         {
             get
@@ -133,7 +139,7 @@ namespace Build.Helpers
                 throw new InvalidOperationException("Unable to find solution in directory!");
             }
 
-            var target = context.Argument("target", "Default");
+            
             var results = context.HasArgument("results");
             var buildSystem = context.BuildSystem();
 
@@ -165,7 +171,6 @@ namespace Build.Helpers
             }
 
             Solution = solution.MakeAbsolute(context.Environment);
-            Target = target;
             BuildConfiguration = context.Argument("configuration", "Release");
             IsLocalBuild = buildSystem.IsLocalBuild;
             IsRunningOnUnix = context.IsRunningOnUnix();
@@ -176,7 +181,6 @@ namespace Build.Helpers
             Repository = repository;
             GitHub = BuildCredentials.GetGitHubCredentials(context);
             Artifactory = BuildCredentials.GetArtifactoryCredentials(context);
-            IsReleaseBuild = isReleasing(target);
             BuildNumber = buildNumber;
             Branch = branch;
             IsMaster = StringComparer.OrdinalIgnoreCase.Equals("master", branch);
@@ -208,11 +212,6 @@ namespace Build.Helpers
             .WithProperty("FileVersion", Version.SemVersion);
         }
 
-        private bool isReleasing(string target)
-        {
-            var targets = new[] { "VSTS", "GitHub", "Publish", "Publish-NuGet" };
-            return targets.Any(t => StringComparer.OrdinalIgnoreCase.Equals(t, target));
-        }
 
     }
 
