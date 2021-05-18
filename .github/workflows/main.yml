@@ -52,6 +52,7 @@ jobs:
 
   analyze:
     needs: build
+    if: always()
     runs-on: windows-latest
     steps:
       - uses: dorny/test-reporter@v1
