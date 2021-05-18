@@ -51,6 +51,7 @@ jobs:
           path: artifacts/nuget
 
       - uses: dorny/test-reporter@v1
+        if: success() || failure()
         with:
           path: "test-reports/*.trx"
           name: Tests
