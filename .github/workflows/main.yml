@@ -49,11 +49,12 @@ jobs:
         with:
           name: nugets
           path: artifacts/nuget
-
+          
+name: Post Test Results
 on:
   workflow_run:
     workflows:
-      - build
+      - Build
     types:
       - completed
 jobs:
