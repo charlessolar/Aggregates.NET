@@ -49,19 +49,10 @@ jobs:
         with:
           name: nugets
           path: artifacts/nuget
-          
-name: Post Test Results
-on:
-  workflow_run:
-    workflows:
-      - Build
-    types:
-      - completed
-jobs:
-  exam:
+
+  analyze:
     runs-on: windows-latest
     steps:
-
       - uses: dorny/test-reporter@v1
         with:
           artifact: test-reports
