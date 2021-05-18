@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Get the sources
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Cache
         uses: actions/cache@v1.1.2
         with:
