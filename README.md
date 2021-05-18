@@ -1,16 +1,15 @@
-
-| | |
-| --- | --- |
-| **Build** | [![Build status](https://ci.appveyor.com/api/projects/status/r75p0yn5uo6colgk?svg=true&branch=master)](https://ci.appveyor.com/project/volak/aggregates-net) |
-| **Coverage** | <sup>Coveralls</sup> [![Coverage Status](https://coveralls.io/repos/github/volak/Aggregates.NET/badge.svg?branch=master)](https://coveralls.io/github/volak/Aggregates.NET?branch=master)  <sup>SonarCloud</sup> [![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=Aggregates.NET&metric=coverage)](https://sonarcloud.io/dashboard?id=Aggregates.NET) | 
-| **Quality** | [![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=Aggregates.NET&metric=alert_status)](https://sonarcloud.io/dashboard?id=Aggregates.NET) [![GitHub issues](https://img.shields.io/github/issues-raw/volak/aggregates.net.svg)](https://github.com/volak/Aggregates.NET/issues) | 
-| **Nuget** | [![Nuget](https://buildstats.info/nuget/Aggregates.NET)](http://nuget.org/packages/Aggregates.NET) |
+|              |                                                                                                                                                                                    |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Build**    | [![Build status](https://ci.appveyor.com/api/projects/status/r75p0yn5uo6colgk?svg=true&branch=master)](https://ci.appveyor.com/project/charlessolar/aggregates-net)                |
+| **Coverage** | [![Coverage Status](https://coveralls.io/repos/github/charlessolar/Aggregates.NET/badge.svg?branch=master)](https://coveralls.io/github/charlessolar/Aggregates.NET?branch=master) |
+| **Quality**  | [![GitHub issues](https://img.shields.io/github/issues-raw/charlessolar/aggregates.net.svg)](https://github.com/charlessolar/Aggregates.NET/issues)                                |
+| **Nuget**    | [![Nuget](https://buildstats.info/nuget/Aggregates.NET)](http://nuget.org/packages/Aggregates.NET)                                                                                 |
 
 # Aggregates.NET v0.15
 
 Aggregates.NET is a framework to help developers integrate the excellent [NServiceBus](https://github.com/Particular/NServiceBus) and [EventStore](https://github.com/EventStore/EventStore) libraries together.
 
-This library contains code to help create and manage domain driven design objects such as Aggregates, Entities, Value Objects, etc.  This framework is by far not the only option, other libraries include:
+This library contains code to help create and manage domain driven design objects such as Aggregates, Entities, Value Objects, etc. This framework is by far not the only option, other libraries include:
 
 - [NES](https://github.com/elliotritchie/NES)
 - [CommonDomain](https://github.com/NEventStore/NEventStore/tree/master/src/NEventStore/CommonDomain)
@@ -18,11 +17,11 @@ This library contains code to help create and manage domain driven design object
 - [Eventful](https://github.com/adbrowne/Eventful)
 - [SimpleDomain](https://github.com/froko/SimpleDomain)
 
-This project was originally inspired by and still uses many ideas from NES and CommonDomain.  
+This project was originally inspired by and still uses many ideas from NES and CommonDomain.
 
 ## What will Aggregates.NET do for you?
 
-We fill in the gap between EventStore and NServiceBus.  Commands from NServiceBus are applied to aggregate objects via message handlers and events generated via the aggregates are saved to the event stream and published to the bus.
+We fill in the gap between EventStore and NServiceBus. Commands from NServiceBus are applied to aggregate objects via message handlers and events generated via the aggregates are saved to the event stream and published to the bus.
 
 Current features include -
 
@@ -42,8 +41,8 @@ Current features include -
 
 ## Performance
 
-Aggregates.NET is not *slow* - but I did not write it focused on bleeding fast performance.  "Premature optimization is bad" etc etc.  Aggregates.NET is however designed with features meant to allow you to perform well.
-A great example is the support for bulk command and event processing.  When setup you can have your app process say 1000 messages of a specific type at once instead of one at a time.  The advantage being that you can cache objects while processing saving a vast amount of read time from your database.  
+Aggregates.NET is not _slow_ - but I did not write it focused on bleeding fast performance. "Premature optimization is bad" etc etc. Aggregates.NET is however designed with features meant to allow you to perform well.
+A great example is the support for bulk command and event processing. When setup you can have your app process say 1000 messages of a specific type at once instead of one at a time. The advantage being that you can cache objects while processing saving a vast amount of read time from your database.  
 These features of course have trade offs and should only be used in specialized circumstances but when your app is tuned correctly you'll definitely see greater throughput than a traditional `read, hydrate, write, repeat` paradigm.
 
 Currently Aggregates.NET offers the following performance features:
@@ -57,7 +56,7 @@ Currently Aggregates.NET offers the following performance features:
 
 ## Status
 
-Aggregates.NET is still under development but I personally am using it in 2 projects so its very usable.  Expect fairly often updates via Nuget as I tend to add and fix things when the issue pops up.  Sometimes the packages have a bug or some small issue but I always fix it right away. 
+Aggregates.NET is still under development but I personally am using it in 2 projects so its very usable. Expect fairly often updates via Nuget as I tend to add and fix things when the issue pops up. Sometimes the packages have a bug or some small issue but I always fix it right away.
 I do not have any plans yet for 'stable' releases so only use the library is you are comfortable with beta builds.
 
 I have no plans to freeze the API or do semantic versioning anytime soon - so keep that in mind when updating packages
@@ -66,16 +65,14 @@ I have no plans to freeze the API or do semantic versioning anytime soon - so ke
 
 I welcome pull requests for other transports or stores - otherwise they'll only be added if I need them
 
-
 ## Nuget
 
-Nuget packages are available under the id Aggregates.NET.  There are also binaries and source code releases available via github.
+Nuget packages are available under the id Aggregates.NET. There are also binaries and source code releases available via github.
 
 ## Documentation
 
-This is a one man project so documentation is lacking - sorry about that.  If you have any questions about using Aggregates.NET feel free to contact me via email or slack ([the ddd/cqrs slack group](https://ddd-cqrs-es.herokuapp.com/))
+This is a one man project so documentation is lacking - sorry about that. If you have any questions about using Aggregates.NET feel free to contact me via email or slack ([the ddd/cqrs slack group](https://ddd-cqrs-es.herokuapp.com/))
 
-* [Wiki](https://github.com/volak/Aggregates.NET/wiki)
-* [Simple Examples](https://github.com/volak/Aggregates.NET/tree/master/samples)
-* [TodoMVC Style Example (recommended)](https://github.com/volak/TodoMVC-DDD-CQRS-EventSourcing)
-
+- [Wiki](https://github.com/charlessolar/Aggregates.NET/wiki)
+- [Simple Examples](https://github.com/charlessolar/Aggregates.NET/tree/master/samples)
+- [TodoMVC Style Example (recommended)](https://github.com/charlessolar/TodoMVC-DDD-CQRS-EventSourcing)

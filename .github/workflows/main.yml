@@ -55,5 +55,5 @@ jobs:
         with:
           artifact: test-reports
           name: Tests
-          path: "*.xml"
+          path: "*.trx"
           reporter: dotnet-trx
