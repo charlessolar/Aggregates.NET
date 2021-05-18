@@ -18,11 +18,9 @@ jobs:
           path: tools
           key: ${{ runner.os }}-${{ hashFiles('build/**') }}
       - name: Run Cake script
-        run: ./build.ps1
+        run: ./build.ps1 --target GitHub
         shell: powershell
         env:
           NUGET_URL: https://api.nuget.org/v3/index.json
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           COVERALLS_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
-        with:
-          target: GitHub
