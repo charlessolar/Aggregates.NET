@@ -11,11 +11,6 @@
     <Description>NServiceBus support for Aggregates.NET</Description>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DebugType>full</DebugType>
-    <DebugSymbols>true</DebugSymbols>
-  </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="NServiceBus" Version="7.4.6" />
     <PackageReference Include="NServiceBus.Callbacks" Version="3.0.0" />
@@ -31,7 +26,4 @@
     </Compile>
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="1.0.0" />
-  </ItemGroup>
 </Project>

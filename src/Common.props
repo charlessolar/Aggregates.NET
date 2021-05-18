@@ -1,15 +1,18 @@
 <Project>
   <PropertyGroup>
-    <!-- Embed source into pdb which is embedded into dll -->
-    <DebugType>Embedded</DebugType>
-    <EmbedAllSources>True</EmbedAllSources>
 
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 
-
+    <!-- Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
+
+    <!-- Embed source files that are not tracked by the source control manager in the PDB -->
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
+
+    <!-- Recommended: Embed symbols containing Source Link in the main file (exe/dll) -->
+    <DebugType>embedded</DebugType>
+    
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
 
     <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
@@ -17,12 +20,12 @@
 
     <Authors>Charles Solar</Authors>
     <Company>Charles Solar</Company>
-    <Copyright>Copyright (c) 2020</Copyright>
+    <Copyright>Copyright (c) 2021</Copyright>
     <PackageTags>CQRS ES event sourcing NServiceBus GetEventStore eventstore ddd</PackageTags>
     <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/volak/Aggregates.NET</RepositoryUrl>
-    <PackageProjectUrl>https://github.com/volak/Aggregates.NET</PackageProjectUrl>
-    <PackageIconUrl>https://raw.githubusercontent.com/volak/Aggregates.NET/master/icon.png</PackageIconUrl>
+    <RepositoryUrl>https://github.com/charlessolar/Aggregates.NET</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/charlessolar/Aggregates.NET</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/charlessolar/Aggregates.NET/master/icon.png</PackageIconUrl>
     <PackageIcon>icon.png</PackageIcon>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <NeutralLanguage>en-US</NeutralLanguage>
