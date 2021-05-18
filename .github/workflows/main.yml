@@ -53,6 +53,6 @@ jobs:
       - uses: dorny/test-reporter@v1
         if: success() || failure()
         with:
-          path: "test-reports/*.trx"
+          path: "artifacts/test-reports/*.trx"
           name: Tests
           reporter: dotnet-trx
