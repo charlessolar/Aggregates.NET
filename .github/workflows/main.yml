@@ -18,7 +18,8 @@ jobs:
           path: tools
           key: ${{ runner.os }}-${{ hashFiles('build/**') }}
       - name: Run Cake script
-        uses: cake-build/cake-action@v1
+        run: ./build.ps1
+        shell: powershell
         env:
           NUGET_URL: https://api.nuget.org/v3/index.json
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
