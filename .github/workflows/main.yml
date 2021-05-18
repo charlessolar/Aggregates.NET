@@ -12,12 +12,8 @@ jobs:
     steps:
       - name: Get the sources
         uses: actions/checkout@v2
-      - name: Fetch tags for GitVersion
-        run: git fetch --tags
-      - name: Fetch master for GitVersion
-        if: github.ref != 'refs/heads/master'
-        run: git branch --create-reflog master origin/master
-
+        with:
+          fetch-depth: 0
       - name: Cache
         uses: actions/cache@v1.1.2
         with:
