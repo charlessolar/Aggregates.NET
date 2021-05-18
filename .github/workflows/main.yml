@@ -49,10 +49,6 @@ jobs:
         with:
           name: nugets
           path: artifacts/nuget
-      - name: Sleep for 30 seconds
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "10s"
 
       - uses: dorny/test-reporter@v1
         if: success() || failure()
@@ -61,3 +57,4 @@ jobs:
           name: Tests
           path: "*.trx"
           reporter: dotnet-trx
+          token: ${{ secrets.REPORT_TOKEN }}
