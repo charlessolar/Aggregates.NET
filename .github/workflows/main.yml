@@ -26,6 +26,7 @@ jobs:
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
+
       - name: Run Cake script
         run: ./build.ps1 --target GitHub
         shell: powershell
@@ -33,3 +34,26 @@ jobs:
           NUGET_URL: https://api.nuget.org/v3/index.json
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           COVERALLS_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+
+      - uses: actions/upload-artifact@v2
+        with:
+          if: success() || failure()
+          name: binaries
+          path: artifacts/bin
+      - uses: actions/upload-artifact@v2
+        if: success() || failure()
+        with:
+          name: test-reports
+          path: artifacts/test-reports
+      - uses: actions/upload-artifact@v2
+        with:
+          name: nugets
+          path: artifacts/nuget
+
+      - uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          artifact: test-reports
+          name: Tests
+          path: "*.xml"
+          reporter: dotnet-trx
