@@ -50,14 +50,8 @@ jobs:
           name: nugets
           path: artifacts/nuget
 
-  analyze:
-    needs: build
-    if: always()
-    runs-on: windows-latest
-    steps:
       - uses: dorny/test-reporter@v1
         with:
-          artifact: test-reports
+          path: "test-reports/*.trx"
           name: Tests
-          path: "*.trx"
           reporter: dotnet-trx
