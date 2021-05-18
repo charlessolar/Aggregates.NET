@@ -49,7 +49,6 @@ namespace Build.Helpers
 
         public DotNetCoreMSBuildSettings MsBuildSettings { get; private set; }
 
-        public string ApiKey { get; set; }
 
         public bool IsPreRelease
         {
@@ -84,21 +83,21 @@ namespace Build.Helpers
         {
             get
             {
-                return Packages.Nuget.Any();
+                return Packages.Nuget.Any() && !TestFailures;
             }
         }
         public bool ShouldBuildDocker
         {
             get
             {
-                return Packages.Images.Any();
+                return Packages.Images.Any() && !TestFailures;
             }
         }
         public bool ShouldBuildBinaries
         {
             get
             {
-                return Packages.Binaries.Any();
+                return Packages.Binaries.Any() && !TestFailures;
             }
         }
         public bool ShouldPublishToArtifactory

@@ -213,7 +213,6 @@ namespace Build
             {
                 Configuration = context.BuildConfiguration,
                 NoBuild = true,
-                HandleExitCode = (_) => true,
                 ArgumentCustomization = args => args
                     .Append("--logger \"trx;LogFileName=TestResults.trx\"")
                     .Append("--logger \"xunit;LogFileName=TestResults.xml\"")
@@ -254,7 +253,7 @@ namespace Build
     {
         public override bool ShouldRun(BuildParameters context)
         {
-            return context.Packages.Tests.Any();
+            return context.Packages.Tests.Any() && !context.TestFailures;
         }
         public override void OnError(Exception exception, BuildParameters context)
         {
@@ -389,8 +388,9 @@ namespace Build
         {
 
             // Resolve the API url.
-            var apiUrl = context.EnvironmentVariable("ARTIFACTORY_NUGET_URL");
-            if (string.IsNullOrEmpty(apiUrl) || string.IsNullOrEmpty(context.ApiKey))
+            var apiUrl = context.EnvironmentVariable("NUGET_URL");
+            var apiKey = context.EnvironmentVariable("NUGET_API_KEY");
+            if (string.IsNullOrEmpty(apiUrl) || string.IsNullOrEmpty(apiKey))
             {
                 throw new InvalidOperationException("Could not resolve NuGet API url.");
             }
@@ -403,7 +403,7 @@ namespace Build
                 // Push the package.
                 context.NuGetPush(package.PackagePath, new NuGetPushSettings
                 {
-                    ApiKey = context.ApiKey,
+                    ApiKey = apiKey,
                     Source = packageDir,
                 });
             }
