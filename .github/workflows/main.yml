@@ -51,6 +51,7 @@ jobs:
           path: artifacts/nuget
 
   analyze:
+    needs: build
     runs-on: windows-latest
     steps:
       - uses: dorny/test-reporter@v1
