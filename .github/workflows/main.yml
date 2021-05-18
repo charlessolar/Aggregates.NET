@@ -36,8 +36,8 @@ jobs:
           COVERALLS_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
 
       - uses: actions/upload-artifact@v2
+        if: success() || failure()
         with:
-          if: success() || failure()
           name: binaries
           path: artifacts/bin
       - uses: actions/upload-artifact@v2
@@ -49,6 +49,10 @@ jobs:
         with:
           name: nugets
           path: artifacts/nuget
+      - name: Sleep for 30 seconds
+        uses: jakejarvis/wait-action@master
+        with:
+          time: "10s"
 
       - uses: dorny/test-reporter@v1
         if: success() || failure()
