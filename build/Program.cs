@@ -107,7 +107,10 @@ namespace Build
         public override void Teardown(BuildParameters context, ITeardownContext info)
         {
             if (!context.ShouldPublish && context.ShouldHavePublished)
-                throw new Exception("Test failures");
+            {
+                context.Log.Warning("This was not a successful build");
+                throw new CakeException("Publish task chain failed");
+            }
         }
     }
     [TaskName("Clean")]
