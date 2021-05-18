@@ -46,6 +46,8 @@ namespace Build.Helpers
         public bool IsMaster { get; private set; }
         public bool IsPullRequest { get; private set; }
 
+        public bool TestFailures { get; set; }
+
         public DotNetCoreMSBuildSettings MsBuildSettings { get; private set; }
 
         public string ApiKey { get; set; }
@@ -62,7 +64,7 @@ namespace Build.Helpers
         {
             get
             {
-                return !IsLocalBuild && IsReleaseBuild && !IsPullRequest;
+                return !IsLocalBuild && IsReleaseBuild && !IsPullRequest && !TestFailures;
             }
         }
 

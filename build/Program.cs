@@ -172,12 +172,16 @@ namespace Build
 
     [TaskName("Run-Unit-Tests")]
     [IsDependentOn(typeof(BuildTask))]
-    [ContinueOnError]
     public sealed class RunUnitTestsTask : FrostingTask<Helpers.BuildParameters>
     {
         public override bool ShouldRun(BuildParameters context)
         {
             return context.Packages.Tests.Any();
+        }
+        public override void OnError(Exception exception, BuildParameters context)
+        {
+            context.Log.Warning("Unit Test failures... will not publish artifacts");
+            context.TestFailures = true;
         }
         public override void Run(Helpers.BuildParameters context)
         {
