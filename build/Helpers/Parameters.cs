@@ -45,7 +45,6 @@ namespace Build.Helpers
         public string Branch { get; private set; }
         public bool IsMaster { get; private set; }
         public bool IsPullRequest { get; private set; }
-        public string ProjectName { get; private set; }
 
         public DotNetCoreMSBuildSettings MsBuildSettings { get; private set; }
 
@@ -136,20 +135,17 @@ namespace Build.Helpers
             var buildNumber = 0;
             var branch = "master";
             var pr = false;
-            var projectName = "UNKNOWN";
             if (buildSystem.AppVeyor.IsRunningOnAppVeyor)
             {
                 buildNumber = buildSystem.AppVeyor.Environment.Build.Number;
                 branch = buildSystem.AppVeyor.Environment.Repository.Branch;
                 pr = buildSystem.AppVeyor.Environment.PullRequest.IsPullRequest;
-                projectName = buildSystem.AppVeyor.Environment.Project.Name;
             }
             if (isVSTS)
             {
                 buildNumber = buildSystem.AzurePipelines.Environment.Build.Id;
                 branch = buildSystem.AzurePipelines.Environment.Repository.SourceBranchName;
                 repository = context.EnvironmentVariable("BUILD_REPOSITORY_URI");
-                projectName = "PulseInc." + buildSystem.AzurePipelines.Environment.TeamProject.Name + "." + buildSystem.AzurePipelines.Environment.BuildDefinition.Name;
             }
             if (buildSystem.GitHubActions.IsRunningOnGitHubActions)
             {
@@ -176,12 +172,11 @@ namespace Build.Helpers
             Branch = branch;
             IsMaster = StringComparer.OrdinalIgnoreCase.Equals("master", branch);
             IsPullRequest = pr;
-            ProjectName = projectName;
 
         }
         public void Setup()
         {
-            
+
             Version = BuildVersion.Calculate(this);
 
             Paths = BuildPaths.GetPaths(this, BuildConfiguration, Version.SemVersion);
@@ -206,7 +201,7 @@ namespace Build.Helpers
 
         private bool isReleasing(string target)
         {
-            var targets = new[] { "VSTS", "VSTS-Publish", "Publish", "Publish-NuGet" };
+            var targets = new[] { "VSTS", "GitHub", "Publish", "Publish-NuGet" };
             return targets.Any(t => StringComparer.OrdinalIgnoreCase.Equals(t, target));
         }
 

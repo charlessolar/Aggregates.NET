@@ -77,7 +77,6 @@ namespace Build
             context.Info("IsPullRequest: " + context.IsPullRequest);
             context.Info("IsMaster: " + context.IsMaster + " Branch: " + context.Branch);
             context.Info("BuildNumber: " + context.BuildNumber);
-            context.Info("ProjectName: " + context.ProjectName);
 
             // Increase verbosity?
             if (context.IsReleaseBuild && (context.Log.Verbosity != Verbosity.Diagnostic))
