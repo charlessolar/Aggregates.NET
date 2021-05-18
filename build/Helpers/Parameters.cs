@@ -67,6 +67,13 @@ namespace Build.Helpers
                 return !IsLocalBuild && IsReleaseBuild && !IsPullRequest && !TestFailures;
             }
         }
+        public bool ShouldHavePublished
+        {
+            get
+            {
+                return !IsLocalBuild && IsReleaseBuild && !IsPullRequest;
+            }
+        }
 
         public bool ShouldBuildNuget
         {
