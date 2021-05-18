@@ -14,11 +14,18 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: Cache
+      - name: Cache Cake Tools
         uses: actions/cache@v1.1.2
         with:
           path: tools
           key: ${{ runner.os }}-${{ hashFiles('build/**') }}
+      - name: Cache Nugets
+        uses: actions/cache@v1.1.2
+        with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
       - name: Run Cake script
         run: ./build.ps1 --target GitHub
         shell: powershell

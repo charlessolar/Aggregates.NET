@@ -13,6 +13,8 @@
     <!-- Recommended: Embed symbols containing Source Link in the main file (exe/dll) -->
     <DebugType>embedded</DebugType>
     
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
 
     <GeneratePackageOnBuild>False</GeneratePackageOnBuild>

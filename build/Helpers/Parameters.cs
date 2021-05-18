@@ -18,10 +18,9 @@ namespace Build.Helpers
     public class BuildParameters : FrostingContext
     {
 
-        public BuildParameters(SetupContext context)
+        public BuildParameters(ICakeContext context)
             : base(context)
         {
-            Target = context.TargetTask.Name;
             initialize(context);
         }
 
@@ -139,7 +138,7 @@ namespace Build.Helpers
                 throw new InvalidOperationException("Unable to find solution in directory!");
             }
 
-            
+            var target = context.Argument("target", "Default");
             var results = context.HasArgument("results");
             var buildSystem = context.BuildSystem();
 
@@ -171,6 +170,7 @@ namespace Build.Helpers
             }
 
             Solution = solution.MakeAbsolute(context.Environment);
+            Target = target;
             BuildConfiguration = context.Argument("configuration", "Release");
             IsLocalBuild = buildSystem.IsLocalBuild;
             IsRunningOnUnix = context.IsRunningOnUnix();
