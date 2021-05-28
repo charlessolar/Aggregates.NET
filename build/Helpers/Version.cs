@@ -1,4 +1,5 @@
-﻿using Cake.Common.Tools.GitVersion;
+﻿using Build.Extensions;
+using Cake.Common.Tools.GitVersion;
 using Cake.Core;
 using System;
 using System.Collections.Generic;
@@ -57,11 +58,17 @@ namespace Build.Helpers
                 RepositoryPath = context.Solution.GetDirectory()
             });
 
+            var meta = gitversion.BuildMetaData;
+            if (string.IsNullOrEmpty(meta))
+                meta = "0";
+
             version = string.Concat(gitversion.Major, ".", gitversion.Minor);
-            semVersion = string.Concat(version, ".", gitversion.BuildMetaData, ".", context.BuildNumber);
+            semVersion = string.Concat(version, ".", meta, ".", context.BuildNumber);
             milestone = string.Concat("v", version);
             sha = gitversion.Sha;
             informational = gitversion.InformationalVersion;
+
+            context.Info("Informational version: {0}", informational);
 
             string nuget = semVersion;
             // tag nont master branches with pre-release 
