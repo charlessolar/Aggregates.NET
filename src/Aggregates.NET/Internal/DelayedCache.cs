@@ -116,7 +116,7 @@ namespace Aggregates.Internal
         private int _tooLarge;
         private bool _disposed;
 
-        public DelayedCache(IMetrics metrics, IStoreEvents store, IVersionRegistrar registrar, IRandomProvider random, ITimeProvider time)
+        public DelayedCache(Configure settings, IMetrics metrics, IStoreEvents store, IVersionRegistrar registrar, IRandomProvider random, ITimeProvider time)
         {
             _metrics = metrics;
             _store = store;
@@ -124,12 +124,12 @@ namespace Aggregates.Internal
             _random = random;
             _time = time;
 
-            _flushInterval = Configuration.Settings.FlushInterval;
-            _endpoint = Configuration.Settings.Endpoint;
-            _maxSize = Configuration.Settings.MaxDelayed;
-            _flushSize = Configuration.Settings.FlushSize;
-            _expiration = Configuration.Settings.DelayedExpiration;
-            _streamGen = Configuration.Settings.Generator;
+            _flushInterval = settings.FlushInterval;
+            _endpoint = settings.Endpoint;
+            _maxSize = settings.MaxDelayed;
+            _flushSize = settings.FlushSize;
+            _expiration = settings.DelayedExpiration;
+            _streamGen = settings.Generator;
             _cts = new CancellationTokenSource();
 
             _cacheLock = new object();

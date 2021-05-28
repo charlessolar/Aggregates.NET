@@ -20,11 +20,12 @@ namespace Aggregates.Internal
     {
 
         private static readonly ILog Logger = LogProvider.GetLogger("EventSubscriber");
-        
+
         private static readonly BlockingCollection<Tuple<string, long, IFullEvent>> WaitingEvents = new BlockingCollection<Tuple<string, long, IFullEvent>>();
 
         private class ThreadParam
         {
+            public IContainer Container { get; set; }
             public int Concurrency { get; set; }
             public CancellationToken Token { get; set; }
             public IMessaging Messaging { get; set; }
@@ -37,6 +38,7 @@ namespace Aggregates.Internal
         private string _endpoint;
         private Version _version;
 
+        private readonly Configure _settings;
         private readonly IMetrics _metrics;
         private readonly IMessaging _messaging;
         private readonly int _concurrency;
@@ -48,8 +50,9 @@ namespace Aggregates.Internal
         private bool _disposed;
 
 
-        public EventSubscriber(IMetrics metrics, IMessaging messaging, IEventStoreConsumer consumer, IVersionRegistrar registrar, int concurrency, bool allEvents)
+        public EventSubscriber(Configure settings, IMetrics metrics, IMessaging messaging, IEventStoreConsumer consumer, IVersionRegistrar registrar, int concurrency, bool allEvents)
         {
+            _settings = settings;
             _metrics = metrics;
             _messaging = messaging;
             _consumer = consumer;
@@ -85,7 +88,7 @@ namespace Aggregates.Internal
                     .Select(
                         eventType => $"'{_registrar.GetVersionedName(eventType)}': processEvent")
                     .Aggregate((cur, next) => $"{cur},\n{next}");
-            
+
             // endpoint will get all events regardless of version of info
             // it will be up to them to handle upgrades
             if (_allEvents)
@@ -104,10 +107,10 @@ fromCategories([{0}]).
 when({{
 {2}
 }});";
-            
+
             var appDefinition = string.Format(definition, $"'{StreamTypes.Domain}','{StreamTypes.OOB}'", stream, functions);
             await _consumer.CreateProjection($"{stream}.app.projection", appDefinition).ConfigureAwait(false);
-            
+
         }
 
         public async Task Connect()
@@ -126,7 +129,7 @@ when({{
                 _pinnedThreads[i] = new Thread(Threaded)
                 { IsBackground = true, Name = $"Event Thread {i}" };
 
-                _pinnedThreads[i].Start(new ThreadParam { Token = _cancelation.Token, Messaging = _messaging, Concurrency = _concurrency, Index = i });
+                _pinnedThreads[i].Start(new ThreadParam { Container = _settings.Container, Token = _cancelation.Token, Messaging = _messaging, Concurrency = _concurrency, Index = i });
             }
 
 
@@ -135,7 +138,7 @@ when({{
         public Task Shutdown()
         {
             _cancelation.Cancel();
-            foreach( var thread in _pinnedThreads)
+            foreach (var thread in _pinnedThreads)
                 thread.Join();
 
             return Task.CompletedTask;
@@ -149,7 +152,7 @@ when({{
         private Task onEvent(string stream, long position, IFullEvent e)
         {
             _metrics.Increment("Events Queued", Unit.Event);
-            
+
             WaitingEvents.Add(new Tuple<string, long, IFullEvent>(stream, position, e));
             return Task.CompletedTask;
         }
@@ -159,7 +162,7 @@ when({{
         {
             var param = (ThreadParam)state;
 
-            var container = Configuration.Settings.Container;
+            var container = param.Container;
 
             var metrics = container.Resolve<IMetrics>();
             var consumer = container.Resolve<IEventStoreConsumer>();
@@ -208,13 +211,13 @@ when({{
                     }
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
-                if(!(e is OperationCanceledException))
+                if (!(e is OperationCanceledException))
                     Logger.ErrorEvent("Died", e, "Event thread closed: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
             }
         }
-        
+
 
         public void Dispose()
         {

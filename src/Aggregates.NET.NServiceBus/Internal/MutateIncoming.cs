@@ -13,8 +13,13 @@ namespace Aggregates.Internal
 {
     public class MutateIncoming : Behavior<IIncomingLogicalMessageContext>
     {
+        private readonly Configure _settings;
         private static readonly ILog Logger = LogProvider.GetLogger("MutateIncoming");
         
+        public MutateIncoming(Configure settings)
+        {
+            _settings = settings;
+        }
         
         public override Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
@@ -28,7 +33,7 @@ namespace Aggregates.Internal
 
             IContainer container;
             if (!context.Extensions.TryGet<IContainer>(out container))
-                container = Configuration.Settings.Container.GetChildContainer();
+                container = _settings.Container.GetChildContainer();
 
             foreach (var type in mutators)
             {

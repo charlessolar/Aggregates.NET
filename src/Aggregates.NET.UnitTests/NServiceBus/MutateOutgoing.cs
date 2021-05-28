@@ -20,7 +20,8 @@ namespace Aggregates.NServiceBus
         public async Task ShouldMutateMessage()
         {
             var mutator = new FakeMutator();
-            A.CallTo(() => Configuration.Settings.Container.Resolve(A<Type>.Ignored)).Returns(mutator);
+            var settings = Fake<Configure>();
+            A.CallTo(() => settings.Container.Resolve(A<Type>.Ignored)).Returns(mutator);
             MutationManager.RegisterMutator("test", typeof(FakeMutator));
 
             var next = A.Fake<Func<Task>>();
@@ -54,7 +55,8 @@ namespace Aggregates.NServiceBus
         public async Task ShouldNotMutateReplies()
         {
             var mutator = new FakeMutator();
-            A.CallTo(() => Configuration.Settings.Container.Resolve(A<Type>.Ignored)).Returns(mutator);
+            var settings = Fake<Configure>();
+            A.CallTo(() => settings.Container.Resolve(A<Type>.Ignored)).Returns(mutator);
             MutationManager.RegisterMutator("test", typeof(FakeMutator));
 
             var next = A.Fake<Func<Task>>();

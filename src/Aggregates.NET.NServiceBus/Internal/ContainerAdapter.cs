@@ -9,7 +9,13 @@ namespace Aggregates.Internal
 {
     public class ContainerAdapter : IConfigureComponents, IBuilder
     {
-        private Contracts.IContainer Container => Configuration.Settings.LocalContainer.Value ?? Configuration.Settings.Container;
+        private readonly Configure _settings;
+        private Contracts.IContainer Container => _settings.LocalContainer.Value ?? _settings.Container;
+
+        public ContainerAdapter(Configure settings)
+        {
+            _settings = settings;
+        }
 
 
         public void ConfigureComponent(Type concreteComponent, DependencyLifecycle dependencyLifecycle)

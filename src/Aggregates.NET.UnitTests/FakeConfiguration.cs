@@ -10,6 +10,7 @@ namespace Aggregates
     {
         public FakeConfiguration() : base()
         {
+            
             Container = A.Fake<IContainer>();
             A.CallTo(() => Container.GetChildContainer()).Returns(Container);
         }

@@ -15,13 +15,14 @@ namespace Aggregates
     public abstract class Test
     {
         protected IFixture Fixture { get; private set; }
+        protected Configure Settings { get; private set; }
         
         public Test()
         {
-            Aggregates.Configuration.Settings = new FakeConfiguration();
-
             Fixture = new Fixture().Customize(new AutoFakeItEasyCustomization { ConfigureMembers = true });
 
+            Settings = new FakeConfiguration();
+            Fixture.Inject<Configure>(Settings);
             Fixture.Customize<Id>(x => x.FromFactory(() => Guid.NewGuid()));
             Fixture.Customize<IEvent>(x => x.FromFactory(() => new FakeDomainEvent.FakeEvent()));
             Fixture.Customize<FakeEntity>(x => x.FromFactory(() =>
@@ -53,7 +54,11 @@ namespace Aggregates
             }));
         }
 
-        protected T Fake<T>() => Fixture.Create<T>();
+        protected T Fake<T>()
+        {
+            var instance = Fixture.Create<T>();
+            return instance;
+        }
         protected T[] Many<T>(int count = 3) => Fixture.CreateMany<T>(count).ToArray();
         protected void Inject<T>(T instance) => Fixture.Inject(instance);
     }

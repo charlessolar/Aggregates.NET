@@ -28,6 +28,8 @@ namespace Aggregates
                 var settings = endpointConfig.GetSettings();
                 var conventions = endpointConfig.Conventions();
 
+                settings.Set("Aggregates.NET", config);
+
                 // set the configured endpoint name to the one NSB config was constructed with
                 config.SetEndpointName(settings.Get<string>("NServiceBus.Routing.EndpointName"));
 
@@ -80,7 +82,7 @@ namespace Aggregates
                 // NSB doesn't have an endpoint name setter other than the constructor, hack it in
                 settings.Set("NServiceBus.Routing.EndpointName", c.Endpoint);
 
-                startableEndpoint = EndpointWithExternallyManagedContainer.Create(endpointConfig, new Internal.ContainerAdapter());
+                startableEndpoint = EndpointWithExternallyManagedContainer.Create(endpointConfig, new Internal.ContainerAdapter(config));
 
                 return Task.CompletedTask;
             });
@@ -89,7 +91,7 @@ namespace Aggregates
 
             config.SetupTasks.Add((c) =>
             {
-                return Aggregates.Bus.Start(startableEndpoint);
+                return Aggregates.Bus.Start(config, startableEndpoint);
             });
 
             return config;

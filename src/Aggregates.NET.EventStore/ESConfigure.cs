@@ -22,6 +22,7 @@ namespace Aggregates
 
                 container.Register<IEventStoreConsumer>((factory) =>
                     new EventStoreConsumer(
+                        factory.Resolve<Configure>(),
                         factory.Resolve<IMetrics>(),
                         factory.Resolve<IMessageSerializer>(),
                         factory.Resolve<IVersionRegistrar>(),
@@ -30,6 +31,7 @@ namespace Aggregates
                         ), Lifestyle.Singleton);
                 container.Register<IStoreEvents>((factory) =>
                     new StoreEvents(
+                        factory.Resolve<Configure>(),
                         factory.Resolve<IMetrics>(),
                         factory.Resolve<IMessageSerializer>(),
                         factory.Resolve<IEventMapper>(),

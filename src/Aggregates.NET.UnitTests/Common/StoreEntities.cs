@@ -189,7 +189,8 @@ namespace Aggregates.Common
         public async Task ShouldResolveConflicts()
         {
             var resolver = new FakeResolver();
-            A.CallTo(() => Aggregates.Configuration.Settings.Container.Resolve(A<Type>.Ignored)).Returns(resolver);
+            var settings = Fake<Configure>();
+            A.CallTo(() => settings.Container.Resolve(A<Type>.Ignored)).Returns(resolver);
             var store = Fake<IStoreEvents>();
             A.CallTo(() => store.WriteEvents<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored, A<IFullEvent[]>.Ignored, A<Dictionary<string, string>>.Ignored, A<long?>.Ignored)).Throws(new VersionException("test", new Exception()));
             Inject(store);
@@ -206,7 +207,8 @@ namespace Aggregates.Common
         {
             var resolver = new FakeResolver();
             resolver.ShouldSucceed = false;
-            A.CallTo(() => Aggregates.Configuration.Settings.Container.Resolve(A<Type>.Ignored)).Returns(resolver);
+            var settings = Fake<Configure>();
+            A.CallTo(() => settings.Container.Resolve(A<Type>.Ignored)).Returns(resolver);
             var store = Fake<IStoreEvents>();
             A.CallTo(() => store.WriteEvents<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored, A<IFullEvent[]>.Ignored, A<Dictionary<string, string>>.Ignored, A<long?>.Ignored)).Throws(new VersionException("test", new Exception()));
             Inject(store);
@@ -223,7 +225,8 @@ namespace Aggregates.Common
         {
             var resolver = new FakeResolver();
             resolver.ShouldAbandon = true;
-            A.CallTo(() => Aggregates.Configuration.Settings.Container.Resolve(A<Type>.Ignored)).Returns(resolver);
+            var settings = Fake<Configure>();
+            A.CallTo(() => settings.Container.Resolve(A<Type>.Ignored)).Returns(resolver);
             var store = Fake<IStoreEvents>();
             A.CallTo(() => store.WriteEvents<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored, A<IFullEvent[]>.Ignored, A<Dictionary<string, string>>.Ignored, A<long?>.Ignored)).Throws(new VersionException("test", new Exception()));
             Inject(store);

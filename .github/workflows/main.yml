@@ -54,5 +54,5 @@ jobs:
         if: success() || failure()
         with:
           path: "artifacts/test-reports/*.trx"
-          name: Tests
+          name: tests
           reporter: dotnet-trx

@@ -19,21 +19,23 @@ namespace Aggregates.Internal
         private static readonly ILog Logger = LogProvider.GetLogger("UOW Executor");
         private static readonly ConcurrentDictionary<string, dynamic> Bags = new ConcurrentDictionary<string, dynamic>();
 
+        private readonly Configure _settings;
         private readonly IMetrics _metrics;
 
-        public UnitOfWorkExecutor(IMetrics metrics)
+        public UnitOfWorkExecutor(Configure settings, IMetrics metrics)
         {
+            _settings = settings;
             _metrics = metrics;
         }
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
-            var container = Configuration.Settings.Container;
+            var container = _settings.Container;
 
             // Child container with resolved domain and app uow used by downstream
             var child = container.GetChildContainer();
             context.Extensions.Set(child);
-            Configuration.Settings.LocalContainer.Value = child;
+            _settings.LocalContainer.Value = child;
 
             // Only SEND messages deserve a UnitOfWork
             if (context.GetMessageIntent() != MessageIntentEnum.Send && context.GetMessageIntent() != MessageIntentEnum.Publish)
@@ -142,7 +144,7 @@ namespace Aggregates.Internal
             stepId: "UnitOfWorkExecution",
             behavior: typeof(UnitOfWorkExecutor),
             description: "Begins and Ends unit of work for your application",
-            factoryMethod: (b) => new UnitOfWorkExecutor(b.Build<IMetrics>())
+            factoryMethod: (b) => new UnitOfWorkExecutor(b.Build<Configure>(), b.Build<IMetrics>())
         )
         {
             InsertAfterIfExists("ExceptionRejector");

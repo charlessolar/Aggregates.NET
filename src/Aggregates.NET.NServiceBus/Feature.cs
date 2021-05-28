@@ -28,11 +28,12 @@ namespace Aggregates
         protected override void Setup(FeatureConfigurationContext context)
         {
             var settings = context.Settings;
-            var container = Configuration.Settings.Container;
+            var aggSettings = settings.Get<Configure>(NSBDefaults.AggregatesSettings);
+            var container = aggSettings.Container;
 
             context.Pipeline.Register<ExceptionRejectorRegistration>();
 
-            if (!Configuration.Settings.Passive)
+            if (!aggSettings.Passive)
             {
                 MutationManager.RegisterMutator("domain unit of work", typeof(UnitOfWork.IDomain));
 
@@ -53,12 +54,8 @@ namespace Aggregates
             context.Pipeline.Register<LocalMessageUnpackRegistration>();
             context.Pipeline.Register<LogContextProviderRegistration>();
 
-            if (Configuration.Settings.SlowAlertThreshold.HasValue)
-                context.Pipeline.Register(
-                    behavior: new TimeExecutionBehavior(),
-                    description: "times the execution of messages and reports anytime they are slow"
-                    );
-
+            if (aggSettings.SlowAlertThreshold.HasValue)
+                context.Pipeline.Register<TimeExecutionRegistration>();
             var types = settings.GetAvailableTypes();
 
             var messageMetadataRegistry = settings.Get<MessageMetadataRegistry>();
@@ -71,11 +68,11 @@ namespace Aggregates
 
             context.Pipeline.Register<MutateIncomingRegistration>();
             context.Pipeline.Register<MutateOutgoingRegistration>();
-            
+
             // We are sending IEvents, which NSB doesn't like out of the box - so turn that check off
             context.Pipeline.Remove("EnforceSendBestPractices");
 
-            context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue(), Configuration.Settings, Configuration.Settings.StartupTasks, Configuration.Settings.ShutdownTasks));
+            context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue(), aggSettings, aggSettings.StartupTasks, aggSettings.ShutdownTasks));
         }
         private static bool IsServiceHandler(Type type)
         {
@@ -108,7 +105,7 @@ namespace Aggregates
         protected override async Task OnStart(IMessageSession session)
         {
             // Subscribe to BulkMessage, because it wraps messages and is not used in a handler directly
-            if(!_config.Passive)
+            if (!_config.Passive)
                 await session.Subscribe<BulkMessage>().ConfigureAwait(false);
 
             Logger.InfoEvent("Startup", "Starting on {Queue}", _instanceQueue);

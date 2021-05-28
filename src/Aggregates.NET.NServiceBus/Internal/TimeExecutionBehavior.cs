@@ -20,9 +20,9 @@ namespace Aggregates.Internal
         private static readonly object SlowLock = new object();
         private readonly TimeSpan? _slowAlert;
 
-        public TimeExecutionBehavior()
+        public TimeExecutionBehavior(Configure settings)
         {
-            _slowAlert = Configuration.Settings.SlowAlertThreshold;
+            _slowAlert = settings.SlowAlertThreshold;
         }
 
         public override async Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)
@@ -70,6 +70,19 @@ namespace Aggregates.Internal
                 if (verbose)
                     Defaults.MinimumLogging.Value = null;
             }
+        }
+    }
+    [ExcludeFromCodeCoverage]
+    internal class TimeExecutionRegistration : RegisterStep
+    {
+        public TimeExecutionRegistration() : base(
+            stepId: "Time Execution",
+            behavior: typeof(TimeExecutionBehavior),
+            description: "handles exceptions and retries",
+            factoryMethod: (b) => new TimeExecutionBehavior(b.Build<Configure>())
+        )
+        {
+            InsertBefore("MutateIncomingMessages");
         }
     }
 }

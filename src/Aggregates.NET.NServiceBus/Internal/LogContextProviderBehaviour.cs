@@ -15,6 +15,13 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogProvider.GetLogger("LogContextProvider");
 
+        private readonly Configure _settings;
+
+        public LogContextProviderBehaviour(Configure settings)
+        {
+            _settings = settings;
+        }
+
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
             // Populate the logging context with useful data from the messaeg
@@ -32,7 +39,7 @@ namespace Aggregates.Internal
                         corrId = messageId;
                     using (LogProvider.OpenMappedContext("CorrId", corrId))
                     {
-                        using (LogProvider.OpenMappedContext("Endpoint", Configuration.Settings.Endpoint))
+                        using (LogProvider.OpenMappedContext("Endpoint", _settings.Endpoint))
                         {
                             Logger.DebugEvent("Start", "Processing [{MessageId:l}] Corr: [{CorrelationId:l}]", messageId, corrId);
                             await next().ConfigureAwait(false);

@@ -19,13 +19,13 @@ namespace Aggregates.Internal
         private readonly IVersionRegistrar _registrar;
         private readonly StreamIdGenerator _streamGen;
 
-        public StoreSnapshots(IMetrics metrics, IStoreEvents store, ISnapshotReader snapshots, IVersionRegistrar registrar)
+        public StoreSnapshots(Configure settings, IMetrics metrics, IStoreEvents store, ISnapshotReader snapshots, IVersionRegistrar registrar)
         {
             _metrics = metrics;
             _store = store;
             _snapshots = snapshots;
             _registrar = registrar;
-            _streamGen = Configuration.Settings.Generator;
+            _streamGen = settings.Generator;
         }
 
         public async Task<ISnapshot> GetSnapshot<T>(string bucket, Id streamId, Id[] parents) where T : IEntity

@@ -91,8 +91,12 @@ namespace Aggregates.Sagas
         }
         private async Task SendNextCommand(IMessageHandlerContext context)
         {
+            var destination = context.GetSettings()?.CommandDestination;
+            if (string.IsNullOrEmpty(destination))
+                throw new Exception("can't handle a saga without a command destination");
+
             var options = new SendOptions();
-            options.SetDestination(Configuration.Settings.CommandDestination);
+            options.SetDestination(destination);
             options.SetHeader(Defaults.RequestResponse, "1");
             options.SetHeader(Defaults.SagaHeader, Data.SagaId);
 

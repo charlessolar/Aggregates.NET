@@ -24,22 +24,22 @@ namespace Aggregates.Internal
         {
         }
 
-        public IResolveConflicts Build(Type type = null)
+        public IResolveConflicts Build(IContainer container, Type type = null)
         {
             switch (this.Value)
             {
                 case ConcurrencyConflict.Throw:
-                    return Configuration.Settings.Container.Resolve<ThrowConflictResolver>();
+                    return container.Resolve<ThrowConflictResolver>();
                 case ConcurrencyConflict.Ignore:
-                    return Configuration.Settings.Container.Resolve<IgnoreConflictResolver>();
+                    return container.Resolve<IgnoreConflictResolver>();
                 case ConcurrencyConflict.Discard:
-                    return Configuration.Settings.Container.Resolve<DiscardConflictResolver>();
+                    return container.Resolve<DiscardConflictResolver>();
                 case ConcurrencyConflict.ResolveStrongly:
-                    return Configuration.Settings.Container.Resolve<ResolveStronglyConflictResolver>();
+                    return container.Resolve<ResolveStronglyConflictResolver>();
                 case ConcurrencyConflict.ResolveWeakly:
-                    return Configuration.Settings.Container.Resolve<ResolveWeaklyConflictResolver>();
+                    return container.Resolve<ResolveWeaklyConflictResolver>();
                 case ConcurrencyConflict.Custom:
-                    return (IResolveConflicts)Configuration.Settings.Container.Resolve(type);
+                    return (IResolveConflicts)container.Resolve(type);
             };
             throw new InvalidOperationException($"Unknown conflict resolver: {this.Value}");
         }

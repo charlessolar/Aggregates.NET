@@ -39,7 +39,7 @@ namespace Aggregates.Internal
         private readonly ConcurrentDictionary<string, Tuple<EventStorePersistentSubscriptionBase, Guid>> _outstandingEvents;
         private bool _disposed;
 
-        public EventStoreConsumer(IMetrics metrics, IMessageSerializer serializer, IVersionRegistrar registrar, IEventStoreConnection[] clients, IEventMapper mapper)
+        public EventStoreConsumer(Configure settings, IMetrics metrics, IMessageSerializer serializer, IVersionRegistrar registrar, IEventStoreConnection[] clients, IEventMapper mapper)
         {
             _metrics = metrics;
             _serializer = serializer;
@@ -48,8 +48,8 @@ namespace Aggregates.Internal
             _registrar = registrar;
 
 
-            _readSize = Configuration.Settings.ReadSize;
-            _extraStats = Configuration.Settings.ExtraStats;
+            _readSize = settings.ReadSize;
+            _extraStats = settings.ExtraStats;
             _subLock = new object();
             _subscriptions = new List<EventStoreCatchUpSubscription>();
             _persistentSubs = new List<EventStorePersistentSubscriptionBase>();

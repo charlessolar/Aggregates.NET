@@ -15,6 +15,12 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogProvider.GetLogger("MutateOutgoing");
 
+        private readonly Configure _settings;
+
+        public MutateOutgoing(Configure settings)
+        {
+            _settings = settings;
+        }
         public override Task Invoke(IOutgoingLogicalMessageContext context, Func<Task> next)
         {
             // Set aggregates.net message and corr id
@@ -34,7 +40,7 @@ namespace Aggregates.Internal
             IContainer container;
 
             if (!context.Extensions.TryGet<IContainer>(out container))
-                container = Configuration.Settings.Container.GetChildContainer();
+                container = _settings.Container.GetChildContainer();
 
             foreach (var type in mutators)
             {

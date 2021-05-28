@@ -22,11 +22,11 @@ namespace Aggregates.Internal
 
         private static readonly ConcurrentDictionary<string, int> DaysToLiveKnowns = new ConcurrentDictionary<string, int>();
 
-        public OobWriter(IMessageDispatcher dispatcher, IStoreEvents store, IVersionRegistrar registrar)
+        public OobWriter(Configure settings, IMessageDispatcher dispatcher, IStoreEvents store, IVersionRegistrar registrar)
         {
             _dispatcher = dispatcher;
             _store = store;
-            _generator = Configuration.Settings.Generator;
+            _generator = settings.Generator;
             _registrar = registrar;
         }
 

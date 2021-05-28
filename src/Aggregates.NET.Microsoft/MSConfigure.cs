@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Aggregates.Contracts;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -17,10 +18,10 @@ namespace Aggregates
         }
         // pass a completed provider into the container object as we've finished "registration" phase and need to start the bus
         // todo: this makes using micrsoft DI weird and clunky
-        public static Task MicrosoftStart(IServiceProvider provider)
+        public static Task MicrosoftStart(IConfiguration config, IServiceProvider provider)
         {
-            Configuration.Settings.Container = new Internal.ServiceProvider(provider);
-            return Configuration.Start();
+            config.Settings.Container = new Internal.ServiceProvider(provider);
+            return config.Start();
         }
     }
 }

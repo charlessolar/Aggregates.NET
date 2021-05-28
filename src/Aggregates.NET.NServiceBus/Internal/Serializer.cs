@@ -17,9 +17,15 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     class Serializer : NServiceBus.Serialization.IMessageSerializer
     {
-        private readonly Lazy<IMessageSerializer> _serializer = new Lazy<IMessageSerializer>(() => Configuration.Settings.Container.Resolve<IMessageSerializer>());
+        public string ContentType => _settings.MessageContentType;
+        private readonly Configure _settings;
+        private Lazy<IMessageSerializer> _serializer => new Lazy<IMessageSerializer>(() => _settings.Container.Resolve<IMessageSerializer>());
 
-        public string ContentType => Configuration.Settings.MessageContentType;
+        public Serializer(Configure settings)
+        {
+            _settings = settings;
+        }
+
 
         public object[] Deserialize(Stream stream, IList<Type> messageTypes = null)
         {
@@ -37,7 +43,9 @@ namespace Aggregates.Internal
     {
         public override Func<IMessageMapper, NServiceBus.Serialization.IMessageSerializer> Configure(ReadOnlySettings settings)
         {
-            return mapper => new Serializer();
+            var aggSettings = settings.Get<Configure>(NSBDefaults.AggregatesSettings);
+
+            return mapper => new Serializer(aggSettings);
         }
     }
 }

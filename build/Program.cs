@@ -23,7 +23,6 @@ using Cake.Common.Tools.NuGet.Push;
 using Cake.Docker;
 using Cake.Coverlet;
 using System.Collections.Generic;
-using Build.Tool;
 using Cake.Common.Tools.ReportUnit;
 using Cake.Core.IO;
 using Cake.Common;
@@ -191,23 +190,7 @@ namespace Build
         {
             context.Info("Outputing coverage to {0}", context.Paths.Directories.TestResultsDir);
 
-            var coverletSettings = new CoverletSettings
-            {
-                CollectCoverage = true,
-                // It is problematic to merge the reports into one, as such we use a custom directory for coverage results
-                CoverletOutputDirectory = context.Paths.Directories.TestResultsDir.Combine("coverlet"),
-                CoverletOutputFormat = CoverletOutputFormat.opencover,
 
-            };
-            coverletSettings
-                .WithFileExclusion("*/*Designer.cs")
-                .WithFileExclusion("[xunit.*]*")
-                .WithFileExclusion("[*Tests]*")
-                .WithAttributeExclusion("ExcludeFromCodeCoverage")
-                .WithAttributeExclusion("CompilerGeneratedAttribute")
-                .WithAttributeExclusion("Obsolete");
-
-            var coverletFullPath = coverletSettings.CoverletOutputDirectory.FullPath;
             // shove every option into dotnet test arg customerization until Coverlet extension works
             var settings = new DotNetCoreTestSettings
             {
@@ -218,13 +201,12 @@ namespace Build
                     .Append("--logger \"xunit;LogFileName=TestResults.xml\"")
                     .Append("--logger \"html;LogFileName=TestResults.html\"")
                     .Append($"--results-directory \"{context.Paths.Directories.TestResultsDir}\"")
-                    .Append("--collect:\"XPlat Code Coverage\"")
+                    .Append("--collect \"XPlat Code Coverage\"")
                     .Append("--settings build/coverlet.runsettings")
             };
 
             foreach (var project in context.Packages.Tests)
             {
-                coverletSettings.CoverletOutputName = project.Id.Replace('.', '-');
                 //coverletSettings.WorkingDirectory = project.ProjectPath.GetDirectory();
                 context.DotNetCoreTest(project.ProjectPath.FullPath, settings);
                 //context.Coverlet(project.ProjectPath.GetDirectory(), coverletSettings, true, context.BuildConfiguration);

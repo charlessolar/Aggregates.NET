@@ -25,6 +25,7 @@ namespace Aggregates.Internal
 
         private class ThreadParam
         {
+            public IContainer Container { get; set; }
             public int MaxRetry { get; set; }
             public CancellationToken Token { get; set; }
         }
@@ -36,14 +37,16 @@ namespace Aggregates.Internal
 
         private readonly int _maxRetry;
 
+        private readonly Configure _settings;
         private readonly IEventStoreConsumer _consumer;
         private readonly IMetrics _metrics;
         private readonly IMessageDispatcher _dispatcher;
 
         private bool _disposed;
 
-        public DelayedSubscriber(IMetrics metrics, IEventStoreConsumer consumer, IMessageDispatcher dispatcher, int maxRetry)
+        public DelayedSubscriber(Configure settings, IMetrics metrics, IEventStoreConsumer consumer, IMessageDispatcher dispatcher, int maxRetry)
         {
+            _settings = settings;
             _metrics = metrics;
             _consumer = consumer;
             _dispatcher = dispatcher;
@@ -69,7 +72,7 @@ namespace Aggregates.Internal
 
             _delayedThread = new Thread(Threaded)
             { IsBackground = true, Name = $"Delayed Event Thread" };
-            _delayedThread.Start(new ThreadParam { Token = _cancelation.Token, MaxRetry = _maxRetry });
+            _delayedThread.Start(new ThreadParam { Container=_settings.Container, Token = _cancelation.Token, MaxRetry = _maxRetry });
         }
         public Task Shutdown()
         {
@@ -97,13 +100,14 @@ namespace Aggregates.Internal
 
         private static void Threaded(object state)
         {
-            var container = Configuration.Settings.Container;
+            var param = (ThreadParam)state;
+
+            var container = param.Container;
 
             var metrics = container.Resolve<IMetrics>();
             var consumer = container.Resolve<IEventStoreConsumer>();
             var dispatcher = container.Resolve<IMessageDispatcher>();
 
-            var param = (ThreadParam)state;
             var random = new Random();
 
             try

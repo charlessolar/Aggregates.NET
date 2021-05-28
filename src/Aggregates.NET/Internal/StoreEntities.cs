@@ -16,6 +16,7 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogProvider.GetLogger("StoreEntities");
 
+        private readonly Configure _settings;
         private readonly IMetrics _metrics;
         private readonly IStoreEvents _eventstore;
         private readonly IStoreSnapshots _snapstore;
@@ -24,8 +25,9 @@ namespace Aggregates.Internal
         private readonly IVersionRegistrar _registrar;
         private readonly ITrackChildren _childTracker;
 
-        public StoreEntities(IMetrics metrics, IStoreEvents eventstore, IStoreSnapshots snapstore, IOobWriter oobstore, IEventFactory factory, IVersionRegistrar registrar, ITrackChildren childTracker)
+        public StoreEntities(Configure settings, IMetrics metrics, IStoreEvents eventstore, IStoreSnapshots snapstore, IOobWriter oobstore, IEventFactory factory, IVersionRegistrar registrar, ITrackChildren childTracker)
         {
+            _settings = settings;
             _metrics = metrics;
             _eventstore = eventstore;
             _snapstore = snapstore;
@@ -46,7 +48,7 @@ namespace Aggregates.Internal
         }
         public Task<TEntity> New<TEntity, TState>(string bucket, Id id, IEntity parent) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
-            var uow = (Configuration.Settings.LocalContainer.Value ?? Configuration.Settings.Container).Resolve<Aggregates.UnitOfWork.IDomain>();
+            var uow = (_settings.LocalContainer.Value ?? _settings.Container).Resolve<Aggregates.UnitOfWork.IDomain>();
 
             var factory = EntityFactory.For<TEntity>();
 
@@ -65,7 +67,7 @@ namespace Aggregates.Internal
         }
         public async Task<TEntity> Get<TEntity, TState>(string bucket, Id id, IEntity parent) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
-            var uow = (Configuration.Settings.LocalContainer.Value ?? Configuration.Settings.Container).Resolve<Aggregates.UnitOfWork.IDomain>();
+            var uow = (_settings.LocalContainer.Value ?? _settings.Container).Resolve<Aggregates.UnitOfWork.IDomain>();
 
             var factory = EntityFactory.For<TEntity>();
 
@@ -131,7 +133,7 @@ namespace Aggregates.Internal
                                           ?? new OptimisticConcurrencyAttribute(ConcurrencyConflict.Throw);
 
                     Logger.DebugEvent("ConflictResolve", "[{EntityId:l}] entity [{EntityType:l}] resolving {ConflictingEvents} events with {ConflictResolver}", entity.Id, typeof(TEntity).FullName, entity.Uncommitted.Count(), conflictResolution.Conflict);
-                    var strategy = conflictResolution.Conflict.Build(conflictResolution.Resolver);
+                    var strategy = conflictResolution.Conflict.Build(_settings.Container, conflictResolution.Resolver);
 
                     commitHeaders[Defaults.ConflictResolvedHeader] = conflictResolution.Conflict.DisplayName;
 

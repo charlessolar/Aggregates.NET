@@ -21,5 +21,7 @@ namespace Aggregates
         };
         public const string MessageIdHeader = "NServiceBus.MessageId";
         public const string CorrelationIdHeader = "NServiceBus.CorrelationId";
+
+        public const string AggregatesSettings = "Aggregates.NET.Settings";
     }
 }

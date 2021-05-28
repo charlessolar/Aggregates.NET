@@ -22,6 +22,7 @@ namespace Aggregates.Internal
     {
         private static readonly ILog Logger = LogProvider.GetLogger("StoreEvents");
         private static readonly ILog SlowLogger = LogProvider.GetLogger("Slow Alarm");
+        private readonly Configure _settings;
         private readonly IMetrics _metrics;
         private readonly IMessageSerializer _serializer;
         private readonly IEventMapper _mapper;
@@ -31,17 +32,18 @@ namespace Aggregates.Internal
         private readonly int _readsize;
         private readonly Compression _compress;
 
-        public StoreEvents(IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IVersionRegistrar registrar, IEventStoreConnection[] connections)
+        public StoreEvents(Configure settings, IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IVersionRegistrar registrar, IEventStoreConnection[] connections)
         {
+            _settings = settings;
             _metrics = metrics;
             _serializer = serializer;
             _mapper = mapper;
             _registrar = registrar;
             _clients = connections;
 
-            _generator = Configuration.Settings.Generator;
-            _readsize = Configuration.Settings.ReadSize;
-            _compress = Configuration.Settings.Compression;
+            _generator = settings.Generator;
+            _readsize = settings.ReadSize;
+            _compress = settings.Compression;
         }
 
         public Task<IFullEvent[]> GetEvents<TEntity>(string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
@@ -274,9 +276,9 @@ namespace Aggregates.Internal
 
                 // use async local container first if one exists
                 // (is set by unit of work - it creates a child container which mutators might need)
-                IContainer container = Configuration.Settings.LocalContainer.Value;
+                IContainer container = _settings.LocalContainer.Value;
                 if (container == null)
-                    container = Configuration.Settings.Container;
+                    container = _settings.Container;
 
                 foreach (var type in mutators)
                 {
@@ -299,9 +301,9 @@ namespace Aggregates.Internal
                     CommitHeaders = (commitHeaders ?? new Dictionary<string, string>()).Merge(new Dictionary<string, string>
                     {
                         [Defaults.InstanceHeader] = Defaults.Instance.ToString(),
-                        [Defaults.EndpointHeader] = Configuration.Settings.Endpoint,
-                        [Defaults.EndpointVersionHeader] = Configuration.Settings.EndpointVersion.ToString(),
-                        [Defaults.AggregatesVersionHeader] = Configuration.Settings.AggregatesVersion.ToString(),
+                        [Defaults.EndpointHeader] = _settings.Endpoint,
+                        [Defaults.EndpointVersionHeader] = _settings.EndpointVersion.ToString(),
+                        [Defaults.AggregatesVersionHeader] = _settings.AggregatesVersion.ToString(),
                         [Defaults.MachineHeader] = Environment.MachineName,
                     }),
                     Compressed = _compress.HasFlag(Compression.Events),

@@ -16,12 +16,14 @@ namespace Aggregates.Internal
         private string _endpoint;
         private Version _version;
 
+        private readonly Configure _settings;
         private readonly IEventStoreConsumer _consumer;
         private readonly IStoreEvents _eventstore;
         private readonly IVersionRegistrar _registrar;
 
-        public TrackChildren(IEventStoreConsumer consumer, IStoreEvents eventstore, IVersionRegistrar registrar)
+        public TrackChildren(Configure settings, IEventStoreConsumer consumer, IStoreEvents eventstore, IVersionRegistrar registrar)
         {
+            _settings = settings;
             _consumer = consumer;
             _eventstore = eventstore;
             _registrar = registrar;
@@ -102,8 +104,8 @@ fromCategory('{0}')
         }
         public async Task<TEntity[]> GetChildren<TEntity, TParent>(TParent parent) where TEntity : IChildEntity<TParent> where TParent : IHaveEntities<TParent>
         {
-            var uow = (Configuration.Settings.LocalContainer.Value ?? Configuration.Settings.Container).Resolve<Aggregates.UnitOfWork.IDomain>();
-            var streamGen = Configuration.Settings.Generator;
+            var uow = (_settings.LocalContainer.Value ?? _settings.Container).Resolve<Aggregates.UnitOfWork.IDomain>();
+            var streamGen = _settings.Generator;
 
             var parents = getParents(parent);
 

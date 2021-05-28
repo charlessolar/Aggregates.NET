@@ -77,7 +77,8 @@ namespace Aggregates.NServiceBus
         [Fact]
         public async Task ShouldReplyWithErrorAfterMaxRetries()
         {
-            Configuration.Settings.Retries = 0;
+            Settings.SetRetries(0);
+
             var retrier = A.Fake<Internal.DelayedRetry>();
             Inject(retrier);
             var next = A.Fake<Func<Task>>();
@@ -98,7 +99,8 @@ namespace Aggregates.NServiceBus
         [Fact]
         public async Task ShouldNotSendErrorReplyIfNotSendOrPublish()
         {
-            Configuration.Settings.Retries = 0;
+            Settings.SetRetries(0);
+
             var retrier = A.Fake<Internal.DelayedRetry>();
             Inject(retrier);
             var next = A.Fake<Func<Task>>();
@@ -116,7 +118,8 @@ namespace Aggregates.NServiceBus
         [Fact]
         public async Task ShouldNotSendErrorReplyIfNoResponseRequested()
         {
-            Configuration.Settings.Retries = 0;
+            Settings.SetRetries(0);
+
             var retrier = A.Fake<Internal.DelayedRetry>();
             Inject(retrier);
             var next = A.Fake<Func<Task>>();

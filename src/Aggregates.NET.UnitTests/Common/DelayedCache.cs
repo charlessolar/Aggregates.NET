@@ -81,9 +81,7 @@ namespace Aggregates.Common
             A.CallTo(() => time.Now).Returns(DateTime.UtcNow.AddMinutes(-1));
             Inject(time);
 
-            Aggregates.Configuration.Settings.FlushInterval = TimeSpan.FromSeconds(1);
-            Aggregates.Configuration.Settings.DelayedExpiration = TimeSpan.FromSeconds(1);
-            Aggregates.Configuration.Settings.FlushSize = 5;
+            Settings.SetDelayedExpiration(TimeSpan.FromSeconds(1)).SetFlushSize(5).SetFlushInterval(TimeSpan.FromSeconds(1));
 
             await Sut.Add("test", "test", Many<IDelayedMessage>(5)).ConfigureAwait(false);
 
@@ -100,9 +98,8 @@ namespace Aggregates.Common
             A.CallTo(() => time.Now).Returns(DateTime.UtcNow.AddMinutes(-1));
             Inject(time);
 
-            Aggregates.Configuration.Settings.FlushInterval = TimeSpan.FromSeconds(1);
-            Aggregates.Configuration.Settings.DelayedExpiration = TimeSpan.FromSeconds(1);
-            Aggregates.Configuration.Settings.FlushSize = 5;
+
+            Settings.SetDelayedExpiration(TimeSpan.FromSeconds(1)).SetFlushSize(5).SetFlushInterval(TimeSpan.FromSeconds(1));
 
             var store = Fake<IStoreEvents>();
             A.CallTo(() => store.WriteEvents(A<string>.Ignored, A<IFullEvent[]>.Ignored, A<Dictionary<string, string>>.Ignored, A<long?>.Ignored)).Throws(new Exception());
@@ -119,9 +116,7 @@ namespace Aggregates.Common
         [Fact]
         public async Task CacheFlushesWhenGetsTooBig()
         {
-            Aggregates.Configuration.Settings.MaxDelayed = 0;
-            Aggregates.Configuration.Settings.FlushInterval = TimeSpan.FromSeconds(1);
-            Aggregates.Configuration.Settings.FlushSize = 5;
+            Settings.SetMaxDelayed(0).SetFlushSize(5).SetFlushInterval(TimeSpan.FromSeconds(1));
 
             await Sut.Add("test", "test", Many<IDelayedMessage>(5)).ConfigureAwait(false);
 
@@ -133,9 +128,7 @@ namespace Aggregates.Common
         [Fact]
         public async Task TooBigFlushFailureKeepsMessagesInCache()
         {
-            Aggregates.Configuration.Settings.MaxDelayed = 0;
-            Aggregates.Configuration.Settings.FlushInterval = TimeSpan.FromSeconds(1);
-            Aggregates.Configuration.Settings.FlushSize = 5;
+            Settings.SetMaxDelayed(0).SetFlushSize(5).SetFlushInterval(TimeSpan.FromSeconds(1));
 
             var store = Fake<IStoreEvents>();
             A.CallTo(() => store.WriteEvents(A<string>.Ignored, A<IFullEvent[]>.Ignored, A<Dictionary<string, string>>.Ignored, A<long?>.Ignored)).Throws(new Exception());

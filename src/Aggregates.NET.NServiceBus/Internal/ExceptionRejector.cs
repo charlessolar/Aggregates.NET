@@ -25,13 +25,13 @@ namespace Aggregates.Internal
         private readonly IMessageSerializer _serializer;
         private readonly int _retries;
 
-        public ExceptionRejector(IMetrics metrics, IMessageSerializer serializer, DelayedRetry retry)
+        public ExceptionRejector(Configure settings, IMetrics metrics, IMessageSerializer serializer, DelayedRetry retry)
         {
             _metrics = metrics;
             _serializer = serializer;
             _retry = retry;
 
-            _retries = Configuration.Settings.Retries;
+            _retries = settings.Retries;
         }
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
@@ -120,7 +120,7 @@ namespace Aggregates.Internal
             stepId: "ExceptionRejector",
             behavior: typeof(ExceptionRejector),
             description: "handles exceptions and retries",
-            factoryMethod: (b) => new ExceptionRejector(b.Build<IMetrics>(), b.Build<IMessageSerializer>(), b.Build<DelayedRetry>())
+            factoryMethod: (b) => new ExceptionRejector(b.Build<Configure>(), b.Build<IMetrics>(), b.Build<IMessageSerializer>(), b.Build<DelayedRetry>())
         )
         {
             InsertBefore("MutateIncomingMessages");
