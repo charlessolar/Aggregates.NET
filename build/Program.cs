@@ -380,13 +380,12 @@ namespace Build
             foreach (var package in context.Packages.Nuget)
             {
                 context.Info("Publish nuget: " + package.PackagePath);
-                var packageDir = string.Concat(apiUrl, "/", package.Id);
 
                 // Push the package.
                 context.NuGetPush(package.PackagePath, new NuGetPushSettings
                 {
                     ApiKey = apiKey,
-                    Source = packageDir,
+                    Source = apiUrl,
                 });
             }
         }
