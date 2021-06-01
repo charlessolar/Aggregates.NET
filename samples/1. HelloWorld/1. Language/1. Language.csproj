@@ -8,6 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aggregates.NET" Version="0.16.3.59" />
+    <PackageReference Include="Aggregates.NET" Version="0.16.4.60" />
   </ItemGroup>
 </Project>
