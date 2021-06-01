@@ -10,7 +10,6 @@ namespace Aggregates.Contracts
         bool Setup { get; }
         Configure Settings { get; }
 
-        Task Build(Action<Configure> settings);
         Task Start();
     }
 }

@@ -15,31 +15,11 @@ namespace Aggregates
     public class Configuration : IConfiguration
     {
 
+
+
         public bool Setup => Settings != null;
         public Configure Settings { get; internal set; }
 
-        public async Task Build(Action<Configure> settings)
-        {
-            var config = new Configure();
-            settings(config);
-
-            if (config.Container == null)
-                throw new InvalidOperationException("Must designate a container implementation");
-
-            Settings = config;
-
-            try
-            {
-                await config.RegistrationTasks.WhenAllAsync(x => x(config)).ConfigureAwait(false);
-                config.Container.Register<IConfiguration>(this, Lifestyle.Singleton);
-                config.Container.Register<Configure>(Settings, Lifestyle.Singleton);
-            }
-            catch
-            {
-                Settings = null;
-                throw;
-            }
-        }
         public async Task Start()
         {
             if (Settings == null)
@@ -54,6 +34,32 @@ namespace Aggregates
                 Settings = null;
                 throw;
             }
+        }
+
+
+        public async static Task<IConfiguration> Build(Action<Configure> settings)
+        {
+            var config = new Configure();
+            settings(config);
+
+            if (config.Container == null)
+                throw new InvalidOperationException("Must designate a container implementation");
+
+            var aggConfig = new Configuration();
+
+            aggConfig.Settings = config;
+
+            try
+            {
+                await config.RegistrationTasks.WhenAllAsync(x => x(config)).ConfigureAwait(false);
+                config.Container.Register<IConfiguration>(aggConfig, Lifestyle.Singleton);
+                config.Container.Register<Configure>((_) => aggConfig.Settings, Lifestyle.Singleton);
+            }
+            catch
+            {
+                throw;
+            }
+            return aggConfig;
         }
     }
 
