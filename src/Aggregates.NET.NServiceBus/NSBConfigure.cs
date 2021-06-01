@@ -28,7 +28,7 @@ namespace Aggregates
                 var settings = endpointConfig.GetSettings();
                 var conventions = endpointConfig.Conventions();
 
-                settings.Set("Aggregates.NET", config);
+                settings.Set(NSBDefaults.AggregatesSettings, config);
 
                 // set the configured endpoint name to the one NSB config was constructed with
                 config.SetEndpointName(settings.Get<string>("NServiceBus.Routing.EndpointName"));

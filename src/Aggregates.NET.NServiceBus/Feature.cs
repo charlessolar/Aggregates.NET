@@ -72,6 +72,7 @@ namespace Aggregates
             // We are sending IEvents, which NSB doesn't like out of the box - so turn that check off
             context.Pipeline.Remove("EnforceSendBestPractices");
 
+
             context.RegisterStartupTask(builder => new EndpointRunner(context.Settings.InstanceSpecificQueue(), aggSettings, aggSettings.StartupTasks, aggSettings.ShutdownTasks));
         }
         private static bool IsServiceHandler(Type type)

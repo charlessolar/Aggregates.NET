@@ -111,7 +111,7 @@ namespace Domain
 
             var client = await ConfigureStore();
 
-            await Aggregates.Configuration.Build(c => c
+            var agg = await Aggregates.Configuration.Build(c => c
                     .StructureMap(_container)
                     .EventStore(new[] { client })
                     .NewtonsoftJson()
@@ -119,7 +119,7 @@ namespace Domain
                     .SetCommandDestination("domain")
                     );
 
-            await Aggregates.Configuration.Start().ConfigureAwait(false);
+            await agg.Start().ConfigureAwait(false);
 
             return Aggregates.Bus.Instance;
         }
