@@ -434,7 +434,7 @@ namespace Build
         {
 
             var commands = context.BuildSystem().AzurePipelines.Commands;
-            commands.UploadArtifact("binaries", context.Paths.Files.ZipBinaries, "zip");
+            commands.UploadArtifact("bin", context.Paths.Files.ZipBinaries, "zip");
 
             // nugets published already
             // foreach (var package in context.Packages.Nuget)
@@ -444,25 +444,30 @@ namespace Build
 
             // dup artifact upload
             //commands.UploadArtifact("artifacts", context.Paths.Directories.ArtifactsDir + "/", "artifacts");
-            commands.UploadArtifact("tests", context.Paths.Directories.TestResultsDir + "/", "test-results");
-            var testResults = context.GetFiles($"{context.Paths.Directories.TestResultsDir}/*.trx").ToArray();
+            //commands.UploadArtifact("tests", context.Paths.Directories.TestResultsDir + "/", "test-results");
 
-            commands.PublishTestResults(new AzurePipelinesPublishTestResultsData
+            var testResults = context.GetFiles($"{context.Paths.Directories.TestResultsDir}/**/*.trx").ToArray();
+            if (testResults.Any())
             {
-
-                Configuration = context.BuildConfiguration,
-                MergeTestResults = true,
-                TestResultsFiles = testResults,
-                TestRunner = AzurePipelinesTestRunnerType.VSTest
-            });
-            var codeCoverage = context.GetFiles($"{context.Paths.Directories.TestResultsDir}/coverage/*.xml").ToArray();
-            commands.PublishCodeCoverage(new AzurePipelinesPublishCodeCoverageData
+                commands.PublishTestResults(new AzurePipelinesPublishTestResultsData
+                {
+                    Configuration = context.BuildConfiguration,
+                    MergeTestResults = true,
+                    TestResultsFiles = testResults,
+                    TestRunner = AzurePipelinesTestRunnerType.VSTest
+                });
+            }
+            var codeCoverage = context.GetFiles($"{context.Paths.Directories.TestResultsDir}/**/*.cobertura.xml").ToArray();
+            if (codeCoverage.Any())
             {
-                AdditionalCodeCoverageFiles = codeCoverage,
-                CodeCoverageTool = AzurePipelinesCodeCoverageToolType.Cobertura,
-                ReportDirectory = context.Paths.Directories.TestResultsDir + "/report",
-                SummaryFileLocation = context.Paths.Directories.TestResultsDir + "/report/coverage.xml"
-            });
+                commands.PublishCodeCoverage(new AzurePipelinesPublishCodeCoverageData
+                {
+                    AdditionalCodeCoverageFiles = codeCoverage,
+                    CodeCoverageTool = AzurePipelinesCodeCoverageToolType.Cobertura,
+                    ReportDirectory = context.Paths.Directories.TestResultsDir + "/report",
+                    SummaryFileLocation = context.Paths.Directories.TestResultsDir + "/report/Cobertura.xml"
+                });
+            }
 
 
             commands.AddBuildTag(context.Version.Sha);
