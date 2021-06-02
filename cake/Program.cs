@@ -147,7 +147,7 @@ namespace Build
             context.DotNetCoreRestore(context.Solution.FullPath, new Cake.Common.Tools.DotNetCore.Restore.DotNetCoreRestoreSettings
             {
                 ConfigFile = "./tools/nuget.config",
-                Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
+                //Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
                 MSBuildSettings = context.MsBuildSettings
             });
         }
@@ -169,7 +169,7 @@ namespace Build
                 NoRestore = true,
                 NoLogo = true,
                 MSBuildSettings = context.MsBuildSettings,
-                Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
+                //Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
                 ArgumentCustomization = aggs =>
                 {
                     aggs.Append("/p:SourceLinkEnabled=true")
@@ -323,7 +323,7 @@ namespace Build
                     NoRestore = true,
                     NoLogo = true,
                     MSBuildSettings = context.MsBuildSettings,
-                    Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
+                    //Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
                     OutputDirectory = context.Paths.Directories.ArtifactsBin.Combine(project.AssemblyName)
                 });
             }
@@ -369,7 +369,7 @@ namespace Build
                         NoBuild = true,
                         NoRestore = true,
                         NoLogo = true,
-                        Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
+                        //Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
                         MSBuildSettings = context.MsBuildSettings
                     }
                 );
@@ -403,7 +403,7 @@ namespace Build
                 // Push the package.
                 context.DotNetCoreNuGetPush(package.PackagePath.FullPath, new DotNetCoreNuGetPushSettings
                 {
-                    Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
+                    //Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
                     ApiKey = apiKey,
                     Source = apiUrl,
                 });
