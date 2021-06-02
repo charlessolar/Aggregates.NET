@@ -466,8 +466,8 @@ namespace Build
                 {
                     AdditionalCodeCoverageFiles = codeCoverage,
                     CodeCoverageTool = AzurePipelinesCodeCoverageToolType.Cobertura,
-                    ReportDirectory = context.Paths.Directories.TestResultsDir + "/report",
-                    SummaryFileLocation = context.Paths.Directories.TestResultsDir + "/report/Cobertura.xml"
+                    ReportDirectory = context.Paths.Directories.TestResultsDir + "/generated",
+                    SummaryFileLocation = context.Paths.Directories.TestResultsDir + "/generated/Cobertura.xml"
                 });
             }
 
