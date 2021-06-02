@@ -5,7 +5,7 @@
 | **Quality**  | [![GitHub issues](https://img.shields.io/github/issues-raw/charlessolar/aggregates.net.svg)](https://github.com/charlessolar/Aggregates.NET/issues)                                |
 | **Nuget**    | [![Nuget](https://buildstats.info/nuget/Aggregates.NET)](http://nuget.org/packages/Aggregates.NET)                                                                                 |
 
-# Aggregates.NET v0.15
+# Aggregates.NET v0.16
 
 Aggregates.NET is a framework to help developers integrate the excellent [NServiceBus](https://github.com/Particular/NServiceBus) and [EventStore](https://github.com/EventStore/EventStore) libraries together.
 

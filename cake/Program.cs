@@ -266,11 +266,10 @@ namespace Build
                     ClassFilters = new[] { "-System*", "-Microsoft*" },
                 };
                 settings.ReportTypes.Clear();
-                settings.ReportTypes.Add(ReportGeneratorReportType.Badges);
                 settings.ReportTypes.Add(ReportGeneratorReportType.Cobertura);
                 settings.ReportTypes.Add(ReportGeneratorReportType.Xml);
 
-                settings.ReportTypes.Add(context.IsLocalBuild ? ReportGeneratorReportType.HtmlInline : ReportGeneratorReportType.HtmlInline_AzurePipelines);
+                settings.ReportTypes.Add(context.IsLocalBuild ? ReportGeneratorReportType.Html : ReportGeneratorReportType.HtmlInline_AzurePipelines);
 
                 context.ReportGenerator(coverageFiles, context.Paths.Directories.TestResultsDir + "/generated", settings);
                 context.Info("Test coverage report generated to {0}", context.Paths.Directories.TestResultsDir.CombineWithFilePath("index.htm"));
