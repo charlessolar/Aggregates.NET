@@ -196,11 +196,10 @@ namespace Build
         public override void OnError(Exception exception, BuildParameters context)
         {
             context.Log.Warning("Unit Test failures... will not publish artifacts");
-            context.TestFailures = true;
+            context.HasFailed = true;
         }
         public override void Run(Helpers.BuildParameters context)
         {
-            var coverageRoot = context.Paths.Directories.TestResultsDir.Combine("coverlet");
             foreach (var project in context.Packages.Tests)
             {
                 var testResults = context.Paths.Directories.TestResultsDir.Combine(project.Id);
@@ -249,7 +248,7 @@ namespace Build
     {
         public override bool ShouldRun(BuildParameters context)
         {
-            return context.Packages.Tests.Any() && !context.TestFailures;
+            return context.Packages.Tests.Any() && !context.HasFailed;
         }
         public override void OnError(Exception exception, BuildParameters context)
         {
@@ -268,13 +267,17 @@ namespace Build
                 };
                 settings.ReportTypes.Clear();
                 settings.ReportTypes.Add(ReportGeneratorReportType.Badges);
-                settings.ReportTypes.Add(ReportGeneratorReportType.HtmlInline);
 
                 if (!context.IsLocalBuild)
                 {
                     settings.ReportTypes.Add(ReportGeneratorReportType.lcov);
                     settings.ReportTypes.Add(ReportGeneratorReportType.Cobertura);
                     settings.ReportTypes.Add(ReportGeneratorReportType.HtmlInline_AzurePipelines);
+                }
+                else
+                {
+                    // HtmlInline and HtmlInline_AzurePipelines seem to be mutually exclusive
+                    settings.ReportTypes.Add(ReportGeneratorReportType.HtmlInline);
                 }
 
                 context.ReportGenerator(coverageFiles, context.Paths.Directories.TestResultsDir + "/generated", settings);
@@ -314,6 +317,11 @@ namespace Build
     [IsDependentOn(typeof(RunUnitTestsTask))]
     public sealed class PublishFilesTask : FrostingTask<Helpers.BuildParameters>
     {
+        public override void OnError(Exception exception, BuildParameters context)
+        {
+            context.Log.Warning("Failed to publish");
+            context.HasFailed = true;
+        }
         public override void Run(Helpers.BuildParameters context)
         {
             foreach (var project in context.Paths.Files.Projects.Where(x => x.OutputType != "Test"))
@@ -335,6 +343,11 @@ namespace Build
     [IsDependentOn(typeof(PublishFilesTask))]
     public sealed class ZipFilesTask : FrostingTask<Helpers.BuildParameters>
     {
+        public override void OnError(Exception exception, BuildParameters context)
+        {
+            context.Log.Warning("Failed to create zip");
+            context.HasFailed = true;
+        }
         public override void Run(Helpers.BuildParameters context)
         {
             var files = context.GetFiles(context.Paths.Directories.ArtifactsBin + "/**/*");
@@ -351,6 +364,11 @@ namespace Build
         public override bool ShouldRun(BuildParameters context)
         {
             return context.ShouldBuildNuget;
+        }
+        public override void OnError(Exception exception, BuildParameters context)
+        {
+            context.Log.Warning("Failed to create Nuget packages");
+            context.HasFailed = true;
         }
         public override void Run(Helpers.BuildParameters context)
         {
@@ -387,6 +405,11 @@ namespace Build
         {
             return context.ShouldPublish;
         }
+        public override void OnError(Exception exception, BuildParameters context)
+        {
+            context.Log.Warning("Failed to publish Nuget packages");
+            context.HasFailed = true;
+        }
         public override void Run(Helpers.BuildParameters context)
         {
 
@@ -405,14 +428,12 @@ namespace Build
                 // Push the package.
                 // context.DotNetCoreNuGetPush(package.PackagePath.FullPath, new DotNetCoreNuGetPushSettings
                 // {
-                //     //Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
                 //     ApiKey = apiKey,
                 //     Source = apiUrl,
                 // });
                 context.NuGetPush(package.PackagePath, new NuGetPushSettings
                 {
                     ConfigFile = "./tools/nuget.config",
-                    //Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
                     ApiKey = apiKey,
                     Source = apiUrl,
                 });
@@ -431,6 +452,11 @@ namespace Build
         public override bool ShouldRun(BuildParameters context)
         {
             return context.IsRunningOnVSTS;
+        }
+        public override void OnError(Exception exception, BuildParameters context)
+        {
+            context.Log.Warning("Failed to publish Azure artifacts");
+            context.HasFailed = true;
         }
         public override void Run(Helpers.BuildParameters context)
         {

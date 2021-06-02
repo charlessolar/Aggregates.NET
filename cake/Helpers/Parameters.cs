@@ -45,7 +45,7 @@ namespace Build.Helpers
         public bool IsMaster { get; private set; }
         public bool IsPullRequest { get; private set; }
 
-        public bool TestFailures { get; set; }
+        public bool HasFailed { get; set; }
 
         public DotNetCoreMSBuildSettings MsBuildSettings { get; private set; }
 
@@ -68,7 +68,7 @@ namespace Build.Helpers
         {
             get
             {
-                return !IsLocalBuild && IsReleaseBuild && !IsPullRequest && !TestFailures;
+                return !IsLocalBuild && IsReleaseBuild && !IsPullRequest && !HasFailed;
             }
         }
         public bool ShouldHavePublished
@@ -83,21 +83,21 @@ namespace Build.Helpers
         {
             get
             {
-                return Packages.Nuget.Any() && !TestFailures;
+                return Packages.Nuget.Any() && !HasFailed;
             }
         }
         public bool ShouldBuildDocker
         {
             get
             {
-                return Packages.Images.Any() && !TestFailures;
+                return Packages.Images.Any() && !HasFailed;
             }
         }
         public bool ShouldBuildBinaries
         {
             get
             {
-                return Packages.Binaries.Any() && !TestFailures;
+                return Packages.Binaries.Any() && !HasFailed;
             }
         }
         public bool ShouldPublishToArtifactory
