@@ -505,6 +505,7 @@ namespace Build
     [TaskName("Create-GitHub-Artifacts")]
     [IsDependentOn(typeof(ZipFilesTask))]
     [IsDependentOn(typeof(CreateNugetPackagesTask))]
+    [IsDependentOn(typeof(GenerateCoverageReportTask))]
     public sealed class CreateGitHubArtifactsTask : FrostingTask<Helpers.BuildParameters>
     {
         public override bool ShouldRun(BuildParameters context)
@@ -541,12 +542,10 @@ namespace Build
     [TaskName("VSTS")]
     [IsDependentOn(typeof(PublishTask))]
     [IsDependentOn(typeof(CreateVSTSArtifactsTask))]
-    [IsDependentOn(typeof(GenerateCoverageReportTask))]
     public class VSTSTask : FrostingTask { }
 
     [TaskName("GitHub")]
     [IsDependentOn(typeof(PublishTask))]
     [IsDependentOn(typeof(CreateGitHubArtifactsTask))]
-    [IsDependentOn(typeof(GenerateCoverageReportTask))]
     public class GitHubTask : FrostingTask { }
 }

@@ -158,3 +158,4 @@ artifacts/
 packages/
 .vs/
 .learningtransport/
+.vscode
