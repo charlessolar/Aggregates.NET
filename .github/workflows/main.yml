@@ -35,24 +35,33 @@ jobs:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           COVERALLS_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
 
-      - uses: actions/upload-artifact@v2
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
         if: success() || failure()
+        continue-on-error: true
         with:
           name: binaries
           path: artifacts/bin
-      - uses: actions/upload-artifact@v2
+      - name: Upload test reports
+        uses: actions/upload-artifact@v2
         if: success() || failure()
+        continue-on-error: true
         with:
           name: test-reports
           path: artifacts/test-reports
-      - uses: actions/upload-artifact@v2
-        with:
-          name: nugets
-          path: artifacts/nuget
 
-      - uses: dorny/test-reporter@v1
+      - name: Report tests
+        uses: dorny/test-reporter@v1
+        continue-on-error: true
         if: success() || failure()
         with:
-          path: "artifacts/test-reports/*.trx"
+          path: "artifacts/test-reports/**/*.trx"
           name: tests
           reporter: dotnet-trx
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
+        continue-on-error: true
+        if: success() || failure()
+        with:
+          path-to-lcov: "artifacts/test-reports/generated/lcov.info"
+          github-token: ${{ secrets.GITHUB_TOKEN }}

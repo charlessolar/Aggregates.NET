@@ -200,6 +200,7 @@ namespace Build
         }
         public override void Run(Helpers.BuildParameters context)
         {
+            var coverageRoot = context.Paths.Directories.TestResultsDir.Combine("coverlet");
             foreach (var project in context.Packages.Tests)
             {
                 var testResults = context.Paths.Directories.TestResultsDir.Combine(project.Id);
@@ -269,13 +270,14 @@ namespace Build
                 settings.ReportTypes.Add(ReportGeneratorReportType.Badges);
                 settings.ReportTypes.Add(ReportGeneratorReportType.HtmlInline);
 
-                if (context.IsRunningOnVSTS)
+                if (!context.IsLocalBuild)
                 {
+                    settings.ReportTypes.Add(ReportGeneratorReportType.lcov);
                     settings.ReportTypes.Add(ReportGeneratorReportType.Cobertura);
                     settings.ReportTypes.Add(ReportGeneratorReportType.HtmlInline_AzurePipelines);
                 }
 
-                context.ReportGenerator(coverageFiles, context.Paths.Directories.TestResultsDir + "/report", settings);
+                context.ReportGenerator(coverageFiles, context.Paths.Directories.TestResultsDir + "/generated", settings);
                 context.Info("Test coverage report generated to {0}", context.Paths.Directories.TestResultsDir.CombineWithFilePath("index.htm"));
 
 
@@ -285,12 +287,12 @@ namespace Build
                     {
                         context.StartProcess("cmd", new ProcessSettings
                         {
-                            Arguments = $"/C start \"\" {context.Paths.Directories.TestResultsDir}/index.htm"
+                            Arguments = $"/C start \"\" {context.Paths.Directories.TestResultsDir}/generated/index.htm"
                         });
                     }
                     else if (context.CanShowResults)
                     {
-                        context.Log.Warning("Generated coverage results to {0}/index.htm - we can open them automatically if you add --results to command", context.Paths.Directories.TestResultsDir);
+                        context.Log.Warning("Generated coverage results to {0}/generated/index.htm - we can open them automatically if you add --results to command", context.Paths.Directories.TestResultsDir);
                     }
                 }
             }
