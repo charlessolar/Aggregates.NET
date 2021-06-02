@@ -401,19 +401,19 @@ namespace Build
                 context.Info("Publish nuget: " + package.PackagePath);
 
                 // Push the package.
-                context.DotNetCoreNuGetPush(package.PackagePath.FullPath, new DotNetCoreNuGetPushSettings
+                // context.DotNetCoreNuGetPush(package.PackagePath.FullPath, new DotNetCoreNuGetPushSettings
+                // {
+                //     //Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
+                //     ApiKey = apiKey,
+                //     Source = apiUrl,
+                // });
+                context.NuGetPush(package.PackagePath, new NuGetPushSettings
                 {
+                    ConfigFile = "./tools/nuget.config",
                     //Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
                     ApiKey = apiKey,
                     Source = apiUrl,
                 });
-                // context.NuGetPush(package.PackagePath, new NuGetPushSettings
-                // {
-                //     ConfigFile = "./tools/nuget.config",
-                //     Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
-                //     ApiKey = apiKey,
-                //     Source = apiUrl,
-                // });
             }
         }
     }
