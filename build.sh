@@ -1,1 +1,1 @@
-dotnet run --project ./build/Build.csproj -- "$@"
+dotnet run --project ./cake/Build.csproj -- "$@"

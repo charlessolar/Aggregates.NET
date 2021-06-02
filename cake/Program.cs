@@ -26,6 +26,9 @@ using System.Collections.Generic;
 using Cake.Common.Tools.ReportUnit;
 using Cake.Core.IO;
 using Cake.Common;
+using Cake.Common.Build.AzurePipelines.Data;
+using Cake.Common.Tools.DotNetCore.NuGet.Push;
+using Cake.AzurePipelines.Module;
 
 namespace Build
 {
@@ -38,6 +41,7 @@ namespace Build
                 .InstallTool(new Uri("nuget:?package=GitVersion.CommandLine&version=5.6.9"))
                 .UseContext<Helpers.BuildParameters>()
                 .UseLifetime<BuildLifetime>()
+                .UseModule<AzurePipelinesModule>()
                 .UseWorkingDirectory("..")
                 .Run(args);
         }
@@ -66,7 +70,7 @@ namespace Build
 
             context.Info("Solution: " + context.Solution);
             context.Info("Target: " + context.Target);
-            context.Info("Configuration: " + context.Configuration);
+            context.Info("Configuration: " + context.BuildConfiguration);
             context.Info("IsLocalBuild: " + context.IsLocalBuild);
             context.Info("IsRunningOnUnix: " + context.IsRunningOnUnix);
             context.Info("IsRunningOnWindows: " + context.IsRunningOnWindows);
@@ -129,7 +133,7 @@ namespace Build
         {
 
             // Copy file into an ignored folder
-            context.CopyFile("./build/nuget.config", "./tools/nuget.config");
+            context.CopyFile("./cake/nuget.config", "./tools/nuget.config");
 
         }
     }
@@ -143,6 +147,7 @@ namespace Build
             context.DotNetCoreRestore(context.Solution.FullPath, new Cake.Common.Tools.DotNetCore.Restore.DotNetCoreRestoreSettings
             {
                 ConfigFile = "./tools/nuget.config",
+                Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
                 MSBuildSettings = context.MsBuildSettings
             });
         }
@@ -159,14 +164,21 @@ namespace Build
             context.DotNetCoreBuild(context.Solution.FullPath,
             new DotNetCoreBuildSettings
             {
+                WorkingDirectory = context.Paths.Directories.BuildRoot,
                 Configuration = context.BuildConfiguration,
                 NoRestore = true,
                 NoLogo = true,
                 MSBuildSettings = context.MsBuildSettings,
-                ArgumentCustomization = aggs => aggs
-                        .Append("/p:ci=true")
-                        .Append("/p:SourceLinkEnabled=true")
-                        .Append("/p:UseSourceLink=true")
+                Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
+                ArgumentCustomization = aggs =>
+                {
+                    aggs.Append("/p:SourceLinkEnabled=true")
+                        .Append("/p:UseSourceLink=true");
+                    if (!context.IsLocalBuild)
+                        aggs.Append("/p:Deterministic=true")
+                            .Append("/p:ContinuousIntegrationBuild=true");
+                    return aggs;
+                }
             });
 
         }
@@ -188,42 +200,43 @@ namespace Build
         }
         public override void Run(Helpers.BuildParameters context)
         {
-            context.Info("Outputing coverage to {0}", context.Paths.Directories.TestResultsDir);
-
-
-            // shove every option into dotnet test arg customerization until Coverlet extension works
-            var settings = new DotNetCoreTestSettings
-            {
-                Configuration = context.BuildConfiguration,
-                NoBuild = true,
-                ArgumentCustomization = args => args
-                    .Append("--logger \"trx;LogFileName=TestResults.trx\"")
-                    .Append("--logger \"xunit;LogFileName=TestResults.xml\"")
-                    .Append("--logger \"html;LogFileName=TestResults.html\"")
-                    .Append($"--results-directory \"{context.Paths.Directories.TestResultsDir}\"")
-                    .Append("--collect \"XPlat Code Coverage\"")
-                    .Append("--settings build/coverlet.runsettings")
-            };
-
             foreach (var project in context.Packages.Tests)
             {
+                var testResults = context.Paths.Directories.TestResultsDir.Combine(project.Id);
+                context.Info("Running tests {0} output directory {1}", project.Id, testResults);
+                // shove every option into dotnet test arg customerization until Coverlet extension works
+                var settings = new DotNetCoreTestSettings
+                {
+                    Configuration = context.BuildConfiguration,
+                    NoBuild = true,
+                    ArgumentCustomization = args => args
+                        .Append($"--logger \"trx;LogFileName=TestResults.trx\"")
+                        .Append($"--logger \"xunit;LogFileName=TestResults.xml\"")
+                        .Append($"--logger \"html;LogFileName=TestResults.html\"")
+                        .Append($"--results-directory \"{testResults}\"")
+                        .Append("--collect \"XPlat Code Coverage\"")
+                        .Append("--settings ./coverlet.runsettings")
+                };
+
+
+
                 //coverletSettings.WorkingDirectory = project.ProjectPath.GetDirectory();
                 context.DotNetCoreTest(project.ProjectPath.FullPath, settings);
                 //context.Coverlet(project.ProjectPath.GetDirectory(), coverletSettings, true, context.BuildConfiguration);
-            }
 
-            if (context.FileExists(context.Paths.Directories.TestResultsDir.CombineWithFilePath("TestResults.html")))
-            {
-                if (context.ShouldShowResults)
+                if (context.FileExists(testResults.CombineWithFilePath("TestResults.html")))
                 {
-                    context.StartProcess("cmd", new ProcessSettings
+                    if (context.ShouldShowResults)
                     {
-                        Arguments = $"/C start \"\" {context.Paths.Directories.TestResultsDir}/TestResults.html"
-                    });
-                }
-                else if (context.CanShowResults)
-                {
-                    context.Log.Warning("Generated test results to {0}/TestResults.html - we can open them automatically if you add --results to command", context.Paths.Directories.TestResultsDir);
+                        context.StartProcess("cmd", new ProcessSettings
+                        {
+                            Arguments = $"/C start \"\" {testResults}/TestResults.html"
+                        });
+                    }
+                    else if (context.CanShowResults)
+                    {
+                        context.Log.Warning("Generated test results to {0}/TestResults.html - we can open them automatically if you add --results to command", testResults);
+                    }
                 }
             }
         }
@@ -243,7 +256,7 @@ namespace Build
         }
         public override void Run(Helpers.BuildParameters context)
         {
-            var coverageFiles = context.GetFiles(context.Paths.Directories.TestResultsDir + "/**/coverage.cobertura.xml");
+            var coverageFiles = context.GetFiles(context.Paths.Directories.TestResultsDir + "/**/*.cobertura.xml");
             // Generage nice human readable coverage report
             if (coverageFiles.Any())
             {
@@ -257,9 +270,12 @@ namespace Build
                 settings.ReportTypes.Add(ReportGeneratorReportType.HtmlInline);
 
                 if (context.IsRunningOnVSTS)
+                {
+                    settings.ReportTypes.Add(ReportGeneratorReportType.Cobertura);
                     settings.ReportTypes.Add(ReportGeneratorReportType.HtmlInline_AzurePipelines);
+                }
 
-                context.ReportGenerator(coverageFiles, context.Paths.Directories.TestResultsDir, settings);
+                context.ReportGenerator(coverageFiles, context.Paths.Directories.TestResultsDir + "/report", settings);
                 context.Info("Test coverage report generated to {0}", context.Paths.Directories.TestResultsDir.CombineWithFilePath("index.htm"));
 
 
@@ -302,10 +318,12 @@ namespace Build
             {
                 context.DotNetCorePublish(project.ProjectFile.FullPath, new DotNetCorePublishSettings
                 {
+                    WorkingDirectory = context.Paths.Directories.BuildRoot,
                     Configuration = context.BuildConfiguration,
                     NoRestore = true,
                     NoLogo = true,
                     MSBuildSettings = context.MsBuildSettings,
+                    Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
                     OutputDirectory = context.Paths.Directories.ArtifactsBin.Combine(project.AssemblyName)
                 });
             }
@@ -339,18 +357,19 @@ namespace Build
             {
                 context.Info("Building nuget package: " + project.Id + " Version: " + context.Version.NuGet);
                 context.DotNetCorePack(
-                    project.ProjectPath.ToString(),
+                    project.ProjectPath.FullPath,
                     new DotNetCorePackSettings
                     {
+                        WorkingDirectory = context.Paths.Directories.BuildRoot,
                         Configuration = context.BuildConfiguration,
                         OutputDirectory = context.Paths.Directories.NugetRoot,
-                        // todo: use sourcelink once auth gits are supported
-                        IncludeSource = true,
-                        IncludeSymbols = true,
+                        // uses sourcelink now
+                        //IncludeSource = true,
+                        //IncludeSymbols = true,
                         NoBuild = true,
                         NoRestore = true,
                         NoLogo = true,
-                        Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Normal,
+                        Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
                         MSBuildSettings = context.MsBuildSettings
                     }
                 );
@@ -382,11 +401,19 @@ namespace Build
                 context.Info("Publish nuget: " + package.PackagePath);
 
                 // Push the package.
-                context.NuGetPush(package.PackagePath, new NuGetPushSettings
+                context.DotNetCoreNuGetPush(package.PackagePath.FullPath, new DotNetCoreNuGetPushSettings
                 {
+                    Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
                     ApiKey = apiKey,
                     Source = apiUrl,
                 });
+                // context.NuGetPush(package.PackagePath, new NuGetPushSettings
+                // {
+                //     ConfigFile = "./tools/nuget.config",
+                //     Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
+                //     ApiKey = apiKey,
+                //     Source = apiUrl,
+                // });
             }
         }
     }
@@ -409,13 +436,34 @@ namespace Build
             var commands = context.BuildSystem().AzurePipelines.Commands;
             commands.UploadArtifact("binaries", context.Paths.Files.ZipBinaries, "zip");
 
-            foreach (var package in context.Packages.Nuget)
-            {
-                commands.UploadArtifact("nuget", package.PackagePath, package.Id);
-            }
+            // nugets published already
+            // foreach (var package in context.Packages.Nuget)
+            // {
+            //     commands.UploadArtifact("nuget", package.PackagePath, package.Id);
+            // }
 
-            commands.UploadArtifact("artifacts", context.Paths.Directories.ArtifactsDir + "/", "artifacts");
+            // dup artifact upload
+            //commands.UploadArtifact("artifacts", context.Paths.Directories.ArtifactsDir + "/", "artifacts");
             commands.UploadArtifact("tests", context.Paths.Directories.TestResultsDir + "/", "test-results");
+            var testResults = context.GetFiles($"{context.Paths.Directories.TestResultsDir}/*.trx").ToArray();
+
+            commands.PublishTestResults(new AzurePipelinesPublishTestResultsData
+            {
+
+                Configuration = context.BuildConfiguration,
+                MergeTestResults = true,
+                TestResultsFiles = testResults,
+                TestRunner = AzurePipelinesTestRunnerType.VSTest
+            });
+            var codeCoverage = context.GetFiles($"{context.Paths.Directories.TestResultsDir}/coverage/*.xml").ToArray();
+            commands.PublishCodeCoverage(new AzurePipelinesPublishCodeCoverageData
+            {
+                AdditionalCodeCoverageFiles = codeCoverage,
+                CodeCoverageTool = AzurePipelinesCodeCoverageToolType.Cobertura,
+                ReportDirectory = context.Paths.Directories.TestResultsDir + "/report",
+                SummaryFileLocation = context.Paths.Directories.TestResultsDir + "/report/coverage.xml"
+            });
+
 
             commands.AddBuildTag(context.Version.Sha);
             commands.AddBuildTag(context.Version.SemVersion);

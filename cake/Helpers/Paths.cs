@@ -71,7 +71,7 @@ namespace Build.Helpers
                 // dont build "build" projects
                 if (info.HasPackage("Cake.Core") || info.HasPackage("Cake.Frosting"))
                     continue;
-                
+
 
                 binDirs.Add(binDir);
 
@@ -79,8 +79,8 @@ namespace Build.Helpers
                 projectInfos.Add(new ProjectInfo(filename.Substring(0, filename.Length - 7), info.AssemblyName, output, project, binDir));
             }
 
-            var buildRoot = (DirectoryPath)context.Directory(".");
-            var artifactsDir = (DirectoryPath)context.Directory("./artifacts");
+            var buildRoot = context.Environment.WorkingDirectory;
+            var artifactsDir = buildRoot.Combine("./artifacts");
             var artifactsBinDir = artifactsDir.Combine("bin");
             var testResultsDir = artifactsDir.Combine("test-reports");
             var nugetRoot = artifactsDir.Combine("nuget");

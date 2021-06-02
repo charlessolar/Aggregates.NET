@@ -4,7 +4,8 @@
     <DataCollectors>
       <DataCollector friendlyName="XPlat code coverage">
         <Configuration>
-          <Format>cobertura</Format>          
+          <Format>cobertura,json,opencover</Format> 
+          <Output>Coverage</Output>         
           <Exclude>[xunit.*]*,[*Tests]*,[NServiceBus.*]*,[coverlet.*.tests?]*,[*]Coverlet.Core*</Exclude> <!-- [Assembly-Filter]Type-Filter -->
           <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
           <SingleHit>false</SingleHit>
@@ -13,6 +14,8 @@
           <SkipAutoProps>true</SkipAutoProps>
           <DeterministicReport>false</DeterministicReport>
         </Configuration>
+      </DataCollector>
+      <DataCollector friendlyName="blame" enabled="True">
       </DataCollector>
     </DataCollectors>
   </DataCollectionRunSettings>
