@@ -130,7 +130,7 @@ namespace Aggregates.Internal
             // Not 100% guarenteed to eliminate writing 1 stream then failing the other one but will help - and we also tell the user to not do this.. 
             if (changedStreams > 1)
             {
-                Logger.WarnEvent("BestPractices", "{Changed} changed streams. We highly discourage this https://github.com/volak/Aggregates.NET/wiki/Changing-Multiple-Streams", changedStreams, CommitId);
+                Logger.WarnEvent("BestPractices", "{Changed} changed streams. We highly discourage this https://github.com/charlessolar/Aggregates.NET/wiki/Changing-Multiple-Streams", changedStreams, CommitId);
                 // First check all streams read but not modified - if the store has a different version a VersionException will be thrown
                 await allRepos.WhenAllAsync(x => x.Prepare(CommitId)).ConfigureAwait(false);
             }
