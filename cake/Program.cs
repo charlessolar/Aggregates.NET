@@ -521,5 +521,6 @@ namespace Build
     [TaskName("GitHub")]
     [IsDependentOn(typeof(PublishTask))]
     [IsDependentOn(typeof(CreateGitHubArtifactsTask))]
+    [IsDependentOn(typeof(GenerateCoverageReportTask))]
     public class GitHubTask : FrostingTask { }
 }
