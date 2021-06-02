@@ -256,7 +256,7 @@ namespace Build
         }
         public override void Run(Helpers.BuildParameters context)
         {
-            var coverageFiles = context.GetFiles(context.Paths.Directories.TestResultsDir + "/**/*.cobertura.xml");
+            var coverageFiles = context.GetFiles(context.Paths.Directories.TestResultsDir + "/**/*.opencover.xml");
             // Generage nice human readable coverage report
             if (coverageFiles.Any())
             {
@@ -267,6 +267,7 @@ namespace Build
                 };
                 settings.ReportTypes.Clear();
                 settings.ReportTypes.Add(ReportGeneratorReportType.Badges);
+                settings.ReportTypes.Add(ReportGeneratorReportType.lcov);
 
                 if (!context.IsLocalBuild)
                 {

@@ -72,5 +72,5 @@ jobs:
         continue-on-error: true
         if: success() || failure()
         with:
-          path-to-lcov: "artifacts/test-reports/generated/lcov.info"
+          path-to-lcov: "./artifacts/test-reports/generated/lcov.info"
           github-token: ${{ secrets.GITHUB_TOKEN }}
