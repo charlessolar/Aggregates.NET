@@ -8,12 +8,18 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      DOTNET_NOLOGO: true
 
     steps:
       - name: Get the sources
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: "3.1.x"
+
       - name: Cache Cake Tools
         uses: actions/cache@v1.1.2
         with:
@@ -26,6 +32,11 @@ jobs:
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
+      - task: CmdLine@2
+        displayName: Install report generator
+        inputs:
+          targetType: inline
+          script: dotnet tool install dotnet-reportgenerator-globaltool --global
 
       - name: Run Cake script
         run: ./build.ps1 --target GitHub
