@@ -256,7 +256,7 @@ namespace Build
         }
         public override void Run(Helpers.BuildParameters context)
         {
-            var coverageFiles = context.GetFiles(context.Paths.Directories.TestResultsDir + "/**/*.opencover.xml");
+            var coverageFiles = context.GetFiles(context.Paths.Directories.TestResultsDir + "/**/coverage.cobertura.xml");
             // Generage nice human readable coverage report
             if (coverageFiles.Any())
             {
@@ -267,19 +267,10 @@ namespace Build
                 };
                 settings.ReportTypes.Clear();
                 settings.ReportTypes.Add(ReportGeneratorReportType.Badges);
-                settings.ReportTypes.Add(ReportGeneratorReportType.lcov);
+                settings.ReportTypes.Add(ReportGeneratorReportType.Cobertura);
+                settings.ReportTypes.Add(ReportGeneratorReportType.Xml);
 
-                if (!context.IsLocalBuild)
-                {
-                    settings.ReportTypes.Add(ReportGeneratorReportType.lcov);
-                    settings.ReportTypes.Add(ReportGeneratorReportType.Cobertura);
-                    settings.ReportTypes.Add(ReportGeneratorReportType.HtmlInline_AzurePipelines);
-                }
-                else
-                {
-                    // HtmlInline and HtmlInline_AzurePipelines seem to be mutually exclusive
-                    settings.ReportTypes.Add(ReportGeneratorReportType.HtmlInline);
-                }
+                settings.ReportTypes.Add(context.IsLocalBuild ? ReportGeneratorReportType.HtmlInline : ReportGeneratorReportType.HtmlInline_AzurePipelines);
 
                 context.ReportGenerator(coverageFiles, context.Paths.Directories.TestResultsDir + "/generated", settings);
                 context.Info("Test coverage report generated to {0}", context.Paths.Directories.TestResultsDir.CombineWithFilePath("index.htm"));

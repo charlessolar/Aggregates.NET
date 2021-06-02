@@ -35,6 +35,9 @@ jobs:
       - name: Install report generator
         run: dotnet tool install dotnet-reportgenerator-globaltool --global
         shell: powershell
+      - name: Install coveralls.net
+        run: dotnet tool install --global coveralls.net --version 2.0.0
+        shell: powershell
 
       - name: Run Cake script
         run: ./build.ps1 --target GitHub
@@ -67,10 +70,7 @@ jobs:
           path: "artifacts/test-reports/**/*.trx"
           name: tests
           reporter: dotnet-trx
-      - name: Coveralls
-        uses: coverallsapp/github-action@master
-        continue-on-error: true
-        if: success() || failure()
-        with:
-          path-to-lcov: "./artifacts/test-reports/generated/lcov.info"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to coveralls
+        run: csmacnz.coveralls --reportgenerator -i ./artifacts/test-reports/generated --repoToken ${{ secrets.COVERALL_TOKEN }} --commitId ${{ github.sha }} --commitBranch ${{ github.ref }} --commitAuthor ${{ github.actor }} --commitMessage ${{ github.event.head_commit.message }} --jobId ${{ github.run_number }}
+        shell: powershell
