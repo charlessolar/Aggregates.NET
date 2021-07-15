@@ -97,20 +97,36 @@ namespace Aggregates.Internal
 
         object ReadObject(Stream stream, bool isArrayStream, Type type)
         {
+            if (isArrayStream)
+            {
+                var objects = (object[])ReadObject(stream, type.MakeArrayType());
+                if (objects.Length > 1)
+                {
+                    throw new Exception("Multiple messages in the same stream is not supported.");
+                }
+                return objects[0];
+            }
+
+            return ReadObject(stream, type);
+
+        }
+        object ReadObject(Stream stream, Type type)
+        {
             using (var reader = readerCreator(stream))
             {
-                reader.CloseInput = false;
-                if (isArrayStream)
+                try
                 {
-                    var objects = (object[])jsonSerializer.Deserialize(reader, type.MakeArrayType());
-                    if (objects.Length > 1)
-                    {
-                        throw new Exception("Multiple messages in the same stream are not supported.");
-                    }
-                    return objects[0];
+                    reader.CloseInput = false;
+                    return jsonSerializer.Deserialize(reader, type);
                 }
-
-                return jsonSerializer.Deserialize(reader, type);
+                catch (JsonSerializationException e)
+                {
+                    throw new SerializationException("Deserialization failure", e);
+                }
+                catch (Exception e)
+                {
+                    throw new SerializationException("Unknown deserialization failure", e);
+                }
             }
         }
 

@@ -315,7 +315,17 @@ namespace Aggregates.Internal
             var metadata = e.Event.Metadata;
             var data = e.Event.Data;
 
-            var descriptor = _serializer.Deserialize<EventDescriptor>(metadata);
+            IEventDescriptor descriptor;
+
+            try
+            {
+                descriptor = _serializer.Deserialize<EventDescriptor>(metadata);
+            }
+            catch (JsonSerializationException)
+            {
+                // Try the old format
+                descriptor = _serializer.Deserialize<LegecyEventDescriptor>(metadata);
+            }
 
             if (descriptor.Compressed)
                 data = data.Decompress();
