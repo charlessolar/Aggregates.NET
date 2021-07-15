@@ -90,7 +90,17 @@ namespace Aggregates.Internal
                 var metadata = e.Event.Metadata;
                 var data = e.Event.Data;
 
-                var descriptor = _serializer.Deserialize<EventDescriptor>(metadata);
+                IEventDescriptor descriptor;
+
+                try
+                {
+                    descriptor = _serializer.Deserialize<EventDescriptor>(metadata);
+                }
+                catch (JsonSerializationException)
+                {
+                    // Try the old format
+                    descriptor = _serializer.Deserialize<LegecyEventDescriptor>(metadata);
+                }
 
                 if (descriptor == null || descriptor.EventId == Guid.Empty)
                 {
@@ -120,8 +130,8 @@ namespace Aggregates.Internal
                     throw new UnknownMessageException(e.Event.EventType);
 
                 // Special case if event was written without a version - substitue the position from store
-                if (descriptor.Version == 0)
-                    descriptor.Version = e.Event.EventNumber;
+                //if (descriptor.Version == 0)
+                //    descriptor.Version = e.Event.EventNumber;
 
                 return (IFullEvent)new FullEvent
                 {
@@ -188,7 +198,17 @@ namespace Aggregates.Internal
                 var data = e.Event.Data;
 
 
-                var descriptor = _serializer.Deserialize<EventDescriptor>(metadata);
+                IEventDescriptor descriptor;
+
+                try
+                {
+                    descriptor = _serializer.Deserialize<EventDescriptor>(metadata);
+                }
+                catch (JsonSerializationException)
+                {
+                    // Try the old format
+                    descriptor = _serializer.Deserialize<LegecyEventDescriptor>(metadata);
+                }
 
                 if (descriptor == null || descriptor.EventId == Guid.Empty)
                 {
@@ -216,8 +236,8 @@ namespace Aggregates.Internal
                 if (!(@event is IEvent))
                     throw new UnknownMessageException(e.Event.EventType);
                 // Special case if event was written without a version - substitute the position from store
-                if (descriptor.Version == 0)
-                    descriptor.Version = e.Event.EventNumber;
+                //if (descriptor.Version == 0)
+                //    descriptor.Version = e.Event.EventNumber;
 
                 return (IFullEvent)new FullEvent
                 {
