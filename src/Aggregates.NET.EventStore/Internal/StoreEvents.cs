@@ -13,7 +13,6 @@ using Aggregates.Logging;
 using Aggregates.Messages;
 using EventStore.ClientAPI;
 using EventStore.ClientAPI.Exceptions;
-using Newtonsoft.Json;
 
 namespace Aggregates.Internal
 {
@@ -96,7 +95,7 @@ namespace Aggregates.Internal
                 {
                     descriptor = _serializer.Deserialize<EventDescriptor>(metadata);
                 }
-                catch (JsonSerializationException)
+                catch (SerializationException)
                 {
                     // Try the old format
                     descriptor = _serializer.Deserialize<LegecyEventDescriptor>(metadata);
@@ -204,7 +203,7 @@ namespace Aggregates.Internal
                 {
                     descriptor = _serializer.Deserialize<EventDescriptor>(metadata);
                 }
-                catch (JsonSerializationException)
+                catch (SerializationException)
                 {
                     // Try the old format
                     descriptor = _serializer.Deserialize<LegecyEventDescriptor>(metadata);
