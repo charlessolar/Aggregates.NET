@@ -30,6 +30,7 @@ namespace Aggregates.Internal
         private readonly IVersionRegistrar _registrar;
         private readonly IEventStoreConnection[] _clients;
         private readonly IEventMapper _mapper;
+        private readonly bool _developmentMode;
         private readonly int _readSize;
         private readonly bool _extraStats;
         private readonly object _subLock;
@@ -46,7 +47,7 @@ namespace Aggregates.Internal
             _mapper = mapper;
             _registrar = registrar;
 
-
+            _developmentMode = settings.DevelopmentMode;
             _readSize = settings.ReadSize;
             _extraStats = settings.ExtraStats;
             _subLock = new object();
@@ -141,13 +142,13 @@ namespace Aggregates.Internal
 
                 var settings = PersistentSubscriptionSettings.Create()
                     .StartFromBeginning()
-                    .WithMaxRetriesOf(10)
+                    .WithMaxRetriesOf(5)
                     .WithReadBatchOf(_readSize)
                     .WithBufferSizeOf(_readSize * 3)
                     .WithLiveBufferSizeOf(_readSize)
                     //.DontTimeoutMessages()
-                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(2))
-                    .CheckPointAfter(TimeSpan.FromSeconds(30))
+                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(1))
+                    .CheckPointAfter(TimeSpan.FromSeconds(15))
                     .MaximumCheckPointCountOf(_readSize * 3)
                     .ResolveLinkTos()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
@@ -194,13 +195,13 @@ namespace Aggregates.Internal
 
                 var settings = PersistentSubscriptionSettings.Create()
                     .StartFromBeginning()
-                    .WithMaxRetriesOf(10)
+                    .WithMaxRetriesOf(5)
                     .WithReadBatchOf(_readSize)
                     .WithBufferSizeOf(_readSize * 3)
                     .WithLiveBufferSizeOf(_readSize)
                     //.DontTimeoutMessages()
-                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(2))
-                    .CheckPointAfter(TimeSpan.FromSeconds(30))
+                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(1))
+                    .CheckPointAfter(TimeSpan.FromSeconds(15))
                     .MaximumCheckPointCountOf(_readSize * 3)
                     .ResolveLinkTos()
                     .WithNamedConsumerStrategy(SystemConsumerStrategies.RoundRobin);
@@ -425,12 +426,18 @@ namespace Aggregates.Internal
                     var fixedExisting = Regex.Replace(existing, @"\s+", String.Empty);
                     var fixedDefinition = Regex.Replace(definition, @"\s+", String.Empty);
 
-
-                    if (!string.Equals(fixedExisting, fixedDefinition, StringComparison.OrdinalIgnoreCase))
+                    // In development mode - update the projection definition regardless of versioning
+                    if (_developmentMode) {
+                        await manager.UpdateQueryAsync(name, definition, client.Settings.DefaultUserCredentials).ConfigureAwait(false);
+                    }
+                    else
                     {
-                        Logger.Fatal(
-                            $"Projection [{name}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!\nExisting:\n{existing}\nDesired:\n{definition}");
-                        throw new EndpointVersionException(name, existing, definition);
+                        if (!string.Equals(fixedExisting, fixedDefinition, StringComparison.OrdinalIgnoreCase))
+                        {
+                            Logger.Fatal(
+                                $"Projection [{name}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!\nExisting:\n{existing}\nDesired:\n{definition}");
+                            throw new EndpointVersionException(name, existing, definition);
+                        }
                     }
                 }
                 catch (ProjectionCommandFailedException)
@@ -441,8 +448,9 @@ namespace Aggregates.Internal
                         await manager.CreateContinuousAsync(name, definition, false, client.Settings.DefaultUserCredentials)
                                 .ConfigureAwait(false);
                     }
-                    catch (ProjectionCommandFailedException)
+                    catch (ProjectionCommandFailedException e)
                     {
+                        Logger.ErrorEvent("Projection", "Failed to create projection [{Name}]: {Error}", name, e.Message);
                     }
                 }
             }

@@ -96,6 +96,9 @@ namespace Aggregates
         public bool Passive { get; internal set; }
         public bool TrackChildren { get; internal set; }
 
+        // Disable certain "production" features related to versioning 
+        public bool DevelopmentMode { get; internal set; }
+
         public string CommandDestination { get; internal set; }
 
         public string MessageContentType { get; internal set; }
@@ -294,6 +297,11 @@ namespace Aggregates
         public Configure SetTrackChildren(bool track = true)
         {
             TrackChildren = track;
+            return this;
+        }
+        public Configure SetDevelopmentMode(bool mode = true)
+        {
+            DevelopmentMode = mode;
             return this;
         }
 
