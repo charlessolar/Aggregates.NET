@@ -72,5 +72,5 @@ jobs:
           reporter: dotnet-trx
 
       - name: Upload to coveralls
-        run: csmacnz.coveralls --reportgenerator -i ./artifacts/test-reports/generated --repoToken ${{ secrets.COVERALLS_TOKEN }} --commitId ${{ github.sha }} --commitBranch "${{ github.ref }}" --commitAuthor "${{ github.actor }}" --commitMessage "${{ github.event.head_commit.message }}" --jobId ${{ github.run_number }}
+        run: csmacnz.coveralls --reportgenerator -i ./artifacts/test-reports/generated --repoToken ${{ secrets.COVERALLS_TOKEN }} --commitId ${{ github.sha }} --commitBranch "${{ github.ref }}" --commitAuthor "${{ github.actor }}" --jobId ${{ github.run_number }}
         shell: powershell
