@@ -15,7 +15,7 @@ namespace Aggregates
             "NServiceBus.CorrelationId",
             "NServiceBus.Version",
             "NServiceBus.TimeSent",
-            "NServiceBus.ConversationId",
+            /* "NServiceBus.ConversationId", */ // NSB has issues setting this header
             "NServiceBus.OriginatingMachine",
             "NServiceBus.OriginatingEndpoint"
         };
