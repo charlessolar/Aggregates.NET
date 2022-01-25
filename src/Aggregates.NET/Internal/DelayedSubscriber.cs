@@ -10,21 +10,21 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 using Aggregates.Messages;
-
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
     public class DelayedSubscriber : IEventSubscriber
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("DelaySubscriber");
-        private static readonly ILog SlowLogger = LogProvider.GetLogger("Slow Alarm");
+        private readonly ILogger Logger;
+        private readonly ILogger SlowLogger;
 
         private static readonly ConcurrentDictionary<string, LinkedList<Tuple<long, IFullEvent>>> WaitingEvents = new ConcurrentDictionary<string, LinkedList<Tuple<long, IFullEvent>>>();
 
         private class ThreadParam
         {
+            public ILogger Logger { get; set; }
             public IContainer Container { get; set; }
             public int MaxRetry { get; set; }
             public CancellationToken Token { get; set; }
@@ -44,8 +44,10 @@ namespace Aggregates.Internal
 
         private bool _disposed;
 
-        public DelayedSubscriber(Configure settings, IMetrics metrics, IEventStoreConsumer consumer, IMessageDispatcher dispatcher, int maxRetry)
+        public DelayedSubscriber(ILoggerFactory logFactory, Configure settings, IMetrics metrics, IEventStoreConsumer consumer, IMessageDispatcher dispatcher, int maxRetry)
         {
+            Logger = logFactory.CreateLogger("DelaySubscriber");
+            SlowLogger = logFactory.CreateLogger("Slow Alarm");
             _settings = settings;
             _metrics = metrics;
             _consumer = consumer;
@@ -72,7 +74,7 @@ namespace Aggregates.Internal
 
             _delayedThread = new Thread(Threaded)
             { IsBackground = true, Name = $"Delayed Event Thread" };
-            _delayedThread.Start(new ThreadParam { Container=_settings.Container, Token = _cancelation.Token, MaxRetry = _maxRetry });
+            _delayedThread.Start(new ThreadParam { Logger = Logger, Container = _settings.Container, Token = _cancelation.Token, MaxRetry = _maxRetry });
         }
         public Task Shutdown()
         {
@@ -104,9 +106,11 @@ namespace Aggregates.Internal
 
             var container = param.Container;
 
+            var logger = param.Logger;
             var metrics = container.Resolve<IMetrics>();
             var consumer = container.Resolve<IEventStoreConsumer>();
             var dispatcher = container.Resolve<IMessageDispatcher>();
+            var logFactory = container.Resolve<ILoggerFactory>();
 
             var random = new Random();
 
@@ -142,7 +146,7 @@ namespace Aggregates.Internal
                     {
                         Task.Run(async () =>
                         {
-                            Logger.DebugEvent("Processing", "{Messages} bulk events", flushedEvents.Count);
+                            logger.DebugEvent("Processing", "{Messages} bulk events", flushedEvents.Count);
 
                             metrics.Decrement("Delayed Queued", Unit.Event, flushedEvents.Count(x => x.Item2.Event != null));
 
@@ -177,14 +181,14 @@ namespace Aggregates.Internal
 
                         // If not a canceled exception, just write to log and continue
                         // we dont want some random unknown exception to kill the whole event loop
-                        Logger.ErrorEvent("Exception", e, "From event thread: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
+                        logger.ErrorEvent("Exception", e, "From event thread: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
                     }
                 }
             }
             catch (Exception e)
             {
                 if (!(e is OperationCanceledException))
-                    Logger.ErrorEvent("Died", e, "Event thread closed: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
+                    logger.ErrorEvent("Died", e, "Event thread closed: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
             }
 
         }

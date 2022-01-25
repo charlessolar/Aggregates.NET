@@ -2,8 +2,8 @@
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 using Aggregates.Messages;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +14,7 @@ namespace Aggregates.Internal
 {
     public class StoreEntities : IStoreEntities
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("StoreEntities");
+        private readonly ILogger Logger;
 
         private readonly Configure _settings;
         private readonly IMetrics _metrics;
@@ -25,8 +25,9 @@ namespace Aggregates.Internal
         private readonly IVersionRegistrar _registrar;
         private readonly ITrackChildren _childTracker;
 
-        public StoreEntities(Configure settings, IMetrics metrics, IStoreEvents eventstore, IStoreSnapshots snapstore, IOobWriter oobstore, IEventFactory factory, IVersionRegistrar registrar, ITrackChildren childTracker)
+        public StoreEntities(ILoggerFactory logFactory, Configure settings, IMetrics metrics, IStoreEvents eventstore, IStoreSnapshots snapstore, IOobWriter oobstore, IEventFactory factory, IVersionRegistrar registrar, ITrackChildren childTracker)
         {
+            Logger = logFactory.CreateLogger("StoreEntities");
             _settings = settings;
             _metrics = metrics;
             _eventstore = eventstore;

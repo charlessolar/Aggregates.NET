@@ -9,8 +9,8 @@ using System.Transactions;
 using Aggregates.Attributes;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 using Aggregates.Messages;
+using Microsoft.Extensions.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
@@ -30,8 +30,8 @@ namespace Aggregates.Internal
     }
     public class BulkInvokeHandlerTerminator : PipelineTerminator<IInvokeHandlerContext>
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("BulkInvokeHandler");
-        private static readonly ILog SlowLogger = LogProvider.GetLogger("Slow Alarm");
+        private readonly ILogger Logger;
+        private readonly ILogger SlowLogger;
 
         private static readonly ConcurrentDictionary<string, DelayedAttribute> IsDelayed = new ConcurrentDictionary<string, DelayedAttribute>();
         private static readonly object Lock = new object();
@@ -40,10 +40,12 @@ namespace Aggregates.Internal
         private readonly IEventMapper _mapper;
         private readonly IMetrics _metrics;
 
-        public BulkInvokeHandlerTerminator(IMetrics metrics, IEventMapper mapper)
+        public BulkInvokeHandlerTerminator(IMetrics metrics, IEventMapper mapper, ILoggerFactory factory)
         {
             _mapper = mapper;
             _metrics = metrics;
+            Logger = factory.CreateLogger("BulkInvokeHandler");
+            SlowLogger = factory.CreateLogger("Slow Alarm");
         }
 
         protected override async Task Terminate(IInvokeHandlerContext context)
@@ -110,7 +112,7 @@ namespace Aggregates.Internal
                     }
                     catch
                     {
-                        Logger.Warn($"Failed to get key properties from message {msgType.FullName}");
+                        Logger.WarnEvent("KeyProperties", "Failed to get key properties from message {MessageType:l}", msgType.FullName);
                     }
                 }
 

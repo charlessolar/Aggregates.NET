@@ -7,27 +7,28 @@ using Aggregates.Contracts;
 using Aggregates.Messages;
 using System.Collections.Concurrent;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
     [ExcludeFromCodeCoverage]
     class Processor : IProcessor
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("Processor");
         private static readonly ConcurrentDictionary<Type, object> Processors = new ConcurrentDictionary<Type, object>();
 
         [DebuggerStepThrough]
         public Task<TResponse> Process<TService, TResponse>(TService service, IContainer container) where TService : IService<TResponse>
         {
+            var factory = container.Resolve<ILoggerFactory>();
             var handlerType = typeof(IProvideService<,>).MakeGenericType(typeof(TService), typeof(TResponse));
 
             var handlerFunc = (Func<object, TService, IServiceContext, Task<TResponse>>)Processors.GetOrAdd(handlerType, t => ReflectionExtensions.MakeServiceHandler<TService, TResponse>(handlerType));
             var handler = container.Resolve(handlerType);
             if (handler == null)
             {
-                Logger.ErrorEvent("ProcessFailure", "No handler [{ServiceType:l}] response [{Response:l}]", typeof(TService).FullName, typeof(TResponse).FullName);
+                var logger = factory.CreateLogger("Processor");
+                logger.ErrorEvent("ProcessFailure", "No handler [{ServiceType:l}] response [{Response:l}]", typeof(TService).FullName, typeof(TResponse).FullName);
                 return Task.FromResult(default(TResponse));
             }
 

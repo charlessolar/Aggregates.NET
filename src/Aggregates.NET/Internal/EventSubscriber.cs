@@ -11,20 +11,21 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 using Aggregates.Messages;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
     class EventSubscriber : IEventSubscriber
     {
 
-        private static readonly ILog Logger = LogProvider.GetLogger("EventSubscriber");
+        private readonly ILogger Logger;
 
         private static readonly BlockingCollection<Tuple<string, long, IFullEvent>> WaitingEvents = new BlockingCollection<Tuple<string, long, IFullEvent>>();
 
         private class ThreadParam
         {
+            public ILogger Logger { get; set; }
             public IContainer Container { get; set; }
             public int Concurrency { get; set; }
             public CancellationToken Token { get; set; }
@@ -50,8 +51,9 @@ namespace Aggregates.Internal
         private bool _disposed;
 
 
-        public EventSubscriber(Configure settings, IMetrics metrics, IMessaging messaging, IEventStoreConsumer consumer, IVersionRegistrar registrar, int concurrency, bool allEvents)
+        public EventSubscriber(ILoggerFactory logFactory, Configure settings, IMetrics metrics, IMessaging messaging, IEventStoreConsumer consumer, IVersionRegistrar registrar, int concurrency, bool allEvents)
         {
+            Logger = logFactory.CreateLogger("EventSubscriber");
             _settings = settings;
             _metrics = metrics;
             _messaging = messaging;
@@ -75,7 +77,7 @@ namespace Aggregates.Internal
 
             if (!discoveredEvents.Any())
             {
-                Logger.Warn($"Event consuming is enabled but we did not detect any IEvent handlers");
+                Logger.WarnEvent("Initiation", $"Event consuming is enabled but we did not detect any IEvent handlers");
                 return;
             }
 
@@ -129,7 +131,7 @@ when({{
                 _pinnedThreads[i] = new Thread(Threaded)
                 { IsBackground = true, Name = $"Event Thread {i}" };
 
-                _pinnedThreads[i].Start(new ThreadParam { Container = _settings.Container, Token = _cancelation.Token, Messaging = _messaging, Concurrency = _concurrency, Index = i });
+                _pinnedThreads[i].Start(new ThreadParam { Logger = Logger, Container = _settings.Container, Token = _cancelation.Token, Messaging = _messaging, Concurrency = _concurrency, Index = i });
             }
 
 
@@ -167,7 +169,7 @@ when({{
             var metrics = container.Resolve<IMetrics>();
             var consumer = container.Resolve<IEventStoreConsumer>();
             var dispatcher = container.Resolve<IMessageDispatcher>();
-
+            var logger = param.Logger;
 
             try
             {
@@ -206,7 +208,7 @@ when({{
 
                         // If not a canceled exception, just write to log and continue
                         // we dont want some random unknown exception to kill the whole event loop
-                        Logger.ErrorEvent("Exception", e, "From event thread: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
+                        logger.ErrorEvent("Exception", e, "From event thread: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
 
                     }
                 }
@@ -214,7 +216,7 @@ when({{
             catch (Exception e)
             {
                 if (!(e is OperationCanceledException))
-                    Logger.ErrorEvent("Died", e, "Event thread closed: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
+                    logger.ErrorEvent("Died", e, "Event thread closed: {ExceptionType} - {ExceptionMessage}", e.GetType().Name, e.Message);
             }
         }
 

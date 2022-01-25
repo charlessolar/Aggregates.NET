@@ -4,29 +4,28 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Aggregates.Logging;
 using Aggregates.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
     static class Timer
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("Timer");
 
-        public static Task Repeat(Func<Task> action, TimeSpan interval, string description)
+        public static Task Repeat(ILogger logger, Func<Task> action, TimeSpan interval, string description)
         {
-            return Repeat(action, interval, CancellationToken.None, description);
+            return Repeat(logger, action, interval, CancellationToken.None, description);
         }
-        public static Task Repeat(Func<Task> action, TimeSpan interval, CancellationToken cancellationToken, string description)
+        public static Task Repeat(ILogger logger, Func<Task> action, TimeSpan interval, CancellationToken cancellationToken, string description)
         {
-            return Repeat((_) => action(), null, interval, cancellationToken, description);
+            return Repeat(logger, (_) => action(), null, interval, cancellationToken, description);
         }
 
-        public static Task Repeat(Func<object, Task> action, object state, TimeSpan interval, string description)
+        public static Task Repeat(ILogger logger, Func<object, Task> action, object state, TimeSpan interval, string description)
         {
-            return Repeat(action, state, interval, CancellationToken.None, description);
+            return Repeat(logger, action, state, interval, CancellationToken.None, description);
         }
-        public static Task Repeat(Func<object, Task> action, object state, TimeSpan interval, CancellationToken cancellationToken, string description)
+        public static Task Repeat(ILogger logger, Func<object, Task> action, object state, TimeSpan interval, CancellationToken cancellationToken, string description)
         {
             return Task.Run(async () =>
             {
@@ -38,7 +37,7 @@ namespace Aggregates.Internal
                     }
                     catch (Exception e)
                     {
-                        Logger.WarnEvent("RepeatFailure", e, "[{description:l}]: {ExceptionType} - {ExceptionMessage}", description, e.GetType().Name, e.Message);
+                        logger.WarnEvent("RepeatFailure", e, "[{Description:l}]: {ExceptionType} - {ExceptionMessage}", description, e.GetType().Name, e.Message);
                     }
                     try
                     {
@@ -51,11 +50,11 @@ namespace Aggregates.Internal
                 }
             }, cancellationToken);
         }
-        public static Task Expire(Func<object, Task> action, object state, TimeSpan when, string description)
+        public static Task Expire(ILogger logger, Func<object, Task> action, object state, TimeSpan when, string description)
         {
-            return Expire(action, state, when, CancellationToken.None, description);
+            return Expire(logger, action, state, when, CancellationToken.None, description);
         }
-        public static Task Expire(Func<object, Task> action, object state, TimeSpan when, CancellationToken cancellationToken, string description)
+        public static Task Expire(ILogger logger, Func<object, Task> action, object state, TimeSpan when, CancellationToken cancellationToken, string description)
         {
             return Task.Run(async () =>
             {
@@ -73,17 +72,17 @@ namespace Aggregates.Internal
                 }
                 catch (Exception e)
                 {
-                    Logger.WarnEvent("OnceFailure", e, "[{description:l}]: {ExceptionType} - {ExceptionMessage}", description, e.GetType().Name, e.Message);
+                    logger.WarnEvent("OnceFailure", e, "[{Description:l}]: {ExceptionType} - {ExceptionMessage}", description, e.GetType().Name, e.Message);
                 }
             }, cancellationToken);
         }
-        public static Task Expire(Func<Task> action, TimeSpan when, string description)
+        public static Task Expire(ILogger logger, Func<Task> action, TimeSpan when, string description)
         {
-            return Expire(action, when, CancellationToken.None, description);
+            return Expire(logger, action, when, CancellationToken.None, description);
         }
-        public static Task Expire(Func<Task> action, TimeSpan when, CancellationToken cancellationToken, string description)
+        public static Task Expire(ILogger logger, Func<Task> action, TimeSpan when, CancellationToken cancellationToken, string description)
         {
-            return Expire((_) => action(), null, when, cancellationToken, description);
+            return Expire(logger, (_) => action(), null, when, cancellationToken, description);
         }
     }
 }

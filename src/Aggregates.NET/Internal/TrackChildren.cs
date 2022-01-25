@@ -1,6 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,7 +11,7 @@ namespace Aggregates.Internal
 {
     class TrackChildren : ITrackChildren
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("TrackChildren");
+        private readonly ILogger Logger;
 
         private string _endpoint;
         private Version _version;
@@ -21,8 +21,9 @@ namespace Aggregates.Internal
         private readonly IStoreEvents _eventstore;
         private readonly IVersionRegistrar _registrar;
 
-        public TrackChildren(Configure settings, IEventStoreConsumer consumer, IStoreEvents eventstore, IVersionRegistrar registrar)
+        public TrackChildren(ILoggerFactory logFactory, Configure settings, IEventStoreConsumer consumer, IStoreEvents eventstore, IVersionRegistrar registrar)
         {
+            Logger = logFactory.CreateLogger("TrackChildren");
             _settings = settings;
             _consumer = consumer;
             _eventstore = eventstore;

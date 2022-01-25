@@ -11,19 +11,19 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 using Aggregates.Messages;
 using EventStore.ClientAPI;
 using EventStore.ClientAPI.Common;
 using EventStore.ClientAPI.Exceptions;
 using EventStore.ClientAPI.Projections;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
     [ExcludeFromCodeCoverage]
     internal class EventStoreConsumer : IEventStoreConsumer, IDisposable
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("EventStoreConsumer");
+        private static readonly ILogger Logger;
 
         private readonly IMetrics _metrics;
         private readonly IMessageSerializer _serializer;
@@ -39,8 +39,9 @@ namespace Aggregates.Internal
         private readonly ConcurrentDictionary<string, Tuple<EventStorePersistentSubscriptionBase, Guid>> _outstandingEvents;
         private bool _disposed;
 
-        public EventStoreConsumer(Configure settings, IMetrics metrics, IMessageSerializer serializer, IVersionRegistrar registrar, IEventStoreConnection[] clients, IEventMapper mapper)
+        public EventStoreConsumer(ILoggerFactory logFactory, Configure settings, IMetrics metrics, IMessageSerializer serializer, IVersionRegistrar registrar, IEventStoreConnection[] clients, IEventMapper mapper)
         {
+            Logger = logFactory.CreateLogger("EventStoreConsumer");
             _metrics = metrics;
             _serializer = serializer;
             _clients = clients;

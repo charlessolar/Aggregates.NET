@@ -9,18 +9,18 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 using Aggregates.Messages;
 using EventStore.ClientAPI;
 using EventStore.ClientAPI.Exceptions;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
     [ExcludeFromCodeCoverage]
     class StoreEvents : IStoreEvents
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("StoreEvents");
-        private static readonly ILog SlowLogger = LogProvider.GetLogger("Slow Alarm");
+        private readonly Microsoft.Extensions.Logging.ILogger Logger;
+        private readonly Microsoft.Extensions.Logging.ILogger SlowLogger;
         private readonly Configure _settings;
         private readonly IMetrics _metrics;
         private readonly IMessageSerializer _serializer;
@@ -31,7 +31,7 @@ namespace Aggregates.Internal
         private readonly int _readsize;
         private readonly Compression _compress;
 
-        public StoreEvents(Configure settings, IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IVersionRegistrar registrar, IEventStoreConnection[] connections)
+        public StoreEvents(Configure settings, IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IVersionRegistrar registrar, IEventStoreConnection[] connections, ILoggerFactory factory)
         {
             _settings = settings;
             _metrics = metrics;
@@ -43,6 +43,9 @@ namespace Aggregates.Internal
             _generator = settings.Generator;
             _readsize = settings.ReadSize;
             _compress = settings.Compression;
+
+            Logger = factory.CreateLogger("StoreEvents");
+            SlowLogger = factory.CreateLogger("Slow Alarm");
         }
 
         public Task<IFullEvent[]> GetEvents<TEntity>(string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
@@ -381,7 +384,6 @@ namespace Aggregates.Internal
                             .ConfigureAwait(false);
 
                     nextVersion = result.NextExpectedVersion;
-
                 }
                 catch (WrongExpectedVersionException e)
                 {

@@ -1,6 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 using NServiceBus;
 using System;
 using System.Collections.Generic;
@@ -13,7 +13,7 @@ namespace Aggregates.Internal
     {
         private readonly IVersionRegistrar _registrar;
 
-        public NSBUnitOfWork(IRepositoryFactory repoFactory, IEventFactory eventFactory, IVersionRegistrar registrar) : base(repoFactory, eventFactory)
+        public NSBUnitOfWork(ILoggerFactory logFactory, IRepositoryFactory repoFactory, IEventFactory eventFactory, IVersionRegistrar registrar) : base(logFactory, repoFactory, eventFactory)
         {
             _registrar = registrar;
         }

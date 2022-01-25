@@ -1,6 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,7 +11,7 @@ namespace Aggregates.Internal
 {
     public class StoreSnapshots : IStoreSnapshots
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("StoreSnapshots");
+        private readonly ILogger Logger;
 
         private readonly IMetrics _metrics;
         private readonly IStoreEvents _store;
@@ -19,8 +19,9 @@ namespace Aggregates.Internal
         private readonly IVersionRegistrar _registrar;
         private readonly StreamIdGenerator _streamGen;
 
-        public StoreSnapshots(Configure settings, IMetrics metrics, IStoreEvents store, ISnapshotReader snapshots, IVersionRegistrar registrar)
+        public StoreSnapshots(ILoggerFactory logFactory, Configure settings, IMetrics metrics, IStoreEvents store, ISnapshotReader snapshots, IVersionRegistrar registrar)
         {
+            Logger = logFactory.CreateLogger("StoreSnapshots");
             _metrics = metrics;
             _store = store;
             _snapshots = snapshots;

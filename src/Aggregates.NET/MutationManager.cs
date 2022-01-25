@@ -5,13 +5,11 @@ using System.Linq;
 using System.Text;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 
 namespace Aggregates
 {
     public class MutationManager
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("MutationManager");
 
         private static readonly ConcurrentDictionary<string, Type> Mutators = new ConcurrentDictionary<string, Type>();
 

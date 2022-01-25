@@ -1,5 +1,5 @@
 ﻿using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +12,7 @@ namespace Aggregates.Internal
     public class VersionRegistrar : Contracts.IVersionRegistrar
     {
         private static readonly Regex NameRegex = new Regex(@"^(?<Namespace>\S+)\.(?<Name>\S+)\sv(?<Version>[0-9]+)$", RegexOptions.Compiled);
-        private static readonly ILog Logger = LogProvider.GetLogger("VersionRegistrar");
+        private readonly ILogger Logger;
 
         public class VersionDefinition
         {
@@ -36,9 +36,10 @@ namespace Aggregates.Internal
 
         private Contracts.IMessaging _messaging;
 
-        public VersionRegistrar(Contracts.IMessaging messaging)
+        public VersionRegistrar(ILoggerFactory logFactory, Contracts.IMessaging messaging)
         {
             _messaging = messaging;
+            Logger = logFactory.CreateLogger("VersionRegistrar");
 
             Load(_messaging.GetMessageTypes());
             Load(_messaging.GetEntityTypes());

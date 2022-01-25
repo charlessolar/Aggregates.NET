@@ -10,19 +10,17 @@ using Aggregates.Attributes;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 using Aggregates.Messages;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
     public class Repository<TEntity, TState, TParent, TStateParent> : Repository<TEntity, TState>, IRepository<TEntity, TParent> where TParent : Entity<TParent, TStateParent> where TEntity : Entity<TEntity, TState, TParent> where TState : State<TState, TStateParent>, new() where TStateParent : State<TStateParent>, new()
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("Repository");
-
         private readonly TParent _parent;
 
-        public Repository(TParent parent, IStoreEntities store)
-            : base(store)
+        public Repository(ILoggerFactory logFactory, TParent parent, IStoreEntities store)
+            : base(logFactory, store)
         {
             _parent = parent;
         }
@@ -90,9 +88,7 @@ namespace Aggregates.Internal
     }
     public class Repository<TEntity, TState> : IRepository<TEntity>, IRepositoryCommit where TEntity : Entity<TEntity, TState> where TState : State<TState>, new()
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("Repository");
-
-
+        private readonly ILogger Logger;
         protected readonly ConcurrentDictionary<string, TEntity> Tracked = new ConcurrentDictionary<string, TEntity>();
         private readonly IStoreEntities _store;
 
@@ -101,9 +97,11 @@ namespace Aggregates.Internal
         public int ChangedStreams => Tracked.Count(x => x.Value.Dirty);
 
         // Todo: too many operations on this class, make a "EntityWriter" contract which does event, oob, and snapshot writing
-        public Repository(IStoreEntities store)
+        public Repository(ILoggerFactory logFactory, IStoreEntities store)
         {
             _store = store;
+            Logger = logFactory.CreateLogger("Repository");
+
         }
         Task IRepositoryCommit.Prepare(Guid commitId)
         {

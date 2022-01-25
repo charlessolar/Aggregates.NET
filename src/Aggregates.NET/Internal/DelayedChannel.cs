@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
@@ -22,8 +22,8 @@ namespace Aggregates.Internal
         }
 
 
-        private static readonly ILog Logger = LogProvider.GetLogger("DelayedChannel");
-        private static readonly ILog SlowLogger = LogProvider.GetLogger("Slow Alarm");
+        private readonly ILogger Logger;
+        private readonly ILogger SlowLogger;
 
         private readonly IDelayedCache _cache;
 
@@ -31,9 +31,11 @@ namespace Aggregates.Internal
         private ConcurrentDictionary<Tuple<string, string>, List<IDelayedMessage>> _uncommitted;
 
 
-        public DelayedChannel(IDelayedCache cache)
+        public DelayedChannel(IDelayedCache cache, ILoggerFactory logFactory)
         {
             _cache = cache;
+            Logger = logFactory.CreateLogger("DelayedChannel");
+            SlowLogger = logFactory.CreateLogger("Slow Alarm");
         }
 
 

@@ -4,9 +4,9 @@ using System.Linq;
 using Aggregates.Contracts;
 using Aggregates.Internal;
 using Aggregates.Messages;
-using Aggregates.Logging;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates
 {
@@ -16,8 +16,6 @@ namespace Aggregates
     }
     public abstract class State<TThis> : IState where TThis : State<TThis>
     {
-        private static readonly ILog Logger = LogProvider.GetLogger(typeof(TThis).Name);
-
         private IMutateState Mutator => StateMutators.For(typeof(TThis));
 
         // set is for deserialization
@@ -62,7 +60,7 @@ namespace Aggregates
         protected virtual void Snapshotting() { }
 
         protected virtual bool ShouldSnapshot() { return false; }
-        
+
 
 
         void IState.SnapshotRestored()
@@ -78,7 +76,7 @@ namespace Aggregates
         {
             return ShouldSnapshot();
         }
-        
+
         void IState.Conflict(IEvent @event)
         {
             Mutator.Conflict(this, @event);
@@ -86,14 +84,7 @@ namespace Aggregates
 
         void IState.Apply(IEvent @event)
         {
-            try
-            {
-                Mutator.Handle(this, @event);
-            }
-            catch (NoRouteException)
-            {
-                Logger.DebugEvent("NoRoute", "{State} has no route for {EventType}", typeof(TThis).FullName, @event.GetType().FullName);
-            }
+            Mutator.Handle(this, @event);
             _committed.Add(@event);
 
             (this as IState).Version++;

@@ -9,7 +9,6 @@ using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Aggregates.Internal;
-using Aggregates.Logging;
 using Aggregates.Messages;
 
 namespace Aggregates
@@ -25,7 +24,6 @@ namespace Aggregates
 
     public abstract class Entity<TThis, TState> : IEntity<TState>, IHaveEntities<TThis>, INeedDomainUow, INeedEventFactory, INeedStore, INeedVersionRegistrar, INeedChildTracking where TThis : Entity<TThis, TState> where TState : class, IState, new()
     {
-        private static readonly ILog Logger = LogProvider.GetLogger(typeof(TThis).Name);
 
         public static implicit operator TState(Entity<TThis, TState> entity) => entity?.State;
 

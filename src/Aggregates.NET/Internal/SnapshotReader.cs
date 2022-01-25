@@ -10,8 +10,7 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Logging;
-
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
@@ -22,7 +21,7 @@ namespace Aggregates.Internal
     /// </summary>
     class SnapshotReader : ISnapshotReader, IEventSubscriber
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("SnapshotReader");
+        private readonly ILogger Logger;
 
         // Todo: upgrade to LRU cache?
         // Store snapshots as strings, so that each request returns a new object which doesn't need to be deep copied
@@ -42,8 +41,9 @@ namespace Aggregates.Internal
         private readonly IEventStoreConsumer _consumer;
         private readonly IMessageSerializer _serializer;
 
-        public SnapshotReader(IMetrics metrics, IStoreEvents store, IEventStoreConsumer consumer, IMessageSerializer serializer)
+        public SnapshotReader(ILoggerFactory logFactory, IMetrics metrics, IStoreEvents store, IEventStoreConsumer consumer, IMessageSerializer serializer)
         {
+            Logger = logFactory.CreateLogger("SnapshotReader");
             _metrics = metrics;
             _store = store;
             _consumer = consumer;
@@ -56,7 +56,7 @@ namespace Aggregates.Internal
             _version = version;
             await _consumer.EnableProjection("$by_category").ConfigureAwait(false);
 
-            SnapshotExpiration = Timer.Repeat((state) =>
+            SnapshotExpiration = Timer.Repeat(Logger, (state) =>
             {
                 var metrics = state as IMetrics;
 
@@ -71,7 +71,7 @@ namespace Aggregates.Internal
                 return Task.CompletedTask;
             }, _metrics, TimeSpan.FromMinutes(5), Cancellation.Token, "expires snapshots from the cache");
 
-            Truncate= Timer.Repeat(async (state) =>
+            Truncate= Timer.Repeat(Logger, async (state) =>
             {
                 // Writes truncateBefore metadata to snapshot streams to let ES know it can delete old snapshots
                 // its done here so that we actually get the snapshot before its deleted

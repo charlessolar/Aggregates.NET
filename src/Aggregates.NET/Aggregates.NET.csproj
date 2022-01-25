@@ -3,7 +3,7 @@
 
   <PropertyGroup>
     <DefineConstants>NETSTANDARD2_0;LIBLOG_PORTABLE</DefineConstants>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <RootNamespace>Aggregates</RootNamespace>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     
@@ -21,6 +21,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="1.1.1" />
   </ItemGroup>
 
 </Project>

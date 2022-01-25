@@ -1,6 +1,6 @@
 ﻿using Aggregates.Contracts;
-using Aggregates.Logging;
 using Aggregates.Extensions;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -92,7 +92,7 @@ namespace Aggregates.Internal
             }
         }
 
-        private static readonly ILog Logger = LogProvider.GetLogger("DelayedCache");
+        private readonly ILogger Logger;
 
 
         private readonly IMetrics _metrics;
@@ -116,8 +116,9 @@ namespace Aggregates.Internal
         private int _tooLarge;
         private bool _disposed;
 
-        public DelayedCache(Configure settings, IMetrics metrics, IStoreEvents store, IVersionRegistrar registrar, IRandomProvider random, ITimeProvider time)
+        public DelayedCache(ILoggerFactory logFactory, Configure settings, IMetrics metrics, IStoreEvents store, IVersionRegistrar registrar, IRandomProvider random, ITimeProvider time)
         {
+            Logger = logFactory.CreateLogger("DelayedCache");
             _metrics = metrics;
             _store = store;
             _registrar = registrar;

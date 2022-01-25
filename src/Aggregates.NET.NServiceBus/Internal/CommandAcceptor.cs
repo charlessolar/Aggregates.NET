@@ -8,25 +8,26 @@ using System.Transactions;
 using Aggregates.Attributes;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.ObjectBuilder;
 using NServiceBus.Pipeline;
 using Aggregates.Messages;
 using NServiceBus;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
     public class CommandAcceptor : Behavior<IIncomingLogicalMessageContext>
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("CommandAcceptor");
+        private readonly ILogger Logger;
 
         private readonly IMetrics _metrics;
 
-        public CommandAcceptor(IMetrics metrics)
+        public CommandAcceptor(IMetrics metrics, ILoggerFactory factory)
         {
             _metrics = metrics;
+            Logger = factory.CreateLogger("CommandAcceptor");
         }
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
@@ -83,7 +84,7 @@ namespace Aggregates.Internal
             stepId: "CommandAcceptor",
             behavior: typeof(CommandAcceptor),
             description: "Filters [BusinessException] from processing failures",
-            factoryMethod: (b) => new CommandAcceptor(b.Build<IMetrics>())
+            factoryMethod: (b) => new CommandAcceptor(b.Build<IMetrics>(), b.Build<ILoggerFactory>())
         )
         {
             // If a command fails business exception uow still needs to error out

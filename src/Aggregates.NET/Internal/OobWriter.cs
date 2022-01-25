@@ -1,5 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -7,13 +8,12 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Aggregates.Logging;
 
 namespace Aggregates.Internal
 {
     public class OobWriter : IOobWriter
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("OobWriter");
+        private readonly ILogger Logger;
 
         private readonly IMessageDispatcher _dispatcher;
         private readonly IStoreEvents _store;
@@ -22,8 +22,9 @@ namespace Aggregates.Internal
 
         private static readonly ConcurrentDictionary<string, int> DaysToLiveKnowns = new ConcurrentDictionary<string, int>();
 
-        public OobWriter(Configure settings, IMessageDispatcher dispatcher, IStoreEvents store, IVersionRegistrar registrar)
+        public OobWriter(ILoggerFactory logFactory, Configure settings, IMessageDispatcher dispatcher, IStoreEvents store, IVersionRegistrar registrar)
         {
+            Logger = logFactory.CreateLogger("OobWriter");
             _dispatcher = dispatcher;
             _store = store;
             _generator = settings.Generator;

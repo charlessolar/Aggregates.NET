@@ -5,8 +5,8 @@ using System.Linq;
 using System.Text;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 using Aggregates.Messages;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
@@ -34,12 +34,13 @@ namespace Aggregates.Internal
 
     public class EntityFactory<TEntity, TState> : IEntityFactory<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("EntityFactory");
+        private readonly ILogger Logger;
         private readonly Func<TEntity> _factory;
 
-        public EntityFactory()
+        public EntityFactory(ILoggerFactory logFactory)
         {
             _factory = ReflectionExtensions.BuildCreateEntityFunc<TEntity>();
+            Logger = logFactory.CreateLogger("EntityFactory");
         }
 
         public TEntity Create(string bucket, Id id, IParentDescriptor[] parents = null, IEvent[] events = null, object snapshot = null)

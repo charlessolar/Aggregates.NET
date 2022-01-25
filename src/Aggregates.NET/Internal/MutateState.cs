@@ -7,6 +7,7 @@ using Aggregates.Extensions;
 using Aggregates.Messages;
 using Aggregates.Exceptions;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {

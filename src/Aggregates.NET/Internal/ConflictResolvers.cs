@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 using Aggregates.Messages;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
@@ -58,15 +58,16 @@ namespace Aggregates.Internal
     /// </summary>
     internal class IgnoreConflictResolver : IResolveConflicts
     {
-        internal static readonly ILog Logger = LogProvider.GetLogger("IgnoreConflictResolver");
+        internal readonly ILogger Logger;
 
         private readonly IStoreEvents _store;
         private readonly IOobWriter _oobStore;
 
-        public IgnoreConflictResolver(IStoreEvents store, IOobWriter oobStore)
+        public IgnoreConflictResolver(IStoreEvents store, IOobWriter oobStore, ILoggerFactory factory)
         {
             _store = store;
             _oobStore = oobStore;
+            Logger = factory.CreateLogger<IgnoreConflictResolver>();
         }
 
         public async Task Resolve<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
@@ -87,7 +88,11 @@ namespace Aggregates.Internal
     /// </summary>
     internal class DiscardConflictResolver : IResolveConflicts
     {
-        internal static readonly ILog Logger = LogProvider.GetLogger("DiscardConflictResolver");
+        internal readonly ILogger Logger;
+        public DiscardConflictResolver(ILoggerFactory factory)
+        {
+            Logger = factory.CreateLogger<DiscardConflictResolver>();
+        }
 
         public Task Resolve<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
@@ -101,13 +106,14 @@ namespace Aggregates.Internal
     /// </summary>
     internal class ResolveStronglyConflictResolver : IResolveConflicts
     {
-        internal static readonly ILog Logger = LogProvider.GetLogger("ResolveStronglyConflictResolver");
+        internal readonly ILogger Logger;
 
         private readonly IStoreEntities _store;
 
-        public ResolveStronglyConflictResolver(IStoreEntities store)
+        public ResolveStronglyConflictResolver(IStoreEntities store, ILoggerFactory factory)
         {
             _store = store;
+            Logger = factory.CreateLogger<ResolveStronglyConflictResolver>();
         }
 
         public async Task Resolve<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
@@ -179,16 +185,17 @@ namespace Aggregates.Internal
     internal class ResolveWeaklyConflictResolver :
         IResolveConflicts
     {
-        internal static readonly ILog Logger = LogProvider.GetLogger("ResolveWeaklyConflictResolver");
+        internal readonly ILogger Logger;
 
         private readonly IStoreEvents _eventstore;
         private readonly IDelayedChannel _delay;
 
 
-        public ResolveWeaklyConflictResolver(IStoreEvents eventstore, IDelayedChannel delay)
+        public ResolveWeaklyConflictResolver(IStoreEvents eventstore, IDelayedChannel delay, ILoggerFactory factory)
         {
             _eventstore = eventstore;
             _delay = delay;
+            Logger = factory.CreateLogger<ResolveWeaklyConflictResolver>();
         }
 
 

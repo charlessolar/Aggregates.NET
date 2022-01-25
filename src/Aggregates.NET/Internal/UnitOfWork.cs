@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 using Aggregates.Messages;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
@@ -27,7 +27,7 @@ namespace Aggregates.Internal
 
         protected const string NotFound = "<NOT FOUND>";
 
-        internal static readonly ILog Logger = LogProvider.GetLogger("UnitOfWork");
+        internal readonly ILogger Logger;
 
         private readonly IRepositoryFactory _repoFactory;
         private readonly IEventFactory _eventFactory;
@@ -39,8 +39,9 @@ namespace Aggregates.Internal
         public object CurrentMessage { get; internal set; }
         public IDictionary<string, string> CurrentHeaders { get; internal set; }
 
-        public UnitOfWork(IRepositoryFactory repoFactory, IEventFactory eventFactory)
+        public UnitOfWork(ILoggerFactory logFactory, IRepositoryFactory repoFactory, IEventFactory eventFactory)
         {
+            Logger = logFactory.CreateLogger("UnitOfWork");
             _repoFactory = repoFactory;
             _eventFactory = eventFactory;
             _repositories = new Dictionary<string, IRepository>();

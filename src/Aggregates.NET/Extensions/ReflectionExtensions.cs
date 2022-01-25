@@ -8,28 +8,25 @@ using Aggregates.Contracts;
 using Aggregates.Messages;
 using System.Threading.Tasks;
 using Aggregates.Internal;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Extensions
 {
     static class ReflectionExtensions
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("Reflection");
 
         // some code from https://github.com/mfelicio/NDomain/blob/d30322bc64105ad2e4c961600ae24831f675b0e9/source/NDomain/Helpers/ReflectionUtils.cs
 
         public static Dictionary<string, Action<TState, object>> GetStateMutators<TState>() where TState : IState
         {
-            var methods = typeof(TState)
+
+        var methods = typeof(TState)
                 .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly)
                 .Where(
                     m => (m.Name == "Handle" || m.Name == "Conflict") &&
                          m.GetParameters().Length == 1 &&
                          m.ReturnType == typeof(void))
                 .ToArray();
-
-            foreach (var publicMethod in methods.Where(x => x.IsPublic))
-                Logger.WarnEvent("PublicMethod", "Public handler for message type {MessageType} detected on state object {State} (will be ignored)", publicMethod.GetParameters()[0].ParameterType.FullName, typeof(TState).FullName);
 
             var stateEventMutators = from method in methods
                 where !method.IsPublic
