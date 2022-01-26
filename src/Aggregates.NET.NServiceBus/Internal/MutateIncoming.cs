@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Pipeline;
 
@@ -14,10 +14,11 @@ namespace Aggregates.Internal
     public class MutateIncoming : Behavior<IIncomingLogicalMessageContext>
     {
         private readonly Configure _settings;
-        private static readonly ILog Logger = LogProvider.GetLogger("MutateIncoming");
+        private readonly ILogger Logger;
         
-        public MutateIncoming(Configure settings)
+        public MutateIncoming(ILoggerFactory logFactory, Configure settings)
         {
+            Logger = logFactory.CreateLogger("MutateIncoming");
             _settings = settings;
         }
         

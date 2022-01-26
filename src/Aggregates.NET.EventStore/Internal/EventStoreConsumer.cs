@@ -23,7 +23,7 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     internal class EventStoreConsumer : IEventStoreConsumer, IDisposable
     {
-        private static readonly ILogger Logger;
+        private readonly Microsoft.Extensions.Logging.ILogger Logger;
 
         private readonly IMetrics _metrics;
         private readonly IMessageSerializer _serializer;
@@ -77,7 +77,7 @@ namespace Aggregates.Internal
             {
                 Logger.InfoEvent("BeginSubscribe", "[{Stream:l}] store {Store}", stream, client.Settings.GossipSeeds[0].EndPoint);
 
-                var settings = new CatchUpSubscriptionSettings(1000, 50, Logger.IsDebugEnabled(), true);
+                var settings = new CatchUpSubscriptionSettings(1000, 50, Logger.IsEnabled(LogLevel.Debug), true);
                 var startingNumber = 0L;
                 try
                 {
@@ -110,7 +110,7 @@ namespace Aggregates.Internal
                     var lastEvent =
                         await client.ReadStreamEventsBackwardAsync(stream, StreamPosition.End, 1, true).ConfigureAwait(false);
 
-                    var settings = new CatchUpSubscriptionSettings(1000, 50, Logger.IsDebugEnabled(), true);
+                    var settings = new CatchUpSubscriptionSettings(1000, 50, Logger.IsEnabled(LogLevel.Debug), true);
 
                     var startingNumber = 0L;
                     if (lastEvent.Status == SliceReadStatus.Success)
@@ -435,7 +435,7 @@ namespace Aggregates.Internal
                     {
                         if (!string.Equals(fixedExisting, fixedDefinition, StringComparison.OrdinalIgnoreCase))
                         {
-                            Logger.Fatal(
+                            Logger.FatalEvent("Initialization",
                                 $"Projection [{name}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!\nExisting:\n{existing}\nDesired:\n{definition}");
                             throw new EndpointVersionException(name, existing, definition);
                         }

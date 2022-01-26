@@ -31,7 +31,7 @@ namespace Aggregates.Internal
         private readonly int _readsize;
         private readonly Compression _compress;
 
-        public StoreEvents(Configure settings, IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IVersionRegistrar registrar, IEventStoreConnection[] connections, ILoggerFactory factory)
+        public StoreEvents(ILoggerFactory factory, Configure settings, IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IVersionRegistrar registrar, IEventStoreConnection[] connections)
         {
             _settings = settings;
             _metrics = metrics;

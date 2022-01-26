@@ -63,7 +63,7 @@ namespace Aggregates.Internal
         private readonly IStoreEvents _store;
         private readonly IOobWriter _oobStore;
 
-        public IgnoreConflictResolver(IStoreEvents store, IOobWriter oobStore, ILoggerFactory factory)
+        public IgnoreConflictResolver(ILoggerFactory factory, IStoreEvents store, IOobWriter oobStore)
         {
             _store = store;
             _oobStore = oobStore;
@@ -110,7 +110,7 @@ namespace Aggregates.Internal
 
         private readonly IStoreEntities _store;
 
-        public ResolveStronglyConflictResolver(IStoreEntities store, ILoggerFactory factory)
+        public ResolveStronglyConflictResolver(ILoggerFactory factory, IStoreEntities store)
         {
             _store = store;
             Logger = factory.CreateLogger<ResolveStronglyConflictResolver>();

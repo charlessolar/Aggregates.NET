@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Pipeline;
 
@@ -14,12 +14,13 @@ namespace Aggregates.Internal
 {
     public class LocalMessageUnpack : Behavior<IIncomingLogicalMessageContext>
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("LocalMessageUnpack");
+        private readonly ILogger Logger;
 
         private readonly IMetrics _metrics;
 
-        public LocalMessageUnpack(IMetrics metrics)
+        public LocalMessageUnpack(ILoggerFactory logFactory, IMetrics metrics)
         {
+            Logger = logFactory.CreateLogger("LocalMessageUnpack");
             _metrics = metrics;
         }
 
@@ -127,7 +128,7 @@ namespace Aggregates.Internal
             stepId: "LocalMessageUnpack",
             behavior: typeof(LocalMessageUnpack),
             description: "Pulls local message from context",
-            factoryMethod: (b) => new LocalMessageUnpack(b.Build<IMetrics>())
+            factoryMethod: (b) => new LocalMessageUnpack(b.Build<ILoggerFactory>(), b.Build<IMetrics>())
         )
         {
             InsertAfterIfExists("UnitOfWorkExecution");

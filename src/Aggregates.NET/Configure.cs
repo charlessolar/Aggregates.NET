@@ -159,7 +159,7 @@ namespace Aggregates
                     //container.Register<UnitOfWork.IDomain, Internal.UnitOfWork>(Lifestyle.UnitOfWork);
 
                     container.Register<IDelayedChannel, DelayedChannel>(Lifestyle.UnitOfWork);
-                    container.Register<IRepositoryFactory, RepositoryFactory>(Lifestyle.Singleton);
+                    container.Register<IRepositoryFactory, RepositoryFactory>(Lifestyle.PerInstance);
                     container.Register<IStoreSnapshots>((factory) => new StoreSnapshots(factory.Resolve<ILoggerFactory>(), this, factory.Resolve<IMetrics>(), factory.Resolve<IStoreEvents>(), factory.Resolve<ISnapshotReader>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.Singleton);
                     container.Register<IOobWriter>((factory) => new OobWriter(factory.Resolve<ILoggerFactory>(), this, factory.Resolve<IMessageDispatcher>(), factory.Resolve<IStoreEvents>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.Singleton);
                     container.Register<ISnapshotReader, SnapshotReader>(Lifestyle.Singleton);

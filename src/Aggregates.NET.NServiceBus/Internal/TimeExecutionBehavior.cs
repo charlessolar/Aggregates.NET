@@ -5,7 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Pipeline;
 
@@ -14,14 +14,16 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     internal class TimeExecutionBehavior : Behavior<IIncomingPhysicalMessageContext>
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("TimeExecutionBehavior");
-        private static readonly ILog SlowLogger = LogProvider.GetLogger("Slow Alarm");
+        private readonly ILogger Logger;
+        private readonly ILogger SlowLogger;
         private static readonly HashSet<string> SlowCommandTypes = new HashSet<string>();
         private static readonly object SlowLock = new object();
         private readonly TimeSpan? _slowAlert;
 
-        public TimeExecutionBehavior(Configure settings)
+        public TimeExecutionBehavior(ILoggerFactory logFactory, Configure settings)
         {
+            Logger = logFactory.CreateLogger("TimeExecutionBehavior");
+            SlowLogger = logFactory.CreateLogger("Slow Alarm");
             _slowAlert = settings.SlowAlertThreshold;
         }
 
@@ -79,7 +81,7 @@ namespace Aggregates.Internal
             stepId: "Time Execution",
             behavior: typeof(TimeExecutionBehavior),
             description: "handles exceptions and retries",
-            factoryMethod: (b) => new TimeExecutionBehavior(b.Build<Configure>())
+            factoryMethod: (b) => new TimeExecutionBehavior(b.Build<ILoggerFactory>(), b.Build<Configure>())
         )
         {
             InsertBefore("MutateIncomingMessages");

@@ -1,8 +1,8 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Aggregates.Internal;
-using Aggregates.Logging;
 using Aggregates.Messages;
+using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Features;
 using NServiceBus.MessageInterfaces;
@@ -47,7 +47,7 @@ namespace Aggregates
 
                 // bulk invoke only possible with consumer feature because it uses the eventstore as a sink when overloaded
                 context.Pipeline.Replace("InvokeHandlers", (b) =>
-                    new BulkInvokeHandlerTerminator(b.Build<IMetrics>(), b.Build<IEventMapper>()),
+                    new BulkInvokeHandlerTerminator(b.Build<ILoggerFactory>(), b.Build<IMetrics>(), b.Build<IEventMapper>()),
                     "Replaces default invoke handlers with one that supports our custom delayed invoker");
             }
 
@@ -90,7 +90,6 @@ namespace Aggregates
     [ExcludeFromCodeCoverage]
     class EndpointRunner : FeatureStartupTask
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("EndpointRunner");
         private readonly String _instanceQueue;
         private readonly Configure _config;
         private readonly IEnumerable<Func<Configure, Task>> _startupTasks;
@@ -105,11 +104,14 @@ namespace Aggregates
         }
         protected override async Task OnStart(IMessageSession session)
         {
+            var logFactory = _config.Container.Resolve<ILoggerFactory>();
+            var logger = logFactory.CreateLogger("EndpointRunner");
+
             // Subscribe to BulkMessage, because it wraps messages and is not used in a handler directly
             if (!_config.Passive)
                 await session.Subscribe<BulkMessage>().ConfigureAwait(false);
 
-            Logger.InfoEvent("Startup", "Starting on {Queue}", _instanceQueue);
+            logger.InfoEvent("Startup", "Starting on {Queue}", _instanceQueue);
 
             await session.Publish<EndpointAlive>(x =>
             {
@@ -125,7 +127,10 @@ namespace Aggregates
         }
         protected override async Task OnStop(IMessageSession session)
         {
-            Logger.InfoEvent("Shutdown", "Stopping on {Queue}", _instanceQueue);
+            var logFactory = _config.Container.Resolve<ILoggerFactory>();
+            var logger = logFactory.CreateLogger("EndpointRunner");
+
+            logger.InfoEvent("Shutdown", "Stopping on {Queue}", _instanceQueue);
             await session.Publish<EndpointDead>(x =>
             {
                 x.Endpoint = _instanceQueue;

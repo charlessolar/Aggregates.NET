@@ -16,6 +16,8 @@ namespace Aggregates
         {
             container.Options.DefaultScopedLifestyle = new AsyncScopedLifestyle();
             container.Options.AllowOverridingRegistrations = true;
+            // Without this the InstancePerCall component cannot be registered because it is an IDisposable
+            container.Options.EnableAutoVerification = false;
 
             config.Container = new Internal.Container(container);
 

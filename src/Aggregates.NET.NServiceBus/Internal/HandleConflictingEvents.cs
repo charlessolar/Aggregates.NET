@@ -7,9 +7,7 @@ using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Aggregates.Internal;
-using Aggregates.Logging;
 using NServiceBus;
-using IEvent = Aggregates.Messages.IEvent;
 
 namespace Aggregates.Internal
 {

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Pipeline;
 
@@ -13,12 +13,13 @@ namespace Aggregates.Internal
 {
     public class MutateOutgoing : Behavior<IOutgoingLogicalMessageContext>
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("MutateOutgoing");
+        private readonly ILogger Logger;
 
         private readonly Configure _settings;
 
-        public MutateOutgoing(Configure settings)
+        public MutateOutgoing(ILoggerFactory logFactory, Configure settings)
         {
+            Logger = logFactory.CreateLogger("MutateOutgoing");
             _settings = settings;
         }
         public override Task Invoke(IOutgoingLogicalMessageContext context, Func<Task> next)

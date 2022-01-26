@@ -2,47 +2,46 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Exceptions;
-using Aggregates.Logging;
 using Aggregates.Messages;
 using NServiceBus;
 using ICommand = Aggregates.Messages.ICommand;
 using IMessage = Aggregates.Messages.IMessage;
 using Aggregates.Extensions;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates
 {
     [ExcludeFromCodeCoverage]
     public static class BusExtensions
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("Command");
 
-        private static void CheckResponse(ICommand command, IMessage msg)
+        private static void CheckResponse(ILogger Logger, ICommand command, IMessage msg)
         {
             if (msg is Reject)
             {
                 var reject = (Reject)msg;
-                Logger.Warn($"Command was rejected - Message: {reject.Message}");
+                Logger.WarnEvent("Response", $"Command was rejected - Message: {reject.Message}");
                 throw new RejectedException(command.GetType(), reject.Message, reject.Exception);
             }
             if (msg is Error)
             {
                 var error = (Error)msg;
-                Logger.Warn($"Command Fault!\n{error.Message}");
+                Logger.WarnEvent("Response", $"Command Fault!\n{error.Message}");
                 throw new RejectedException(command.GetType(), $"Command Fault!\n{error.Message}");
             }
         }
-        public static async Task Command(this IMessageSession ctx, string destination, ICommand command)
+        public static async Task Command(this IMessageSession ctx, ILogger Logger, string destination, ICommand command)
         {
             var options = new SendOptions();
             options.SetDestination(destination);
             options.SetHeader(Defaults.RequestResponse, "1");
 
             var response = await ctx.Request<IMessage>(command, options).ConfigureAwait(false);
-            CheckResponse(command, response);
+            CheckResponse(Logger, command, response);
         }
 
-        public static async Task<bool> TimeoutCommand(this IMessageSession ctx, string destination, ICommand command, TimeSpan timeout)
+        public static async Task<bool> TimeoutCommand(this IMessageSession ctx, ILogger Logger, string destination, ICommand command, TimeSpan timeout)
         {
             var options = new SendOptions();
             options.SetDestination(destination);
@@ -52,7 +51,7 @@ namespace Aggregates
             try
             {
                 var response = await ctx.Request<IMessage>(command, options, cancelation.Token).ConfigureAwait(false);
-                CheckResponse(command, response);
+                CheckResponse(Logger, command, response);
                 return true;
             }
             catch (TaskCanceledException)

@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 using Aggregates.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Common.Extensions
 {
@@ -63,14 +64,14 @@ namespace Aggregates.Common.Extensions
         {
             var factory = ReflectionExtensions.BuildRepositoryFunc<FakeEntity>();
             factory.Should().NotBeNull();
-            factory(Fake<IStoreEntities>()).Should().BeAssignableTo<IRepository<FakeEntity>>();
+            factory(Fake<ILoggerFactory>(), Fake<IStoreEntities>()).Should().BeAssignableTo<IRepository<FakeEntity>>();
         }
         [Fact]
         public void ShouldCreateChildRepositoryFactory()
         {
             var factory = ReflectionExtensions.BuildParentRepositoryFunc<FakeChildEntity, FakeEntity>();
             factory.Should().NotBeNull();
-            factory(Fake<FakeEntity>(), Fake<IStoreEntities>()).Should().BeAssignableTo<IRepository<FakeChildEntity, FakeEntity>>();
+            factory(Fake<ILoggerFactory>(), Fake<FakeEntity>(), Fake<IStoreEntities>()).Should().BeAssignableTo<IRepository<FakeChildEntity, FakeEntity>>();
         }
     }
 }

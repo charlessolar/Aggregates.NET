@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 
 namespace Aggregates.Extensions
 {
@@ -74,6 +75,13 @@ namespace Aggregates.Extensions
         {
             logger.LogEvent(LogLevel.Critical, eventId, ex, messageTemplate, propertyValues);
 
+        }
+        public static IDisposable BeginContext(this ILogger logger, string name, object value)
+        {
+            return logger.BeginScope(new Dictionary<string, object>
+            {
+                [name] = value
+            });
         }
     }
 }

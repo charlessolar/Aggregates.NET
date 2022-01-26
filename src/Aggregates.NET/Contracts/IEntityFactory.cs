@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Text;
 using Aggregates.Internal;
 using Aggregates.Messages;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Contracts
 {
     interface IEntityFactory<TEntity> where TEntity : IEntity
     {
-        TEntity Create(string bucket, Id id, IParentDescriptor[] parents = null, IEvent[] events = null, object snapshot = null);
+        TEntity Create(ILogger Logger, string bucket, Id id, IParentDescriptor[] parents = null, IEvent[] events = null, object snapshot = null);
     }
 }

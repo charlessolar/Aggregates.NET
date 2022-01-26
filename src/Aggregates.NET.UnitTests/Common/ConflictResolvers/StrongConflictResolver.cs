@@ -11,6 +11,7 @@ using FakeItEasy;
 using FluentAssertions;
 using AutoFixture.Xunit2;
 using AutoFixture;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Common.ConflictResolvers
 {
@@ -25,7 +26,7 @@ namespace Aggregates.Common.ConflictResolvers
             var cleanEntity = Fake<FakeEntity>();
             (cleanEntity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
 
-            var sut = new Internal.ResolveStronglyConflictResolver(store);
+            var sut = new Internal.ResolveStronglyConflictResolver(Fake<ILoggerFactory>(), store);
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
             A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Returns(cleanEntity);
 
@@ -43,7 +44,7 @@ namespace Aggregates.Common.ConflictResolvers
             var entity = Fake<FakeEntity>();
             (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
 
-            var sut = new Internal.ResolveStronglyConflictResolver(Fake<IStoreEntities>());
+            var sut = new Internal.ResolveStronglyConflictResolver(Fake<ILoggerFactory>(), Fake<IStoreEntities>());
             entity.ApplyEvents(Many<FakeNotHandledEvent.UnknownEvent>());
 
             var e = await Record.ExceptionAsync(() => sut.Resolve<FakeEntity, FakeState>(entity, Fake<Guid>(), Fake<Dictionary<string, string>>())).ConfigureAwait(false);
@@ -63,7 +64,7 @@ namespace Aggregates.Common.ConflictResolvers
 
             cleanEntity.State.ThrowAbandon = true;
 
-            var sut = new Internal.ResolveStronglyConflictResolver(store);
+            var sut = new Internal.ResolveStronglyConflictResolver(Fake<ILoggerFactory>(), store);
 
             var e = await Record.ExceptionAsync(() => sut.Resolve<FakeEntity, FakeState>(entity, Fake<Guid>(), Fake<Dictionary<string, string>>())).ConfigureAwait(false);
 
@@ -82,7 +83,7 @@ namespace Aggregates.Common.ConflictResolvers
 
             cleanEntity.State.ThrowDiscard = true;
 
-            var sut = new Internal.ResolveStronglyConflictResolver(store);
+            var sut = new Internal.ResolveStronglyConflictResolver(Fake<ILoggerFactory>(), store);
 
             await sut.Resolve<FakeEntity, FakeState>(entity, Fake<Guid>(), Fake<Dictionary<string, string>>()).ConfigureAwait(false);
 
@@ -100,7 +101,7 @@ namespace Aggregates.Common.ConflictResolvers
             A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Returns(cleanEntity);
             entity.RaiseEvents(Many<FakeOobEvent.FakeEvent>(), "test");
 
-            var sut = new Internal.ResolveStronglyConflictResolver(store);
+            var sut = new Internal.ResolveStronglyConflictResolver(Fake<ILoggerFactory>(), store);
 
             await sut.Resolve<FakeEntity, FakeState>(entity, Fake<Guid>(), Fake<Dictionary<string, string>>())
                 .ConfigureAwait(false);
@@ -121,7 +122,7 @@ namespace Aggregates.Common.ConflictResolvers
             A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Returns(cleanEntity);
             entity.RaiseEvents(Many<FakeOobEvent.FakeEvent>(), "test", false, 1);
 
-            var sut = new Internal.ResolveStronglyConflictResolver(store);
+            var sut = new Internal.ResolveStronglyConflictResolver(Fake<ILoggerFactory>(), store);
 
             await sut.Resolve<FakeEntity, FakeState>(entity, Fake<Guid>(), Fake<Dictionary<string, string>>())
                 .ConfigureAwait(false);

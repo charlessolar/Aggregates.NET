@@ -55,7 +55,7 @@ namespace Aggregates.Internal
 
             Logger.DebugEvent("Create", "[{EntityId:l}] bucket [{Bucket:l}] entity [{EntityType:l}]", id, bucket, typeof(TEntity).FullName);
 
-            var entity = factory.Create(bucket, id, getParents(parent));
+            var entity = factory.Create(Logger, bucket, id, getParents(parent));
 
             (entity as INeedDomainUow).Uow = uow;
             (entity as INeedEventFactory).EventFactory = _factory;
@@ -77,8 +77,7 @@ namespace Aggregates.Internal
             var snapshot = await _snapstore.GetSnapshot<TEntity>(bucket, id, parents?.Select(x => x.StreamId).ToArray()).ConfigureAwait(false);
             var events = await _eventstore.GetEvents<TEntity>(bucket, id, parents?.Select(x => x.StreamId).ToArray(), start: snapshot?.Version).ConfigureAwait(false);
 
-            var entity = factory.Create(bucket, id, parents, events.Select(x => x.Event as IEvent).ToArray(), snapshot?.Payload);
-
+            var entity = factory.Create(Logger, bucket, id, parents, events.Select(x => x.Event).ToArray(), snapshot?.Payload);
 
             (entity as INeedDomainUow).Uow = uow;
             (entity as INeedEventFactory).EventFactory = _factory;

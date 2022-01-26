@@ -11,6 +11,7 @@ using Xunit;
 using FakeItEasy;
 using FluentAssertions;
 using AutoFixture.Xunit2;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Common.ConflictResolvers
 {
@@ -31,7 +32,7 @@ namespace Aggregates.Common.ConflictResolvers
         async Task DiscardConflictResolverDoesntThrowOrSave()
         {
             var store = Fake<IStoreEvents>();
-            var sut = new DiscardConflictResolver();
+            var sut = new DiscardConflictResolver(Fake<ILoggerFactory>());
 
             await sut.Resolve<FakeEntity, FakeState>(Fake<FakeEntity>(), Fake<Guid>(), Fake<Dictionary<string, string>>()).ConfigureAwait(false);
 
@@ -43,7 +44,7 @@ namespace Aggregates.Common.ConflictResolvers
         async Task IgnoreConflictResolverWritesEvents()
         {
             var store = Fake<IStoreEvents>();
-            var sut = new IgnoreConflictResolver(store, Fake<IOobWriter>());
+            var sut = new IgnoreConflictResolver(Fake<ILoggerFactory>(), store, Fake<IOobWriter>());
 
             await sut.Resolve<FakeEntity, FakeState>(Fake<FakeEntity>(), Fake<Guid>(), Fake<Dictionary<string, string>>()).ConfigureAwait(false);
 
@@ -60,7 +61,7 @@ namespace Aggregates.Common.ConflictResolvers
             var entity = Fake<FakeEntity>();
             (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
 
-            var sut = new IgnoreConflictResolver(store, oob);
+            var sut = new IgnoreConflictResolver(Fake<ILoggerFactory>(), store, oob);
             entity.RaiseEvents(Many<FakeOobEvent.FakeEvent>(3), "test");
 
             await sut.Resolve<FakeEntity, FakeState>(entity, Fake<Guid>(), Fake<Dictionary<string, string>>()).ConfigureAwait(false);

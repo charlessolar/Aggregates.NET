@@ -1,5 +1,5 @@
 ﻿using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Pipeline;
 using System;
@@ -13,33 +13,34 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     internal class LogContextProviderBehaviour : Behavior<IIncomingLogicalMessageContext>
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("LogContextProvider");
+        private readonly ILogger Logger;
 
         private readonly Configure _settings;
 
-        public LogContextProviderBehaviour(Configure settings)
+        public LogContextProviderBehaviour(ILoggerFactory logFactory, Configure settings)
         {
+            Logger = logFactory.CreateLogger("LogContextProvider");
             _settings = settings;
         }
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
             // Populate the logging context with useful data from the messaeg
-            using (LogProvider.OpenMappedContext("Instance", Defaults.Instance.ToString()))
+            using (Logger.BeginContext("Instance", Defaults.Instance.ToString()))
             {
                 string messageId = "";
                 context.MessageHeaders.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}", out messageId);
 
-                using (LogProvider.OpenMappedContext("MessageId", messageId))
+                using (Logger.BeginContext("MessageId", messageId))
                 {
                     string corrId = "";
                     context.MessageHeaders.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}", out corrId);
 
                     if (string.IsNullOrEmpty(corrId))
                         corrId = messageId;
-                    using (LogProvider.OpenMappedContext("CorrId", corrId))
+                    using (Logger.BeginContext("CorrId", corrId))
                     {
-                        using (LogProvider.OpenMappedContext("Endpoint", _settings.Endpoint))
+                        using (Logger.BeginContext("Endpoint", _settings.Endpoint))
                         {
                             Logger.DebugEvent("Start", "Processing [{MessageId:l}] Corr: [{CorrelationId:l}]", messageId, corrId);
                             await next().ConfigureAwait(false);

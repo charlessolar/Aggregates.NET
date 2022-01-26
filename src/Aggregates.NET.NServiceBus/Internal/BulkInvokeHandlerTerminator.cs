@@ -40,7 +40,7 @@ namespace Aggregates.Internal
         private readonly IEventMapper _mapper;
         private readonly IMetrics _metrics;
 
-        public BulkInvokeHandlerTerminator(IMetrics metrics, IEventMapper mapper, ILoggerFactory factory)
+        public BulkInvokeHandlerTerminator(ILoggerFactory factory, IMetrics metrics, IEventMapper mapper)
         {
             _mapper = mapper;
             _metrics = metrics;

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Aggregates.Messages;
 using Microsoft.Extensions.Logging;
@@ -34,16 +35,14 @@ namespace Aggregates.Internal
 
     public class EntityFactory<TEntity, TState> : IEntityFactory<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
-        private readonly ILogger Logger;
         private readonly Func<TEntity> _factory;
 
-        public EntityFactory(ILoggerFactory logFactory)
+        public EntityFactory()
         {
             _factory = ReflectionExtensions.BuildCreateEntityFunc<TEntity>();
-            Logger = logFactory.CreateLogger("EntityFactory");
         }
 
-        public TEntity Create(string bucket, Id id, IParentDescriptor[] parents = null, IEvent[] events = null, object snapshot = null)
+        public TEntity Create(ILogger Logger, string bucket, Id id, IParentDescriptor[] parents = null, IEvent[] events = null, object snapshot = null)
         {
             // Todo: Can use a simple duck type helper incase snapshot type != TState due to refactor or something
             if (snapshot != null && !(snapshot is TState))
@@ -53,6 +52,7 @@ namespace Aggregates.Internal
             var snapshotState = snapshot as TState;
 
             var state = snapshotState ?? new TState() { Version = EntityFactory.NewEntityVersion };
+            state.Logger = Logger;
 
             state.Id = id;
             state.Bucket = bucket;
@@ -70,7 +70,7 @@ namespace Aggregates.Internal
             if (events != null && events.Length > 0)
             {
                 for (var i = 0; i < events.Length; i++)
-                    state.Apply(events[i]);
+                        state.Apply(events[i]);
             }
 
             var entity = _factory();

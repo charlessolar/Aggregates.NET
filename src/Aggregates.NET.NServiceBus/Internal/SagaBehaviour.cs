@@ -1,6 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 using NServiceBus.Pipeline;
 using System;
 using System.Collections.Generic;
@@ -12,13 +12,14 @@ namespace Aggregates.Internal
 {
     public class SagaBehaviour : Behavior<IIncomingLogicalMessageContext>
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("SagaBehaviour");
+        private readonly ILogger Logger;
 
         private readonly IMetrics _metrics;
         private readonly IMessageDispatcher _dispatcher;
 
-        public SagaBehaviour(IMetrics metrics, IMessageDispatcher dispatcher)
+        public SagaBehaviour(ILoggerFactory logFactory, IMetrics metrics, IMessageDispatcher dispatcher)
         {
+            Logger = logFactory.CreateLogger("SagaBehaviour");
             _metrics = metrics;
             _dispatcher = dispatcher;
         }
@@ -82,7 +83,7 @@ namespace Aggregates.Internal
             stepId: "SagaBehaviour",
             behavior: typeof(SagaBehaviour),
             description: "Handles internal sagas for consecutive command support",
-            factoryMethod: (b) => new SagaBehaviour(b.Build<IMetrics>(), b.Build<IMessageDispatcher>())
+            factoryMethod: (b) => new SagaBehaviour(b.Build<ILoggerFactory>(), b.Build<IMetrics>(), b.Build<IMessageDispatcher>())
         )
         {
             InsertBefore("ExceptionRejector");

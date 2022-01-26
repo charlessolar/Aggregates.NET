@@ -1,6 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 using NServiceBus.Pipeline;
 using System;
 using System.Collections.Generic;
@@ -12,12 +12,13 @@ namespace Aggregates.Internal
 {
     public class MessageDetyper : Behavior<IOutgoingPhysicalMessageContext>
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("MessageDetyper");
+        private readonly ILogger Logger;
         private readonly Contracts.IVersionRegistrar _registrar;
         private readonly Contracts.IEventMapper _mapper;
 
-        public MessageDetyper(Contracts.IVersionRegistrar registrar, IEventMapper mapper)
+        public MessageDetyper(ILoggerFactory logFactory, Contracts.IVersionRegistrar registrar, IEventMapper mapper)
         {
+            Logger = logFactory.CreateLogger("MessageDetyper");
             _registrar = registrar;
             _mapper = mapper;
         }
@@ -61,7 +62,7 @@ namespace Aggregates.Internal
             stepId: "MessageDetyper",
             behavior: typeof(MessageDetyper),
             description: "detypes outgoing messages to Versioned commands/events",
-            factoryMethod: (b) => new MessageDetyper(b.Build<Contracts.IVersionRegistrar>(), b.Build<Contracts.IEventMapper>()))
+            factoryMethod: (b) => new MessageDetyper(b.Build<ILoggerFactory>(), b.Build<Contracts.IVersionRegistrar>(), b.Build<Contracts.IEventMapper>()))
         {
         }
     }

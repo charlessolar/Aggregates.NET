@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
@@ -13,28 +14,30 @@ namespace Aggregates.Internal
     {
         private static readonly ConcurrentDictionary<Type, object> Factories = new ConcurrentDictionary<Type, object>();
 
+        private readonly ILoggerFactory _logFactory;
         private readonly IStoreEntities _store;
 
-        public RepositoryFactory(IStoreEntities store)
+        public RepositoryFactory(ILoggerFactory logFactory, IStoreEntities store)
         {
+            _logFactory = logFactory;
             _store = store;
         }
 
         public IRepository<TEntity> ForEntity<TEntity>() where TEntity : IEntity
         {
-            var factory = Factories.GetOrAdd(typeof(TEntity), t => ReflectionExtensions.BuildRepositoryFunc<TEntity>()) as Func<IStoreEntities, IRepository<TEntity>>;
+            var factory = Factories.GetOrAdd(typeof(TEntity), t => ReflectionExtensions.BuildRepositoryFunc<TEntity>()) as Func<ILoggerFactory, IStoreEntities, IRepository<TEntity>>;
             if (factory == null)
                 throw new InvalidOperationException("unknown entity repository");
 
-            return factory(_store);
+            return factory(_logFactory, _store);
         }
         public IRepository<TEntity, TParent> ForEntity<TEntity, TParent>(TParent parent) where TEntity : IChildEntity<TParent> where TParent : IEntity
         {
-            var factory = Factories.GetOrAdd(typeof(TEntity), t => ReflectionExtensions.BuildParentRepositoryFunc<TEntity, TParent>()) as Func<TParent, IStoreEntities, IRepository<TEntity, TParent>>;
+            var factory = Factories.GetOrAdd(typeof(TEntity), t => ReflectionExtensions.BuildParentRepositoryFunc<TEntity, TParent>()) as Func<ILoggerFactory, TParent, IStoreEntities, IRepository<TEntity, TParent>>;
             if (factory == null)
                 throw new InvalidOperationException("unknown entity repository");
 
-            return factory(parent, _store);
+            return factory(_logFactory, parent, _store);
 
         }
     }

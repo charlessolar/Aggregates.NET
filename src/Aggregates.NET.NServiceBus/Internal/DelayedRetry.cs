@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
+using Microsoft.Extensions.Logging;
 using NServiceBus;
 
 namespace Aggregates.Internal
@@ -11,11 +12,13 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     public class DelayedRetry
     {
+        private readonly ILogger Logger;
         private readonly IMetrics _metrics;
         private readonly IMessageDispatcher _dispatcher;
 
-        public DelayedRetry(IMetrics metrics, IMessageDispatcher dispatcher)
+        public DelayedRetry(ILoggerFactory logFactory, IMetrics metrics, IMessageDispatcher dispatcher)
         {
+            Logger = logFactory.CreateLogger("DelayedRetry");
             _metrics = metrics;
             _dispatcher = dispatcher;
         }
@@ -26,7 +29,7 @@ namespace Aggregates.Internal
             var messageId = Guid.NewGuid().ToString();
             message.Headers.TryGetValue(Headers.MessageId, out messageId);
 
-            Timer.Expire((state) =>
+            Timer.Expire(Logger, (state) =>
             {
                 var msg = (IFullMessage)state;
                 

@@ -93,25 +93,26 @@ namespace Aggregates.Extensions
             return lambda.Compile();
         }
 
-        public static Func<IStoreEntities, IRepository<TEntity>> BuildRepositoryFunc<TEntity>()
+        public static Func<ILoggerFactory, IStoreEntities, IRepository<TEntity>> BuildRepositoryFunc<TEntity>()
             where TEntity : IEntity
         {
             var stateType = typeof(TEntity).BaseType.GetGenericArguments()[1];
             var repoType = typeof(Repository<,>).MakeGenericType(typeof(TEntity), stateType);
 
             // doing my own open-generics implementation so I don't have to depend on an IoC container supporting it
-            var ctor = repoType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(IStoreEntities) }, null);
+            var ctor = repoType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(ILoggerFactory), typeof(IStoreEntities) }, null);
             if (ctor == null)
                 throw new AggregateException("No constructor found for repository");
 
-            var param = Expression.Parameter(typeof(IStoreEntities), "store");
+            var param1 = Expression.Parameter(typeof(ILoggerFactory), "logFactory");
+            var param2 = Expression.Parameter(typeof(IStoreEntities), "store");
 
-            var body = Expression.New(ctor, param);
-            var lambda = Expression.Lambda<Func<IStoreEntities, IRepository<TEntity>>>(body, param);
+            var body = Expression.New(ctor, param1, param2);
+            var lambda = Expression.Lambda<Func<ILoggerFactory, IStoreEntities, IRepository<TEntity>>>(body, param1, param2);
 
             return lambda.Compile();
         }
-        public static Func<TParent, IStoreEntities, IRepository<TEntity, TParent>> BuildParentRepositoryFunc<TEntity, TParent>()
+        public static Func<ILoggerFactory, TParent, IStoreEntities, IRepository<TEntity, TParent>> BuildParentRepositoryFunc<TEntity, TParent>()
             where TEntity : IChildEntity<TParent> where TParent : IEntity
         {
             var stateType = typeof(TEntity).BaseType.GetGenericArguments()[1];
@@ -119,15 +120,16 @@ namespace Aggregates.Extensions
             var repoType = typeof(Repository<,,,>).MakeGenericType(typeof(TEntity), stateType, typeof(TParent), stateParentType);
 
             // doing my own open-generics implementation so I don't have to depend on an IoC container supporting it
-            var ctor = repoType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(TParent), typeof(IStoreEntities) }, null);
+            var ctor = repoType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, new Type[] { typeof(ILoggerFactory), typeof(TParent), typeof(IStoreEntities) }, null);
             if (ctor == null)
                 throw new AggregateException("No constructor found for repository");
 
             var parentParam = Expression.Parameter(typeof(TParent), "parent");
-            var param = Expression.Parameter(typeof(IStoreEntities), "store");
+            var param1 = Expression.Parameter(typeof(ILoggerFactory), "logFactory");
+            var param2 = Expression.Parameter(typeof(IStoreEntities), "store");
 
-            var body = Expression.New(ctor, parentParam, param);
-            var lambda = Expression.Lambda<Func<TParent, IStoreEntities, IRepository<TEntity, TParent>>>(body, parentParam, param);
+            var body = Expression.New(ctor, param1, parentParam, param2);
+            var lambda = Expression.Lambda<Func<ILoggerFactory, TParent, IStoreEntities, IRepository<TEntity, TParent>>>(body, param1, parentParam, param2);
 
             return lambda.Compile();
         }

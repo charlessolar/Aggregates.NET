@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using FakeItEasy;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -21,7 +22,7 @@ namespace Aggregates.Common
         public async Task ShouldExecuteRepeatingTimerRepeatedly()
         {
             int count = 0;
-            var task = Internal.Timer.Repeat(() =>
+            var task = Internal.Timer.Repeat(Fake<ILogger>(), () =>
             {
                 count++;
                 return Task.CompletedTask;
@@ -38,7 +39,7 @@ namespace Aggregates.Common
             int count = 0;
             var cancellation = new CancellationTokenSource();
 
-            var task = Internal.Timer.Repeat(() =>
+            var task = Internal.Timer.Repeat(Fake<ILogger>(), () =>
             {
                 count++;
                 return Task.CompletedTask;
@@ -57,7 +58,7 @@ namespace Aggregates.Common
         public async Task ShouldRepeatTaskEvenAfterException()
         {
             int count = 0;
-            var task = Internal.Timer.Repeat(() =>
+            var task = Internal.Timer.Repeat(Fake<ILogger>(), () =>
             {
                 count++;
                 throw new InvalidOperationException();
@@ -73,7 +74,7 @@ namespace Aggregates.Common
         {
             // needs to be a reference type for this purpose
             var fake = new FakeState();
-            var task = Internal.Timer.Repeat((state) =>
+            var task = Internal.Timer.Repeat(Fake<ILogger>(), (state) =>
             {
                 var _count = state as FakeState;
                 _count.counter++;
@@ -89,7 +90,7 @@ namespace Aggregates.Common
         public async Task ShouldExpireTimer()
         {
             bool expired = false;
-            var task = Internal.Timer.Expire(() =>
+            var task = Internal.Timer.Expire(Fake<ILogger>(), () =>
             {
                 expired = true;
                 return Task.CompletedTask;
@@ -104,7 +105,7 @@ namespace Aggregates.Common
         {
             bool expired = false;
             var cancellation = new CancellationTokenSource();
-            var task = Internal.Timer.Expire(() =>
+            var task = Internal.Timer.Expire(Fake<ILogger>(), () =>
             {
                 expired = true;
                 return Task.CompletedTask;
@@ -122,7 +123,7 @@ namespace Aggregates.Common
         [Fact]
         public async Task ShouldIgnoreThrownExceptionsWhileExpiring()
         {
-            var task = Internal.Timer.Expire(() =>
+            var task = Internal.Timer.Expire(Fake<ILogger>(), () =>
             {
                 throw new InvalidOperationException();
             }, TimeSpan.FromMilliseconds(10), "test");
@@ -136,7 +137,7 @@ namespace Aggregates.Common
         {
             // needs to be a reference type for this purpose
             var fake = new FakeState();
-            var task = Internal.Timer.Expire((state) =>
+            var task = Internal.Timer.Expire(Fake<ILogger>(), (state) =>
             {
                 var _count = state as FakeState;
                 _count.counter++;

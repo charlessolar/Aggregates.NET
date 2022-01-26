@@ -1,7 +1,7 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 using Aggregates.Messages;
+using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Pipeline;
 using NServiceBus.Transport;
@@ -18,15 +18,16 @@ namespace Aggregates.Internal
     public class ExceptionRejector : Behavior<IIncomingLogicalMessageContext>
     {
         private static readonly ConcurrentDictionary<string, int> RetryRegistry = new ConcurrentDictionary<string, int>();
-        private static readonly ILog Logger = LogProvider.GetLogger("ExceptionRejector");
+        private readonly ILogger Logger;
 
         private readonly IMetrics _metrics;
         private readonly DelayedRetry _retry;
         private readonly IMessageSerializer _serializer;
         private readonly int _retries;
 
-        public ExceptionRejector(Configure settings, IMetrics metrics, IMessageSerializer serializer, DelayedRetry retry)
+        public ExceptionRejector(ILoggerFactory logFactory, Configure settings, IMetrics metrics, IMessageSerializer serializer, DelayedRetry retry)
         {
+            Logger = logFactory.CreateLogger("ExceptionRejector");
             _metrics = metrics;
             _serializer = serializer;
             _retry = retry;
@@ -55,7 +56,7 @@ namespace Aggregates.Internal
                 
                 if (retries < _retries || _retries == -1)
                 {
-                    Logger.LogEvent((retries > _retries / 2) ? LogLevel.Warn : LogLevel.Info, "Catch", e, "[{MessageId:l}] will retry {Retries}/{MaxRetries}: {ExceptionType} - {ExceptionMessage}", messageId,
+                    Logger.LogEvent((retries > _retries / 2) ? LogLevel.Warning : LogLevel.Information, "Catch", e, "[{MessageId:l}] will retry {Retries}/{MaxRetries}: {ExceptionType} - {ExceptionMessage}", messageId,
                         retries, _retries, e.GetType().Name, e.Message);
 
                     RetryRegistry.TryAdd(messageId, retries + 1);
@@ -120,7 +121,7 @@ namespace Aggregates.Internal
             stepId: "ExceptionRejector",
             behavior: typeof(ExceptionRejector),
             description: "handles exceptions and retries",
-            factoryMethod: (b) => new ExceptionRejector(b.Build<Configure>(), b.Build<IMetrics>(), b.Build<IMessageSerializer>(), b.Build<DelayedRetry>())
+            factoryMethod: (b) => new ExceptionRejector(b.Build<ILoggerFactory>(), b.Build<Configure>(), b.Build<IMetrics>(), b.Build<IMessageSerializer>(), b.Build<DelayedRetry>())
         )
         {
             InsertBefore("MutateIncomingMessages");

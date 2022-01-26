@@ -10,6 +10,7 @@ using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Aggregates.Internal;
 using Aggregates.Messages;
+using Microsoft.Extensions.Logging;
 
 namespace Aggregates
 {
@@ -19,7 +20,7 @@ namespace Aggregates
         TParent IChildEntity<TParent>.Parent => Parent;
 
         public TParent Parent { get; internal set; }
-        
+
     }
 
     public abstract class Entity<TThis, TState> : IEntity<TState>, IHaveEntities<TThis>, INeedDomainUow, INeedEventFactory, INeedStore, INeedVersionRegistrar, INeedChildTracking where TThis : Entity<TThis, TState> where TState : class, IState, new()
@@ -53,6 +54,8 @@ namespace Aggregates
         IOobWriter INeedStore.OobWriter { get; set; }
         IVersionRegistrar INeedVersionRegistrar.Registrar { get; set; }
         ITrackChildren INeedChildTracking.Tracker { get; set; }
+
+        internal ILogger Logger { get; set; }
 
 
         void IEntity<TState>.Instantiate(TState state)

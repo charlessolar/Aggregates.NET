@@ -2,6 +2,7 @@
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Aggregates.Internal;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using NServiceBus.MessageInterfaces.MessageMapper.Reflection;
 using System;
@@ -20,8 +21,8 @@ namespace Aggregates.Internal
     {
         private readonly TParent _parent;
 
-        public TestableRepository(TParent parent, TestableDomain uow, IdRegistry ids)
-            : base(uow, ids)
+        public TestableRepository(ILoggerFactory logFactory, TParent parent, TestableDomain uow, IdRegistry ids)
+            : base(logFactory, uow, ids)
         {
             _parent = parent;
         }
@@ -111,6 +112,7 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     class TestableRepository<TEntity, TState> : IRepository<TEntity>, IRepositoryTest<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
+        private readonly ILogger Logger;
         private static readonly IEntityFactory<TEntity> Factory = EntityFactory.For<TEntity>();
 
         protected readonly ConcurrentDictionary<string, TEntity> Tracked = new ConcurrentDictionary<string, TEntity>();
@@ -123,8 +125,9 @@ namespace Aggregates.Internal
         protected readonly TestableVersionRegistrar _registrar;
         private bool _disposed;
 
-        public TestableRepository(TestableDomain uow, IdRegistry ids)
+        public TestableRepository(ILoggerFactory logFactory, TestableDomain uow, IdRegistry ids)
         {
+            Logger = logFactory.CreateLogger("Repository");
             _uow = uow;
             _ids = ids;
             _factory = new TestableEventFactory(new MessageMapper());
@@ -185,7 +188,7 @@ namespace Aggregates.Internal
             var snapshot = await _snapstore.GetSnapshot<TEntity>(bucket, id, parent.GetParentIds()).ConfigureAwait(false);
             var events = await _eventstore.GetEvents<TEntity>(bucket, id, parent.GetParentIds(), start: snapshot?.Version).ConfigureAwait(false);
 
-            var entity = Factory.Create(bucket, id, getParents(parent), events.Select(x => x.Event as Messages.IEvent).ToArray(), snapshot?.Payload);
+            var entity = Factory.Create(Logger, bucket, id, getParents(parent), events.Select(x => x.Event as Messages.IEvent).ToArray(), snapshot?.Payload);
 
             (entity as INeedDomainUow).Uow = _uow;
             (entity as INeedEventFactory).EventFactory = _factory;
@@ -221,7 +224,7 @@ namespace Aggregates.Internal
                 throw new EntityAlreadyExistsException<TEntity>(bucket, id, parent.GetParentIds());
 
             id = _ids.MakeId(id);
-            var entity = Factory.Create(bucket, id, getParents(parent));
+            var entity = Factory.Create(Logger, bucket, id, getParents(parent));
 
             (entity as INeedDomainUow).Uow = _uow;
             (entity as INeedEventFactory).EventFactory = _factory;

@@ -1,5 +1,5 @@
 ﻿using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 using NServiceBus.Pipeline;
 using NServiceBus.Unicast.Messages;
 using System;
@@ -12,12 +12,13 @@ namespace Aggregates.Internal
 {
     public class MessageIdentifier : Behavior<IIncomingPhysicalMessageContext>
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("MessageIdentifier");
+        private readonly ILogger Logger;
         private readonly MessageMetadataRegistry _registry;
         private readonly Contracts.IVersionRegistrar _registrar;
 
-        public MessageIdentifier(MessageMetadataRegistry registry, Contracts.IVersionRegistrar registrar)
+        public MessageIdentifier(ILoggerFactory logFactory, MessageMetadataRegistry registry, Contracts.IVersionRegistrar registrar)
         {
+            Logger = logFactory.CreateLogger("MessageIdentifier");
             _registry = registry;
             _registrar = registrar;
         }
@@ -70,7 +71,7 @@ namespace Aggregates.Internal
             stepId: "MessageIdentifier",
             behavior: typeof(MessageIdentifier),
             description: "identifies incoming messages as Versioned commands/events",
-            factoryMethod: (b) => new MessageIdentifier(b.Build<MessageMetadataRegistry>(), b.Build<Contracts.IVersionRegistrar>()))
+            factoryMethod: (b) => new MessageIdentifier(b.Build<ILoggerFactory>(), b.Build<MessageMetadataRegistry>(), b.Build<Contracts.IVersionRegistrar>()))
         {
         }
     }

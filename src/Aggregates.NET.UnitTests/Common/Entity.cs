@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using FakeItEasy;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,7 +34,7 @@ namespace Aggregates.Common
             {
                 var factory = Internal.EntityFactory.For<FakeEntity>();
 
-                var entity = factory.Create(Defaults.Bucket, Fake<Id>());
+                var entity = factory.Create(Fake<ILogger>(), Defaults.Bucket, Fake<Id>());
 
                 return entity;
             }));
@@ -53,7 +54,7 @@ namespace Aggregates.Common
             {
                 var factory = Internal.EntityFactory.For<FakeEntity>();
 
-                var entity = factory.Create(Defaults.Bucket, Fake<Id>());
+                var entity = factory.Create(Fake<ILogger>(), Defaults.Bucket, Fake<Id>());
 
                 return entity;
             }));

@@ -1,6 +1,5 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Exceptions;
-using Aggregates.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;

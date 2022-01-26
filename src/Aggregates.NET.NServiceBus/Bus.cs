@@ -8,7 +8,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Extensions;
-using Aggregates.Logging;
 using NServiceBus;
 using NServiceBus.Pipeline;
 using NServiceBus.Transport;
@@ -18,8 +17,6 @@ namespace Aggregates
     [ExcludeFromCodeCoverage]
     public static class Bus
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("Bus");
-
         public static IEndpointInstance Instance { get; internal set; }
         internal static Func<MessageContext, Task> OnMessage;
         internal static Func<ErrorContext, Task<ErrorHandleResult>> OnError;
@@ -106,7 +103,6 @@ namespace Aggregates
                         .GetField("pushRuntimeSettings", BindingFlags.Instance | BindingFlags.NonPublic)
                         .GetValue(main);
 
-                Logger.InfoEvent("Online", "NServiceBus is online");
 
                 //for(var i = 0; i < behaviors.Length; i++)
                 //    Logger.DebugEvent("PipelineStep", "{Index}: {StepType}", i, behaviors[i].GetType().FullName);

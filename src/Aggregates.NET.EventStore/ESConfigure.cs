@@ -2,6 +2,7 @@
 using Aggregates.Extensions;
 using Aggregates.Internal;
 using EventStore.ClientAPI;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -22,6 +23,7 @@ namespace Aggregates
 
                 container.Register<IEventStoreConsumer>((factory) =>
                     new EventStoreConsumer(
+                        factory.Resolve<ILoggerFactory>(),
                         factory.Resolve<Configure>(),
                         factory.Resolve<IMetrics>(),
                         factory.Resolve<IMessageSerializer>(),
@@ -31,6 +33,7 @@ namespace Aggregates
                         ), Lifestyle.Singleton);
                 container.Register<IStoreEvents>((factory) =>
                     new StoreEvents(
+                        factory.Resolve<ILoggerFactory>(),
                         factory.Resolve<Configure>(),
                         factory.Resolve<IMetrics>(),
                         factory.Resolve<IMessageSerializer>(),

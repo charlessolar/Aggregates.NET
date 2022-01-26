@@ -1,6 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Extensibility;
 using NServiceBus.Transport;
@@ -16,7 +16,7 @@ namespace Aggregates.Internal
 {
     class Dispatcher : IMessageDispatcher
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("Dispatcher");
+        private readonly ILogger Logger;
         private readonly IMetrics _metrics;
         private readonly IMessageSerializer _serializer;
         private readonly IEventMapper _mapper;
@@ -25,8 +25,9 @@ namespace Aggregates.Internal
         // A fake message that will travel through the pipeline in order to process events from the context bag
         private static readonly byte[] Marker = new byte[] { 0x7b, 0x7d };
 
-        public Dispatcher(IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IVersionRegistrar registrar)
+        public Dispatcher(ILoggerFactory logFactory, IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IVersionRegistrar registrar)
         {
+            Logger = logFactory.CreateLogger("Dispatcher");
             _metrics = metrics;
             _serializer = serializer;
             _mapper = mapper;

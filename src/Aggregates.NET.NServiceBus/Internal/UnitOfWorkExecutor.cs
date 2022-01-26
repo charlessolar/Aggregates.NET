@@ -7,7 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
-using Aggregates.Logging;
+using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Extensibility;
 using NServiceBus.Pipeline;
@@ -16,14 +16,15 @@ namespace Aggregates.Internal
 {
     public class UnitOfWorkExecutor : Behavior<IIncomingLogicalMessageContext>
     {
-        private static readonly ILog Logger = LogProvider.GetLogger("UOW Executor");
+        private readonly ILogger Logger;
         private static readonly ConcurrentDictionary<string, dynamic> Bags = new ConcurrentDictionary<string, dynamic>();
 
         private readonly Configure _settings;
         private readonly IMetrics _metrics;
 
-        public UnitOfWorkExecutor(Configure settings, IMetrics metrics)
+        public UnitOfWorkExecutor(ILoggerFactory logFactory, Configure settings, IMetrics metrics)
         {
+            Logger = logFactory.CreateLogger("UOW Executor");
             _settings = settings;
             _metrics = metrics;
         }
@@ -144,7 +145,7 @@ namespace Aggregates.Internal
             stepId: "UnitOfWorkExecution",
             behavior: typeof(UnitOfWorkExecutor),
             description: "Begins and Ends unit of work for your application",
-            factoryMethod: (b) => new UnitOfWorkExecutor(b.Build<Configure>(), b.Build<IMetrics>())
+            factoryMethod: (b) => new UnitOfWorkExecutor(b.Build<ILoggerFactory>(), b.Build<Configure>(), b.Build<IMetrics>())
         )
         {
             InsertAfterIfExists("ExceptionRejector");
