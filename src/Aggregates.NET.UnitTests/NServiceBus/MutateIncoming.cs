@@ -14,6 +14,7 @@ using Xunit;
 
 namespace Aggregates.NServiceBus
 {
+    [CollectionDefinition("Non-Parallel Collection", DisableParallelization = true)]
     public class MutateIncoming : TestSubject<Internal.MutateIncoming>
     {
         [Fact]

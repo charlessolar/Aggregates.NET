@@ -518,6 +518,7 @@ namespace Build
     // Typical use running ./build.ps1
     [TaskName("Default")]
     [IsDependentOn(typeof(GenerateCoverageReportTask))]
+    [IsDependentOn(typeof(CreateNugetPackagesTask))]
     public class DefaultTask : FrostingTask { }
 
     // Utility targets

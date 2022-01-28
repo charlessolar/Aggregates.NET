@@ -4,6 +4,7 @@ using Aggregates.Extensions;
 using Aggregates.Internal;
 using Aggregates.Messages;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -146,7 +147,10 @@ namespace Aggregates
                 container.Register<IRandomProvider>(new RealRandomProvider(), Lifestyle.Singleton);
                 container.Register<ITimeProvider>(new RealTimeProvider(), Lifestyle.Singleton);
 
-                // Register outselves with ourselves
+                // Provide a "default" logger so user doesnt need to provide if they dont want to
+                container.Register<ILoggerFactory>(NullLoggerFactory.Instance, Lifestyle.PerInstance);
+
+                // Register ourselves with ourselves
                 container.Register<IContainer>(container, Lifestyle.Singleton);
 
                 container.Register<IProcessor, Processor>(Lifestyle.PerInstance);
@@ -174,7 +178,6 @@ namespace Aggregates
 
                 }
                 container.Register<IMetrics, NullMetrics>(Lifestyle.Singleton);
-
 
                 container.Register<StreamIdGenerator>(Generator, Lifestyle.Singleton);
 
@@ -312,6 +315,15 @@ namespace Aggregates
             RegistrationTasks.Add((c) =>
             {
                 c.Container.Register<IMetrics, TImplementation>(Lifestyle.Singleton);
+                return Task.CompletedTask;
+            });
+            return this;
+        }
+        public Configure AddLogging(ILoggerFactory factory)
+        {
+            RegistrationTasks.Add((c) =>
+            {
+                c.Container.Register<ILoggerFactory>(factory, Lifestyle.Singleton);
                 return Task.CompletedTask;
             });
             return this;
