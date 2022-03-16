@@ -4,6 +4,7 @@ using FluentAssertions;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
@@ -38,9 +39,9 @@ namespace Aggregates.Common.Exceptions
             var business = new Aggregates.BusinessException("rule", "message");
 
             MemoryStream mem = new MemoryStream();
-            BinaryFormatter b = new BinaryFormatter();
+            DataContractSerializer b = new DataContractSerializer(typeof(Aggregates.BusinessException));
 
-            var e = Record.Exception(() => b.Serialize(mem, business));
+            var e = Record.Exception(() => b.WriteObject(mem, business));
             e.Should().BeNull();
         }
         [Fact]
@@ -49,12 +50,12 @@ namespace Aggregates.Common.Exceptions
             var business = new Aggregates.BusinessException("rule", "message");
 
             MemoryStream mem = new MemoryStream();
-            BinaryFormatter b = new BinaryFormatter();
-            b.Serialize(mem, business);
+            DataContractSerializer b = new DataContractSerializer(typeof(Aggregates.BusinessException));
+            b.WriteObject(mem, business);
 
             mem.Position = 0;
 
-            var e = Record.Exception(() => b.Deserialize(mem));
+            var e = Record.Exception(() => b.ReadObject(mem));
 
             e.Should().BeNull();
         }
@@ -64,12 +65,12 @@ namespace Aggregates.Common.Exceptions
             var business = new Aggregates.BusinessException("rule", "message");
 
             MemoryStream mem = new MemoryStream();
-            BinaryFormatter b = new BinaryFormatter();
-            b.Serialize(mem, business);
+            DataContractSerializer b = new DataContractSerializer(typeof(Aggregates.BusinessException));
+            b.WriteObject(mem, business);
 
             mem.Position = 0;
 
-            var deserialized = b.Deserialize(mem) as Aggregates.BusinessException;
+            var deserialized = b.ReadObject(mem) as Aggregates.BusinessException;
             deserialized.Rule.Should().Be("rule");
             deserialized.Message.Should().ContainAll("rule", "message");
         }

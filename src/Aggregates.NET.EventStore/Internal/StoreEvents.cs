@@ -9,9 +9,6 @@ using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Messages;
-using EventStore.ClientAPI;
-using EventStore.ClientAPI.Exceptions;
 using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
@@ -20,491 +17,93 @@ namespace Aggregates.Internal
     class StoreEvents : IStoreEvents
     {
         private readonly Microsoft.Extensions.Logging.ILogger Logger;
-        private readonly Microsoft.Extensions.Logging.ILogger SlowLogger;
-        private readonly Configure _settings;
-        private readonly IMetrics _metrics;
-        private readonly IMessageSerializer _serializer;
-        private readonly IEventMapper _mapper;
-        private readonly IVersionRegistrar _registrar;
         private readonly StreamIdGenerator _generator;
-        private readonly IEventStoreConnection[] _clients;
-        private readonly int _readsize;
-        private readonly Compression _compress;
-
-        public StoreEvents(ILoggerFactory factory, Configure settings, IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IVersionRegistrar registrar, IEventStoreConnection[] connections)
+        private readonly IEventStoreClient _client;
+        private readonly IVersionRegistrar _registrar;
+        public StoreEvents(ILogger<StoreEvents> logger, StreamIdGenerator generator, IVersionRegistrar registrar, IEventStoreClient client)
         {
-            _settings = settings;
-            _metrics = metrics;
-            _serializer = serializer;
-            _mapper = mapper;
+            _generator = generator;
+            _client = client;
             _registrar = registrar;
-            _clients = connections;
 
-            _generator = settings.Generator;
-            _readsize = settings.ReadSize;
-            _compress = settings.Compression;
-
-            Logger = factory.CreateLogger("StoreEvents");
-            SlowLogger = factory.CreateLogger("Slow Alarm");
+            Logger = logger;
         }
 
-        public Task<IFullEvent[]> GetEvents<TEntity>(string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
+        public Task<IFullEvent[]> GetEvents<TEntity>(StreamDirection direction, string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
         {
             var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.Domain, bucket, streamId, parents);
-            return GetEvents(stream, start, count);
+            return _client.GetEvents(direction, stream, start, count);
         }
 
-        public async Task<IFullEvent[]> GetEvents(string stream, long? start = null, int? count = null)
+        public async Task<ISnapshot> GetSnapshot<TEntity>(string bucket, Id streamId, Id[] parents) where TEntity : IEntity
         {
-            var shard = Math.Abs(stream.GetHash() % _clients.Count());
-
-            var sliceStart = start ?? StreamPosition.Start;
-            StreamEventsSlice current;
-
-            var events = new List<ResolvedEvent>();
-            using (var ctx = _metrics.Begin("EventStore Read Time"))
+            var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.Snapshot, bucket, streamId, parents);
+            IFullEvent @event;
+            try
             {
-                do
-                {
-                    var readsize = _readsize;
-                    if (count.HasValue)
-                        readsize = Math.Min(count.Value - events.Count, _readsize);
-
-                    current =
-                        await _clients[shard].ReadStreamEventsForwardAsync(stream, sliceStart, readsize, false)
-                            .ConfigureAwait(false);
-
-                    events.AddRange(current.Events);
-                    sliceStart = current.NextEventNumber;
-                } while (!current.IsEndOfStream && (!count.HasValue || (events.Count != count.Value)));
-
-                if (ctx.Elapsed > TimeSpan.FromSeconds(1))
-                    SlowLogger.InfoEvent("SlowRead", "{Events} events size {Size} stream [{Stream:l}] elapsed {Milliseconds} ms", events.Count, events.Sum(x => x.Event.Data.Length), stream, ctx.Elapsed.TotalMilliseconds);
-                Logger.DebugEvent("Read", "{Events} events size {Size} stream [{Stream:l}] elapsed {Milliseconds} ms", events.Count, events.Sum(x => x.Event.Data.Length), stream, ctx.Elapsed.TotalMilliseconds);
+                @event = (await _client.GetEvents(StreamDirection.Backwards, stream, count: 1).ConfigureAwait(false)).First();
+            }
+            catch (NotFoundException)
+            {
+                Logger.DebugEvent("NotFound", "Snapshot for [{Stream:l}] not found", stream);
+                return null;
             }
 
-            if (current.Status == SliceReadStatus.StreamNotFound)
-                throw new NotFoundException(stream, _clients[shard].Settings.GossipSeeds[0].EndPoint);
-
-
-            var translatedEvents = events.Select(e =>
+            Logger.DebugEvent("Read", "Snapshot for [{Stream:l}] version {Version} found", stream, @event.Descriptor.Version);
+            return new Snapshot
             {
-                var metadata = e.Event.Metadata;
-                var data = e.Event.Data;
-
-                IEventDescriptor descriptor;
-
-                try
-                {
-                    descriptor = _serializer.Deserialize<EventDescriptor>(metadata);
-                }
-                catch (SerializationException)
-                {
-                    // Try the old format
-                    descriptor = _serializer.Deserialize<LegecyEventDescriptor>(metadata);
-                }
-
-                if (descriptor == null || descriptor.EventId == Guid.Empty)
-                {
-                    // Assume we read from a children projection
-                    // (theres no way to set metadata in projection states)
-
-                    var children = _serializer.Deserialize<ChildrenProjection>(data);
-                    if (!(children is IEvent))
-                        throw new UnknownMessageException(e.Event.EventType);
-
-                    return new FullEvent
-                    {
-                        Descriptor = null,
-                        Event = children as IEvent,
-                        EventId = Guid.Empty
-                    };
-                }
-                if (descriptor.Compressed)
-                    data = data.Decompress();
-
-                var eventType = _registrar.GetNamedType(e.Event.EventType);
-                _mapper.Initialize(eventType);
-
-                var @event = _serializer.Deserialize(eventType, data);
-
-                if (!(@event is IEvent))
-                    throw new UnknownMessageException(e.Event.EventType);
-
-                // Special case if event was written without a version - substitue the position from store
-                //if (descriptor.Version == 0)
-                //    descriptor.Version = e.Event.EventNumber;
-
-                return (IFullEvent)new FullEvent
-                {
-                    Descriptor = descriptor,
-                    Event = @event as IEvent,
-                    EventId = e.Event.EventId
-                };
-            }).ToArray();
-
-            return translatedEvents;
+                EntityType = @event.Descriptor.EntityType,
+                Bucket = @event.Descriptor.Bucket,
+                StreamId = @event.Descriptor.StreamId,
+                Timestamp = @event.Descriptor.Timestamp,
+                Version = @event.Descriptor.Version,
+                Payload = @event.Event
+            };
         }
-
-        public async Task<IFullEvent[]> GetEventsBackwards(string stream, long? start = null, int? count = null)
+        public Task WriteSnapshot<TEntity>(ISnapshot snapshot, IDictionary<string, string> commitHeaders) where TEntity : IEntity
         {
-            var shard = Math.Abs(stream.GetHash() % _clients.Count());
-
-            var events = new List<ResolvedEvent>();
-            var sliceStart = StreamPosition.End;
-
-            StreamEventsSlice current;
-            if (start.HasValue || count == 1)
+            var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.Snapshot, snapshot.Bucket, snapshot.StreamId, snapshot.Parents?.Select(x => x.StreamId).ToArray());
+            var e = new FullEvent
             {
-                // Interesting, ReadStreamEventsBackwardAsync's [start] parameter marks start from begining of stream, not an offset from the end.
-                // Read 1 event from the end, to figure out where start should be
-                var result = await _clients[shard].ReadStreamEventsBackwardAsync(stream, StreamPosition.End, 1, false).ConfigureAwait(false);
-                sliceStart = result.NextEventNumber - start ?? 0;
-
-                // Special case if only 1 event is requested no reason to read any more
-                if (count == 1)
-                    events.AddRange(result.Events);
-            }
-
-            if (!count.HasValue || count > 1)
-            {
-                using (var ctx = _metrics.Begin("EventStore Read Time"))
+                Descriptor = new EventDescriptor
                 {
-                    do
-                    {
-                        var take = Math.Min((count ?? int.MaxValue) - events.Count, _readsize);
+                    EntityType = snapshot.EntityType,
+                    StreamType = StreamTypes.Snapshot,
+                    Bucket = snapshot.Bucket,
+                    StreamId = snapshot.StreamId,
+                    Parents = snapshot.Parents,
+                    Timestamp = DateTime.UtcNow,
+                    Version = snapshot.Version,
+                    Headers = new Dictionary<string, string>(),
+                    CommitHeaders = commitHeaders
+                },
+                Event = snapshot.Payload as IState,
+            };
 
-                        current =
-                            await _clients[shard].ReadStreamEventsBackwardAsync(stream, sliceStart, take, false)
-                                .ConfigureAwait(false);
-
-                        events.AddRange(current.Events);
-
-                        sliceStart = current.NextEventNumber;
-                    } while (!current.IsEndOfStream);
-
-
-                    if (ctx.Elapsed > TimeSpan.FromSeconds(1))
-                        SlowLogger.InfoEvent("SlowBackwardsRead", "{Events} events size {Size} stream [{Stream:l}] elapsed {Milliseconds} ms", events.Count, events.Sum(x => x.Event.Data.Length), stream, ctx.Elapsed.TotalMilliseconds);
-                    Logger.DebugEvent("BackwardsRead", "{Events} events size {Size} stream [{Stream:l}] elapsed {Milliseconds} ms", events.Count, events.Sum(x => x.Event.Data.Length), stream, ctx.Elapsed.TotalMilliseconds);
-                }
-
-                if (current.Status == SliceReadStatus.StreamNotFound)
-                    throw new NotFoundException(stream, _clients[shard].Settings.GossipSeeds[0].EndPoint);
-
-            }
-
-            var translatedEvents = events.Select(e =>
-            {
-                var metadata = e.Event.Metadata;
-                var data = e.Event.Data;
-
-
-                IEventDescriptor descriptor;
-
-                try
-                {
-                    descriptor = _serializer.Deserialize<EventDescriptor>(metadata);
-                }
-                catch (SerializationException)
-                {
-                    // Try the old format
-                    descriptor = _serializer.Deserialize<LegecyEventDescriptor>(metadata);
-                }
-
-                if (descriptor == null || descriptor.EventId == Guid.Empty)
-                {
-                    // Assume we read from a children projection
-                    // (theres no way to set metadata in projection states)
-
-                    var children = _serializer.Deserialize<ChildrenProjection>(data);
-                    if (!(children is IEvent))
-                        throw new UnknownMessageException(e.Event.EventType);
-                    return new FullEvent
-                    {
-                        Descriptor = null,
-                        Event = children as IEvent,
-                        EventId = Guid.Empty
-                    };
-                }
-                if (descriptor.Compressed)
-                    data = data.Decompress();
-
-                var eventType = _registrar.GetNamedType(e.Event.EventType);
-                _mapper.Initialize(eventType);
-
-                var @event = _serializer.Deserialize(eventType, data);
-
-                if (!(@event is IEvent))
-                    throw new UnknownMessageException(e.Event.EventType);
-                // Special case if event was written without a version - substitute the position from store
-                //if (descriptor.Version == 0)
-                //    descriptor.Version = e.Event.EventNumber;
-
-                return (IFullEvent)new FullEvent
-                {
-                    Descriptor = descriptor,
-                    Event = @event as IEvent,
-                    EventId = e.Event.EventId
-                };
-
-            }).ToArray();
-
-            return translatedEvents;
-        }
-        public Task<IFullEvent[]> GetEventsBackwards<TEntity>(string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
-        {
-            var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.Domain, bucket, streamId, parents);
-            return GetEventsBackwards(stream, start, count);
+            Logger.DebugEvent("Write", "Writing snapshot for [{Stream:l}] version {Version}", stream, snapshot.Version);
+            return _client.WriteEvents(stream, new[] { e }, commitHeaders);
         }
 
-        public async Task<bool> VerifyVersion(string stream, long expectedVersion)
-        {
-            var size = await Size(stream).ConfigureAwait(false);
-            return size == expectedVersion;
-        }
-        public async Task<bool> VerifyVersion<TEntity>(string bucket, Id streamId, Id[] parents,
+        public Task<bool> VerifyVersion<TEntity>(string bucket, Id streamId, Id[] parents,
             long expectedVersion) where TEntity : IEntity
         {
-            var size = await Size<TEntity>(bucket, streamId, parents).ConfigureAwait(false);
-            return size == expectedVersion;
-        }
-
-
-        public async Task<long> Size(string stream)
-        {
-            var shard = Math.Abs(stream.GetHash() % _clients.Count());
-
-            var result = await _clients[shard].ReadStreamEventsBackwardAsync(stream, StreamPosition.End, 1, false).ConfigureAwait(false);
-            var size = result.Status == SliceReadStatus.Success ? result.NextEventNumber : 0;
-            Logger.DebugEvent("Size", "[{Stream:l}] size {Size}", stream, size);
-            return size;
-
-        }
-        public Task<long> Size<TEntity>(string bucket, Id streamId, Id[] parents) where TEntity : IEntity
-        {
             var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.Domain, bucket, streamId, parents);
-            return Size(stream);
+            return _client.VerifyVersion(stream, expectedVersion);
         }
 
-        public Task<long> WriteEvents(string stream, IFullEvent[] events,
-            IDictionary<string, string> commitHeaders, long? expectedVersion = null)
-        {
-            var mutators = MutationManager.Registered.ToList();
-
-            var translatedEvents = events.Select(e =>
-            {
-                IMutating mutated = new Mutating(e.Event, e.Descriptor.Headers ?? new Dictionary<string, string>());
-
-                // use async local container first if one exists
-                // (is set by unit of work - it creates a child container which mutators might need)
-                IContainer container = _settings.LocalContainer.Value;
-                if (container == null)
-                    container = _settings.Container;
-
-                foreach (var type in mutators)
-                {
-                    var mutator = (IMutate)container.TryResolve(type);
-                    if (mutator == null)
-                    {
-                        Logger.WarnEvent("MutateFailure", "Failed to construct mutator {Mutator}", type.FullName);
-                        continue;
-                    }
-
-                    mutated = mutator.MutateOutgoing(mutated);
-                }
-                var mappedType = e.Event.GetType();
-                if (!mappedType.IsInterface)
-                    mappedType = _mapper.GetMappedTypeFor(mappedType) ?? mappedType;
-
-                var descriptor = new EventDescriptor
-                {
-                    EventId = e.EventId ?? Guid.NewGuid(),
-                    CommitHeaders = (commitHeaders ?? new Dictionary<string, string>()).Merge(new Dictionary<string, string>
-                    {
-                        [Defaults.InstanceHeader] = Defaults.Instance.ToString(),
-                        [Defaults.EndpointHeader] = _settings.Endpoint,
-                        [Defaults.EndpointVersionHeader] = _settings.EndpointVersion.ToString(),
-                        [Defaults.AggregatesVersionHeader] = _settings.AggregatesVersion.ToString(),
-                        [Defaults.MachineHeader] = Environment.MachineName,
-                    }),
-                    Compressed = _compress.HasFlag(Compression.Events),
-                    EntityType = e.Descriptor.EntityType,
-                    StreamType = e.Descriptor.StreamType,
-                    Bucket = e.Descriptor.Bucket,
-                    StreamId = e.Descriptor.StreamId,
-                    Parents = e.Descriptor.Parents,
-                    Version = e.Descriptor.Version,
-                    Timestamp = e.Descriptor.Timestamp,
-                    Headers = e.Descriptor.Headers,
-                };
-
-                var eventType = _registrar.GetVersionedName(mappedType);
-                foreach (var header in mutated.Headers)
-                    e.Descriptor.Headers[header.Key] = header.Value;
-
-
-                var @event = _serializer.Serialize(mutated.Message);
-
-                if (_compress.HasFlag(Compression.Events))
-                {
-                    descriptor.Compressed = true;
-                    @event = @event.Compress();
-                }
-                var metadata = _serializer.Serialize(descriptor);
-
-                return new EventData(
-                    descriptor.EventId,
-                    eventType,
-                    !descriptor.Compressed,
-                    @event,
-                    metadata
-                );
-            }).ToArray();
-
-            return DoWrite(stream, translatedEvents, expectedVersion);
-        }
         public Task<long> WriteEvents<TEntity>(string bucket, Id streamId, Id[] parents, IFullEvent[] events, IDictionary<string, string> commitHeaders, long? expectedVersion = null) where TEntity : IEntity
         {
             var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.Domain, bucket, streamId, parents);
-            return WriteEvents(stream, events, commitHeaders, expectedVersion);
+            return _client.WriteEvents(stream, events, commitHeaders, expectedVersion);
         }
 
-        private async Task<long> DoWrite(string stream, EventData[] events, long? expectedVersion = null)
-        {
-            var shard = Math.Abs(stream.GetHash() % _clients.Count());
-
-            long nextVersion;
-            using (var ctx = _metrics.Begin("EventStore Write Time"))
-            {
-                try
-                {
-                    var result = await
-                        _clients[shard].AppendToStreamAsync(stream, expectedVersion ?? ExpectedVersion.Any, events)
-                            .ConfigureAwait(false);
-
-                    nextVersion = result.NextExpectedVersion;
-                }
-                catch (WrongExpectedVersionException e)
-                {
-                    throw new VersionException(e.Message, e);
-                }
-                catch (CannotEstablishConnectionException e)
-                {
-                    throw new PersistenceException(e.Message, e);
-                }
-                catch (OperationTimedOutException e)
-                {
-                    throw new PersistenceException(e.Message, e);
-                }
-                catch (EventStoreConnectionException e)
-                {
-                    throw new PersistenceException(e.Message, e);
-                }
-                catch (InvalidOperationException e)
-                {
-                    throw new PersistenceException(e.Message, e);
-                }
-
-                if (ctx.Elapsed > TimeSpan.FromSeconds(1))
-                    SlowLogger.InfoEvent("SlowWrite", "{Events} events size {Size} stream [{Stream:l}] version {ExpectedVersion} took {Milliseconds} ms", events.Count(), events.Sum(x => x.Data.Length), stream, expectedVersion, ctx.Elapsed.TotalMilliseconds);
-                Logger.DebugEvent("Write", "{Events} events size {Size} stream [{Stream:l}] version {ExpectedVersion} took {Milliseconds} ms", events.Count(), events.Sum(x => x.Data.Length), stream, expectedVersion, ctx.Elapsed.TotalMilliseconds);
-            }
-            return nextVersion;
-        }
-
-        public async Task WriteMetadata(string stream, long? maxCount = null, long? truncateBefore = null,
-            TimeSpan? maxAge = null,
-            TimeSpan? cacheControl = null, bool force = false, IDictionary<string, string> custom = null)
-        {
-
-            var shard = Math.Abs(stream.GetHash() % _clients.Count());
-
-            Logger.DebugEvent("Metadata", "Metadata to stream [{Stream:l}] [ MaxCount: {MaxCount}, MaxAge: {MaxAge}, CacheControl: {CacheControl}, Custom: {Custom} ]", stream, maxCount, maxAge, cacheControl, custom.AsString());
-
-            var existing = await _clients[shard].GetStreamMetadataAsync(stream).ConfigureAwait(false);
-
-
-            var metadata = StreamMetadata.Build();
-
-            if ((maxCount ?? existing.StreamMetadata?.MaxCount).HasValue)
-                metadata.SetMaxCount((maxCount ?? existing.StreamMetadata?.MaxCount).Value);
-            if ((truncateBefore ?? existing.StreamMetadata?.TruncateBefore).HasValue)
-                metadata.SetTruncateBefore(Math.Max(truncateBefore ?? 0, (truncateBefore ?? existing.StreamMetadata?.TruncateBefore).Value));
-            if ((maxAge ?? existing.StreamMetadata?.MaxAge).HasValue)
-                metadata.SetMaxAge((maxAge ?? existing.StreamMetadata?.MaxAge).Value);
-            if ((cacheControl ?? existing.StreamMetadata?.CacheControl).HasValue)
-                metadata.SetCacheControl((cacheControl ?? existing.StreamMetadata?.CacheControl).Value);
-
-            var customs = existing.StreamMetadata?.CustomKeys;
-            // Make sure custom metadata is preserved
-            if (customs != null && customs.Any())
-            {
-                foreach (var key in customs)
-                    metadata.SetCustomProperty(key, existing.StreamMetadata.GetValue<string>(key));
-            }
-
-            if (custom != null)
-            {
-                foreach (var kv in custom)
-                    metadata.SetCustomProperty(kv.Key, kv.Value);
-            }
-
-            try
-            {
-                try
-                {
-                    await _clients[shard].SetStreamMetadataAsync(stream, existing.MetastreamVersion, metadata).ConfigureAwait(false);
-
-                }
-                catch (WrongExpectedVersionException e)
-                {
-                    throw new VersionException(e.Message, e);
-                }
-                catch (CannotEstablishConnectionException e)
-                {
-                    throw new PersistenceException(e.Message, e);
-                }
-                catch (OperationTimedOutException e)
-                {
-                    throw new PersistenceException(e.Message, e);
-                }
-                catch (EventStoreConnectionException e)
-                {
-                    throw new PersistenceException(e.Message, e);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.WarnEvent("MetadataFailure", ex, "{ExceptionType} - {ExceptionMessage}", ex.GetType().Name, ex.Message);
-                throw;
-            }
-        }
-
-        public Task WriteMetadata<TEntity>(string bucket, Id streamId, Id[] parents, long? maxCount = null, long? truncateBefore = null, TimeSpan? maxAge = null,
-            TimeSpan? cacheControl = null, bool force = false, IDictionary<string, string> custom = null) where TEntity : IEntity
+        public Task WriteMetadata<TEntity>(string bucket, Id streamId, Id[] parents, int? maxCount = null, long? truncateBefore = null, TimeSpan? maxAge = null,
+            TimeSpan? cacheControl = null) where TEntity : IEntity
         {
             var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.Domain, bucket, streamId, parents);
-            return WriteMetadata(stream, maxCount, truncateBefore, maxAge, cacheControl, force, custom);
+            return _client.WriteMetadata(stream, maxCount, truncateBefore, maxAge, cacheControl);
         }
 
-        public async Task<string> GetMetadata(string stream, string key)
-        {
-            var shard = Math.Abs(stream.GetHash() % _clients.Count());
-
-            var existing = await _clients[shard].GetStreamMetadataAsync(stream).ConfigureAwait(false);
-
-            Logger.DebugEvent("Read", "Metadata stream [{Stream:l}] {Metadata}", stream, existing.StreamMetadata?.AsJsonString());
-            string property = "";
-            if (!existing.StreamMetadata?.TryGetValue(key, out property) ?? false)
-                property = "";
-            return property;
-        }
-        public Task<string> GetMetadata<TEntity>(string bucket, Id streamId, Id[] parents, string key) where TEntity : IEntity
-        {
-            var stream = _generator(_registrar.GetVersionedName(typeof(TEntity)), StreamTypes.Domain, bucket, streamId, parents);
-            return GetMetadata(stream, key);
-        }
 
     }
 }

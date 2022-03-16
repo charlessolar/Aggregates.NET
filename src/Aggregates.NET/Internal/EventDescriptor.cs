@@ -22,7 +22,7 @@ namespace Aggregates.Internal
         public IDictionary<string, string> Headers { get; set; }
         public IDictionary<string, string> CommitHeaders { get; set; }
     }
-    class LegecyEventDescriptor : IEventDescriptor
+    class LegacyEventDescriptor : IEventDescriptor
     {
         public Guid EventId { get; set; }
 

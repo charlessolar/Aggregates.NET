@@ -21,7 +21,7 @@ namespace Aggregates
             if (msg is Reject)
             {
                 var reject = (Reject)msg;
-                throw new RejectedException(command.GetType(), reject.Message, reject.Exception);
+                throw new RejectedException(command.GetType(), reject.Message);//, reject.Exception);
             }
             if (msg is Error)
             {

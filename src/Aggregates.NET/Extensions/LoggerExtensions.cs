@@ -78,10 +78,21 @@ namespace Aggregates.Extensions
         }
         public static IDisposable BeginContext(this ILogger logger, string name, object value)
         {
-            return logger.BeginScope(new Dictionary<string, object>
+            return logger.BeginScope($"{{{name}}}", value);
+        }
+        class DisposableList : IDisposable
+        {
+            IDisposable[] _dis;
+            public DisposableList(IDisposable[] dis) => _dis = dis;
+            public void Dispose()
             {
-                [name] = value
-            });
+                foreach (var dis in _dis)
+                    dis.Dispose();
+            }
+        }
+        public static IDisposable BeginContext(this ILogger logger, IEnumerable<KeyValuePair<string, object>> dict)
+        {
+            return new DisposableList(dict.Select(x => logger.BeginScope($"{{{x.Key}}}", x.Value)).ToArray());
         }
     }
 }

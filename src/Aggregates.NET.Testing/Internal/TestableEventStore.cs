@@ -49,57 +49,30 @@ namespace Aggregates.Internal
         }
 
 
-        public Task<IFullEvent[]> GetEvents(string stream, long? start = null, int? count = null)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IFullEvent[]> GetEvents<TEntity>(string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
+        public Task<IFullEvent[]> GetEvents<TEntity>(StreamDirection direction, string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
         {
             // ignore start and count, not needed for tests
             var key = $"{typeof(TEntity).FullName}.{bucket}.{streamId}.{parents.BuildParentsString()}";
             if (!_events.ContainsKey(key))
                 throw new NotFoundException();
-            return Task.FromResult(_events[key]);
+
+            var ret = _events[key].AsEnumerable();
+            if (direction == StreamDirection.Backwards)
+                ret = ret.Reverse();
+            return Task.FromResult(ret.ToArray());
         }
 
-        public Task<IFullEvent[]> GetEventsBackwards(string stream, long? start = null, int? count = null)
+
+        public Task<ISnapshot> GetSnapshot<TEntity>(string bucket, Id streamId, Id[] parents) where TEntity : IEntity
+        {
+            throw new NotImplementedException();
+        }
+        public Task WriteSnapshot<TEntity>(ISnapshot snapshot, IDictionary<string, string> commitHeaders) where TEntity : IEntity
         {
             throw new NotImplementedException();
         }
 
-        public Task<IFullEvent[]> GetEventsBackwards<TEntity>(string bucket, Id streamId, Id[] parents, long? start = null, int? count = null) where TEntity : IEntity
-        {
-            var key = $"{typeof(TEntity).FullName}.{bucket}.{streamId}.{parents.BuildParentsString()}";
-            if (!_events.ContainsKey(key))
-                throw new ArgumentException("undefined stream");
-            return Task.FromResult(_events[key].Reverse().ToArray());
-        }
 
-        public Task<string> GetMetadata<TEntity>(string bucket, Id streamId, Id[] parents, string key) where TEntity : IEntity
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<string> GetMetadata(string stream, string key)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<long> Size<TEntity>(string bucket, Id streamId, Id[] parents) where TEntity : IEntity
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<long> Size(string stream)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<bool> VerifyVersion(string stream, long expectedVersion)
-        {
-            throw new NotImplementedException();
-        }
 
         public Task<bool> VerifyVersion<TEntity>(string bucket, Id streamId, Id[] parents, long expectedVersion) where TEntity : IEntity
         {
@@ -111,17 +84,8 @@ namespace Aggregates.Internal
             throw new NotImplementedException();
         }
 
-        public Task<long> WriteEvents(string stream, IFullEvent[] events, IDictionary<string, string> commitHeaders, long? expectedVersion = null)
-        {
-            throw new NotImplementedException();
-        }
 
-        public Task WriteMetadata(string stream, long? maxCount = null, long? truncateBefore = null, TimeSpan? maxAge = null, TimeSpan? cacheControl = null, bool force = false, IDictionary<string, string> custom = null)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task WriteMetadata<TEntity>(string bucket, Id streamId, Id[] parents, long? maxCount = null, long? truncateBefore = null, TimeSpan? maxAge = null, TimeSpan? cacheControl = null, bool force = false, IDictionary<string, string> custom = null) where TEntity : IEntity
+        public Task WriteMetadata<TEntity>(string bucket, Id streamId, Id[] parents, int? maxCount = null, long? truncateBefore = null, TimeSpan? maxAge = null, TimeSpan? cacheControl = null) where TEntity : IEntity
         {
             throw new NotImplementedException();
         }

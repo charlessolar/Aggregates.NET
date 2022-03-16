@@ -52,7 +52,6 @@ namespace Aggregates.Internal
             var snapshotState = snapshot as TState;
 
             var state = snapshotState ?? new TState() { Version = EntityFactory.NewEntityVersion };
-            state.Logger = Logger;
 
             state.Id = id;
             state.Bucket = bucket;
@@ -70,7 +69,13 @@ namespace Aggregates.Internal
             if (events != null && events.Length > 0)
             {
                 for (var i = 0; i < events.Length; i++)
+                {
+                    try
+                    {
                         state.Apply(events[i]);
+                    }
+                    catch (NoRouteException) { }
+                }
             }
 
             var entity = _factory();

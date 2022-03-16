@@ -8,7 +8,7 @@ namespace Aggregates.Extensions
 {
     static class EventSourceExtensions
     {
-        public static string BuildParentsString(this Id[] parents)
+        public static string BuildParentsString(this IEnumerable<Id> parents)
         {
             if (parents == null || !parents.Any())
                 return "";

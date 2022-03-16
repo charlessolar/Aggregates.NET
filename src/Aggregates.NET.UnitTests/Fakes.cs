@@ -1,5 +1,4 @@
-﻿using Aggregates.Attributes;
-using Aggregates.Contracts;
+﻿using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Internal;
 using Aggregates.Messages;
@@ -19,23 +18,6 @@ namespace Aggregates
         public IEvent Event => new FakeEvent();
 
         public IEventDescriptor Descriptor => new EventDescriptor { StreamType = StreamTypes.Domain };
-    }
-    public class FakeOobEvent : IFullEvent
-    {
-        public class FakeEvent : IEvent { }
-
-        public Guid? EventId { get; set; }
-
-        public IEvent Event => new FakeEvent();
-
-        public IEventDescriptor Descriptor => new EventDescriptor
-        {
-            StreamType = StreamTypes.OOB,
-            Headers = new Dictionary<string, string>
-            {
-                [Defaults.OobHeaderKey] = "test",
-            }
-        };
     }
     public class FakeNotHandledEvent : IFullEvent
     {
@@ -69,15 +51,6 @@ namespace Aggregates
             Handles++;
         }
 
-        private void Conflict(FakeDomainEvent.FakeEvent e)
-        {
-            if (ThrowDiscard)
-                throw new DiscardEventException();
-            if (ThrowAbandon)
-                throw new AbandonConflictException();
-
-            Conflicts++;
-        }
         protected override bool ShouldSnapshot()
         {
             return TakeASnapshot;
@@ -93,7 +66,6 @@ namespace Aggregates
     }
     public class FakeChildState : State<FakeChildState, FakeState> { }
 
-    [OptimisticConcurrency(ConcurrencyConflict.Custom, resolver: typeof(FakeResolver))]
     public class FakeEntity : Entity<FakeEntity, FakeState>
     {
         private FakeEntity() { }
@@ -103,29 +75,7 @@ namespace Aggregates
             foreach (var @event in events)
                 (this as IEntity<FakeState>).Apply(@event);
         }
-        public void RaiseEvents<TEvent>(TEvent[] events, string oobId, bool transient = true, int? daysToLive = null) where TEvent : IEvent
-        {
-            foreach (var @event in events)
-                (this as IEntity<FakeState>).Raise(@event, oobId, transient, daysToLive);
-        }
 
-    }
-
-    public class FakeResolver : IResolveConflicts
-    {
-        public bool ShouldSucceed = true;
-        public bool ShouldAbandon = false;
-        public bool WasCalled = false;
-
-        public Task Resolve<TEntity, TState>(TEntity entity, Guid commitId, IDictionary<string, string> commitHeaders) where TEntity : IEntity<TState> where TState : class, IState, new()
-        {
-            WasCalled = true;
-            if (!ShouldSucceed)
-                throw new Exception();
-            if (ShouldAbandon)
-                throw new AbandonConflictException();
-            return Task.CompletedTask;
-        }
     }
 
     public class FakeChildEntity : Entity<FakeChildEntity, FakeChildState, FakeEntity>
@@ -203,7 +153,7 @@ namespace Aggregates
             throw new NotImplementedException();
         }
     }
-    public class FakeAppUnitOfWork : UnitOfWork.IApplication
+    public class FakeAppUnitOfWork : UnitOfWork.IUnitOfWork
     {
         public dynamic Bag { get; set; }
     }

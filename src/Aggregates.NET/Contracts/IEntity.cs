@@ -23,9 +23,7 @@ namespace Aggregates.Contracts
         void Snapshotting();
         TState State { get; }
 
-        void Conflict(IEvent @event);
         void Apply(IEvent @event);
-        void Raise(IEvent @event, string id, bool transient = false, int? daysToLive = null, bool? single = null);
     }
     public interface IChildEntity : IEntity
     {

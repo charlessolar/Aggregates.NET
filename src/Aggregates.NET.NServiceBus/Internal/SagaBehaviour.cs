@@ -17,9 +17,9 @@ namespace Aggregates.Internal
         private readonly IMetrics _metrics;
         private readonly IMessageDispatcher _dispatcher;
 
-        public SagaBehaviour(ILoggerFactory logFactory, IMetrics metrics, IMessageDispatcher dispatcher)
+        public SagaBehaviour(ILogger<SagaBehaviour> logger, IMetrics metrics, IMessageDispatcher dispatcher)
         {
-            Logger = logFactory.CreateLogger("SagaBehaviour");
+            Logger = logger;
             _metrics = metrics;
             _dispatcher = dispatcher;
         }
@@ -33,47 +33,24 @@ namespace Aggregates.Internal
                 return;
             }
 
-            try
+            if (context.Message.MessageType == typeof(Messages.Accept))
             {
-                if (context.Message.MessageType == typeof(Messages.Accept))
+                // substitute Accept with "ContinueSaga"
+                context.UpdateMessageInstance(new Sagas.ContinueCommandSaga
                 {
-                    // substitute Accept with "ContinueSaga"
-                    context.UpdateMessageInstance(new Sagas.ContinueCommandSaga
-                    {
-                        SagaId = sagaId
-                    });
-                }
-                else if (context.Message.MessageType == typeof(Messages.Reject))
-                {
-                    // substitute Reject with "AbortSaga"
-                    context.UpdateMessageInstance(new Sagas.AbortCommandSaga
-                    {
-                        SagaId = sagaId
-                    });
-                }
-
-                await next().ConfigureAwait(false);
-            }
-            // catch exceptions, send message to error queue
-            catch (SagaWasAborted ex)
-            {
-                await _dispatcher.SendToError(ex, new FullMessage
-                {
-                    Message = ex.Originating,
-                    Headers = context.Headers
+                    SagaId = sagaId
                 });
             }
-            catch (SagaAbortionFailureException ex)
+            else if (context.Message.MessageType == typeof(Messages.Reject))
             {
-                await _dispatcher.SendToError(ex, new FullMessage
+                // substitute Reject with "AbortSaga"
+                context.UpdateMessageInstance(new Sagas.AbortCommandSaga
                 {
-                    Message = ex.Originating,
-                    Headers = context.Headers
+                    SagaId = sagaId
                 });
             }
 
-
-
+            await next().ConfigureAwait(false);
         }
     }
     [ExcludeFromCodeCoverage]
@@ -83,10 +60,10 @@ namespace Aggregates.Internal
             stepId: "SagaBehaviour",
             behavior: typeof(SagaBehaviour),
             description: "Handles internal sagas for consecutive command support",
-            factoryMethod: (b) => new SagaBehaviour(b.Build<ILoggerFactory>(), b.Build<IMetrics>(), b.Build<IMessageDispatcher>())
+            factoryMethod: (b) => new SagaBehaviour(b.Build<ILogger<SagaBehaviour>>(), b.Build<IMetrics>(), b.Build<IMessageDispatcher>())
         )
         {
-            InsertBefore("ExceptionRejector");
+            InsertBefore("FailureReply");
         }
     }
 

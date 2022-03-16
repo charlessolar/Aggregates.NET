@@ -30,7 +30,7 @@ namespace Aggregates
         public IMutating MutateIncoming(IMutating command) { return command; }
         public IMutating MutateOutgoing(IMutating command) { return command; }
 
-        IRepository<T> IDomain.For<T>()
+        IRepository<T> IDomainUnitOfWork.For<T>()
         {
             var key = typeof(T).FullName;
 
@@ -44,7 +44,7 @@ namespace Aggregates
 
         }
 
-        IRepository<TEntity, TParent> IDomain.For<TEntity, TParent>(TParent parent)
+        IRepository<TEntity, TParent> IDomainUnitOfWork.For<TEntity, TParent>(TParent parent)
         {
             var key = $"{typeof(TParent).FullName}.{parent.Id}.{typeof(TEntity).FullName}";
 
@@ -61,30 +61,30 @@ namespace Aggregates
 
         public IEventChecker<TEntity> Check<TEntity>(Id id) where TEntity : IEntity
         {
-            return ((IRepositoryTest<TEntity>)(this as IDomain).For<TEntity>()).Check(id);
+            return ((IRepositoryTest<TEntity>)(this as IDomainUnitOfWork).For<TEntity>()).Check(id);
         }
         public IEventPlanner<TEntity> Plan<TEntity>(Id id) where TEntity : IEntity
         {
-            return ((IRepositoryTest<TEntity>)(this as IDomain).For<TEntity>()).Plan(id);
+            return ((IRepositoryTest<TEntity>)(this as IDomainUnitOfWork).For<TEntity>()).Plan(id);
         }
         public IEventChecker<TEntity> Check<TEntity>(string bucket, Id id) where TEntity : IEntity
         {
-            return ((IRepositoryTest<TEntity>)(this as IDomain).For<TEntity>()).Check(id);
+            return ((IRepositoryTest<TEntity>)(this as IDomainUnitOfWork).For<TEntity>()).Check(id);
         }
         public IEventPlanner<TEntity> Plan<TEntity>(string bucket, Id id) where TEntity : IEntity
         {
-            return ((IRepositoryTest<TEntity>)(this as IDomain).For<TEntity>()).Plan(bucket, id);
+            return ((IRepositoryTest<TEntity>)(this as IDomainUnitOfWork).For<TEntity>()).Plan(bucket, id);
         }
 
 
 
         internal IEventChecker<TEntity> Check<TEntity, TParent>(TParent parent, Id id) where TEntity : IEntity, IChildEntity<TParent> where TParent : IHaveEntities<TParent>
         {
-            return ((IRepositoryTest<TEntity, TParent>)(this as IDomain).For<TEntity, TParent>(parent)).Check(id);
+            return ((IRepositoryTest<TEntity, TParent>)(this as IDomainUnitOfWork).For<TEntity, TParent>(parent)).Check(id);
         }
         internal IEventPlanner<TEntity> Plan<TEntity, TParent>(TParent parent, Id id) where TEntity : IEntity, IChildEntity<TParent> where TParent : IHaveEntities<TParent>
         {
-            return ((IRepositoryTest<TEntity, TParent>)(this as IDomain).For<TEntity, TParent>(parent)).Plan(id);
+            return ((IRepositoryTest<TEntity, TParent>)(this as IDomainUnitOfWork).For<TEntity, TParent>(parent)).Plan(id);
         }
     }
 }

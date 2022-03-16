@@ -11,15 +11,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET.EventStore",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET.NewtonsoftJson", "src\Aggregates.NET.NewtonsoftJson\Aggregates.NET.NewtonsoftJson.csproj", "{1E2FB3FB-94FF-41F0-9D40-5239D911CCB6}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET.StructureMap", "src\Aggregates.NET.StructureMap\Aggregates.NET.StructureMap.csproj", "{672EB778-D80B-4D77-8C02-FF7BCD96BA54}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET.UnitTests", "src\Aggregates.NET.UnitTests\Aggregates.NET.UnitTests.csproj", "{0875C868-DF80-4647-9455-684BF6276051}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET.SimpleInjector", "src\Aggregates.NET.SimpleInjector\Aggregates.NET.SimpleInjector.csproj", "{4A6EE14F-F404-4594-A907-2C6F4D849104}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET.Testing", "src\Aggregates.NET.Testing\Aggregates.NET.Testing.csproj", "{FF9301FF-749D-40B2-82CF-FE79A37652E9}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Aggregates.NET.Microsoft", "src\Aggregates.NET.Microsoft\Aggregates.NET.Microsoft.csproj", "{554067F5-41F6-434C-B0D5-B05254789763}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -43,26 +37,14 @@ Global
 		{1E2FB3FB-94FF-41F0-9D40-5239D911CCB6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1E2FB3FB-94FF-41F0-9D40-5239D911CCB6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1E2FB3FB-94FF-41F0-9D40-5239D911CCB6}.Release|Any CPU.Build.0 = Release|Any CPU
-		{672EB778-D80B-4D77-8C02-FF7BCD96BA54}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{672EB778-D80B-4D77-8C02-FF7BCD96BA54}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{672EB778-D80B-4D77-8C02-FF7BCD96BA54}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{672EB778-D80B-4D77-8C02-FF7BCD96BA54}.Release|Any CPU.Build.0 = Release|Any CPU
 		{0875C868-DF80-4647-9455-684BF6276051}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{0875C868-DF80-4647-9455-684BF6276051}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0875C868-DF80-4647-9455-684BF6276051}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0875C868-DF80-4647-9455-684BF6276051}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4A6EE14F-F404-4594-A907-2C6F4D849104}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4A6EE14F-F404-4594-A907-2C6F4D849104}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4A6EE14F-F404-4594-A907-2C6F4D849104}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4A6EE14F-F404-4594-A907-2C6F4D849104}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FF9301FF-749D-40B2-82CF-FE79A37652E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FF9301FF-749D-40B2-82CF-FE79A37652E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FF9301FF-749D-40B2-82CF-FE79A37652E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FF9301FF-749D-40B2-82CF-FE79A37652E9}.Release|Any CPU.Build.0 = Release|Any CPU
-		{554067F5-41F6-434C-B0D5-B05254789763}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{554067F5-41F6-434C-B0D5-B05254789763}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{554067F5-41F6-434C-B0D5-B05254789763}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{554067F5-41F6-434C-B0D5-B05254789763}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

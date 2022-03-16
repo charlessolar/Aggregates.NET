@@ -6,7 +6,7 @@ namespace Aggregates.Contracts
 {
     public interface IStoreSnapshots
     {
-        Task<ISnapshot> GetSnapshot<T>(string bucket, Id streamId, Id[] parents) where T : IEntity;
+        Task<ISnapshot> GetSnapshot<TEntity, TState>(string bucket, Id streamId, Id[] parents) where TEntity : IEntity<TState> where TState : class, IState, new();
         Task WriteSnapshots<T>(IState memento, IDictionary<string, string> commitHeaders) where T : IEntity;
     }
 }

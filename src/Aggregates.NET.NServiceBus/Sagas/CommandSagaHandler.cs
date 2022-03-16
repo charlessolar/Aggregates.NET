@@ -1,7 +1,9 @@
-﻿using Aggregates.Extensions;
+﻿using Aggregates.Contracts;
+using Aggregates.Extensions;
 using NServiceBus;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -14,18 +16,33 @@ namespace Aggregates.Sagas
         IHandleMessages<AbortCommandSaga>,
         IHandleTimeouts<CommandSagaHandler.TimeoutMessage>
     {
+        private readonly IMessageSerializer _serializer;
+        private readonly IVersionRegistrar _registrar;
+
         public class SagaData : ContainSagaData
         {
             public string SagaId { get; set; }
             public int CurrentIndex { get; set; }
             public bool Aborting { get; set; }
-            public Aggregates.Messages.IMessage Originating { get; set; }
-            public Aggregates.Messages.ICommand[] Commands { get; set; }
-            public Aggregates.Messages.ICommand[] AbortCommands { get; set; }
+            public MessageData Originating { get; set; }
+            public MessageData[] Commands { get; set; }
+            public MessageData[] AbortCommands { get; set; }
         }
+        public class MessageData
+        {
+            public string Version { get; set; }
+            public string Message { get; set; }
+        }
+        [Versioned("TimeoutMessage", "Aggregates")]
         public class TimeoutMessage : Messages.IMessage
         {
             public string SagaId { get; set; }
+        }
+
+        public CommandSagaHandler(IMessageSerializer serializer, IVersionRegistrar registrar)
+        {
+            _serializer = serializer;
+            _registrar = registrar;
         }
 
         protected override void ConfigureHowToFindSaga(SagaPropertyMapper<CommandSagaHandler.SagaData> mapper)
@@ -34,15 +51,30 @@ namespace Aggregates.Sagas
             mapper.ConfigureMapping<ContinueCommandSaga>(x => x.SagaId).ToSaga(x => x.SagaId);
             mapper.ConfigureMapping<AbortCommandSaga>(x => x.SagaId).ToSaga(x => x.SagaId);
         }
-        public Task Handle(StartCommandSaga message, IMessageHandlerContext context)
+        public async Task Handle(StartCommandSaga message, IMessageHandlerContext context)
         {
-            Data.CurrentIndex = 0;
-            Data.Originating = message.Originating;
-            Data.Commands = message.Commands;
-            Data.AbortCommands = message.AbortCommands;
+            var originating = new MessageData
+            {
+                Version = _registrar.GetVersionedName(message.Originating.GetType()),
+                Message = _serializer.Serialize(message.Originating).AsString()
+            };
 
+            Data.CurrentIndex = 0;
+            Data.Originating = originating;
+            Data.Commands = message.Commands.Select(x => new MessageData
+            {
+                Version = _registrar.GetVersionedName(x.GetType()),
+                Message = _serializer.Serialize(x).AsString()
+            }).ToArray();
+            Data.AbortCommands = message.AbortCommands.Select(x => new MessageData
+            {
+                Version = _registrar.GetVersionedName(x.GetType()),
+                Message = _serializer.Serialize(x).AsString()
+            }).ToArray();
+
+            await RequestTimeout(context, TimeSpan.FromMinutes(10), new TimeoutMessage { SagaId = Data.SagaId });
             // Send first command
-            return SendNextCommand(context);
+            await SendNextCommand(context);
         }
         public Task Handle(ContinueCommandSaga message, IMessageHandlerContext context)
         {
@@ -85,9 +117,19 @@ namespace Aggregates.Sagas
 
             if (!Data.Aborting)
                 return Handle(new AbortCommandSaga { SagaId = Data.SagaId }, context);
-
-            // a timeout while aborting........
-            throw new SagaAbortionFailureException(Data.Originating);
+            try
+            {
+                var originalMessage = _serializer.Deserialize(
+                    _registrar.GetNamedType(Data.Originating.Version),
+                    Data.Originating.Message.AsByteArray()
+                    ) as Messages.IMessage;
+                // a timeout while aborting........
+                throw new SagaAbortionFailureException(originalMessage);
+            }
+            catch
+            {
+                throw new SagaAbortionFailureException(null);
+            }
         }
         private async Task SendNextCommand(IMessageHandlerContext context)
         {
@@ -100,14 +142,27 @@ namespace Aggregates.Sagas
             options.SetHeader(Defaults.RequestResponse, "1");
             options.SetHeader(Defaults.SagaHeader, Data.SagaId);
 
-            Messages.ICommand command;
-            if (Data.Aborting)
-                command = Data.AbortCommands[Data.CurrentIndex];
-            else
-                command = Data.Commands[Data.CurrentIndex];
+            try
+            {
+                MessageData data;
+                if (Data.Aborting)
+                    data = Data.AbortCommands[Data.CurrentIndex];
+                else
+                    data = Data.Commands[Data.CurrentIndex];
 
-            await context.Send(command, options).ConfigureAwait(false);
-            await RequestTimeout(context, TimeSpan.FromSeconds(10), new TimeoutMessage { SagaId = Data.SagaId });
+                var message = _serializer.Deserialize(
+                    _registrar.GetNamedType(data.Version),
+                    data.Message.AsByteArray()
+                    ) as Messages.ICommand;
+
+                await context.Send(message, options).ConfigureAwait(false);
+            }
+            catch
+            {
+                await Handle(new AbortCommandSaga { SagaId = Data.SagaId }, context);
+            }
+
+
         }
     }
 }
