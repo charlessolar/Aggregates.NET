@@ -24,7 +24,7 @@ namespace Build.Helpers
             DirectoryPath nugetDir,
             IEnumerable<ProjectInfo> projects)
         {
-            var nugets = projects.Where(x => x.OutputType == "Library").Select(project =>
+            var nugets = projects.Where(x => x.OutputType == "Library" && !x.ProjectName.EndsWith("UnitTests")).Select(project =>
                 new BuildPackage(
                     id: project.AssemblyName,
                     projectPath: project.ProjectFile.FullPath,
