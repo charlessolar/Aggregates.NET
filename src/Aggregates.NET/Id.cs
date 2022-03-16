@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Text.Json.Serialization;
 
 namespace Aggregates
 {
+    [JsonConverter(typeof(Internal.IdJsonConverter))]
     public class Id : IEquatable<Id>
     {
         internal object Value { get; set; }

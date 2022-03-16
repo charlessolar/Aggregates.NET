@@ -15,13 +15,18 @@ using NServiceBus.Settings;
 using NServiceBus.Unicast.Messages;
 using NServiceBus.Unicast;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using Aggregates.Extensions;
+using Aggregates.Messages;
+using NServiceBus.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Aggregates
 {
     [ExcludeFromCodeCoverage]
     public static class NSBConfigure
     {
-        public static Configure NServiceBus(this Configure config, EndpointConfiguration endpointConfig)
+        public static Settings NServiceBus(this Settings config, EndpointConfiguration endpointConfig)
         {
             IStartableEndpointWithExternallyManagedContainer startableEndpoint = null;
 
@@ -30,6 +35,7 @@ namespace Aggregates
                 var conventions = endpointConfig.Conventions();
 
                 settings.Set(NSBDefaults.AggregatesSettings, config);
+                settings.Set(NSBDefaults.AggregatesConfiguration, config.Configuration);
 
                 // set the configured endpoint name to the one NSB config was constructed with
                 config.SetEndpointName(settings.Get<string>("NServiceBus.Routing.EndpointName"));
@@ -44,55 +50,98 @@ namespace Aggregates
 
                 endpointConfig.UseSerialization<Internal.AggregatesSerializer>();
                 endpointConfig.EnableFeature<Feature>();
+
             }
 
 
-            config.RegistrationTasks.Add(c =>
+            Settings.RegistrationTasks.Add((container, settings) =>
             {
-                var container = c.Container;
 
-                container.Register(factory => new Aggregates.Internal.DelayedRetry(factory.Resolve<ILoggerFactory>(), factory.Resolve<IMetrics>(), factory.Resolve<IMessageDispatcher>()), Lifestyle.Singleton);
+                container.AddTransient<IEventMapper, EventMapper>();
 
-                container.Register<IEventMapper>((factory) => new EventMapper(factory.Resolve<IMessageMapper>()), Lifestyle.Singleton);
+                container.Replace(ServiceDescriptor.Scoped<UnitOfWork.IDomainUnitOfWork, NSBUnitOfWork>());
 
-                container.Register<UnitOfWork.IDomain>((factory) => new NSBUnitOfWork(factory.Resolve<ILoggerFactory>(), factory.Resolve<IRepositoryFactory>(), factory.Resolve<IEventFactory>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.UnitOfWork);
-                container.Register<IEventFactory>((factory) => new EventFactory(factory.Resolve<IMessageMapper>()), Lifestyle.Singleton);
-                container.Register<IMessageDispatcher>((factory) => new Dispatcher(factory.Resolve<ILoggerFactory>(), factory.Resolve<IMetrics>(), factory.Resolve<IMessageSerializer>(), factory.Resolve<IEventMapper>(), factory.Resolve<IVersionRegistrar>()), Lifestyle.Singleton);
-                container.Register<IMessaging>((factory) => new NServiceBusMessaging(factory.Resolve<MessageHandlerRegistry>(), factory.Resolve<MessageMetadataRegistry>(), factory.Resolve<ReadOnlySettings>()), Lifestyle.Singleton);
+                container.AddTransient<IEventFactory, EventFactory>();
+                container.AddTransient<IMessageDispatcher, Dispatcher>();
+                container.AddTransient<IMessaging, NServiceBusMessaging>();
 
-                var settings = endpointConfig.GetSettings();
-
-                settings.Set("Retries", config.Retries);
-                settings.Set("SlowAlertThreshold", config.SlowAlertThreshold);
-                settings.Set("CommandDestination", config.CommandDestination);
-
-                // Set immediate retries to 0 - we handle retries ourselves any message which throws should be sent to error queue
-                endpointConfig.Recoverability().Immediate(x =>
-                {
-                    x.NumberOfRetries(0);
-                });
-
-                endpointConfig.Recoverability().Delayed(x =>
-                {
-                    x.NumberOfRetries(0);
-                });
+                container.AddTransient<IMessageSession>((_) => Bus.Instance);
 
 
-                endpointConfig.MakeInstanceUniquelyAddressable(c.UniqueAddress);
-                endpointConfig.LimitMessageProcessingConcurrencyTo(c.ParallelMessages);
+                var nsbSettings = endpointConfig.GetSettings();
+
+                nsbSettings.Set("SlowAlertThreshold", config.SlowAlertThreshold);
+                nsbSettings.Set("CommandDestination", config.CommandDestination);
+
+
+                endpointConfig.MakeInstanceUniquelyAddressable(settings.UniqueAddress);
+                // Callbacks need 1 slot so minimum is 2
+                //endpointConfig.LimitMessageProcessingConcurrencyTo(2);
                 // NSB doesn't have an endpoint name setter other than the constructor, hack it in
-                settings.Set("NServiceBus.Routing.EndpointName", c.Endpoint);
+                nsbSettings.Set("NServiceBus.Routing.EndpointName", settings.Endpoint);
 
-                startableEndpoint = EndpointWithExternallyManagedContainer.Create(endpointConfig, new Internal.ContainerAdapter(config));
+                var recoverability = endpointConfig.Recoverability();
+                recoverability.Failed(recovery =>
+                {
+                    recovery.OnMessageSentToErrorQueue(message =>
+                    {
+                        var loggerFactory = settings.Configuration.ServiceProvider.GetRequiredService<ILoggerFactory>();
+                        var logger = loggerFactory.CreateLogger("Recoverability");
+
+                        var ex = message.Exception;
+                        var messageText = Encoding.UTF8.GetString(message.Body).MaxLines(10);
+                        logger.ErrorEvent("Fault", ex, "[{MessageId:l}] has failed and being sent to error queue [{ErrorQueue}]: {ExceptionType} - {ExceptionMessage}\n{@Body}",
+                            message.MessageId, message.ErrorQueue, ex.GetType().Name, ex.Message, messageText);
+                        return Task.CompletedTask;
+                    });
+                });
+
+                // business exceptions are permentant and shouldnt be retried
+                recoverability.AddUnrecoverableException<BusinessException>();
+                recoverability.AddUnrecoverableException<SagaWasAborted>();
+                recoverability.AddUnrecoverableException<SagaAbortionFailureException>();
+
+                // we dont need immediate retries
+                recoverability.Immediate(recovery => recovery.NumberOfRetries(0));
+
+                recoverability.Delayed(recovery =>
+                {
+                    recovery.TimeIncrease(TimeSpan.FromSeconds(2));
+                    recovery.NumberOfRetries(config.Retries);
+                    recovery.OnMessageBeingRetried(message =>
+                    {
+                        var loggerFactory = settings.Configuration.ServiceProvider.GetRequiredService<ILoggerFactory>();
+                        var logger = loggerFactory.CreateLogger("Recoverability");
+
+                        var level = LogLevel.Information;
+                        if (message.RetryAttempt > (config.Retries / 2))
+                            level = LogLevel.Warning;
+
+                        var ex = message.Exception;
+
+                        var messageText = Encoding.UTF8.GetString(message.Body).MaxLines(10);
+                        logger.LogEvent(level, "Catch", ex, "[{MessageId:l}] has failed and will retry {Attempts} more times: {ExceptionType} - {ExceptionMessage}\n{@Body}", message.MessageId,
+                            config.Retries - message.RetryAttempt, ex?.GetType().Name, ex?.Message, messageText);
+                        return Task.CompletedTask;
+                    });
+                });
+
+                startableEndpoint = EndpointWithExternallyManagedServiceProvider.Create(endpointConfig, container);
 
                 return Task.CompletedTask;
             });
 
-            // Split creating the endpoint and starting the endpoint into 2 seperate jobs for certain (MICROSOFT) DI setup
-
-            config.SetupTasks.Add((c) =>
+            Settings.StartupTasks.Add((container, settings) =>
             {
-                return Aggregates.Bus.Start(config, startableEndpoint);
+                var logFactory = container.GetService<ILoggerFactory>();
+                if (logFactory != null)
+                    global::NServiceBus.Logging.LogManager.UseFactory(new ExtensionsLoggerFactory(logFactory));
+
+                return Aggregates.Bus.Start(container, startableEndpoint);
+            });
+            Settings.ShutdownTasks.Add((container, settings) =>
+            {
+                return Aggregates.Bus.Instance.Stop();
             });
 
             return config;

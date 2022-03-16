@@ -3,459 +3,172 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Net;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
-using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Messages;
-using EventStore.ClientAPI;
-using EventStore.ClientAPI.Common;
-using EventStore.ClientAPI.Exceptions;
-using EventStore.ClientAPI.Projections;
 using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
     [ExcludeFromCodeCoverage]
-    internal class EventStoreConsumer : IEventStoreConsumer, IDisposable
+    internal class EventStoreConsumer : IEventStoreConsumer
     {
         private readonly Microsoft.Extensions.Logging.ILogger Logger;
 
         private readonly IMetrics _metrics;
-        private readonly IMessageSerializer _serializer;
         private readonly IVersionRegistrar _registrar;
-        private readonly IEventStoreConnection[] _clients;
-        private readonly IEventMapper _mapper;
-        private readonly bool _developmentMode;
-        private readonly int _readSize;
-        private readonly bool _extraStats;
-        private readonly object _subLock;
-        private readonly List<EventStoreCatchUpSubscription> _subscriptions;
-        private readonly List<EventStorePersistentSubscriptionBase> _persistentSubs;
-        private readonly ConcurrentDictionary<string, Tuple<EventStorePersistentSubscriptionBase, Guid>> _outstandingEvents;
-        private bool _disposed;
+        private readonly IEventStoreClient _client;
 
-        public EventStoreConsumer(ILoggerFactory logFactory, Configure settings, IMetrics metrics, IMessageSerializer serializer, IVersionRegistrar registrar, IEventStoreConnection[] clients, IEventMapper mapper)
+        private readonly StreamIdGenerator _streamIdGen;
+        private readonly bool _allEvents;
+
+        public EventStoreConsumer(ILogger<EventStoreConsumer> logger, IMetrics metrics, ISettings settings, IVersionRegistrar registrar, IEventStoreClient client)
         {
-            Logger = logFactory.CreateLogger("EventStoreConsumer");
+            Logger = logger;
             _metrics = metrics;
-            _serializer = serializer;
-            _clients = clients;
-            _mapper = mapper;
             _registrar = registrar;
+            _client = client;
 
-            _developmentMode = settings.DevelopmentMode;
-            _readSize = settings.ReadSize;
-            _extraStats = settings.ExtraStats;
-            _subLock = new object();
-            _subscriptions = new List<EventStoreCatchUpSubscription>();
-            _persistentSubs = new List<EventStorePersistentSubscriptionBase>();
-            _outstandingEvents = new ConcurrentDictionary<string, Tuple<EventStorePersistentSubscriptionBase, Guid>>();
-
-            if (clients.Any(x => x.Settings.GossipSeeds == null || !x.Settings.GossipSeeds.Any()))
-                throw new ArgumentException(
-                    "Eventstore connection settings does not contain gossip seeds (even if single host call SetGossipSeedEndPoints and SetClusterGossipPort)");
+            _streamIdGen = settings.Generator;
+            _allEvents = settings.AllEvents;
         }
-        public void Dispose()
+
+        public async Task SetupProjection(string endpoint, Version version, Type[] eventTypes)
         {
-            if (_disposed) return;
-            _disposed = true;
-            foreach (var sub in _subscriptions)
-                sub.Stop(TimeSpan.FromSeconds(5));
+
+            // Dont use "-" we dont need category projection projecting our projection
+            var stream = $"{endpoint}.{version}".Replace("-", "");
+
+            await _client.EnableProjection("$by_category").ConfigureAwait(false);
+            // Link all events we are subscribing to to a stream
+            var functions =
+                eventTypes
+                    .Select(
+                        eventType => $"'{_registrar.GetVersionedName(eventType)}': processEvent")
+                    .Aggregate((cur, next) => $"{cur},\n{next}");
+
+            // endpoint will get all events regardless of version of info
+            // it will be up to them to handle upgrades
+            if (_allEvents)
+                functions = "$any: processEvent";
+
+            // Don't tab this '@' will create tabs in projection definition
+            var definition = @"
+function processEvent(s,e) {{
+    linkTo('{1}', e);
+}}
+fromCategories([{0}]).
+when({{
+{2}
+}});";
+
+            Logger.DebugEvent("Setup", "Setup event projection");
+            var appDefinition = string.Format(definition, $"'{StreamTypes.Domain}'", stream, functions);
+            await _client.CreateProjection($"{stream}.app.projection", appDefinition).ConfigureAwait(false);
         }
-
-
-
-        public Task<bool> SubscribeToStreamStart(string stream, CancellationToken token, Func<string, long, IFullEvent, Task> callback, Func<Task> disconnected)
+        public async Task SetupChildrenProjection(string endpoint, Version version)
         {
-            var clientsToken = CancellationTokenSource.CreateLinkedTokenSource(token);
-            foreach (var client in _clients)
-            {
-                Logger.InfoEvent("BeginSubscribe", "[{Stream:l}] store {Store}", stream, client.Settings.GossipSeeds[0].EndPoint);
 
-                var settings = new CatchUpSubscriptionSettings(1000, 50, Logger.IsEnabled(LogLevel.Debug), true);
-                var startingNumber = 0L;
-                try
-                {
-                    var subscription = client.SubscribeToStreamFrom(stream,
-                        startingNumber,
-                        settings,
-                        eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
-                        subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected, clientsToken.Token));
-                    lock (_subLock) _subscriptions.Add(subscription);
+            // Todo: is it necessary to ensure JSON.parse works?
+            // everything in DOMAIN should be from us - so all metadata will be parsable
 
-                }
-                catch (OperationTimedOutException)
-                {
-                    // If one fails, cancel all the others
-                    clientsToken.Cancel();
-                }
-            }
-            return Task.FromResult(!clientsToken.IsCancellationRequested);
+
+            // this projection will parse PARENTS metadata in our events and create partitioned states representing all the CHILDREN
+            // of an entity.
+
+            // Don't tab this '@' will create tabs in projection definition
+            var definition = @"
+options({{
+    $includeLinks: false
+}});
+
+function createParents(parents) {{
+    if(!parents || !parents.length || parents.length === 0)
+        return '';
+
+    return parents.map(function(x) {{ return x.StreamId; }}).join(':');
+}}
+
+fromCategory('{0}')
+.partitionBy(function(event) {{
+    let metadata = JSON.parse(event.metadataRaw);
+    if(metadata.Parents === null || metadata.Parents.length == 0)
+        return undefined;
+    let lastParent = metadata.Parents.pop();
+        
+    let streamId = '{1}' + '-' + metadata.Bucket + '-[' + createParents(metadata.Parents) + ']-' + lastParent.EntityType + '-' + lastParent.StreamId;
+        
+    return streamId;
+}})
+.when({{
+    $init: function() {{
+        return {{
+            Children: []
+        }};
+    }},
+    $any: function(state, event) {{
+        let metadata = JSON.parse(event.metadataRaw);
+        if(metadata.Version !== 0)
+            return state;
+            
+        state.Children.push({{ EntityType: metadata.EntityType, StreamId: metadata.StreamId }});
+        return state;
+    }}
+}})
+.outputState();";
+
+            Logger.DebugEvent("Setup", "Setup children tracking projection [{Name}]", $"aggregates.net.children.{version}");
+            var appDefinition = string.Format(definition, StreamTypes.Domain, StreamTypes.Children);
+            await _client.CreateProjection($"aggregates.net.children.{version}", appDefinition).ConfigureAwait(false);
         }
 
-        public async Task<bool> SubscribeToStreamEnd(string stream, CancellationToken token, Func<string, long, IFullEvent, Task> callback, Func<Task> disconnected)
+        private IParentDescriptor[] getParents(IEntity entity)
         {
-            var clientsToken = CancellationTokenSource.CreateLinkedTokenSource(token);
-            foreach (var client in _clients)
-            {
-                try
-                {
-                    Logger.InfoEvent("EndSubscribe", "End of [{Stream:l}] store {Store}", stream, client.Settings.GossipSeeds[0].EndPoint);
-                    // Subscribe to the end
-                    var lastEvent =
-                        await client.ReadStreamEventsBackwardAsync(stream, StreamPosition.End, 1, true).ConfigureAwait(false);
+            if (entity == null)
+                return null;
+            if (!(entity is IChildEntity))
+                return null;
 
-                    var settings = new CatchUpSubscriptionSettings(1000, 50, Logger.IsEnabled(LogLevel.Debug), true);
+            var child = entity as IChildEntity;
 
-                    var startingNumber = 0L;
-                    if (lastEvent.Status == SliceReadStatus.Success)
-                        startingNumber = lastEvent.Events[0].OriginalEventNumber;
-
-                    var subscription = client.SubscribeToStreamFrom(stream,
-                        startingNumber,
-                        settings,
-                        eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
-                        subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected, clientsToken.Token));
-                    lock (_subLock) _subscriptions.Add(subscription);
-                }
-                catch (OperationTimedOutException)
-                {
-                    // If one fails, cancel all the others
-                    clientsToken.Cancel();
-                }
-            }
-            return !clientsToken.IsCancellationRequested;
+            var parents = getParents(child.Parent)?.ToList() ?? new List<IParentDescriptor>();
+            parents.Add(new ParentDescriptor { EntityType = _registrar.GetVersionedName(child.Parent.GetType()), StreamId = child.Parent.Id });
+            return parents.ToArray();
         }
-
-        public async Task<bool> ConnectPinnedPersistentSubscription(string stream, string group, CancellationToken token,
-            Func<string, long, IFullEvent, Task> callback, Func<Task> disconnected)
+        public Task<ChildrenProjection> GetChildrenData<TParent>(Version version, TParent parent) where TParent : IHaveEntities<TParent>
         {
-            var clientsToken = CancellationTokenSource.CreateLinkedTokenSource(token);
-            foreach (var client in _clients)
-            {
-                Logger.InfoEvent("PersistentSubscribe", "Persistent [{Stream:l}] group [{Group:l}] store {Store}", stream, group, client.Settings.GossipSeeds[0].EndPoint);
+            var parents = getParents(parent);
 
+            var parentEntityType = _registrar.GetVersionedName(typeof(TParent));
 
-                var settings = PersistentSubscriptionSettings.Create()
-                    .StartFromBeginning()
-                    .WithMaxRetriesOf(5)
-                    .WithReadBatchOf(_readSize)
-                    .WithBufferSizeOf(_readSize * 3)
-                    .WithLiveBufferSizeOf(_readSize)
-                    //.DontTimeoutMessages()
-                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(1))
-                    .CheckPointAfter(TimeSpan.FromSeconds(15))
-                    .MaximumCheckPointCountOf(_readSize * 3)
-                    .ResolveLinkTos()
-                    .WithNamedConsumerStrategy(SystemConsumerStrategies.Pinned);
-                if (_extraStats)
-                    settings.WithExtraStatistics();
+            Logger.DebugEvent("Children", "Getting children for entity type [{EntityType}] stream id [{StreamId}]", parentEntityType, parent.Id);
 
-                try
-                {
-                    await client.CreatePersistentSubscriptionAsync(stream, group, settings,
-                        client.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                    Logger.InfoEvent("CreatePinned", "[{Stream:l}] group [{Group:l}]", stream, group);
-                }
-                catch (InvalidOperationException)
-                {
-                    // Already created
-                }
-
-                try
-                {
-                    var subscription = await client.ConnectToPersistentSubscriptionAsync(stream, group,
-                        eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
-                        subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected, clientsToken.Token),
-                        // Let us accept large number of unacknowledged events
-                        bufferSize: _readSize,
-                        autoAck: false).ConfigureAwait(false);
-
-                    lock (_subLock) _persistentSubs.Add(subscription);
-                }
-                catch (OperationTimedOutException)
-                {
-                    return false;
-                }
-            }
-            return true;
+            var parentString = parents?.Select(x => x.StreamId).BuildParentsString();
+            // Cant use streamGen setting because the projection is set to this format
+            var stream = $"{StreamTypes.Children}-{parent.Bucket}-[{parentString}]-{parentEntityType}-{parent.Id}";
+            return _client.GetProjectionResult<ChildrenProjection>($"aggregates.net.children.{version}", stream);
         }
-        public async Task<bool> ConnectRoundRobinPersistentSubscription(string stream, string group, CancellationToken token,
-            Func<string, long, IFullEvent, Task> callback, Func<Task> disconnected)
+
+        public async Task ConnectToProjection(string endpoint, Version version, IEventStoreConsumer.EventAppeared callback)
         {
-            var clientsToken = CancellationTokenSource.CreateLinkedTokenSource(token);
-            foreach (var client in _clients)
-            {
-                Logger.InfoEvent("PersistentSubscribe", "Persistent [{Stream:l}] group [{Group:l}] store {Store}", stream, group, client.Settings.GossipSeeds[0].EndPoint);
+            // Dont use "-" we dont need category projection projecting our projection
+            var stream = $"{endpoint}.{version}".Replace("-", "");
 
-
-                var settings = PersistentSubscriptionSettings.Create()
-                    .StartFromBeginning()
-                    .WithMaxRetriesOf(5)
-                    .WithReadBatchOf(_readSize)
-                    .WithBufferSizeOf(_readSize * 3)
-                    .WithLiveBufferSizeOf(_readSize)
-                    //.DontTimeoutMessages()
-                    .WithMessageTimeoutOf(TimeSpan.FromMinutes(1))
-                    .CheckPointAfter(TimeSpan.FromSeconds(15))
-                    .MaximumCheckPointCountOf(_readSize * 3)
-                    .ResolveLinkTos()
-                    .WithNamedConsumerStrategy(SystemConsumerStrategies.RoundRobin);
-                if (_extraStats)
-                    settings.WithExtraStatistics();
-
-                try
+            Logger.DebugEvent("Connect", "Connecting to event projection [{Stream}]", stream);
+            var success = await _client.ConnectPinnedPersistentSubscription(stream, endpoint,
+                (eventStream, eventNumber, @event) =>
                 {
-                    await client.CreatePersistentSubscriptionAsync(stream, group, settings,
-                        client.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                    Logger.InfoEvent("CreateRoundRobin", "[{Stream:l}] group [{Group:l}]", stream, group);
-                }
-                catch (InvalidOperationException)
-                {
-                    // Already created
-                }
+                    var headers = @event.Descriptor.Headers;
+                    headers[$"{Defaults.PrefixHeader}.EventId"] = @event.EventId.ToString();
+                    headers[$"{Defaults.PrefixHeader}.EventStream"] = eventStream;
+                    headers[$"{Defaults.PrefixHeader}.EventPosition"] = eventNumber.ToString();
 
+                    return callback(@event.Event, headers);
+                });
 
-                try
-                {
-                    var subscription = await client.ConnectToPersistentSubscriptionAsync(stream, group,
-                        eventAppeared: (sub, e) => EventAppeared(sub, e, clientsToken.Token, callback),
-                        subscriptionDropped: (sub, reason, ex) => SubscriptionDropped(sub, reason, ex, disconnected, clientsToken.Token),
-                        // Let us accept large number of unacknowledged events
-                        bufferSize: _readSize,
-                        autoAck: false).ConfigureAwait(false);
-
-                    lock (_subLock) _persistentSubs.Add(subscription);
-                }
-                catch (OperationTimedOutException)
-                {
-                    return false;
-                }
-            }
-            return true;
+            if (!success)
+                throw new Exception($"Failed to connect to projection {stream}");
         }
 
-        public Task Acknowledge(string stream, long position, IFullEvent @event)
-        {
-            var eventId = $"{@event.EventId.Value}:{stream}:{position}";
-            Tuple<EventStorePersistentSubscriptionBase, Guid> outstanding;
-            if (!@event.EventId.HasValue || !_outstandingEvents.TryRemove(eventId, out outstanding))
-            {
-                Logger.WarnEvent("ACK", "Unknown ack {EventId}", @event.EventId);
-                return Task.CompletedTask;
-            }
-
-            outstanding.Item1.Acknowledge(outstanding.Item2);
-            return Task.CompletedTask;
-        }
-
-        private async Task EventAppeared(EventStorePersistentSubscriptionBase sub, ResolvedEvent e, CancellationToken token,
-            Func<string, long, IFullEvent, Task> callback)
-        {
-            // Don't care about metadata streams
-            if (e.Event == null || e.Event.EventStreamId[0] == '$')
-            {
-                sub.Acknowledge(e.OriginalEvent.EventId);
-                return;
-            }
-
-            if (token.IsCancellationRequested)
-            {
-                Logger.WarnEvent("Cancelation", "Token cancel requested");
-                ThreadPool.QueueUserWorkItem((_) => sub.Stop(TimeSpan.FromSeconds(10)));
-                token.ThrowIfCancellationRequested();
-            }
-
-            var eventId = $"{e.Event.EventId}:{e.Event.EventStreamId}:{e.Event.EventNumber}";
-            _outstandingEvents[eventId] = new Tuple<EventStorePersistentSubscriptionBase, Guid>(sub, e.OriginalEvent.EventId);
-
-            try
-            {
-                await EventAppeared(e, token, callback).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Logger.ErrorEvent("AppearedException", ex, "Stream: [{Stream:l}] Position: {StreamPosition} {ExceptionType} - {ExceptionMessage}", e.Event.EventStreamId, e.Event.EventNumber, ex.GetType().Name, ex.Message);
-                sub.Fail(e, PersistentSubscriptionNakEventAction.Park, ex.GetType().Name);
-                // don't throw, stops subscription and causes reconnect
-                //throw;
-            }
-        }
-
-        private async Task EventAppeared(EventStoreCatchUpSubscription sub, ResolvedEvent e, CancellationToken token,
-            Func<string, long, IFullEvent, Task> callback)
-        {
-            // Don't care about metadata streams
-            if (e.Event == null || e.Event.EventStreamId[0] == '$')
-                return;
-
-            if (token.IsCancellationRequested)
-            {
-                Logger.WarnEvent("Cancelation", "Token cancel requested");
-                ThreadPool.QueueUserWorkItem((_) => sub.Stop(TimeSpan.FromSeconds(10)));
-                token.ThrowIfCancellationRequested();
-            }
-            try
-            {
-                await EventAppeared(e, token, callback).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Logger.ErrorEvent("AppearedException", ex, "Stream: [{Stream:l}] Position: {StreamPosition} {ExceptionType} - {ExceptionMessage}", e.Event.EventStreamId, e.Event.EventNumber, ex.GetType().Name, ex.Message);
-                //throw;
-            }
-        }
-
-        private Task EventAppeared(ResolvedEvent e, CancellationToken token, Func<string, long, IFullEvent, Task> callback)
-        {
-            var metadata = e.Event.Metadata;
-            var data = e.Event.Data;
-
-            IEventDescriptor descriptor;
-
-            try
-            {
-                descriptor = _serializer.Deserialize<EventDescriptor>(metadata);
-            }
-            catch (SerializationException)
-            {
-                // Try the old format
-                descriptor = _serializer.Deserialize<LegecyEventDescriptor>(metadata);
-            }
-
-            if (descriptor.Compressed)
-                data = data.Decompress();
-
-            var eventType = _registrar.GetNamedType(e.Event.EventType);
-            // Not all types are detected and initialized by NSB - they do it in the pipeline, we have to do it here
-            _mapper.Initialize(eventType);
-
-            var payload = _serializer.Deserialize(eventType, data) as IEvent;
-
-            return callback(e.Event.EventStreamId, e.Event.EventNumber, new FullEvent
-            {
-                Descriptor = descriptor,
-                Event = payload,
-                EventId = e.Event.EventId
-            });
-        }
-
-        private void SubscriptionDropped(EventStoreCatchUpSubscription sub, SubscriptionDropReason reason, Exception ex, Func<Task> disconnected, CancellationToken token)
-        {
-            Logger.InfoEvent("Disconnect", "{Reason}: {ExceptionType} - {ExceptionMessage}", reason, ex.GetType().Name, ex.Message);
-
-            lock (_subLock) _subscriptions.Remove(sub);
-            if (reason == SubscriptionDropReason.UserInitiated) return;
-            if (token.IsCancellationRequested) return;
-
-            // Run via task because we are currently on the thread that would process a reconnect and we shouldn't block it
-            Task.Run(disconnected);
-        }
-        private void SubscriptionDropped(EventStorePersistentSubscriptionBase sub, SubscriptionDropReason reason, Exception ex, Func<Task> disconnected, CancellationToken token)
-        {
-            Logger.InfoEvent("Disconnect", "{Reason}: {ExceptionType} - {ExceptionMessage}", reason, ex.GetType().Name, ex.Message);
-
-            lock (_subLock) _persistentSubs.Remove(sub);
-            if (reason == SubscriptionDropReason.UserInitiated) return;
-            if (token.IsCancellationRequested) return;
-
-            // Run via task because we are currently on the thread that would process a reconnect and we shouldn't block it
-            Task.Run(disconnected);
-        }
-        private string GetHttpSchema(ConnectionSettings settings)
-        {
-            return settings.UseSslConnection ? "https" : "http";
-        }
-        private EndPoint ChangePort(EndPoint endpoint, int newPort)
-        {
-            if (endpoint is IPEndPoint)
-                return new IPEndPoint((endpoint as IPEndPoint).Address, newPort);
-            if (endpoint is DnsEndPoint)
-                return new DnsEndPoint((endpoint as DnsEndPoint).Host, newPort);
-
-            throw new ArgumentOutOfRangeException(nameof(endpoint), endpoint?.GetType(),
-                    "An invalid endpoint has been provided");
-        }
-
-        public async Task<bool> EnableProjection(string name)
-        {
-            foreach (var connection in _clients)
-            {
-                var httpSchema = GetHttpSchema(connection.Settings);
-
-                var endpoint = ChangePort(connection.Settings.GossipSeeds[0].EndPoint, connection.Settings.GossipPort);
-
-                var manager = new ProjectionsManager(connection.Settings.Log,
-                    endpoint, TimeSpan.FromSeconds(30), httpSchema: httpSchema);
-                try
-                {
-                    await manager.EnableAsync(name, connection.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                }
-                catch (OperationTimedOutException)
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        public async Task<bool> CreateProjection(string name, string definition)
-        {
-            // Normalize new lines
-            definition = definition.Replace(Environment.NewLine, "\n");
-
-            foreach (var client in _clients)
-            {
-
-                var httpSchema = GetHttpSchema(client.Settings);
-
-                var endpoint = ChangePort(client.Settings.GossipSeeds[0].EndPoint, client.Settings.GossipPort);
-
-                var manager = new ProjectionsManager(client.Settings.Log,
-                    endpoint, TimeSpan.FromSeconds(30), httpSchema: httpSchema);
-
-                try
-                {
-                    var existing = await manager.GetQueryAsync(name).ConfigureAwait(false);
-
-                    // Remove all whitespace and new lines that could be different on different platforms and don't affect actual projection
-                    var fixedExisting = Regex.Replace(existing, @"\s+", String.Empty);
-                    var fixedDefinition = Regex.Replace(definition, @"\s+", String.Empty);
-
-                    // In development mode - update the projection definition regardless of versioning
-                    if (_developmentMode) {
-                        await manager.UpdateQueryAsync(name, definition, client.Settings.DefaultUserCredentials).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        if (!string.Equals(fixedExisting, fixedDefinition, StringComparison.OrdinalIgnoreCase))
-                        {
-                            Logger.FatalEvent("Initialization",
-                                $"Projection [{name}] already exists and is a different version!  If you've upgraded your code don't forget to bump your app's version!\nExisting:\n{existing}\nDesired:\n{definition}");
-                            throw new EndpointVersionException(name, existing, definition);
-                        }
-                    }
-                }
-                catch (ProjectionCommandFailedException)
-                {
-                    try
-                    {
-                        // Projection doesn't exist 
-                        await manager.CreateContinuousAsync(name, definition, false, client.Settings.DefaultUserCredentials)
-                                .ConfigureAwait(false);
-                    }
-                    catch (ProjectionCommandFailedException e)
-                    {
-                        Logger.ErrorEvent("Projection", "Failed to create projection [{Name}]: {Error}", name, e.Message);
-                    }
-                }
-            }
-            return true;
-        }
     }
 }

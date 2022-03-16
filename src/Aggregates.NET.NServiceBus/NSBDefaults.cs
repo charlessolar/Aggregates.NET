@@ -21,7 +21,13 @@ namespace Aggregates
         };
         public const string MessageIdHeader = "NServiceBus.MessageId";
         public const string CorrelationIdHeader = "NServiceBus.CorrelationId";
+        public const string RetryHeader = "NServiceBus.Retries";
+        public const string FailedHeader = "NServiceBus.TimeOfFailure";
+        public const string ExceptionTypeHeader = "NServiceBus.ExceptionInfo.ExceptionType";
+        public const string ExceptionMessageHeader = "NServiceBus.ExceptionInfo.Message";
+        public const string ExceptionStack = "NServiceBus.ExceptionInfo.StackTrace";
 
         public const string AggregatesSettings = "Aggregates.NET.Settings";
+        public const string AggregatesConfiguration = "Aggregates.NET.Configuration";
     }
 }

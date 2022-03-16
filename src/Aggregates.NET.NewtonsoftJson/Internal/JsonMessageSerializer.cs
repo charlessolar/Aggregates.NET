@@ -34,7 +34,7 @@ namespace Aggregates.Internal
             var settings = new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.Auto,
-                Converters = new JsonConverter[] { new Newtonsoft.Json.Converters.StringEnumConverter(), new IdJsonConverter() }.Concat(extraConverters).ToArray(),
+                Converters = new JsonConverter[] { new Newtonsoft.Json.Converters.StringEnumConverter(), new NewtonsoftIdJsonConverter() }.Concat(extraConverters).ToArray(),
                 //Error = new EventHandler<Newtonsoft.Json.Serialization.ErrorEventArgs>(HandleError),
                 ContractResolver = new EventContractResolver(messageMapper, messageFactory),
                 SerializationBinder = new EventSerializationBinder(messageMapper),

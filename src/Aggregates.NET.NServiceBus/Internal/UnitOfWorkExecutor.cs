@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Extensibility;
@@ -17,26 +18,22 @@ namespace Aggregates.Internal
     public class UnitOfWorkExecutor : Behavior<IIncomingLogicalMessageContext>
     {
         private readonly ILogger Logger;
-        private static readonly ConcurrentDictionary<string, dynamic> Bags = new ConcurrentDictionary<string, dynamic>();
 
-        private readonly Configure _settings;
+        private readonly ISettings _settings;
+        private readonly IServiceProvider _provider;
         private readonly IMetrics _metrics;
 
-        public UnitOfWorkExecutor(ILoggerFactory logFactory, Configure settings, IMetrics metrics)
+        public UnitOfWorkExecutor(ILogger<UnitOfWorkExecutor> logger, ISettings settings, IServiceProvider provider, IMetrics metrics)
         {
-            Logger = logFactory.CreateLogger("UOW Executor");
+            Logger = logger;
             _settings = settings;
+            _provider = provider;
             _metrics = metrics;
         }
 
         public override async Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
-            var container = _settings.Container;
-
-            // Child container with resolved domain and app uow used by downstream
-            var child = container.GetChildContainer();
-            context.Extensions.Set(child);
-            _settings.LocalContainer.Value = child;
+            var provider = context.Extensions.Get<IServiceProvider>();
 
             // Only SEND messages deserve a UnitOfWork
             if (context.GetMessageIntent() != MessageIntentEnum.Send && context.GetMessageIntent() != MessageIntentEnum.Publish)
@@ -52,69 +49,52 @@ namespace Aggregates.Internal
                 return;
             }
 
-            var domainUOW = child.Resolve<Aggregates.UnitOfWork.IDomain>();
-            var delayed = child.Resolve<IDelayedChannel>();
-            Aggregates.UnitOfWork.IApplication appUOW = null;
-            try
+            Aggregates.UnitOfWork.IUnitOfWork uow = null;
+            if (context.Message.Instance is Messages.ICommand)
             {
-                // IUnitOfWork might not be defined by user
-                appUOW = child.Resolve<Aggregates.UnitOfWork.IApplication>();
-                appUOW.Bag = new System.Dynamic.ExpandoObject();
-                // if this is a retry pull the bag from the registry
-                if (Bags.TryRemove(context.MessageId, out var bag))
-                    appUOW.Bag = bag;
+                uow = provider.GetService<Aggregates.UnitOfWork.IDomainUnitOfWork>();
+                context.Extensions.Set(uow as Aggregates.UnitOfWork.IDomainUnitOfWork);
             }
-            catch
+            else
             {
-                // app uow doesn't have to be defined
+                uow = provider.GetService<Aggregates.UnitOfWork.IApplicationUnitOfWork>();
+                context.Extensions.Set(uow as Aggregates.UnitOfWork.IApplicationUnitOfWork);
             }
+
+            // uow can be null if the message is an event and application unit of work was not defined.
+            // this means the event can still read things but no changes will be committed anywhere
 
             // Set into the context because DI can be slow
-            context.Extensions.Set(domainUOW);
-            context.Extensions.Set(appUOW);
+            context.Extensions.Set(uow);
 
-
-            var commitableUow = domainUOW as Aggregates.UnitOfWork.IUnitOfWork;
-            var commitableAppUow = appUOW as Aggregates.UnitOfWork.IUnitOfWork;
+            var commitableUow = uow as Aggregates.UnitOfWork.IBaseUnitOfWork;
             try
             {
                 _metrics.Increment("Messages Concurrent", Unit.Message);
                 using (_metrics.Begin("Message Duration"))
                 {
-                    if(context.Message.Instance is Messages.ICommand)
-                        await commitableUow.Begin().ConfigureAwait(false);
+                    await (commitableUow?.Begin() ?? Task.CompletedTask).ConfigureAwait(false);
 
-                    if (commitableAppUow != null)
-                        await commitableAppUow.Begin().ConfigureAwait(false);
-                    await delayed.Begin().ConfigureAwait(false);
-                    
                     await next().ConfigureAwait(false);
 
-                    if (context.Message.Instance is Messages.ICommand)
-                        await commitableUow.End().ConfigureAwait(false);
-                    if (commitableAppUow != null)
-                        await commitableAppUow.End().ConfigureAwait(false);
-                    await delayed.End().ConfigureAwait(false);
+                    await (commitableUow?.End() ?? Task.CompletedTask).ConfigureAwait(false);
+
                 }
 
             }
             catch (Exception e)
             {
-                Logger.WarnEvent("UOWException", e, "Received exception while processing message {MessageType}", context.Message.MessageType.FullName);
-                _metrics.Mark("Message Errors", Unit.Errors);
+                if (!(e is BusinessException))
+                {
+                    // Logging and metrics for business exceptions happens upstream
+                    Logger.WarnEvent("UOWException", e, "Received exception while processing message {MessageType}", context.Message.MessageType.FullName);
+                    _metrics.Mark("Message Errors", Unit.Errors);
+                }
                 var trailingExceptions = new List<Exception>();
 
                 try
                 {
-                    // Todo: if one throws an exception (again) the others wont work.  Fix with a loop of some kind
-                    if (context.Message.Instance is Messages.ICommand)
-                        await commitableUow.End(e).ConfigureAwait(false);
-                    if (appUOW != null)
-                    {
-                        await commitableAppUow.End(e).ConfigureAwait(false);
-                        Bags.TryAdd(context.MessageId, appUOW.Bag);
-                    }
-                    await delayed.End(e).ConfigureAwait(false);
+                    await (commitableUow?.End(e) ?? Task.CompletedTask).ConfigureAwait(false);
                 }
                 catch (Exception endException)
                 {
@@ -132,11 +112,10 @@ namespace Aggregates.Internal
             }
             finally
             {
-                child.Dispose();
                 _metrics.Decrement("Messages Concurrent", Unit.Message);
-                context.Extensions.Remove<IContainer>();
             }
         }
+
     }
     [ExcludeFromCodeCoverage]
     internal class UowRegistration : RegisterStep
@@ -144,11 +123,11 @@ namespace Aggregates.Internal
         public UowRegistration() : base(
             stepId: "UnitOfWorkExecution",
             behavior: typeof(UnitOfWorkExecutor),
-            description: "Begins and Ends unit of work for your application",
-            factoryMethod: (b) => new UnitOfWorkExecutor(b.Build<ILoggerFactory>(), b.Build<Configure>(), b.Build<IMetrics>())
+            description: "Begins and Ends unit of work for your endpoint",
+            factoryMethod: (b) => new UnitOfWorkExecutor(b.Build<ILogger<UnitOfWorkExecutor>>(), b.Build<ISettings>(), b.Build<IServiceProvider>(), b.Build<IMetrics>())
         )
         {
-            InsertAfterIfExists("ExceptionRejector");
+            InsertAfter("FailureReply");
         }
     }
 }

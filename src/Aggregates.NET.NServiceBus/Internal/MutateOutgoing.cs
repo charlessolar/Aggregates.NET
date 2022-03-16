@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Pipeline;
@@ -15,12 +16,9 @@ namespace Aggregates.Internal
     {
         private readonly ILogger Logger;
 
-        private readonly Configure _settings;
-
-        public MutateOutgoing(ILoggerFactory logFactory, Configure settings)
+        public MutateOutgoing(ILogger<MutateOutgoing> logger)
         {
-            Logger = logFactory.CreateLogger("MutateOutgoing");
-            _settings = settings;
+            Logger = logger;
         }
         public override Task Invoke(IOutgoingLogicalMessageContext context, Func<Task> next)
         {
@@ -33,26 +31,25 @@ namespace Aggregates.Internal
             if (context.GetMessageIntent() == MessageIntentEnum.Reply)
                 return next();
 
+            // gets the child provider
+            if (!context.Extensions.TryGet<IServiceProvider>(out var provider))
+                return next();
+            var mutators = provider.GetServices<Func<IMutate>>();
+
             IMutating mutated = new Mutating(context.Message.Instance, context.Headers ?? new Dictionary<string, string>());
 
-            var mutators = MutationManager.Registered.ToList();
             if (!mutators.Any()) return next();
 
-            IContainer container;
 
-            if (!context.Extensions.TryGet<IContainer>(out container))
-                container = _settings.Container.GetChildContainer();
-
-            foreach (var type in mutators)
+            foreach (var mutator in mutators)
             {
                 try
                 {
-                    var mutator = (IMutate)container.Resolve(type);
-                    mutated = mutator.MutateOutgoing(mutated);
+                    mutated = mutator().MutateOutgoing(mutated);
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    Logger.WarnEvent("MutateFailure", e, "Failed to run mutator {Mutator}", type.FullName);
+                    Logger.WarnEvent("MutateFailure", ex, "Failed to run mutator {Mutator}", mutator.GetType().FullName);
                 }
             }
             

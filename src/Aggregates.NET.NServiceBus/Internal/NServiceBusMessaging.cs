@@ -44,6 +44,13 @@ namespace Aggregates.Internal
                 .SelectMany(x => x.DefinedTypes.Where(IsEntityType)).ToArray()
                 .Distinct().ToArray();
         }
+        public Type[] GetStateTypes()
+        {
+            return AppDomain.CurrentDomain.GetAssemblies()
+                .Where(x => !x.IsDynamic)
+                .SelectMany(x => x.DefinedTypes.Where(IsStateType)).ToArray()
+                .Distinct().ToArray();
+        }
 
         public Type[] GetMessageHierarchy(Type messageType)
         {
@@ -56,6 +63,13 @@ namespace Aggregates.Internal
                 return false;
 
             return IsSubclassOfRawGeneric(typeof(Entity<,>), type);
+        }
+        private static bool IsStateType(Type type)
+        {
+            if (type.IsGenericTypeDefinition)
+                return false;
+
+            return IsSubclassOfRawGeneric(typeof(State<>), type);
         }
         private static bool IsMessageType(Type type)
         {

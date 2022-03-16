@@ -7,6 +7,7 @@ namespace Aggregates.Contracts
         string Bucket { get; }
         string EntityType { get; }
         Id StreamId { get; }
+        IParentDescriptor[] Parents { get; }
         long Version { get; }
 
         object Payload { get; }

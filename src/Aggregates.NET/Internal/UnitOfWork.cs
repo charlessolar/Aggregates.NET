@@ -12,8 +12,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
-    public class UnitOfWork : Aggregates.UnitOfWork.IDomain, Aggregates.UnitOfWork.IUnitOfWork, IDisposable
+    public class UnitOfWork : Aggregates.UnitOfWork.IDomainUnitOfWork, Aggregates.UnitOfWork.IBaseUnitOfWork, IDisposable
     {
+
         private static readonly ConcurrentDictionary<Guid, Guid> EventIds = new ConcurrentDictionary<Guid, Guid>();
 
         public static Guid NextEventId(Guid commitId)
@@ -30,7 +31,6 @@ namespace Aggregates.Internal
         internal readonly ILogger Logger;
 
         private readonly IRepositoryFactory _repoFactory;
-        private readonly IEventFactory _eventFactory;
 
         private bool _disposed;
         private readonly IDictionary<string, IRepository> _repositories;
@@ -39,11 +39,10 @@ namespace Aggregates.Internal
         public object CurrentMessage { get; internal set; }
         public IDictionary<string, string> CurrentHeaders { get; internal set; }
 
-        public UnitOfWork(ILoggerFactory logFactory, IRepositoryFactory repoFactory, IEventFactory eventFactory)
+        public UnitOfWork(ILogger<UnitOfWork> logger, IRepositoryFactory repoFactory)
         {
-            Logger = logFactory.CreateLogger("UnitOfWork");
+            Logger = logger;
             _repoFactory = repoFactory;
-            _eventFactory = eventFactory;
             _repositories = new Dictionary<string, IRepository>();
             CurrentHeaders = new Dictionary<string, string>();
         }
@@ -89,11 +88,11 @@ namespace Aggregates.Internal
         }
 
 
-        Task Aggregates.UnitOfWork.IUnitOfWork.Begin()
+        Task Aggregates.UnitOfWork.IBaseUnitOfWork.Begin()
         {
             return Task.FromResult(true);
         }
-        Task Aggregates.UnitOfWork.IUnitOfWork.End(Exception ex)
+        Task Aggregates.UnitOfWork.IBaseUnitOfWork.End(Exception ex)
         {
             // Todo: If current message is an event, detect if they've modified any entities and warn them.
             if (ex != null || CurrentMessage is IEvent)

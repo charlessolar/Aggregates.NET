@@ -64,14 +64,14 @@ namespace Aggregates.Common.Extensions
         {
             var factory = ReflectionExtensions.BuildRepositoryFunc<FakeEntity>();
             factory.Should().NotBeNull();
-            factory(Fake<ILoggerFactory>(), Fake<IStoreEntities>()).Should().BeAssignableTo<IRepository<FakeEntity>>();
+            factory(Fake<ILogger>(), Fake<IStoreEntities>()).Should().BeAssignableTo<IRepository<FakeEntity>>();
         }
         [Fact]
         public void ShouldCreateChildRepositoryFactory()
         {
             var factory = ReflectionExtensions.BuildParentRepositoryFunc<FakeChildEntity, FakeEntity>();
             factory.Should().NotBeNull();
-            factory(Fake<ILoggerFactory>(), Fake<FakeEntity>(), Fake<IStoreEntities>()).Should().BeAssignableTo<IRepository<FakeChildEntity, FakeEntity>>();
+            factory(Fake<ILogger>(), Fake<FakeEntity>(), Fake<IStoreEntities>()).Should().BeAssignableTo<IRepository<FakeChildEntity, FakeEntity>>();
         }
     }
 }

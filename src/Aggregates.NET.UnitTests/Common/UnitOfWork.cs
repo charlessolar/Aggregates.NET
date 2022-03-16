@@ -46,7 +46,7 @@ namespace Aggregates.Common
 
             Sut.For<FakeEntity>();
             Sut.CommitId = Guid.NewGuid();
-            await (Sut as Aggregates.UnitOfWork.IUnitOfWork).End().ConfigureAwait(false);
+            await (Sut as Aggregates.UnitOfWork.IBaseUnitOfWork).End().ConfigureAwait(false);
 
             repo.CommitCalled.Should().BeTrue();
         }
@@ -59,7 +59,7 @@ namespace Aggregates.Common
             Sut.For<FakeEntity>();
             Sut.CommitId = Guid.Empty;
 
-            var e = await Record.ExceptionAsync(() => (Sut as Aggregates.UnitOfWork.IUnitOfWork).End()).ConfigureAwait(false);
+            var e = await Record.ExceptionAsync(() => (Sut as Aggregates.UnitOfWork.IBaseUnitOfWork).End()).ConfigureAwait(false);
             e.Should().BeOfType<InvalidOperationException>();
         }
         [Fact]
@@ -69,7 +69,7 @@ namespace Aggregates.Common
             Inject<IRepository<FakeEntity>>(repo);
 
             Sut.For<FakeEntity>();
-            await (Sut as Aggregates.UnitOfWork.IUnitOfWork).End(new Exception()).ConfigureAwait(false);
+            await (Sut as Aggregates.UnitOfWork.IBaseUnitOfWork).End(new Exception()).ConfigureAwait(false);
 
             repo.CommitCalled.Should().BeFalse();
         }
@@ -82,7 +82,7 @@ namespace Aggregates.Common
 
             Sut.For<FakeEntity>();
             Sut.CommitId = Guid.NewGuid();
-            await (Sut as Aggregates.UnitOfWork.IUnitOfWork).End().ConfigureAwait(false);
+            await (Sut as Aggregates.UnitOfWork.IBaseUnitOfWork).End().ConfigureAwait(false);
 
             repo.PrepareCalled.Should().BeTrue();
         }
@@ -105,7 +105,7 @@ namespace Aggregates.Common
 
             Sut.For<FakeEntity>();
             Sut.CurrentMessage = Fake<Messages.IEvent>();
-            await (Sut as Aggregates.UnitOfWork.IUnitOfWork).End().ConfigureAwait(false);
+            await (Sut as Aggregates.UnitOfWork.IBaseUnitOfWork).End().ConfigureAwait(false);
 
             repo.CommitCalled.Should().BeFalse();
         }

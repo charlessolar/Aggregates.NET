@@ -71,7 +71,7 @@ namespace Aggregates.NServiceBus
             context.RepliedMessages.Should().BeEmpty();
         }
         [Fact]
-        public async Task ShouldNotRejectifNoResponseRequested()
+        public async Task ShouldStillRejectifNoResponseRequested()
         {
             var next = A.Fake<Func<Task>>();
             A.CallTo(() => next()).Throws<BusinessException>();
@@ -79,8 +79,9 @@ namespace Aggregates.NServiceBus
             context.UpdateMessageInstance(Fake<Messages.ICommand>());
             context.MessageHeaders[Defaults.RequestResponse] = "0";
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            var e = await Record.ExceptionAsync(() => Sut.Invoke(context, next)).ConfigureAwait(false);
 
+            e.Should().BeOfType<BusinessException>();
             A.CallTo(() => next()).MustHaveHappened();
             context.RepliedMessages.Should().BeEmpty();
         }

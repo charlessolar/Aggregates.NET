@@ -11,16 +11,11 @@ namespace Aggregates
     public static class ContextExtensions
     {
 
-        public static TUnitOfWork App<TUnitOfWork>(this IServiceContext context) where TUnitOfWork : class, UnitOfWork.IApplication
+        public static TUnitOfWork Uow<TUnitOfWork>(this IServiceContext context) where TUnitOfWork : class, UnitOfWork.IUnitOfWork
         {
-            return context.App as TUnitOfWork;
-        }
-        /// <summary>
-        /// Easier access to uow if user implements IGeneric
-        /// </summary>
-        public static UnitOfWork.IGeneric App(this IServiceContext context)
-        {
-            return context.App as UnitOfWork.IGeneric;
+            if (!(context.BaseUow is TUnitOfWork))
+                throw new ArgumentException($"Unit of work {context.BaseUow.GetType().Name} is not {typeof(TUnitOfWork).Name}");
+            return context.BaseUow as TUnitOfWork;
         }
 
         public static Task<TResponse> Service<TService, TResponse>(this IServiceContext context, TService service)

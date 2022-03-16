@@ -10,81 +10,44 @@ using Aggregates.Internal;
 using System.Diagnostics.CodeAnalysis;
 using Aggregates.Sagas;
 using NServiceBus.Pipeline;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Aggregates
 {
     [ExcludeFromCodeCoverage]
     public static class ContextExtensions
     {
-        public static IRepository<T> For<T>(this IMessageHandlerContext context) where T : class, IEntity
+
+        public static TUnitOfWork Uow<TUnitOfWork>(this IMessageHandlerContext context) where TUnitOfWork : class, UnitOfWork.IUnitOfWork
         {
-            var uow = context.Extensions.Get<UnitOfWork.IDomain>();
-            return uow.For<T>();
-        }
-        
-        public static TUnitOfWork App<TUnitOfWork>(this IMessageHandlerContext context) where TUnitOfWork : class, UnitOfWork.IApplication
-        {
-            var uow = context.Extensions.Get<UnitOfWork.IApplication>();
+            var uow = context.Extensions.Get<UnitOfWork.IUnitOfWork>();
             return uow as TUnitOfWork;
         }
-        /// <summary>
-        /// Easier access to uow if user implements IGeneric
-        /// </summary>
-        public static UnitOfWork.IGeneric UoW(this IMessageHandlerContext context)
-        {
-            var uow = context.Extensions.Get<UnitOfWork.IApplication>();
-            return uow as UnitOfWork.IGeneric;
-        }
+
         public static Task<TResponse> Service<TService, TResponse>(this IMessageHandlerContext context, TService service)
             where TService : class, IService<TResponse>
         {
-            var container = context.Extensions.Get<IContainer>();
+            var config = context.Extensions.Get<IConfiguration>();
             IProcessor processor;
             if(!context.Extensions.TryGet<IProcessor>(out processor))
-                processor = container.Resolve<IProcessor>();
-            return processor.Process<TService, TResponse>(service, container);
+                processor = config.ServiceProvider.GetRequiredService<IProcessor>();
+            return processor.Process<TService, TResponse>(service, config.ServiceProvider);
         }
         public static Task<TResponse> Service<TService, TResponse>(this IMessageHandlerContext context, Action<TService> service)
             where TService : class, IService<TResponse>
         {
-            var container = context.Extensions.Get<IContainer>();
+            var config = context.Extensions.Get<IConfiguration>();
             IProcessor processor;
             if (!context.Extensions.TryGet<IProcessor>(out processor))
-                processor = container.Resolve<IProcessor>();
+                processor = config.ServiceProvider.GetRequiredService<IProcessor>();
 
-            return processor.Process<TService, TResponse>(service, container);
+            return processor.Process<TService, TResponse>(service, config.ServiceProvider);
         }
 
-        public static Task SendToSelf(this IMessageHandlerContext context, Messages.ICommand command)
+        public static ISettings GetSettings(this IMessageHandlerContext context)
         {
-            var container = context.Extensions.Get<IContainer>();
-            var dispatcher = container.Resolve<IMessageDispatcher>();
-
-            var message = new FullMessage
-            {
-                Headers = context.MessageHeaders.Where(x => x.Key != $"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}").ToDictionary(kv => kv.Key, kv => kv.Value),
-                Message = command
-            };
-            Task.Run(() => dispatcher.SendLocal(message));
-            return Task.CompletedTask;
-        }
-
-        public static CommandSaga Saga(this IMessageHandlerContext context, Id sagaId, string domainDestination = null)
-        {
-            if (domainDestination == null)
-                domainDestination = context.GetSettings()?.CommandDestination;
-
-            if (string.IsNullOrEmpty(domainDestination) && !context.Extensions.TryGet("CommandDestination", out domainDestination))
-                throw new ArgumentException("Configuration lacks CommandDestination [Configuration.SetCommandDestination]");
-            // Don't know if this is the best way to get the current message
-            var currentMessage = (context as IInvokeHandlerContext)?.MessageBeingHandled as Messages.IMessage;
-
-            return new CommandSaga(context, sagaId.ToString(), currentMessage, domainDestination);
-        }
-        public static Configure GetSettings(this IMessageHandlerContext context)
-        {
-            var container = context.Extensions.Get<IContainer>();
-            return container.Resolve<Configure>();
+            var settings = context.Extensions.Get<ISettings>();
+            return settings;
         }
     }
 }

@@ -9,37 +9,7 @@ namespace Aggregates.Internal
 {
     public class FullEventFactory
     {
-        public static IFullEvent OOBEvent(IVersionRegistrar versionRegistry, Aggregates.UnitOfWork.IDomain uow, IEntity entity, IEvent @event, string id, bool transient, int? daysToLive)
-        {
-            var eventId = Internal.UnitOfWork.NextEventId(uow.CommitId);
-
-            var newEvent = new FullEvent
-            {
-                Descriptor = new EventDescriptor
-                {
-                    EntityType = versionRegistry.GetVersionedName(entity.GetType()),
-                    StreamType = StreamTypes.OOB,
-                    Bucket = entity.Bucket,
-                    StreamId = entity.Id,
-                    Parents = getParents(versionRegistry, entity),
-                    Timestamp = DateTime.UtcNow,
-                    Version = entity.StateVersion,
-                    Headers = new Dictionary<string, string>()
-                    {
-                        [$"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}"] = eventId.ToString(),
-                        [$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = uow.CommitId.ToString(),
-                        [Defaults.OobHeaderKey] = id,
-                        [Defaults.OobTransientKey] = transient.ToString(),
-                        [Defaults.OobDaysToLiveKey] = daysToLive.ToString()
-                    }
-                },
-                EventId = eventId,
-                Event = @event
-            };
-
-            return newEvent;
-        }
-        public static IFullEvent Event(IVersionRegistrar versionRegistry, Aggregates.UnitOfWork.IDomain uow, IEntity entity, IEvent @event)
+        public static IFullEvent Event(IVersionRegistrar versionRegistry, Aggregates.UnitOfWork.IDomainUnitOfWork uow, IEntity entity, IEvent @event)
         {
             var eventId = Internal.UnitOfWork.NextEventId(uow.CommitId);
 

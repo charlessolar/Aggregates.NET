@@ -33,7 +33,7 @@ namespace Aggregates.Internal
         {
             return new ServiceChecker<TService, TResponse>(this, service);
         }
-        public Task<TResponse> Process<TService, TResponse>(TService service, IContainer container) where TService : IService<TResponse>
+        public Task<TResponse> Process<TService, TResponse>(TService service, IServiceProvider container) where TService : IService<TResponse>
         {
             var serviceString = JsonConvert.SerializeObject(service);
             if (!Planned.ContainsKey($"{typeof(TService).FullName}.{serviceString}"))
@@ -41,7 +41,7 @@ namespace Aggregates.Internal
             return Task.FromResult((TResponse)Planned[$"{typeof(TService).FullName}.{serviceString}"]);
         }
 
-        public Task<TResponse> Process<TService, TResponse>(Action<TService> service, IContainer container) where TService : IService<TResponse>
+        public Task<TResponse> Process<TService, TResponse>(Action<TService> service, IServiceProvider container) where TService : IService<TResponse>
         {
             return Process<TService, TResponse>(_factory.Create(service), container);
         }

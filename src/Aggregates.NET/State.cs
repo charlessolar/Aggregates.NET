@@ -44,9 +44,6 @@ namespace Aggregates
         // Don't need / want previous snapshots to be deserialized
         // will lead to infinite Snapshot.Snapshot.Snapshot.Snapshot
         public TThis Snapshot => (this as IState).Snapshot as TThis;
-        // Logger is needed to report on NoRouteExceptions so lets
-        // just give this to users in case they want to log in their state
-        public ILogger Logger { get; set; }
 
         // Trick so we can set these fields ourselves without a constructor
         Id IState.Id { get; set; }
@@ -80,24 +77,13 @@ namespace Aggregates
             return ShouldSnapshot();
         }
 
-        void IState.Conflict(IEvent @event)
-        {
-            Mutator.Conflict(this, @event);
-        }
-
         void IState.Apply(IEvent @event)
         {
-            try
-            {
-                Mutator.Handle(this, @event);
-            }
-            catch (NoRouteException)
-            {
-                Logger?.DebugEvent("NoRoute", "{State} has no route for {EventType}", typeof(TThis).FullName, @event.GetType().FullName);
-            }
-            _committed.Add(@event);
 
+            _committed.Add(@event);
             (this as IState).Version++;
+            Mutator.Handle(this, @event);
+
         }
     
     }

@@ -13,7 +13,7 @@ namespace Aggregates.Internal
     {
         private readonly IVersionRegistrar _registrar;
 
-        public NSBUnitOfWork(ILoggerFactory logFactory, IRepositoryFactory repoFactory, IEventFactory eventFactory, IVersionRegistrar registrar) : base(logFactory, repoFactory, eventFactory)
+        public NSBUnitOfWork(ILogger<NSBUnitOfWork> logger, IRepositoryFactory repoFactory, IEventFactory eventFactory, IVersionRegistrar registrar) : base(logger, repoFactory)
         {
             _registrar = registrar;
         }

@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Aggregates.Contracts;
 using Aggregates.Extensions;
 using NServiceBus;
 using NServiceBus.Pipeline;
@@ -23,10 +24,10 @@ namespace Aggregates
         internal static PushRuntimeSettings PushSettings;
         internal static bool BusOnline;
 
-        public static async Task<IEndpointInstance> Start(Configure settings, IStartableEndpointWithExternallyManagedContainer nsb)
+        public static async Task<IEndpointInstance> Start(IServiceProvider provider, IStartableEndpointWithExternallyManagedContainer nsb)
         {
             BusOnline = false;
-            Instance = await nsb.Start(new Internal.ContainerAdapter(settings)).ConfigureAwait(false);
+            Instance = await nsb.Start(provider).ConfigureAwait(false);
             // Take IEndpointInstance and pull out the info we need for eventstore consuming
 
             // We want eventstore to push message directly into NSB

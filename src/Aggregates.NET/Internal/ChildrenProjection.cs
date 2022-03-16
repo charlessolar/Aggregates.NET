@@ -5,6 +5,7 @@ using System.Text;
 
 namespace Aggregates.Internal
 {
+    [Versioned("ChildrenProjection", "Aggregates")]
     public class ChildrenProjection : IEvent
     {
         public class ChildDescriptor

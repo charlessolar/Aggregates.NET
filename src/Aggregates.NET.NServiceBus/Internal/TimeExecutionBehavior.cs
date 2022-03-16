@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading.Tasks;
+using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Microsoft.Extensions.Logging;
 using NServiceBus;
@@ -15,15 +16,13 @@ namespace Aggregates.Internal
     internal class TimeExecutionBehavior : Behavior<IIncomingPhysicalMessageContext>
     {
         private readonly ILogger Logger;
-        private readonly ILogger SlowLogger;
         private static readonly HashSet<string> SlowCommandTypes = new HashSet<string>();
         private static readonly object SlowLock = new object();
         private readonly TimeSpan? _slowAlert;
 
-        public TimeExecutionBehavior(ILoggerFactory logFactory, Configure settings)
+        public TimeExecutionBehavior(ILogger<TimeExecutionBehavior> logger, ISettings settings)
         {
-            Logger = logFactory.CreateLogger("TimeExecutionBehavior");
-            SlowLogger = logFactory.CreateLogger("Slow Alarm");
+            Logger = logger;
             _slowAlert = settings.SlowAlertThreshold;
         }
 
@@ -61,7 +60,7 @@ namespace Aggregates.Internal
 
                 if (elapsed > _slowAlert.Value.TotalSeconds)
                 {
-                    SlowLogger.WarnEvent("Processed", "{MessageId} {MessageType} took {Milliseconds} payload {Payload}", context.MessageId, messageTypeIdentifier, elapsed, Encoding.UTF8.GetString(context.Message.Body).MaxLines(10));
+                    Logger.WarnEvent("Slow Alarm", "[{MessageId:l}] {MessageType} took {Milliseconds} payload {Payload}", context.MessageId, messageTypeIdentifier, elapsed, Encoding.UTF8.GetString(context.Message.Body).MaxLines(10));
                     if (!verbose)
                         lock (SlowLock) SlowCommandTypes.Add(messageTypeIdentifier);
                 }
@@ -80,8 +79,8 @@ namespace Aggregates.Internal
         public TimeExecutionRegistration() : base(
             stepId: "Time Execution",
             behavior: typeof(TimeExecutionBehavior),
-            description: "handles exceptions and retries",
-            factoryMethod: (b) => new TimeExecutionBehavior(b.Build<ILoggerFactory>(), b.Build<Configure>())
+            description: "htimes message processing and logs slow ones",
+            factoryMethod: (b) => new TimeExecutionBehavior(b.Build<ILogger<TimeExecutionBehavior>>(), b.Build<Settings>())
         )
         {
             InsertBefore("MutateIncomingMessages");

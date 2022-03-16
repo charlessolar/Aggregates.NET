@@ -30,9 +30,9 @@ namespace Aggregates.Internal
             };
         }
 
-        public Task<ISnapshot> GetSnapshot<T>(string bucket, Id streamId, Id[] parents) where T : IEntity
+        public Task<ISnapshot> GetSnapshot<TEntity, TState>(string bucket, Id streamId, Id[] parents) where TEntity : IEntity<TState> where TState : class, IState, new()
         {
-            var key = $"{bucket}.{typeof(T).FullName}.{streamId}";
+            var key = $"{bucket}.{typeof(TEntity).FullName}.{streamId}";
             if (!_snapshots.ContainsKey(key))
                 return Task.FromResult<ISnapshot>(null);
             return Task.FromResult(_snapshots[key]);

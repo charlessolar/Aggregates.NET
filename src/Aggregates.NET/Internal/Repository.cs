@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Aggregates.Attributes;
 using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
@@ -19,8 +18,8 @@ namespace Aggregates.Internal
     {
         private readonly TParent _parent;
 
-        public Repository(ILoggerFactory logFactory, TParent parent, IStoreEntities store)
-            : base(logFactory, store)
+        public Repository(ILogger logger, TParent parent, IStoreEntities store)
+            : base(logger, store)
         {
             _parent = parent;
         }
@@ -97,10 +96,10 @@ namespace Aggregates.Internal
         public int ChangedStreams => Tracked.Count(x => x.Value.Dirty);
 
         // Todo: too many operations on this class, make a "EntityWriter" contract which does event, oob, and snapshot writing
-        public Repository(ILoggerFactory logFactory, IStoreEntities store)
+        public Repository(ILogger logger, IStoreEntities store)
         {
             _store = store;
-            Logger = logFactory.CreateLogger("Repository");
+            Logger = logger;
 
         }
         Task IRepositoryCommit.Prepare(Guid commitId)
