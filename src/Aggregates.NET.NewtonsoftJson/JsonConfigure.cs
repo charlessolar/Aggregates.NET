@@ -6,6 +6,7 @@ using Aggregates.Contracts;
 using Aggregates.Internal;
 using System.Threading.Tasks;
 using System.Diagnostics.CodeAnalysis;
+using System.Net.Mime;
 
 namespace Aggregates
 {
@@ -16,7 +17,7 @@ namespace Aggregates
         {
             extraConverters = extraConverters ?? new JsonConverter[] { };
 
-            config.MessageContentType = "json";
+            config.MessageContentType = MediaTypeNames.Application.Json;
             config.RegistrationTasks.Add((c) =>
             {
                 var container = c.Container;
