@@ -24,7 +24,7 @@ namespace Build.Helpers
             DirectoryPath nugetDir,
             IEnumerable<ProjectInfo> projects)
         {
-            var nugets = projects.Where(x => x.OutputType == "Library").Select(project =>
+            var nugets = projects.Where(x => x.OutputType == "Library" && !x.ProjectName.EndsWith("UnitTests")).Select(project =>
                 new BuildPackage(
                     id: project.AssemblyName,
                     projectPath: project.ProjectFile.FullPath,
@@ -62,7 +62,7 @@ namespace Build.Helpers
                     packagePath: artifactsDir.CombineWithFilePath(string.Concat(project.AssemblyName, "-", version.SemVersion + ".zip"))
                     );
             });
-            var tests = projects.Where(x => x.OutputType == "Test").Select(project => {
+            var tests = projects.Where(x => x.ProjectName.EndsWith("UnitTests")).Select(project => {
                 return new BuildTest(
                     id: project.AssemblyName,
                     projectPath: project.ProjectFile.FullPath
