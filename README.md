@@ -9,6 +9,12 @@
 
 Aggregates.NET is a library to facilitate integration between [NServiceBus](https://github.com/Particular/NServiceBus) and [EventStore](https://github.com/EventStore/EventStore). It provides a framework to define entities, value objects, command and event handlers, and many other domain driven design and CQRS principles. The framework should take all the tediousness of dealing with event streams and message queues out of your consideration and give you a solid base to build a solid event sourced application.
 
+#### Note as of v0.17
+
+Aggregates.NET uses Microsoft's standard DI and logging module - and I've removed direct support for StructureMap, SimpleInjector and LibLog which supported many different logging modules. I did this simply to reduce the headache for myself going forward to v1.0 - if you want to use one of these other libraries fear not! Each of them *should* have adaptors for Microsoft's DI and Logging.
+
+All of the samples and examples are Microsoft Hosting setup so likely this won't affect your projects especially if you're new. But if you are upgrading Agg.net something to be aware of!
+
 ## What will Aggregates.NET do for you?
 
 Take the following example

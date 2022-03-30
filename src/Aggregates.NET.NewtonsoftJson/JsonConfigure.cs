@@ -21,7 +21,7 @@ namespace Aggregates
             config.MessageContentType = MediaTypeNames.Application.Json;
             
             Settings.RegistrationTasks.Add((container, settings) =>
-            {                                
+            {
                 container.AddSingleton<IMessageSerializer>((factory) => new JsonMessageSerializer(factory.GetRequiredService<IEventMapper>(), factory.GetRequiredService<IEventFactory>(), extraConverters));
 
                 return Task.CompletedTask;

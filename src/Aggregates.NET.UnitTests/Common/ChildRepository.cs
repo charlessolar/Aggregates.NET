@@ -24,8 +24,7 @@ namespace Aggregates.Common
         {
             var store = Fake<IStoreEntities>();
             A.CallTo(() => store.Get<FakeChildEntity, FakeChildState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Throws<NotFoundException>();
-            Inject(store);
-
+            
             var entity = await Sut.TryGet("test").ConfigureAwait(false);
             entity.Should().BeNull();
         }
@@ -40,7 +39,6 @@ namespace Aggregates.Common
         {
             var store = Fake<IStoreEntities>();
             A.CallTo(() => store.Get<FakeChildEntity, FakeChildState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Throws<NotFoundException>();
-            Inject(store);
 
             var e = await Record.ExceptionAsync(() => Sut.Get("test")).ConfigureAwait(false);
             e.Should().BeOfType<NotFoundException>();

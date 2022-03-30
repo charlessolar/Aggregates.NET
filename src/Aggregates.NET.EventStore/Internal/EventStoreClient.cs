@@ -13,9 +13,11 @@ using System.Text.RegularExpressions;
 using System.Collections.Concurrent;
 using EventStore.Client;
 using Grpc.Core;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     class EventStoreClient : IEventStoreClient
     {
 

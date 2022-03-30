@@ -16,9 +16,7 @@ namespace Aggregates.Common.Extensions
         class FakeState : Aggregates.State<FakeState>
         {
             private void Handle(int one) { }
-            private void Conflict(int one) { }
             public void Handle(string one) { }
-            public void Conflict(string one) { }
         }
         class FakeService :
             IProvideService<IService<int>, int>
@@ -31,12 +29,6 @@ namespace Aggregates.Common.Extensions
         {
             var mutator = ReflectionExtensions.GetStateMutators<FakeState>();
             mutator.Should().ContainKey("Handle.Int32");
-        }
-        [Fact]
-        public void ShouldGetConflictInfoFromState()
-        {
-            var mutator = ReflectionExtensions.GetStateMutators<FakeState>();
-            mutator.Should().ContainKey("Conflict.Int32");
         }
         [Fact]
         public void ShouldNotGetPublicHandleInfoFromState()

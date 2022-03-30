@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace Aggregates.Internal
 {
     [ExcludeFromCodeCoverage]
-    internal class EventStoreConsumer : IEventStoreConsumer
+    public class EventStoreConsumer : IEventStoreConsumer
     {
         private readonly Microsoft.Extensions.Logging.ILogger Logger;
 
@@ -41,7 +41,7 @@ namespace Aggregates.Internal
 
             await _client.EnableProjection("$by_category").ConfigureAwait(false);
             // Link all events we are subscribing to to a stream
-            var functions =
+            var functions = !eventTypes.Any() ? "" :
                 eventTypes
                     .Select(
                         eventType => $"'{_registrar.GetVersionedName(eventType)}': processEvent")
@@ -51,6 +51,10 @@ namespace Aggregates.Internal
             // it will be up to them to handle upgrades
             if (_allEvents)
                 functions = "$any: processEvent";
+
+            // No watched events, no projection
+            if (string.IsNullOrEmpty(functions))
+                return;
 
             // Don't tab this '@' will create tabs in projection definition
             var definition = @"

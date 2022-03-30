@@ -1,4 +1,5 @@
-﻿using FakeItEasy;
+﻿using Aggregates.UnitOfWork.Query;
+using FakeItEasy;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -11,7 +12,7 @@ using Xunit;
 
 namespace Aggregates.Common
 {
-    public class Configuration : Test
+    public class Settings : Test
     {
         [Fact]
         public async Task ShouldBuildDefaultConfiguration()
@@ -112,6 +113,11 @@ namespace Aggregates.Common
                 config.SetReadSize(1);
                 config.SetCompression(Compression.All);
                 config.SetUniqueAddress("test");
+                config.SetCommandDestination("test");
+                config.ReceiveAllEvents();
+                config.SetRetries(1);
+                config.SetTrackChildren();
+                config.SetDevelopmentMode();
             }).ConfigureAwait(false);
 
             config.Settings.Endpoint.Should().Be("test");
@@ -121,6 +127,62 @@ namespace Aggregates.Common
             config.Settings.ReadSize.Should().Be(1);
             config.Settings.Compression.Should().Be(Compression.All);
             config.Settings.UniqueAddress.Should().Be("test");
+            config.Settings.CommandDestination.Should().Be("test");
+            config.Settings.AllEvents.Should().BeTrue();
+            config.Settings.Retries.Should().Be(1);
+            config.Settings.TrackChildren.Should().BeTrue();
+            config.Settings.DevelopmentMode.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task ShouldUseMetrics()
+        {
+            var collection = Fake<IServiceCollection>();
+            var provider = Fake<IServiceProvider>();
+
+            var config = await Aggregates.Configuration.Build(collection, config =>
+            {
+                config.AddMetrics<FakeMetrics>();
+            });
+
+            A.CallTo(() => 
+                collection.Add(
+                    A<ServiceDescriptor>
+                        .That.Matches(x => x.ServiceType == typeof(Contracts.IMetrics) && x.ImplementationType == typeof(FakeMetrics)))).MustHaveHappened();
+        }
+        [Fact]
+        public async Task UseApplicationUow()
+        {
+            var collection = Fake<IServiceCollection>();
+            var provider = Fake<IServiceProvider>();
+
+            var config = await Aggregates.Configuration.Build(collection, config =>
+            {
+                config.Application<FakeAppUnitOfWork>();
+            });
+
+            A.CallTo(() =>
+                collection.Add(
+                    A<ServiceDescriptor>
+                        .That.Matches(x => x.ServiceType == typeof(Aggregates.UnitOfWork.IApplicationUnitOfWork) && x.ImplementationType == typeof(FakeAppUnitOfWork)))).MustHaveHappened();
+
+        }
+        [Fact]
+        public async Task UseDomainUow()
+        {
+            var collection = Fake<IServiceCollection>();
+            var provider = Fake<IServiceProvider>();
+
+            var config = await Aggregates.Configuration.Build(collection, config =>
+            {
+                config.Domain();
+            });
+
+            A.CallTo(() =>
+                collection.Add(
+                    A<ServiceDescriptor>
+                        .That.Matches(x => x.ServiceType == typeof(Aggregates.UnitOfWork.IDomainUnitOfWork) && x.ImplementationType == typeof(Internal.UnitOfWork)))).MustHaveHappened();
+
         }
 
     }

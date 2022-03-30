@@ -24,7 +24,6 @@ namespace Aggregates.Common
 
             Snapstore = Fake<IStoreSnapshots>();
             A.CallTo(() => Snapstore.GetSnapshot<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Returns(Task.FromResult((ISnapshot)null));
-            Inject(Snapstore);
         }
 
         [Fact]
@@ -47,7 +46,6 @@ namespace Aggregates.Common
         {
             var snapstore = Fake<IStoreSnapshots>();
             A.CallTo(() => snapstore.GetSnapshot<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Returns(Task.FromResult((ISnapshot)null));
-            Inject(snapstore);
 
             var entity = await Sut.Get<FakeEntity, FakeState>("test", "test", null).ConfigureAwait(false);
 
@@ -72,7 +70,6 @@ namespace Aggregates.Common
             A.CallTo(() => snapshot.Payload).Returns(new FakeState() { Version = 1 });
             A.CallTo(() => Snapstore.GetSnapshot<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Returns(Task.FromResult(snapshot));
             var eventstore = Fake<IStoreEvents>();
-            Inject(eventstore);
 
             var entity = await Sut.Get<FakeEntity, FakeState>("test", "test", null).ConfigureAwait(false);
 
@@ -94,7 +91,6 @@ namespace Aggregates.Common
         public async Task ShouldVerifyVersion()
         {
             var eventstore = Fake<IStoreEvents>();
-            Inject(eventstore);
             var entity = await Sut.Get<FakeEntity, FakeState>("test", "test", null).ConfigureAwait(false);
 
             await Sut.Verify<FakeEntity, FakeState>(entity).ConfigureAwait(false);
@@ -131,7 +127,6 @@ namespace Aggregates.Common
         public async Task ShouldCommitDomainEvents()
         {
             var store = Fake<IStoreEvents>();
-            Inject(store);
             var entity = await Sut.Get<FakeEntity, FakeState>("test", "test", null).ConfigureAwait(false);
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
 
@@ -143,7 +138,6 @@ namespace Aggregates.Common
         public async Task ShouldCommitSnapshot()
         {
             var snapstore = Fake<IStoreSnapshots>();
-            Inject(snapstore);
             var entity = await Sut.Get<FakeEntity, FakeState>("test", "test", null).ConfigureAwait(false);
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
             entity.State.TakeASnapshot = true;
@@ -157,7 +151,6 @@ namespace Aggregates.Common
         {
             var snapstore = Fake<IStoreSnapshots>();
             A.CallTo(() => snapstore.WriteSnapshots<FakeEntity>(A<IState>.Ignored, A<Dictionary<string, string>>.Ignored)).Throws<Exception>();
-            Inject(snapstore);
             var entity = await Sut.Get<FakeEntity, FakeState>("test", "test", null).ConfigureAwait(false);
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
             entity.State.TakeASnapshot = true;
@@ -171,7 +164,6 @@ namespace Aggregates.Common
         {
             var store = Fake<IStoreEvents>();
             A.CallTo(() => store.WriteEvents<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored, A<IFullEvent[]>.Ignored, A<Dictionary<string, string>>.Ignored, A<long?>.Ignored)).Throws(new PersistenceException("test", new Exception()));
-            Inject(store);
             var entity = await Sut.Get<FakeEntity, FakeState>("test", "test", null).ConfigureAwait(false);
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
 
@@ -184,7 +176,6 @@ namespace Aggregates.Common
         {
             var store = Fake<IStoreEvents>();
             A.CallTo(() => store.WriteEvents<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored, A<IFullEvent[]>.Ignored, A<Dictionary<string, string>>.Ignored, A<long?>.Ignored)).Throws(new VersionException("test", new Exception()));
-            Inject(store);
             var entity = await Sut.New<FakeEntity, FakeState>("test", "test", null).ConfigureAwait(false);
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
 

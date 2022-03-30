@@ -23,7 +23,7 @@ namespace Aggregates.Extensions
         var methods = typeof(TState)
                 .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly)
                 .Where(
-                    m => (m.Name == "Handle" || m.Name == "Conflict") &&
+                    m => (m.Name == "Handle"/* || m.Name == "Conflict"*/) &&
                          m.GetParameters().Length == 1 &&
                          m.ReturnType == typeof(void))
                 .ToArray();

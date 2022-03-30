@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
 {
-    interface IEventStoreClient : IDisposable
+    public interface IEventStoreClient : IDisposable
     {
         public delegate Task EventAppeared(string eventStream, long eventNumber, IFullEvent @event);
         

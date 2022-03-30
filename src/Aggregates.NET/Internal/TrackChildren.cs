@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    class TrackChildren : ITrackChildren
+    public class TrackChildren : ITrackChildren
     {
         private readonly ILogger Logger;
 
@@ -46,6 +46,8 @@ namespace Aggregates.Internal
         {
             if (!_enabled)
                 throw new InvalidOperationException("Can not get children, TrackChildren is not enabled in settings");
+            if(string.IsNullOrEmpty(_endpoint) || _version == null)
+                throw new InvalidOperationException("Can not get children, TrackChildren was not setup");
 
             var parentEntityType = _registrar.GetVersionedName(typeof(TParent));
             var childEntityType = _registrar.GetVersionedName(typeof(TEntity));

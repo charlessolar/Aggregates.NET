@@ -31,7 +31,6 @@ namespace Aggregates.Common
         {
             var store = Fake<IStoreEntities>();
             A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Throws<NotFoundException>();
-            Inject(store);
 
             var entity = await Sut.TryGet("test").ConfigureAwait(false);
             entity.Should().BeNull();
@@ -47,7 +46,6 @@ namespace Aggregates.Common
         {
             var store = Fake<IStoreEntities>();
             A.CallTo(() => store.Get<FakeEntity, FakeState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Throws<NotFoundException>();
-            Inject(store);
 
             var e = await Record.ExceptionAsync(() => Sut.Get("test")).ConfigureAwait(false);
             e.Should().BeOfType<NotFoundException>();
@@ -99,7 +97,6 @@ namespace Aggregates.Common
         public async Task PrepareShouldVerifyVersionOnUnchangedEntities()
         {
             var store = Fake<IStoreEntities>();
-            Inject(store);
             await Sut.Get("test").ConfigureAwait(false);
 
             await (Sut as IRepositoryCommit).Prepare(Guid.NewGuid()).ConfigureAwait(false);
@@ -110,7 +107,6 @@ namespace Aggregates.Common
         public async Task PrepareShoudNotVerifyVersionOnChangedEntities()
         {
             var store = Fake<IStoreEntities>();
-            Inject(store);
             var entity = await Sut.Get("test").ConfigureAwait(false);
             (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
@@ -123,7 +119,6 @@ namespace Aggregates.Common
         public async Task CommitShouldSaveChangedEntities()
         {
             var store = Fake<IStoreEntities>();
-            Inject(store);
             var entity = await Sut.Get("test").ConfigureAwait(false);
             (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
@@ -136,7 +131,6 @@ namespace Aggregates.Common
         public async Task CommitShouldNotSaveUnchangedEntities()
         {
             var store = Fake<IStoreEntities>();
-            Inject(store);
             var entity = await Sut.Get("test").ConfigureAwait(false);
 
             await (Sut as IRepositoryCommit).Commit(Guid.NewGuid(), new Dictionary<string, string>()).ConfigureAwait(false);

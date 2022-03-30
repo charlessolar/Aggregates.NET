@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Aggregates.Contracts;
 
 namespace Aggregates.Internal
@@ -22,6 +23,7 @@ namespace Aggregates.Internal
         public IDictionary<string, string> Headers { get; set; }
         public IDictionary<string, string> CommitHeaders { get; set; }
     }
+    [ExcludeFromCodeCoverage]
     class LegacyEventDescriptor : IEventDescriptor
     {
         public Guid EventId { get; set; }

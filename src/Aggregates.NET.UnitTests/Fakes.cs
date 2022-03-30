@@ -2,6 +2,7 @@
 using Aggregates.Exceptions;
 using Aggregates.Internal;
 using Aggregates.Messages;
+using Aggregates.UnitOfWork.Query;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -11,7 +12,10 @@ namespace Aggregates
 {
     public class FakeDomainEvent : IFullEvent
     {
+        [Versioned("FakeEvent", "Fakes", 100)]
         public class FakeEvent : IEvent { }
+        [Versioned("FakeEvent", "Fakes", 99)]
+        public class FakeOldEvent : IEvent { }
 
         public Guid? EventId { get; set; }
 
@@ -153,9 +157,65 @@ namespace Aggregates
             throw new NotImplementedException();
         }
     }
-    public class FakeAppUnitOfWork : UnitOfWork.IUnitOfWork
+    public class FakeAppUnitOfWork : Aggregates.UnitOfWork.IApplicationUnitOfWork
     {
-        public dynamic Bag { get; set; }
+        public Task Add<T>(Id id, T document) where T : class
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task Delete<T>(Id id) where T : class
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<T> Get<T>(Id id) where T : class
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IQueryResult<T>> Query<T>(IDefinition query) where T : class
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<T> TryGet<T>(Id id) where T : class
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task Update<T>(Id id, T document) where T : class
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    class FakeMetrics : Contracts.IMetrics
+    {
+        public Contracts.ITimer Begin(string name)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Decrement(string name, Contracts.Unit unit, long? value = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Increment(string name, Contracts.Unit unit, long? value = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Mark(string name, Contracts.Unit unit, long? value = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Update(string name, Contracts.Unit unit, long value)
+        {
+            throw new NotImplementedException();
+        }
     }
     public class FakeMutator : IMutate
     {

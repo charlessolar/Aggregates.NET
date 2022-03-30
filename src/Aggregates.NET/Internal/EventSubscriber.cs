@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
-    class EventSubscriber : IEventSubscriber
+    public class EventSubscriber : IEventSubscriber
     {
 
         private readonly ILogger Logger;
@@ -31,6 +31,7 @@ namespace Aggregates.Internal
         private readonly IMessageDispatcher _dispatcher;
 
         private bool _disposed;
+        private bool _setup;
 
 
         public EventSubscriber(ILogger<EventSubscriber> logger, IMessaging messaging, IEventStoreConsumer consumer, IMessageDispatcher dispatcher)
@@ -60,10 +61,16 @@ namespace Aggregates.Internal
 
             Logger.InfoEvent("Setup", "Setup projection for discovered events\n{Events}", discoveredEvents.Select(x => x.FullName).Aggregate((cur,next) => $"{cur}{Environment.NewLine}{next}"));
             await _consumer.SetupProjection(_endpoint, _version, discoveredEvents.ToArray());
+            _setup = true;
         }
 
         public Task Connect()
         {
+            if (!_setup)
+            {
+                Logger.InfoEvent("Connect", "Not setup or no discovered events - will not connect to projection");
+                return Task.CompletedTask;
+            }
             Logger.InfoEvent("Connect", "Connecting to event projection");
             return _consumer.ConnectToProjection(_endpoint, _version, onEvent);
         }

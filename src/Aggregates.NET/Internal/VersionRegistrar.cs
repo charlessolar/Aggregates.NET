@@ -11,7 +11,7 @@ namespace Aggregates.Internal
 {
     public class VersionRegistrar : Contracts.IVersionRegistrar
     {
-        private static readonly Regex NameRegex = new Regex(@"^(?<Namespace>\S+)\.(?<Name>\S+)\sv(?<Version>[0-9]+)$", RegexOptions.Compiled);
+        private static readonly Regex NameRegex = new Regex(@"^(?<Namespace>\S+)\.(?<Name>\S+)(\sv(?<Version>[0-9]+))?$", RegexOptions.Compiled);
         private readonly ILogger Logger;
 
         public class VersionDefinition
@@ -45,7 +45,11 @@ namespace Aggregates.Internal
             Load(_messaging.GetEntityTypes());
             Load(_messaging.GetStateTypes());
         }
-        
+        internal static void Clear()
+        {
+            NameToType.Clear();
+            TypeToDefinition.Clear();
+        }
 
         public void Load(Type[] types)
         {
@@ -115,7 +119,7 @@ namespace Aggregates.Internal
                 if (!NameToType.TryGetValue($"{@namespace}.{name}", out var definitions) || !definitions.Any())
                 {
                     Logger.WarnEvent("TypeMissing", "{TypeName} is not registered", versionedName);
-                    throw new ArgumentException($"{versionedName} is not registered");
+                    throw new InvalidOperationException($"{versionedName} is not registered");
                 }
                 if (!int.TryParse(version, out var intVersion))
                     return definitions.OrderByDescending(x => x.Version).First().Type;
@@ -124,7 +128,7 @@ namespace Aggregates.Internal
                 if(type == null)
                 {
                     Logger.WarnEvent("VersionMissing", "Missing version {Version} for {TypeName}", intVersion, versionedName);
-                    throw new ArgumentException($"Missing version {intVersion} for {versionedName}");
+                    throw new InvalidOperationException($"Missing version {intVersion} for {versionedName}");
                 }
 
                 return type;

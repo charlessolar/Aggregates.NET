@@ -17,7 +17,6 @@ namespace Aggregates.Common
         {
             var store = Fake<IStoreEvents>();
             A.CallTo(() => store.GetSnapshot<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Returns(Fake<ISnapshot>());
-            Inject(store);
 
             await Sut.GetSnapshot<FakeEntity, FakeState>("test", "test", new Id[] { }).ConfigureAwait(false);
 
@@ -27,7 +26,6 @@ namespace Aggregates.Common
         public async Task ShouldWriteSnapshot()
         {
             var store = Fake<IStoreEvents>();
-            Inject(store);
 
             await Sut.WriteSnapshots<FakeEntity>(Fake<FakeState>(), new Dictionary<string, string>()).ConfigureAwait(false);
 

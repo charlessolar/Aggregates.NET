@@ -60,29 +60,8 @@ namespace Aggregates.Internal
 
             // Todo: can suport "named" events with an attribute here so instead of routing based on object type 
             // route based on event name.
-            Action<TState, object> eventMutator;
-            if(!_mutators.TryGetValue($"Handle.{eventType}", out eventMutator))
+            if(!_mutators.TryGetValue($"Handle.{eventType}", out var eventMutator))
                 throw new NoRouteException(typeof(TState), $"Handle({eventType})");
-            eventMutator((TState)state, @event);
-        }
-        public void Conflict(IState state, IEvent @event)
-        {
-            if (@event == null)
-                throw new ArgumentNullException(nameof(@event));
-
-            // Todo: cheap hack NSB creates events as IEvent__impl
-            // remove the __impl if it exists
-            // (message mapper not working here in due to static creation)
-            var eventType = @event.GetType().Name;
-            if (eventType.EndsWith("impl"))
-                eventType = eventType.Substring(0, eventType.Length - 6);
-
-            // Todo: the "conflict." and "handle." key prefixes are a hack
-            // Todo: can suport "named" events with an attribute here so instead of routing based on object type 
-            // route based on event name.
-            Action<TState, object> eventMutator;
-            if (!_mutators.TryGetValue($"Conflict.{eventType}", out eventMutator))
-                throw new NoRouteException(typeof(TState), $"Conflict({eventType})");
             eventMutator((TState)state, @event);
         }
     }

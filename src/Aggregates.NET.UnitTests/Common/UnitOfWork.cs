@@ -15,7 +15,6 @@ namespace Aggregates.Common
         public void ShouldCreateRepository()
         {
             var factory = Fake<IRepositoryFactory>();
-            Inject(factory);
 
             Sut.For<FakeEntity>();
             Sut.For<FakeChildEntity, FakeEntity>(Fake<FakeEntity>());
@@ -28,7 +27,6 @@ namespace Aggregates.Common
         {
             Inject<Id>("test");
             var factory = Fake<IRepositoryFactory>();
-            Inject(factory);
 
             Sut.For<FakeEntity>();
             Sut.For<FakeEntity>();
@@ -90,7 +88,6 @@ namespace Aggregates.Common
         public void ShouldDisposeAllRepositories()
         {
             var repo = Fake<IRepository<FakeEntity>>();
-            Inject(repo);
 
             Sut.For<FakeEntity>();
             (Sut as IDisposable).Dispose();

@@ -25,7 +25,6 @@ namespace Aggregates
 
 
             Provider = Fake<IServiceProvider>();
-            Inject(Provider);
             Fixture.Customize<Id>(x => x.FromFactory(() => Guid.NewGuid()));
             Fixture.Customize<IEvent>(x => x.FromFactory(() => new FakeDomainEvent.FakeEvent()));
             Fixture.Customize<FakeEntity>(x => x.FromFactory(() =>
@@ -55,9 +54,11 @@ namespace Aggregates
             }));
         }
 
-        protected T Fake<T>()
+        protected T Fake<T>(bool inject = true)
         {
             var instance = Fixture.Create<T>();
+            if(inject)
+                Inject(instance);
             return instance;
         }
         protected T[] Many<T>(int count = 3) => Fixture.CreateMany<T>(count).ToArray();
