@@ -26,10 +26,10 @@ namespace Aggregates.Internal
         public override Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)
         {
             var headers = context.MessageHeaders;
-            var messageTypeKey = "NServiceBus.EnclosedMessageTypes";
+            var messageTypeKey = global::NServiceBus.Headers.EnclosedMessageTypes;
             if (!headers.TryGetValue(messageTypeKey, out var messageType))
                 return next();
-
+            
             // if enclosed type is a full type
             if (messageType.IndexOf(';') != -1)
                 return next();
@@ -45,7 +45,7 @@ namespace Aggregates.Internal
             context.Message.Headers[messageTypeKey] = SerializeEnclosedMessageTypes(mappedType);
             return next();
         }
-        string SerializeEnclosedMessageTypes(Type messageType)
+        internal string SerializeEnclosedMessageTypes(Type messageType)
         {
             var metadata = _registry.GetMessageMetadata(messageType);
 

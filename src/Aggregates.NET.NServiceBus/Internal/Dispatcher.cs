@@ -7,6 +7,7 @@ using NServiceBus.Transport;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -14,6 +15,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
+    [ExcludeFromCodeCoverage]
     class Dispatcher : IMessageDispatcher
     {
         private readonly ILogger Logger;

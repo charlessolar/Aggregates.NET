@@ -13,10 +13,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
-    [ExcludeFromCodeCoverage]
-    class StoreEvents : IStoreEvents
+    public class StoreEvents : IStoreEvents
     {
-        private readonly Microsoft.Extensions.Logging.ILogger Logger;
+        private readonly ILogger Logger;
         private readonly StreamIdGenerator _generator;
         private readonly IEventStoreClient _client;
         private readonly IVersionRegistrar _registrar;

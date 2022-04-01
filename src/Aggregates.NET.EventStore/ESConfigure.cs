@@ -18,6 +18,7 @@ namespace Aggregates
     [ExcludeFromCodeCoverage]
     public static class ESConfigure
     {
+        [ExcludeFromCodeCoverage]
         public class ESSettings
         {
             internal Dictionary<string, EventStoreClientSettings> _definedConnections = new Dictionary<string, EventStoreClientSettings>();

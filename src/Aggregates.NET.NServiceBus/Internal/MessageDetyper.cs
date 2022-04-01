@@ -25,7 +25,7 @@ namespace Aggregates.Internal
 
         public override Task Invoke(IOutgoingPhysicalMessageContext context, Func<Task> next)
         {
-            var messageTypeKey = "NServiceBus.EnclosedMessageTypes";
+            var messageTypeKey = global::NServiceBus.Headers.EnclosedMessageTypes;
             //var headers = context.Headers;
             if (!context.Headers.TryGetValue(messageTypeKey, out var messageType))
                 return next();
