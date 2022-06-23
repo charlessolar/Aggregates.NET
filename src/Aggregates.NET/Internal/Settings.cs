@@ -84,6 +84,9 @@ namespace Aggregates.Internal
 
                 container.AddSingleton<ITrackChildren, TrackChildren>();
 
+                container.AddTransient<IStoreEvents>();
+                container.AddTransient<IEventStoreConsumer>();
+
                 container.AddSingleton<IMetrics, NullMetrics>();
 
                 container.AddSingleton<StreamIdGenerator>(Generator);

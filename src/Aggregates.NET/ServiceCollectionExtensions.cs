@@ -15,10 +15,10 @@ namespace Aggregates
     {
         public static IHostBuilder AddAggregatesNet(this IHostBuilder builder, Action<Settings> settings)
         {
+
             builder.ConfigureServices((context, collection) =>
             {
                 Configuration.Build(collection, settings).Wait();
-
                 collection.AddHostedService<HostedService>();
             });
 

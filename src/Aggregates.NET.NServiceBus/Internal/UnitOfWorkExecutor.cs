@@ -41,7 +41,7 @@ namespace Aggregates.Internal
                 await next().ConfigureAwait(false);
                 return;
             }
-            if (context.Message.MessageType == typeof(Messages.Accept) || context.Message.MessageType == typeof(Messages.Reject))
+            if (context.Message.MessageType.IsAssignableTo(typeof(Messages.Accept)) || context.Message.MessageType.IsAssignableTo(typeof(Messages.Reject)))
             {
                 // If this happens the callback for the message took too long (likely due to a timeout)
                 // normall NSB will report an exception for "No Handlers" - this will just log a warning and ignore

@@ -33,7 +33,7 @@ namespace Aggregates.Internal
                 return;
             }
 
-            if (context.Message.MessageType == typeof(Messages.Accept))
+            if (context.Message.MessageType.IsAssignableTo(typeof(Messages.Accept)))
             {
                 // substitute Accept with "ContinueSaga"
                 context.UpdateMessageInstance(new Sagas.ContinueCommandSaga
@@ -41,7 +41,7 @@ namespace Aggregates.Internal
                     SagaId = sagaId
                 });
             }
-            else if (context.Message.MessageType == typeof(Messages.Reject))
+            else if (context.Message.MessageType.IsAssignableTo(typeof(Messages.Reject)))
             {
                 // substitute Reject with "AbortSaga"
                 context.UpdateMessageInstance(new Sagas.AbortCommandSaga
