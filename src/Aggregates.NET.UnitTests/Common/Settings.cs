@@ -168,6 +168,23 @@ namespace Aggregates.Common
 
         }
         [Fact]
+        public async Task ProxyUowAppUnitOfWorks()
+        {
+            var collection = Fake<IServiceCollection>();
+            var provider = Fake<IServiceProvider>();
+
+            var config = await Aggregates.Configuration.Build(collection, config =>
+            {
+                config.Application<SimpleUnitOfWork, FakeAppUnitOfWork>();
+            });
+
+            A.CallTo(() =>
+                collection.Add(
+                    A<ServiceDescriptor>
+                        .That.Matches(x => x.ServiceType == typeof(SimpleUnitOfWork) && x.ImplementationType == typeof(FakeAppUnitOfWork)))).MustHaveHappened();
+
+        }
+        [Fact]
         public async Task UseDomainUow()
         {
             var collection = Fake<IServiceCollection>();

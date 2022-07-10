@@ -195,6 +195,18 @@ namespace Aggregates.Internal
             });
             return this;
         }
+        public Settings Application<TService, TImplementation>() where TImplementation : class, TService where TService : class, Aggregates.UnitOfWork.IApplicationUnitOfWork
+        {
+            // Hook up DI so a call to get IUnitOfWork, IApplicationUnitOfWork, and TService will return the same object
+            RegistrationTasks.Add((container, settings) =>
+            {
+                container.AddScoped<TService, TImplementation>();
+                container.AddScoped<Aggregates.UnitOfWork.IApplicationUnitOfWork>(factory => factory.GetRequiredService<TService>());
+                container.AddScoped<Aggregates.UnitOfWork.IUnitOfWork>(factory => factory.GetRequiredService<Aggregates.UnitOfWork.IApplicationUnitOfWork>());
+                return Task.CompletedTask;
+            });
+            return this;
+        }
         public Settings Domain()
         {
             RegistrationTasks.Add((container, settings) =>
