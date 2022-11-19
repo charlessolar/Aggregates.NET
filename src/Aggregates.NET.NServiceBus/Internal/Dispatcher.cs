@@ -5,9 +5,11 @@ using NServiceBus;
 using NServiceBus.Extensibility;
 using NServiceBus.Transport;
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -16,21 +18,23 @@ using System.Threading.Tasks;
 namespace Aggregates.Internal
 {
     [ExcludeFromCodeCoverage]
-    class Dispatcher : IMessageDispatcher
+    class Dispatcher : Contracts.IMessageDispatcher
     {
         private readonly ILogger Logger;
         private readonly IMetrics _metrics;
         private readonly IMessageSerializer _serializer;
         private readonly IEventMapper _mapper;
         private readonly IVersionRegistrar _registrar;
+        private readonly string _receiveAddress;
 
-        public Dispatcher(ILoggerFactory logFactory, IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IVersionRegistrar registrar)
+        public Dispatcher(ILoggerFactory logFactory, IMetrics metrics, IMessageSerializer serializer, IEventMapper mapper, IVersionRegistrar registrar, string receiveAddress)
         {
             Logger = logFactory.CreateLogger("Dispatcher");
             _metrics = metrics;
             _serializer = serializer;
             _mapper = mapper;
             _registrar = registrar;
+            _receiveAddress = receiveAddress;
         }
 
         public Task Publish(IFullMessage message)
@@ -62,7 +66,9 @@ namespace Aggregates.Internal
             headers = headers ?? new Dictionary<string, string>();
 
             var contextBag = new ContextBag();
+
             var bytes = _serializer.Serialize(message.Message);
+            var messageBytes = new ReadOnlyMemory<byte>(bytes);
 
             var processed = false;
             var numberOfDeliveryAttempts = 0;
@@ -73,7 +79,7 @@ namespace Aggregates.Internal
             
             var finalHeaders = message.Headers.Merge(headers);
             finalHeaders[Headers.EnclosedMessageTypes] = _registrar.GetVersionedName(messageType);
-            finalHeaders[Headers.MessageIntent] = MessageIntentEnum.Send.ToString();
+            finalHeaders[Headers.MessageIntent] = MessageIntent.Send.ToString();
 
 
             var messageId = Guid.NewGuid().ToString();
@@ -91,14 +97,12 @@ namespace Aggregates.Internal
             while (!processed)
             {
                 var transportTransaction = new TransportTransaction();
-                var tokenSource = new CancellationTokenSource();
-
 
                 try
                 {
                     var messageContext = new MessageContext(messageId,
                         finalHeaders,
-                        bytes, transportTransaction, tokenSource,
+                        messageBytes, transportTransaction, _receiveAddress, 
                         contextBag);
                     await Bus.OnMessage(messageContext).ConfigureAwait(false);
                     _metrics.Mark("Dispatched Messages", Unit.Message);
@@ -117,17 +121,15 @@ namespace Aggregates.Internal
                     ++numberOfDeliveryAttempts;
 
                     // Don't retry a cancelation
-                    if (tokenSource.IsCancellationRequested)
+                    if (ex is OperationCanceledException)
                         numberOfDeliveryAttempts = Int32.MaxValue;
-
-                    var messageBytes = _serializer.Serialize(message.Message);
 
                     var errorContext = new ErrorContext(ex, finalHeaders,
                         messageId,
                         messageBytes, transportTransaction,
-                        numberOfDeliveryAttempts);
+                        numberOfDeliveryAttempts, _receiveAddress, contextBag);
                     if ((await Bus.OnError(errorContext).ConfigureAwait(false)) ==
-                        ErrorHandleResult.Handled || tokenSource.IsCancellationRequested)
+                        ErrorHandleResult.Handled || ex is OperationCanceledException)
                         break;
                 }
 
@@ -139,14 +141,16 @@ namespace Aggregates.Internal
         {
             var transportTransaction = new TransportTransaction();
 
-            var messageBytes = _serializer.Serialize(message.Message);
+            var bytes = _serializer.Serialize(message.Message);
+            var messageBytes = new ReadOnlyMemory<byte>(bytes);
 
             var headers = new Dictionary<string, string>(message.Headers);
+            var contextBag = new ContextBag();
 
             var errorContext = new ErrorContext(ex, headers,
                 Guid.NewGuid().ToString(),
                 messageBytes, transportTransaction,
-                int.MaxValue);
+                int.MaxValue, _receiveAddress, contextBag);
             if ((await Bus.OnError(errorContext).ConfigureAwait(false)) != ErrorHandleResult.Handled)
                 throw new InvalidOperationException("Failed to send message error queue");
         }

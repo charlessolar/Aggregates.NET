@@ -1,5 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NServiceBus.Pipeline;
 using System;
@@ -60,7 +61,7 @@ namespace Aggregates.Internal
             stepId: "SagaBehaviour",
             behavior: typeof(SagaBehaviour),
             description: "Handles internal sagas for consecutive command support",
-            factoryMethod: (b) => new SagaBehaviour(b.Build<ILogger<SagaBehaviour>>(), b.Build<IMetrics>(), b.Build<IMessageDispatcher>())
+            factoryMethod: (b) => new SagaBehaviour(b.GetService<ILogger<SagaBehaviour>>(), b.GetService<IMetrics>(), b.GetService<IMessageDispatcher>())
         )
         {
             InsertBefore("FailureReply");

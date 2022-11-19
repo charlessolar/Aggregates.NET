@@ -34,7 +34,7 @@ namespace Aggregates.Domain
                 Headers = context.MessageHeaders.Where(x => x.Key != $"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}").ToDictionary(kv => kv.Key, kv => kv.Value),
                 Message = command
             };
-            Task.Run(() => dispatcher.SendLocal(message));
+            _ = Task.Run(() => dispatcher.SendLocal(message), context.CancellationToken);
             return Task.CompletedTask;
         }
 

@@ -14,6 +14,7 @@ using Aggregates.Messages;
 using NServiceBus;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Aggregates.Internal
 {
@@ -47,7 +48,7 @@ namespace Aggregates.Internal
 
                         replyOptions.RequireImmediateDispatch();
                         // Tell the sender the command was accepted
-                        var accept = context.Builder.Build<Action<Accept>>();
+                        var accept = context.Builder.GetService<Action<Accept>>();
                         await context.Reply<Accept>(accept, replyOptions).ConfigureAwait(false);
                     }
                 }
@@ -70,7 +71,7 @@ namespace Aggregates.Internal
 
                     replyOptions.RequireImmediateDispatch();
                     // Tell the sender the command was rejected due to a business exception
-                    var rejection = context.Builder.Build<Action<BusinessException, Reject>>();
+                    var rejection = context.Builder.GetService<Action<BusinessException, Reject>>();
                     await context.Reply<Reject>((msg) => rejection(e, msg), replyOptions).ConfigureAwait(false);
 
                     throw;
@@ -88,7 +89,7 @@ namespace Aggregates.Internal
             stepId: "CommandAcceptor",
             behavior: typeof(CommandAcceptor),
             description: "Filters [BusinessException] from processing failures",
-            factoryMethod: (b) => new CommandAcceptor(b.Build<ILogger<CommandAcceptor>>(), b.Build<IMetrics>())
+            factoryMethod: (b) => new CommandAcceptor(b.GetService<ILogger<CommandAcceptor>>(), b.GetService<IMetrics>())
         )
         {
             // If a command fails business exception uow still needs to error out

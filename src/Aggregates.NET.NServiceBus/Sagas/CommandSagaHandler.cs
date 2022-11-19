@@ -47,9 +47,10 @@ namespace Aggregates.Sagas
 
         protected override void ConfigureHowToFindSaga(SagaPropertyMapper<CommandSagaHandler.SagaData> mapper)
         {
-            mapper.ConfigureMapping<StartCommandSaga>(x => x.SagaId).ToSaga(x => x.SagaId);
-            mapper.ConfigureMapping<ContinueCommandSaga>(x => x.SagaId).ToSaga(x => x.SagaId);
-            mapper.ConfigureMapping<AbortCommandSaga>(x => x.SagaId).ToSaga(x => x.SagaId);
+            mapper.MapSaga(saga => saga.SagaId)
+                .ToMessage<StartCommandSaga>(x => x.SagaId)
+                .ToMessage<ContinueCommandSaga>(x => x.SagaId)
+                .ToMessage<AbortCommandSaga>(x => x.SagaId);
         }
         public async Task Handle(StartCommandSaga message, IMessageHandlerContext context)
         {

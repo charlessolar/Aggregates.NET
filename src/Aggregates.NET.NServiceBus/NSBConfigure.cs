@@ -62,7 +62,7 @@ namespace Aggregates
                 container.Replace(ServiceDescriptor.Scoped<UnitOfWork.IDomainUnitOfWork, NSBUnitOfWork>());
 
                 container.AddTransient<IEventFactory, EventFactory>();
-                container.AddTransient<IMessageDispatcher, Dispatcher>();
+                container.AddTransient<Contracts.IMessageDispatcher, Dispatcher>();
                 container.AddTransient<IMessaging, NServiceBusMessaging>();
 
                 container.AddTransient<IMessageSession>((_) => Bus.Instance);
@@ -83,13 +83,13 @@ namespace Aggregates
                 var recoverability = endpointConfig.Recoverability();
                 recoverability.Failed(recovery =>
                 {
-                    recovery.OnMessageSentToErrorQueue(message =>
+                    recovery.OnMessageSentToErrorQueue((message, token) =>
                     {
                         var loggerFactory = settings.Configuration.ServiceProvider.GetRequiredService<ILoggerFactory>();
                         var logger = loggerFactory.CreateLogger("Recoverability");
 
                         var ex = message.Exception;
-                        var messageText = Encoding.UTF8.GetString(message.Body).MaxLines(10);
+                        var messageText = Encoding.UTF8.GetString(message.Body.Span).MaxLines(10);
                         logger.ErrorEvent("Fault", ex, "[{MessageId:l}] has failed and being sent to error queue [{ErrorQueue}]: {ExceptionType} - {ExceptionMessage}\n{@Body}",
                             message.MessageId, message.ErrorQueue, ex.GetType().Name, ex.Message, messageText);
                         return Task.CompletedTask;
@@ -108,7 +108,7 @@ namespace Aggregates
                 {
                     recovery.TimeIncrease(TimeSpan.FromSeconds(2));
                     recovery.NumberOfRetries(config.Retries);
-                    recovery.OnMessageBeingRetried(message =>
+                    recovery.OnMessageBeingRetried((message, token) =>
                     {
                         var loggerFactory = settings.Configuration.ServiceProvider.GetRequiredService<ILoggerFactory>();
                         var logger = loggerFactory.CreateLogger("Recoverability");
@@ -119,14 +119,15 @@ namespace Aggregates
 
                         var ex = message.Exception;
 
-                        var messageText = Encoding.UTF8.GetString(message.Body).MaxLines(10);
+                        var messageText = Encoding.UTF8.GetString(message.Body.Span).MaxLines(10);
                         logger.LogEvent(level, "Catch", ex, "[{MessageId:l}] has failed and will retry {Attempts} more times: {ExceptionType} - {ExceptionMessage}\n{@Body}", message.MessageId,
                             config.Retries - message.RetryAttempt, ex?.GetType().Name, ex?.Message, messageText);
                         return Task.CompletedTask;
                     });
                 });
 
-                startableEndpoint = EndpointWithExternallyManagedServiceProvider.Create(endpointConfig, container);
+                // todo: not sure this is needed anymore since NSb uses microsoft too now
+                startableEndpoint = EndpointWithExternallyManagedContainer.Create(endpointConfig, container);
 
                 return Task.CompletedTask;
             });

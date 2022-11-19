@@ -115,7 +115,7 @@ namespace Aggregates.Internal
                 {
                     var subscription = await connection.Value.SubscribeToStreamAsync(
                         stream,
-                        EventStore.Client.StreamPosition.Start,
+                        FromStream.Start,
                         cancellationToken: clientsToken.Token,
                         eventAppeared: (sub, e, token) => eventAppeared(sub, e, token, callback),
                         subscriptionDropped: (sub, reason, ex) =>
@@ -146,7 +146,7 @@ namespace Aggregates.Internal
 
                     var sub = await connection.Value.SubscribeToStreamAsync(
                         stream,
-                        EventStore.Client.StreamPosition.End,
+                        FromStream.End,
                         cancellationToken: clientsToken.Token,
                         eventAppeared: (sub, e, token) => eventAppeared(sub, e, token, callback),
                         subscriptionDropped: (sub, reason, ex) =>
@@ -174,7 +174,7 @@ namespace Aggregates.Internal
                 startFrom: start,
                 extraStatistics: _settings.ExtraStats,
                 maxRetryCount: _settings.Retries,
-                namedConsumerStrategy: SystemConsumerStrategies.Pinned
+                consumerStrategyName: SystemConsumerStrategies.Pinned
                 );
 
 
@@ -196,14 +196,13 @@ namespace Aggregates.Internal
 
                 try
                 {
-                    var subscription = await store.SubscribeAsync(stream, group,
+                    var subscription = await store.SubscribeToStreamAsync(stream, group,
                         eventAppeared: (sub, e, retry, token) => eventAppeared(sub, e, token, callback),
                         // auto reconnect to subscription
                         subscriptionDropped: (sub, reason, ex) =>
                             subscriptionDropped(sub, reason, ex, subCancel.Token,
                             () => ConnectPinnedPersistentSubscription(stream, group, callback)
                         ),
-                        autoAck: true,
                         cancellationToken: subCancel.Token
                         ).ConfigureAwait(false);
 
@@ -328,8 +327,7 @@ namespace Aggregates.Internal
             // Don't care about metadata streams
             if (e.Event == null || e.Event.EventStreamId[0] == '$')
             {
-                // Dont need when autoAck is on
-                //sub.Acknowledge(e.OriginalEvent.EventId);
+                await sub.Ack(e).ConfigureAwait(false);
                 return;
             }
 
@@ -337,12 +335,13 @@ namespace Aggregates.Internal
             {
                 Logger.WarnEvent("Cancelation", "Event [{EventId:l}] from stream [{Stream}] appeared while closing subscription", e.OriginalEvent.EventId, e.OriginalStreamId);
                 await sub.Nack(PersistentSubscriptionNakEventAction.Retry, "Shutting down", e).ConfigureAwait(false);
-                token.ThrowIfCancellationRequested();
+                return;
             }
 
             try
             {
                 await deserializeEvent(e, callback).ConfigureAwait(false);
+                await sub.Ack(e).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

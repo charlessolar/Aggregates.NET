@@ -31,7 +31,7 @@ namespace Aggregates.Internal
             if (string.IsNullOrEmpty(corrId))
                 corrId = context.MessageId;
 
-            var body = Encoding.UTF8.GetString(context.Message.Body);
+            var body = Encoding.UTF8.GetString(context.Message.Body.Span);
 
             var properties = new Dictionary<string, object>
             {

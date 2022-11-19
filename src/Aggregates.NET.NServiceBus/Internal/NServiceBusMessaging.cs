@@ -17,9 +17,9 @@ namespace Aggregates.Internal
     {
         private readonly MessageHandlerRegistry _handlers;
         private readonly MessageMetadataRegistry _metadata;
-        private readonly ReadOnlySettings _settings;
+        private readonly IReadOnlySettings _settings;
 
-        public NServiceBusMessaging(MessageHandlerRegistry handlers, MessageMetadataRegistry metadata, ReadOnlySettings settings)
+        public NServiceBusMessaging(MessageHandlerRegistry handlers, MessageMetadataRegistry metadata, IReadOnlySettings settings)
         {
             _handlers = handlers;
             _metadata = metadata;

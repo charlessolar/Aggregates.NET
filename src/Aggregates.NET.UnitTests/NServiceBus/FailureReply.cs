@@ -35,7 +35,7 @@ namespace Aggregates.NServiceBus
             var next = A.Fake<Func<Task>>();
             var context = new TestableIncomingLogicalMessageContext();
             context.Headers.Add(NSBDefaults.FailedHeader, "1");
-            context.MessageHeaders.Add(Headers.MessageIntent, MessageIntentEnum.Send.ToString());
+            context.MessageHeaders.Add(Headers.MessageIntent, MessageIntent.Send.ToString());
             context.MessageHeaders.Add(Defaults.RequestResponse, "1");
             context.Builder.Register<Action<string, string, Error>>(Fake<Action<string, string, Error>>());
 
@@ -52,7 +52,7 @@ namespace Aggregates.NServiceBus
             var context = new TestableIncomingLogicalMessageContext();
             context.MessageHandled = true;
             context.Headers.Add(NSBDefaults.FailedHeader, "1");
-            context.MessageHeaders.Add(Headers.MessageIntent, MessageIntentEnum.Send.ToString());
+            context.MessageHeaders.Add(Headers.MessageIntent, MessageIntent.Send.ToString());
             context.MessageHeaders.Add(Defaults.RequestResponse, "1");
             context.Builder.Register<Action<string, string, Error>>(Fake<Action<string, string, Error>>());
 
@@ -68,7 +68,7 @@ namespace Aggregates.NServiceBus
             var next = A.Fake<Func<Task>>();
             var context = new TestableIncomingLogicalMessageContext();
             context.Headers.Add(NSBDefaults.FailedHeader, "1");
-            context.MessageHeaders.Add(Headers.MessageIntent, MessageIntentEnum.Reply.ToString());
+            context.MessageHeaders.Add(Headers.MessageIntent, MessageIntent.Reply.ToString());
             context.MessageHeaders.Add(Defaults.RequestResponse, "1");
             context.Builder.Register<Action<string, string, Error>>(Fake<Action<string, string, Error>>());
 
@@ -84,7 +84,7 @@ namespace Aggregates.NServiceBus
             var next = A.Fake<Func<Task>>();
             var context = new TestableIncomingLogicalMessageContext();
             context.Headers.Add(NSBDefaults.FailedHeader, "1");
-            context.MessageHeaders.Add(Headers.MessageIntent, MessageIntentEnum.Send.ToString());
+            context.MessageHeaders.Add(Headers.MessageIntent, MessageIntent.Send.ToString());
             context.MessageHeaders.Add(Defaults.RequestResponse, "0");
             context.Builder.Register<Action<string, string, Error>>(Fake<Action<string, string, Error>>());
 

@@ -3,6 +3,7 @@ using Aggregates.Internal;
 using NServiceBus;
 using NServiceBus.Callbacks.Testing;
 using NServiceBus.Extensibility;
+using NServiceBus.MessageInterfaces.MessageMapper.Reflection;
 using NServiceBus.Persistence;
 using NServiceBus.Testing;
 using System;
@@ -10,6 +11,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Aggregates
@@ -17,6 +19,7 @@ namespace Aggregates
     [ExcludeFromCodeCoverage]
     public class TestableContext : IMessageHandlerContext
     {
+        static IMessageCreator messageCreator = new MessageMapper();
 
         public readonly ITestableDomain UoW;
         public readonly ITestableApplication App;
@@ -39,10 +42,18 @@ namespace Aggregates
             _ctx.Extensions.Set<IProcessor>(Processor);
             
         }
+        static TMessage CreateInstance<TMessage>(Action<TMessage> action)
+        {
+            return messageCreator.CreateInstance(action);
+        }
+        static TMessage CreateInstance<TMessage>()
+        {
+            return messageCreator.CreateInstance<TMessage>();
+        }
 
         public TEvent Create<TEvent>(Action<TEvent> action) where TEvent : Messages.IEvent
         {
-            return Test.CreateInstance<TEvent>(action);
+            return CreateInstance<TEvent>(action);
         }
 
 
@@ -59,7 +70,7 @@ namespace Aggregates
             return _ids.MakeId(number);
         }
 
-        public SynchronizedStorageSession SynchronizedStorageSession => _ctx.SynchronizedStorageSession;
+        public ISynchronizedStorageSession SynchronizedStorageSession => _ctx.SynchronizedStorageSession;
 
         public string MessageId => _ctx.MessageId;
 
@@ -68,6 +79,7 @@ namespace Aggregates
         public IReadOnlyDictionary<string, string> MessageHeaders => _ctx.MessageHeaders as IReadOnlyDictionary<string, string>;
 
         public ContextBag Extensions => _ctx.Extensions;
+        public CancellationToken CancellationToken => _ctx.CancellationToken;
 
         public void DoNotContinueDispatchingCurrentMessageToHandlers()
         {
@@ -124,12 +136,12 @@ namespace Aggregates
         }
         public void AcceptCommand<TCommand>(Func<TCommand, bool> match) where TCommand : class, Aggregates.Messages.ICommand
         {
-            var accept = Test.CreateInstance<Messages.Accept>();
+            var accept = CreateInstance<Messages.Accept>();
             _session.When(match, accept);
         }
         public void RejectCommand<TCommand>(Func<TCommand, bool> match) where TCommand : class, Aggregates.Messages.ICommand
         {
-            var reject = Test.CreateInstance<Messages.Reject>();
+            var reject = CreateInstance<Messages.Reject>();
             _session.When(match, reject);
         }
 
@@ -146,5 +158,6 @@ namespace Aggregates
                 return _ctx.SentMessages.Where(x => !(x.Message is Sagas.StartCommandSaga)).Concat(translatedCommands).ToArray();
             }
         }
+
     }
 }

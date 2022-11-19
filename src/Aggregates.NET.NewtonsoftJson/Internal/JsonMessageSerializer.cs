@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Net.Mime;
 using NewtonSerializer = Newtonsoft.Json.JsonSerializer;
 
 namespace Aggregates.Internal
@@ -26,14 +27,16 @@ namespace Aggregates.Internal
         public JsonMessageSerializer(
             IEventMapper messageMapper,
             IEventFactory messageFactory,
-            JsonConverter[] extraConverters)
+            JsonConverter[] extraConverters,
+            bool development)
         {
             this.messageMapper = messageMapper;
             this.messageFactory = messageFactory;
 
             var settings = new JsonSerializerSettings
             {
-                TypeNameHandling = TypeNameHandling.Auto,
+                // Use of TypeNameHandling.Auto is a potential security vulnerability 
+                TypeNameHandling = TypeNameHandling.None,
                 Converters = new JsonConverter[] { new Newtonsoft.Json.Converters.StringEnumConverter(), new NewtonsoftIdJsonConverter() }.Concat(extraConverters).ToArray(),
                 //Error = new EventHandler<Newtonsoft.Json.Serialization.ErrorEventArgs>(HandleError),
                 ContractResolver = new EventContractResolver(messageMapper, messageFactory),
@@ -49,7 +52,7 @@ namespace Aggregates.Internal
                 return new JsonTextWriter(streamWriter)
                 {
                     // better for displaying
-                    Formatting = Formatting.Indented
+                    Formatting = development ? Formatting.Indented : Formatting.None
                 };
             });
 
@@ -59,7 +62,7 @@ namespace Aggregates.Internal
                 return new JsonTextReader(streamReader);
             });
 
-            ContentType = "Json";
+            ContentType = MediaTypeNames.Application.Json;
             jsonSerializer = NewtonSerializer.Create(settings);
         }
 

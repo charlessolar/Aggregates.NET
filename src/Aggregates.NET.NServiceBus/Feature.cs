@@ -39,7 +39,7 @@ namespace Aggregates
             context.Pipeline.Register<SagaBehaviourRegistration>();
 
             // Remove NSBs unit of work since we do it ourselves
-            context.Pipeline.Remove("ExecuteUnitOfWork");
+            context.Pipeline.Replace("ExecuteUnitOfWork", typeof(EmptyBehavior));
 
 
             context.Pipeline.Register<LogContextProviderRegistration>();
@@ -53,13 +53,16 @@ namespace Aggregates
 
             // Register all service handlers in my IoC so query processor can use them
             foreach (var type in types.Where(IsServiceHandler))
-                context.Container.ConfigureComponent(type, DependencyLifecycle.InstancePerCall);
+                context.Services.AddTransient(type);
 
 
             // We are sending IEvents, which NSB doesn't like out of the box - so turn that check off
-            context.Pipeline.Remove("EnforceSendBestPractices");
+            context.Pipeline.Replace("EnforceSendBestPractices", typeof(EmptyBehavior));
 
-            context.RegisterStartupTask(builder => new EndpointRunner(builder.Build<ILogger<EndpointRunner>>(), context.Settings.InstanceSpecificQueue(), aggSettings));
+            context.RegisterStartupTask(provider => {
+                var receiveAddress = provider.GetRequiredService<ReceiveAddresses>();
+                return new EndpointRunner(provider.GetRequiredService<ILogger<EndpointRunner>>(), receiveAddress.InstanceReceiveAddress, aggSettings); 
+            });
         }
         private static bool IsServiceHandler(Type type)
         {
@@ -86,8 +89,9 @@ namespace Aggregates
             _instanceQueue = instanceQueue;
             _settings = settings;
         }
-        protected override async Task OnStart(IMessageSession session)
+        protected override async Task OnStart(IMessageSession session, CancellationToken token = default)
         {
+            token.ThrowIfCancellationRequested();
 
             Logger.InfoEvent("Startup", "Starting on {Queue}", _instanceQueue);
 
@@ -98,8 +102,9 @@ namespace Aggregates
             }).ConfigureAwait(false);
 
         }
-        protected override async Task OnStop(IMessageSession session)
+        protected override async Task OnStop(IMessageSession session, CancellationToken token = default)
         {
+            token.ThrowIfCancellationRequested();
 
             Logger.InfoEvent("Shutdown", "Stopping on {Queue}", _instanceQueue);
             await session.Publish<EndpointDead>(x =>

@@ -10,9 +10,9 @@ namespace Aggregates.Extensions
     [ExcludeFromCodeCoverage]
     public static class MessageExtensions
     {
-        public static MessageIntentEnum GetMessageIntent(this IIncomingLogicalMessageContext message)
+        public static MessageIntent GetMessageIntent(this IIncomingLogicalMessageContext message)
         {
-            var messageIntent = default(MessageIntentEnum);
+            var messageIntent = default(MessageIntent);
 
             if (message.MessageHeaders.TryGetValue(Headers.MessageIntent, out var messageIntentString))
             {
@@ -21,9 +21,9 @@ namespace Aggregates.Extensions
 
             return messageIntent;
         }
-        public static MessageIntentEnum GetMessageIntent(this IOutgoingLogicalMessageContext message)
+        public static MessageIntent GetMessageIntent(this IOutgoingLogicalMessageContext message)
         {
-            var messageIntent = default(MessageIntentEnum);
+            var messageIntent = default(MessageIntent);
 
             if (message.Headers.TryGetValue(Headers.MessageIntent, out var messageIntentString))
             {

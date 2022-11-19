@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Aggregates.Messages;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Pipeline;
@@ -38,7 +39,7 @@ namespace Aggregates.Internal
                 if (context.MessageHandled)
                     return;
                 // Only send reply if the message is a SEND, else we risk endless reply loops as message failures bounce back and forth
-                if (context.GetMessageIntent() != MessageIntentEnum.Send && context.GetMessageIntent() != MessageIntentEnum.Publish)
+                if (context.GetMessageIntent() != MessageIntent.Send && context.GetMessageIntent() != MessageIntent.Publish)
                     return;
 
                 // At this point message is dead - should be moved to error queue, send message to client that their request was rejected due to error 
@@ -60,7 +61,7 @@ namespace Aggregates.Internal
                 replyOptions.RequireImmediateDispatch();
 
                 // Tell the sender the command was not handled due to a service exception
-                var rejection = context.Builder.Build<Action<string, string, Error>>();
+                var rejection = context.Builder.GetService<Action<string, string, Error>>();
                 context.Headers.TryGetValue(NSBDefaults.ExceptionTypeHeader, out var exceptionType);
                 context.Headers.TryGetValue(NSBDefaults.ExceptionStack, out var exceptionStack);
                 // Wrap exception in our object which is serializable
@@ -77,7 +78,7 @@ namespace Aggregates.Internal
             stepId: "FailureReply",
             behavior: typeof(FailureReply),
             description: "notifies client when the command fails",
-            factoryMethod: (b) => new FailureReply(b.Build<ILogger<FailureReply>>(), b.Build<IMetrics>())
+            factoryMethod: (b) => new FailureReply(b.GetService<ILogger<FailureReply>>(), b.GetService<IMetrics>())
         )
         {
             InsertBefore("MutateIncomingMessages");

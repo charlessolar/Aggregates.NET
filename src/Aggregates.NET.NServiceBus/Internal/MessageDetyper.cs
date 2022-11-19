@@ -1,5 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NServiceBus.Pipeline;
 using System;
@@ -62,7 +63,7 @@ namespace Aggregates.Internal
             stepId: "MessageDetyper",
             behavior: typeof(MessageDetyper),
             description: "detypes outgoing messages to Versioned commands/events",
-            factoryMethod: (b) => new MessageDetyper(b.Build<ILoggerFactory>(), b.Build<Contracts.IVersionRegistrar>(), b.Build<Contracts.IEventMapper>()))
+            factoryMethod: (b) => new MessageDetyper(b.GetService<ILoggerFactory>(), b.GetService<Contracts.IVersionRegistrar>(), b.GetService<Contracts.IEventMapper>()))
         {
         }
     }

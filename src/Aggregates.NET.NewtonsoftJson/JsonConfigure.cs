@@ -22,7 +22,7 @@ namespace Aggregates
             
             Settings.RegistrationTasks.Add((container, settings) =>
             {
-                container.AddSingleton<IMessageSerializer>((factory) => new JsonMessageSerializer(factory.GetRequiredService<IEventMapper>(), factory.GetRequiredService<IEventFactory>(), extraConverters));
+                container.AddSingleton<IMessageSerializer>((factory) => new JsonMessageSerializer(factory.GetRequiredService<IEventMapper>(), factory.GetRequiredService<IEventFactory>(), extraConverters, config.DevelopmentMode));
 
                 return Task.CompletedTask;
             });

@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Pipeline;
@@ -60,7 +61,7 @@ namespace Aggregates.Internal
 
                 if (elapsed > _slowAlert.Value.TotalSeconds)
                 {
-                    Logger.WarnEvent("Slow Alarm", "[{MessageId:l}] {MessageType} took {Milliseconds} payload {Payload}", context.MessageId, messageTypeIdentifier, elapsed, Encoding.UTF8.GetString(context.Message.Body).MaxLines(10));
+                    Logger.WarnEvent("Slow Alarm", "[{MessageId:l}] {MessageType} took {Milliseconds} payload {Payload}", context.MessageId, messageTypeIdentifier, elapsed, Encoding.UTF8.GetString(context.Message.Body.Span).MaxLines(10));
                     if (!verbose)
                         lock (SlowLock) SlowCommandTypes.Add(messageTypeIdentifier);
                 }
@@ -80,7 +81,7 @@ namespace Aggregates.Internal
             stepId: "Time Execution",
             behavior: typeof(TimeExecutionBehavior),
             description: "htimes message processing and logs slow ones",
-            factoryMethod: (b) => new TimeExecutionBehavior(b.Build<ILogger<TimeExecutionBehavior>>(), b.Build<Settings>())
+            factoryMethod: (b) => new TimeExecutionBehavior(b.GetService<ILogger<TimeExecutionBehavior>>(), b.GetService<Settings>())
         )
         {
             InsertBefore("MutateIncomingMessages");

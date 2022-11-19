@@ -38,13 +38,19 @@ namespace Aggregates.Internal
         {
             _serializer.Value.Serialize(message, stream);
         }
+
+        public object[] Deserialize(ReadOnlyMemory<byte> body, IList<Type> messageTypes = null)
+        {
+            var stream = new ReadOnlyStream(body);
+            return Deserialize(stream, messageTypes);
+        }
     }
 
     [ExcludeFromCodeCoverage]
     class AggregatesSerializer : NServiceBus.Serialization.SerializationDefinition
     {
 
-        public override Func<IMessageMapper, NServiceBus.Serialization.IMessageSerializer> Configure(ReadOnlySettings settings)
+        public override Func<IMessageMapper, NServiceBus.Serialization.IMessageSerializer> Configure(IReadOnlySettings settings)
         {
             var config = settings.Get<IConfiguration>(NSBDefaults.AggregatesConfiguration);
             return mapper => new Serializer(config);

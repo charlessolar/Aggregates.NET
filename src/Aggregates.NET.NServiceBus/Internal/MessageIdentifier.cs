@@ -1,4 +1,5 @@
 ﻿using Aggregates.Extensions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NServiceBus.Pipeline;
 using NServiceBus.Unicast.Messages;
@@ -71,7 +72,7 @@ namespace Aggregates.Internal
             stepId: "MessageIdentifier",
             behavior: typeof(MessageIdentifier),
             description: "identifies incoming messages as Versioned commands/events",
-            factoryMethod: (b) => new MessageIdentifier(b.Build<ILoggerFactory>(), b.Build<MessageMetadataRegistry>(), b.Build<Contracts.IVersionRegistrar>()))
+            factoryMethod: (b) => new MessageIdentifier(b.GetService<ILoggerFactory>(), b.GetService<MessageMetadataRegistry>(), b.GetService<Contracts.IVersionRegistrar>()))
         {
         }
     }

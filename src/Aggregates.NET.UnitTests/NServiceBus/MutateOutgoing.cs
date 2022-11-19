@@ -44,7 +44,7 @@ namespace Aggregates.NServiceBus
 
             var next = A.Fake<Func<Task>>();
             var context = new TestableOutgoingLogicalMessageContext();
-            context.Headers[Headers.MessageIntent] = MessageIntentEnum.Reply.ToString();
+            context.Headers[Headers.MessageIntent] = MessageIntent.Reply.ToString();
             context.UpdateMessage(Fake<Messages.IEvent>());
 
             await Sut.Invoke(context, next).ConfigureAwait(false);

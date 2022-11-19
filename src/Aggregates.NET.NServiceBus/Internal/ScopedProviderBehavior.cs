@@ -41,7 +41,7 @@ namespace Aggregates.Internal
             stepId: "ScopedProvider",
             behavior: typeof(ScopedProviderBehavior),
             description: "Provides a scoped service provider",
-            factoryMethod: (b) => new ScopedProviderBehavior(b.Build<IServiceProvider>(), b.Build<ISettings>())
+            factoryMethod: (b) => new ScopedProviderBehavior(b.GetService<IServiceProvider>(), b.GetService<ISettings>())
         )
         {
             InsertBefore("MutateIncomingTransportMessage");

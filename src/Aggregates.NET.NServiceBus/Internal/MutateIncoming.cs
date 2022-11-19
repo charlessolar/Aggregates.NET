@@ -23,7 +23,7 @@ namespace Aggregates.Internal
 
         public override Task Invoke(IIncomingLogicalMessageContext context, Func<Task> next)
         {
-            if (context.GetMessageIntent() == MessageIntentEnum.Reply)
+            if (context.GetMessageIntent() == MessageIntent.Reply)
                 return next();
 
             // gets the child provider

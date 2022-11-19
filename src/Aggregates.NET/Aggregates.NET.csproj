@@ -2,7 +2,7 @@
   <Import Project="../Common.props" />
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <RootNamespace>Aggregates</RootNamespace>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     
@@ -20,9 +20,9 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
   </ItemGroup>
 
   <ItemGroup>

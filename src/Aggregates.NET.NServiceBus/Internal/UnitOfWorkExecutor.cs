@@ -36,7 +36,7 @@ namespace Aggregates.Internal
             var provider = context.Extensions.Get<IServiceProvider>();
 
             // Only SEND messages deserve a UnitOfWork
-            if (context.GetMessageIntent() != MessageIntentEnum.Send && context.GetMessageIntent() != MessageIntentEnum.Publish)
+            if (context.GetMessageIntent() != MessageIntent.Send && context.GetMessageIntent() != MessageIntent.Publish)
             {
                 await next().ConfigureAwait(false);
                 return;
@@ -124,7 +124,7 @@ namespace Aggregates.Internal
             stepId: "UnitOfWorkExecution",
             behavior: typeof(UnitOfWorkExecutor),
             description: "Begins and Ends unit of work for your endpoint",
-            factoryMethod: (b) => new UnitOfWorkExecutor(b.Build<ILogger<UnitOfWorkExecutor>>(), b.Build<ISettings>(), b.Build<IServiceProvider>(), b.Build<IMetrics>())
+            factoryMethod: (b) => new UnitOfWorkExecutor(b.GetService<ILogger<UnitOfWorkExecutor>>(), b.GetService<ISettings>(), b.GetService<IServiceProvider>(), b.GetService<IMetrics>())
         )
         {
             InsertAfter("FailureReply");
