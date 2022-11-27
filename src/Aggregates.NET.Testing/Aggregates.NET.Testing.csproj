@@ -22,7 +22,6 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Include="NServiceBus.Callbacks.Testing" Version="4.0.0" />
     <PackageReference Include="NServiceBus.Testing" Version="8.0.0" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" />
   </ItemGroup>
   
   <ItemGroup>
