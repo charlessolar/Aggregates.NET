@@ -7,17 +7,11 @@ using Cake.Common.Build;
 using Cake.Common.IO;
 using System;
 using Cake.Common.Xml;
-using Cake.Common.Tools.DotNetCore;
-using Cake.Common.Tools.DotNetCore.MSBuild;
-using Cake.Common.Tools.DotNetCore.Build;
 using Build.Helpers;
 using System.Linq;
 using Cake.Common.Tools.OpenCover;
-using Cake.Common.Tools.DotNetCore.Test;
 using Cake.Common.Tools.ReportGenerator;
-using Cake.Common.Tools.DotNetCore.Publish;
 using Cake.Curl;
-using Cake.Common.Tools.DotNetCore.Pack;
 using Cake.Common.Tools.NuGet;
 using Cake.Common.Tools.NuGet.Push;
 using Cake.Docker;
@@ -27,8 +21,12 @@ using Cake.Common.Tools.ReportUnit;
 using Cake.Core.IO;
 using Cake.Common;
 using Cake.Common.Build.AzurePipelines.Data;
-using Cake.Common.Tools.DotNetCore.NuGet.Push;
 using Cake.AzurePipelines.Module;
+using Cake.Common.Tools.DotNet.Test;
+using Cake.Common.Tools.DotNet;
+using Cake.Common.Tools.DotNet.Publish;
+using Cake.Common.Tools.DotNet.Pack;
+using Cake.Common.Tools.DotNet.Build;
 
 namespace Build
 {
@@ -38,7 +36,7 @@ namespace Build
         public static int Main(string[] args)
         {
             return new CakeHost()
-                .InstallTool(new Uri("nuget:?package=GitVersion.CommandLine&version=5.6.9"))
+                .InstallTool(new Uri("nuget:?package=GitVersion.CommandLine&version=5.11.1"))
                 .UseContext<Helpers.BuildParameters>()
                 .UseLifetime<BuildLifetime>()
                 .UseModule<AzurePipelinesModule>()
@@ -56,7 +54,7 @@ namespace Build
     }
     public sealed class BuildLifetime : FrostingLifetime<Helpers.BuildParameters>
     {
-        public override void Setup(BuildParameters context)
+        public override void Setup(BuildParameters context, ISetupContext setupContext)
         {
             context.Setup();
             context.Info("==============================================");
@@ -144,7 +142,7 @@ namespace Build
     {
         public override void Run(Helpers.BuildParameters context)
         {
-            context.DotNetCoreRestore(context.Solution.FullPath, new Cake.Common.Tools.DotNetCore.Restore.DotNetCoreRestoreSettings
+            context.DotNetRestore(context.Solution.FullPath, new Cake.Common.Tools.DotNet.Restore.DotNetRestoreSettings
             {
                 ConfigFile = "./tools/nuget.config",
                 //Verbosity = context.IsLocalBuild ? DotNetCoreVerbosity.Quiet : DotNetCoreVerbosity.Detailed,
@@ -161,8 +159,8 @@ namespace Build
     {
         public override void Run(Helpers.BuildParameters context)
         {
-            context.DotNetCoreBuild(context.Solution.FullPath,
-            new DotNetCoreBuildSettings
+            context.DotNetBuild(context.Solution.FullPath,
+            new DotNetBuildSettings
             {
                 WorkingDirectory = context.Paths.Directories.BuildRoot,
                 Configuration = context.BuildConfiguration,
@@ -205,7 +203,7 @@ namespace Build
                 var testResults = context.Paths.Directories.TestResultsDir.Combine(project.Id);
                 context.Info("Running tests {0} output directory {1}", project.Id, testResults);
                 // shove every option into dotnet test arg customerization until Coverlet extension works
-                var settings = new DotNetCoreTestSettings
+                var settings = new DotNetTestSettings
                 {
                     Configuration = context.BuildConfiguration,
                     NoBuild = true,
@@ -221,7 +219,7 @@ namespace Build
 
 
                 //coverletSettings.WorkingDirectory = project.ProjectPath.GetDirectory();
-                context.DotNetCoreTest(project.ProjectPath.FullPath, settings);
+                context.DotNetTest(project.ProjectPath.FullPath, settings);
                 //context.Coverlet(project.ProjectPath.GetDirectory(), coverletSettings, true, context.BuildConfiguration);
 
                 if (context.FileExists(testResults.CombineWithFilePath("TestResults.html")))
@@ -317,7 +315,7 @@ namespace Build
         {
             foreach (var project in context.Paths.Files.Projects.Where(x => x.OutputType != "Test"))
             {
-                context.DotNetCorePublish(project.ProjectFile.FullPath, new DotNetCorePublishSettings
+                context.DotNetPublish(project.ProjectFile.FullPath, new DotNetPublishSettings
                 {
                     WorkingDirectory = context.Paths.Directories.BuildRoot,
                     Configuration = context.BuildConfiguration,
@@ -367,9 +365,9 @@ namespace Build
             foreach (var project in context.Packages.Nuget)
             {
                 context.Info("Building nuget package: " + project.Id + " Version: " + context.Version.NuGet);
-                context.DotNetCorePack(
+                context.DotNetPack(
                     project.ProjectPath.FullPath,
-                    new DotNetCorePackSettings
+                    new DotNetPackSettings
                     {
                         WorkingDirectory = context.Paths.Directories.BuildRoot,
                         Configuration = context.BuildConfiguration,

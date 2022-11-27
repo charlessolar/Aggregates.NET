@@ -2,8 +2,8 @@
 using Cake.Common.Build;
 using Cake.Common.Diagnostics;
 using Cake.Common.IO;
-using Cake.Common.Tools.DotNetCore;
-using Cake.Common.Tools.DotNetCore.MSBuild;
+using Cake.Common.Tools.DotNet;
+using Cake.Common.Tools.DotNet.MSBuild;
 using Cake.Core;
 using Cake.Core.IO;
 using Cake.Frosting;
@@ -47,7 +47,7 @@ namespace Build.Helpers
 
         public bool HasFailed { get; set; }
 
-        public DotNetCoreMSBuildSettings MsBuildSettings { get; private set; }
+        public DotNetMSBuildSettings MsBuildSettings { get; private set; }
 
 
         public bool IsPreRelease
@@ -143,7 +143,7 @@ namespace Build.Helpers
 
             var repository = "";
 
-            var isVSTS = buildSystem.IsRunningOnAzurePipelines || buildSystem.IsRunningOnAzurePipelinesHosted;
+            var isVSTS = buildSystem.IsRunningOnAzurePipelines || buildSystem.IsRunningOnAzurePipelines;
 
             var buildNumber = 0;
             var branch = "master";
@@ -202,9 +202,9 @@ namespace Build.Helpers
                 Paths.Files.Projects
                 );
 
-            MsBuildSettings = new DotNetCoreMSBuildSettings()
+            MsBuildSettings = new DotNetMSBuildSettings()
             {
-                Verbosity = DotNetCoreVerbosity.Minimal,
+                Verbosity = DotNetVerbosity.Minimal,
             }
             .WithProperty("Version", Version.NuGet)
             .WithProperty("AssemblyVersion", Version.SemVersion)
