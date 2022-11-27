@@ -21,7 +21,6 @@ using Cake.Common.Tools.ReportUnit;
 using Cake.Core.IO;
 using Cake.Common;
 using Cake.Common.Build.AzurePipelines.Data;
-using Cake.AzurePipelines.Module;
 using Cake.Common.Tools.DotNet.Test;
 using Cake.Common.Tools.DotNet;
 using Cake.Common.Tools.DotNet.Publish;
@@ -39,7 +38,6 @@ namespace Build
                 .InstallTool(new Uri("nuget:?package=GitVersion.CommandLine&version=5.11.1"))
                 .UseContext<Helpers.BuildParameters>()
                 .UseLifetime<BuildLifetime>()
-                .UseModule<AzurePipelinesModule>()
                 .UseWorkingDirectory("..")
                 .Run(args);
         }
@@ -54,7 +52,7 @@ namespace Build
     }
     public sealed class BuildLifetime : FrostingLifetime<Helpers.BuildParameters>
     {
-        public override void Setup(BuildParameters context, ISetupContext setupContext)
+        public override void Setup(BuildParameters context)
         {
             context.Setup();
             context.Info("==============================================");

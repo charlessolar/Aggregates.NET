@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
@@ -11,7 +11,7 @@
     <PackageReference Include="Cake.Coverlet" Version="3.0.2" />
     <PackageReference Include="Cake.Curl" Version="4.1.0" />
     <PackageReference Include="Cake.Docker" Version="1.1.2" />
-    <PackageReference Include="Cake.Frosting" Version="3.0.0" />
+    <PackageReference Include="Cake.Frosting" Version="2.3.0" />
     <PackageReference Include="Cake.Incubator" Version="7.0.0" />
     <PackageReference Include="Cake.BuildSystems.Module" Version="4.2.0" />
     <PackageReference Include="GitVersion.CommandLine" Version="5.11.1">

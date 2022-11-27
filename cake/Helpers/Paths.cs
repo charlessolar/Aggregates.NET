@@ -64,7 +64,7 @@ namespace Build.Helpers
                     // Web also means Docker, so it comes after above check
                     output = "Web";
                 }
-                if (info.IsDotNetCliTestProject())
+                if (info.IsTestProject())
                 {
                     output = "Test";
                 }

@@ -18,6 +18,7 @@
     <PackageReference Include="NServiceBus.Extensions.DependencyInjection" Version="2.0.0" />
     <PackageReference Include="NServiceBus.Extensions.Logging" Version="2.0.0" />
     <PackageReference Include="System.Memory" Version="4.5.5" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,8 +31,5 @@
     </Compile>
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="1.1.1" />
-  </ItemGroup>
 
 </Project>
