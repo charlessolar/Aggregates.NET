@@ -23,12 +23,12 @@ jobs:
             3.1.x
 
       - name: Cache Cake Tools
-        uses: actions/cache@v1.1.2
+        uses: actions/cache@v3
         with:
           path: tools
           key: ${{ runner.os }}-${{ hashFiles('build/**') }}
       - name: Cache Nugets
-        uses: actions/cache@v1.1.2
+        uses: actions/cache@v3
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
@@ -38,7 +38,7 @@ jobs:
         run: dotnet tool install dotnet-reportgenerator-globaltool --global
         shell: powershell
       - name: Install coveralls.net
-        run: dotnet tool install --global coveralls.net --version 2.0.0
+        run: dotnet tool install --global coveralls.net --version 4.0.1
         shell: powershell
 
       - name: Run Cake script
@@ -50,14 +50,14 @@ jobs:
           COVERALLS_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: success() || failure()
         continue-on-error: true
         with:
           name: binaries
           path: artifacts/bin
       - name: Upload test reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: success() || failure()
         continue-on-error: true
         with:
