@@ -29,6 +29,7 @@ namespace Aggregates
         public static Settings NServiceBus(this Settings config, EndpointConfiguration endpointConfig)
         {
             IStartableEndpointWithExternallyManagedContainer startableEndpoint = null;
+            IEndpointInstance instance = null;
 
             {
                 var settings = endpointConfig.GetSettings();
@@ -65,7 +66,7 @@ namespace Aggregates
                 container.AddTransient<Contracts.IMessageDispatcher, Dispatcher>();
                 container.AddTransient<IMessaging, NServiceBusMessaging>();
 
-                container.AddTransient<IMessageSession>((_) => Bus.Instance);
+                container.AddTransient<IMessageSession>((_) => instance);
 
 
                 var nsbSettings = endpointConfig.GetSettings();
@@ -132,17 +133,17 @@ namespace Aggregates
                 return Task.CompletedTask;
             });
 
-            Settings.StartupTasks.Add((container, settings) =>
+            Settings.BusTasks.Add(async (container, settings) =>
             {
                 var logFactory = container.GetService<ILoggerFactory>();
                 if (logFactory != null)
                     global::NServiceBus.Logging.LogManager.UseFactory(new ExtensionsLoggerFactory(logFactory));
 
-                return Aggregates.Bus.Start(container, startableEndpoint);
+                instance = await startableEndpoint.Start(container).ConfigureAwait(false);
             });
             Settings.ShutdownTasks.Add((container, settings) =>
             {
-                return Aggregates.Bus.Instance.Stop();
+                return instance.Stop();
             });
 
             return config;

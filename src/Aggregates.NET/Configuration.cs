@@ -31,6 +31,7 @@ namespace Aggregates
                 if (uow != null && !(uow is UnitOfWork.IBaseUnitOfWork))
                     throw new InvalidOperationException($"Unit of work {uow.GetType().Name} needs to also implement {typeof(UnitOfWork.IBaseUnitOfWork)}");
 
+                await Internal.Settings.BusTasks.WhenAllAsync(x => x(serviceProvider, Settings)).ConfigureAwait(false);
                 await Internal.Settings.StartupTasks.WhenAllAsync(x => x(serviceProvider, Settings)).ConfigureAwait(false);
             }
             catch

@@ -3,6 +3,7 @@ using Aggregates.Internal;
 using Aggregates.Messages;
 using FakeItEasy;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using NServiceBus;
 using NServiceBus.Pipeline;
 using NServiceBus.Testing;
@@ -37,7 +38,7 @@ namespace Aggregates.NServiceBus
             context.Headers.Add(NSBDefaults.FailedHeader, "1");
             context.MessageHeaders.Add(Headers.MessageIntent, MessageIntent.Send.ToString());
             context.MessageHeaders.Add(Defaults.RequestResponse, "1");
-            context.Builder.Register<Action<string, string, Error>>(Fake<Action<string, string, Error>>());
+            context.ServiceCollection.TryAddSingleton(Fake<Action<string, string, Error>>());
 
             context.UpdateMessageInstance(Fake<Messages.IEvent>());
 
@@ -54,7 +55,7 @@ namespace Aggregates.NServiceBus
             context.Headers.Add(NSBDefaults.FailedHeader, "1");
             context.MessageHeaders.Add(Headers.MessageIntent, MessageIntent.Send.ToString());
             context.MessageHeaders.Add(Defaults.RequestResponse, "1");
-            context.Builder.Register<Action<string, string, Error>>(Fake<Action<string, string, Error>>());
+            context.ServiceCollection.TryAddSingleton(Fake<Action<string, string, Error>>());
 
             context.UpdateMessageInstance(Fake<Messages.IEvent>());
 
@@ -70,7 +71,7 @@ namespace Aggregates.NServiceBus
             context.Headers.Add(NSBDefaults.FailedHeader, "1");
             context.MessageHeaders.Add(Headers.MessageIntent, MessageIntent.Reply.ToString());
             context.MessageHeaders.Add(Defaults.RequestResponse, "1");
-            context.Builder.Register<Action<string, string, Error>>(Fake<Action<string, string, Error>>());
+            context.ServiceCollection.TryAddSingleton(Fake<Action<string, string, Error>>());
 
             context.UpdateMessageInstance(Fake<Messages.IEvent>());
 
@@ -86,7 +87,7 @@ namespace Aggregates.NServiceBus
             context.Headers.Add(NSBDefaults.FailedHeader, "1");
             context.MessageHeaders.Add(Headers.MessageIntent, MessageIntent.Send.ToString());
             context.MessageHeaders.Add(Defaults.RequestResponse, "0");
-            context.Builder.Register<Action<string, string, Error>>(Fake<Action<string, string, Error>>());
+            context.ServiceCollection.TryAddSingleton(Fake<Action<string, string, Error>>());
 
             context.UpdateMessageInstance(Fake<Messages.IEvent>());
 

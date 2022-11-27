@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using NServiceBus;
 using Shared;
 
-
+var csc = new CancellationTokenSource();
 var endpointConfiguration = new EndpointConfiguration("Client");
 endpointConfiguration.UsePersistence<LearningPersistence>();
 endpointConfiguration.UseTransport<LearningTransport>();
@@ -39,11 +39,23 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<EchoService>();
     }).Build();
 
+AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) =>
+{
+    var logging = host.Services.GetRequiredService<ILogger>();
+    logging.LogCritical($"Unhandled exception: {eventArgs.ExceptionObject.ToString()}");
 
-await Task.WhenAny(host.RunAsync(), Task.Run(() => Loop(host)));
+    if(eventArgs.IsTerminating)
+    {
+        csc.Cancel();
+        host.StopAsync();
+        host.Dispose();
+    }
+};
+
+await Task.WhenAny(host.RunAsync(csc.Token), Task.Run(() => Loop(host, csc.Token)));
 
 
-static async Task Loop(IHost host)
+static async Task Loop(IHost host, CancellationToken token)
 {
     // wait for app to start NSB connected etc etc
     var lifetime = host.Services.GetRequiredService<IHostLifetime>();
@@ -53,6 +65,8 @@ static async Task Loop(IHost host)
 
     while (true)
     {
+        token.ThrowIfCancellationRequested();
+
         Console.SetCursorPosition(0, 15);
         Console.WriteLine("Press any key to send hello");
         Console.ReadKey();

@@ -7,6 +7,7 @@ using NServiceBus;
 using Shared;
 
 
+var csc = new CancellationTokenSource();
 var endpointConfiguration = new EndpointConfiguration("Domain");
 endpointConfiguration.UsePersistence<LearningPersistence>();
 endpointConfiguration.UseTransport<LearningTransport>();
@@ -38,4 +39,18 @@ var host = Host.CreateDefaultBuilder(args)
         });
     }).Build();
 
-await host.RunAsync();
+AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) =>
+{
+    var logging = host.Services.GetRequiredService<ILogger>();
+    logging.LogCritical($"Unhandled exception: {eventArgs.ExceptionObject.ToString()}");
+
+    if (eventArgs.IsTerminating)
+    {
+        csc.Cancel();
+        host.StopAsync();
+        host.Dispose();
+    }
+
+};
+
+await host.RunAsync(csc.Token);

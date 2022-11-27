@@ -47,6 +47,9 @@ namespace Aggregates.Internal
         public string MessageContentType { get; internal set; }
 
         internal static List<Func<IServiceCollection, ISettings, Task>> RegistrationTasks;
+        // Tasks which start command bus
+        internal static List<Func<IServiceProvider, ISettings, Task>> BusTasks;
+        // Tasks for after bus is online
         internal static List<Func<IServiceProvider, ISettings, Task>> StartupTasks;
         internal static List<Func<IServiceProvider, ISettings, Task>> ShutdownTasks;
 
@@ -56,6 +59,7 @@ namespace Aggregates.Internal
             AggregatesVersion = Assembly.GetExecutingAssembly()?.GetName().Version ?? new Version(0, 0, 0);
 
             RegistrationTasks = new List<Func<IServiceCollection, ISettings, Task>>();
+            BusTasks = new List<Func<IServiceProvider, ISettings, Task>>();
             StartupTasks = new List<Func<IServiceProvider, ISettings, Task>>();
             ShutdownTasks = new List<Func<IServiceProvider, ISettings, Task>>();
 
@@ -107,6 +111,10 @@ namespace Aggregates.Internal
                     message.Message = ex.Message;
                 });
 
+                return Task.CompletedTask;
+            });
+            BusTasks.Add((container, settings) =>
+            {
                 return Task.CompletedTask;
             });
             StartupTasks.Add((container, settings) =>

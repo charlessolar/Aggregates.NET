@@ -24,14 +24,14 @@ namespace Aggregates.NServiceBus
         public MessageIdentifier()
         {
             // evil hack
-            bool IsMessageType(Type t) => true;
-            var messageMetadataRegistry = (MessageMetadataRegistry)Activator.CreateInstance(
-                type: typeof(MessageMetadataRegistry),
-                bindingAttr: BindingFlags.NonPublic | BindingFlags.Instance,
-                binder: null,
-                args: new object[] { (Func<Type, bool>)IsMessageType },
-                culture: CultureInfo.InvariantCulture);
-            Inject(messageMetadataRegistry);
+            //bool IsMessageType(Type t) => true;
+            //var messageMetadataRegistry = (MessageMetadataRegistry)Activator.CreateInstance(
+            //    type: typeof(MessageMetadataRegistry),
+            //    bindingAttr: BindingFlags.NonPublic | BindingFlags.Instance,
+            //    binder: null,
+            //    args: new object[] { (Func<Type, bool>)IsMessageType },
+            //    culture: CultureInfo.InvariantCulture);
+            //Inject(messageMetadataRegistry);
         }
 
         [Fact]

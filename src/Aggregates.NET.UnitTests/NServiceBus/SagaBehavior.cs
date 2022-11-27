@@ -25,7 +25,7 @@ namespace Aggregates.NServiceBus
             await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
-            context.Message.Instance.Should().BeOfType<string>().And.Equals("test");
+            context.Message.Instance.Should().BeOfType<string>().And.Be("test");
         }
         [Fact]
         public async Task AcceptReplaced()

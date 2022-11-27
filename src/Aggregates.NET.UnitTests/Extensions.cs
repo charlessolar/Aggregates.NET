@@ -19,7 +19,7 @@ namespace Aggregates
     {
         private IAssertConfiguration _configuration;
 
-        public FakeItEasyCallAssertions(IAssertConfiguration configuration)
+        public FakeItEasyCallAssertions(IAssertConfiguration configuration) : base(configuration)
         {
             _configuration = configuration;
         }

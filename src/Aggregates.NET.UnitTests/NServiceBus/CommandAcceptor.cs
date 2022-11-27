@@ -2,6 +2,7 @@
 using Aggregates.Messages;
 using FakeItEasy;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using NServiceBus.Pipeline;
 using NServiceBus.Testing;
 using System;
@@ -33,7 +34,7 @@ namespace Aggregates.NServiceBus
             var context = new TestableIncomingLogicalMessageContext();
             context.UpdateMessageInstance(Fake<Messages.ICommand>());
             context.MessageHeaders[Defaults.RequestResponse] = "1";
-            context.Builder.Register<Action<Accept>>(A.Fake<Action<Accept>>());
+            context.ServiceCollection.TryAddSingleton(A.Fake<Action<Accept>>());
 
             await Sut.Invoke(context, next).ConfigureAwait(false);
 
@@ -49,7 +50,7 @@ namespace Aggregates.NServiceBus
             var context = new TestableIncomingLogicalMessageContext();
             context.UpdateMessageInstance(Fake<Messages.ICommand>());
             context.MessageHeaders[Defaults.RequestResponse] = "1";
-            context.Builder.Register<Action<BusinessException, Reject>>(A.Fake<Action<BusinessException, Reject>>());
+            context.ServiceCollection.TryAddSingleton(A.Fake<Action<BusinessException, Reject>>());
 
             var e = await Record.ExceptionAsync(() => Sut.Invoke(context, next)).ConfigureAwait(false);
 

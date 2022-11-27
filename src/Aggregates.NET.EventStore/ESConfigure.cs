@@ -98,14 +98,23 @@ namespace Aggregates
             Settings.StartupTasks.Add(async (provider, settings) =>
             {
                 var subscriber = provider.GetRequiredService<IEventSubscriber>();
+                var logFactory = provider.GetRequiredService<ILoggerFactory>();
+                var _logger = logFactory.CreateLogger("EventStoreClient");
 
-                await subscriber.Setup(
-                    settings.Endpoint,
-                    settings.EndpointVersion)
-                .ConfigureAwait(false);
+                try
+                {
+                    await subscriber.Setup(
+                        settings.Endpoint,
+                        settings.EndpointVersion)
+                    .ConfigureAwait(false);
 
-                await subscriber.Connect().ConfigureAwait(false);
-
+                    await subscriber.Connect().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.InfoEvent("StartupTask", "EventStore subscriber failed to connect", ex);
+                    throw;
+                }
                 // Only setup children projection if client wants it
                 if (settings.TrackChildren)
                 {

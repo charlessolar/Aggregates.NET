@@ -187,7 +187,7 @@ namespace Aggregates.Internal
                     await store.CreateAsync(stream, group, settings).ConfigureAwait(false);
                     Logger.InfoEvent("CreatePinned", "Creating pinned subscription to [{Stream:l}] group [{Group:l}]", stream, group);
                 }
-                catch (InvalidOperationException)
+                catch 
                 {
                     // Already created
                 }
@@ -343,10 +343,10 @@ namespace Aggregates.Internal
                 await deserializeEvent(e, callback).ConfigureAwait(false);
                 await sub.Ack(e).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) 
             {
                 Logger.ErrorEvent("Event Failed", ex, "Event processing failed - Stream: [{Stream:l}] Position: {StreamPosition} {ExceptionType} - {ExceptionMessage}", e.Event.EventStreamId, e.Event.EventNumber, ex.GetType().Name, ex.Message);
-                await sub.Nack(PersistentSubscriptionNakEventAction.Park, "Deserialize exception", e).ConfigureAwait(false);
+                await sub.Nack(PersistentSubscriptionNakEventAction.Park, $"Deserialize exception {ex.GetType().Name} - {ex.Message}", e).ConfigureAwait(false);
                 // don't throw, stops subscription and causes reconnect
             }
         }
