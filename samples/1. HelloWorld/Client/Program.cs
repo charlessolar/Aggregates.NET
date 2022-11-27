@@ -27,7 +27,8 @@ var host = Host.CreateDefaultBuilder(args)
             .EventStore(es => es.AddClient("esdb://admin:changeit@localhost:2113?tls=false", "Client"))
             .NewtonsoftJson()
             .NServiceBus(endpointConfiguration)
-            .SetCommandDestination("Domain"))
+            .SetCommandDestination("Domain")
+            .SetDevelopmentMode())
     .ConfigureServices((context, services) =>
     {
         services.AddLogging(builder =>
@@ -54,24 +55,49 @@ AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) =>
 
 await Task.WhenAny(host.RunAsync(csc.Token), Task.Run(() => Loop(host, csc.Token)));
 
+static async Task<bool> WaitForAppStartup(IHostApplicationLifetime lifetime, CancellationToken stoppingToken)
+{
+    var startedSource = new TaskCompletionSource();
+    var cancelledSource = new TaskCompletionSource();
+
+    using var reg1 = lifetime.ApplicationStarted.Register(() => startedSource.SetResult());
+    using var reg2 = stoppingToken.Register(() => cancelledSource.SetResult());
+
+    Task completedTask = await Task.WhenAny(
+        startedSource.Task,
+        cancelledSource.Task).ConfigureAwait(false);
+
+    // If the completed tasks was the "app started" task, return true, otherwise false
+    return completedTask == startedSource.Task;
+}
 
 static async Task Loop(IHost host, CancellationToken token)
 {
     // wait for app to start NSB connected etc etc
-    var lifetime = host.Services.GetRequiredService<IHostLifetime>();
-    await lifetime.WaitForStartAsync(CancellationToken.None);
+    var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
+    if(!await WaitForAppStartup(lifetime, token).ConfigureAwait(false))
+    {
+        // if canceled
+        return;
+    }
 
     var senderService = host.Services.GetRequiredService<EchoService>();
 
     while (true)
     {
         token.ThrowIfCancellationRequested();
+        try
+        {
+            Console.SetCursorPosition(0, 15);
+            Console.WriteLine("Press any key to send hello");
+            Console.ReadKey();
 
-        Console.SetCursorPosition(0, 15);
-        Console.WriteLine("Press any key to send hello");
-        Console.ReadKey();
-
-        await senderService.SendMessage("Hello World")
-            .ConfigureAwait(false);
+            await senderService.SendMessage("Hello World")
+                .ConfigureAwait(false);
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
     }
 }

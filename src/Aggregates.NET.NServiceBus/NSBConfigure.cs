@@ -66,7 +66,15 @@ namespace Aggregates
                 container.AddTransient<Contracts.IMessageDispatcher, Dispatcher>();
                 container.AddTransient<IMessaging, NServiceBusMessaging>();
 
-                container.AddTransient<IMessageSession>((_) => instance);
+                container.AddTransient<IMessageSession>((_) =>
+                {
+                    // If the app doesn't wait for NSB to start before asking for IMessageSession
+                    // session will be null, they should wait
+                    // see examples (Hello World/Client/Program.cs) for how to wait
+                    if (instance == null)
+                        throw new Exception("NServiceBus has not started yet");
+                    return instance;
+                });
 
 
                 var nsbSettings = endpointConfig.GetSettings();

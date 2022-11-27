@@ -7,10 +7,10 @@ using System.Threading.Tasks;
 
 namespace Shared
 {
-    public class MessageTotal : IMessage
+    public class MessageTotal : Aggregates.Messages.IMessage
     {
     }
-    public interface MessageTotalResponse : IMessage
+    public interface MessageTotalResponse : Aggregates.Messages.IMessage
     {
         public int Total { get; set; }
     }

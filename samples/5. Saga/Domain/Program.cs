@@ -27,7 +27,8 @@ var host = Host.CreateDefaultBuilder(args)
         .Domain()
         .NewtonsoftJson()
         .NServiceBus(endpointConfiguration)
-        .SetCommandDestination("Domain"))
+        .SetCommandDestination("Domain")
+            .SetDevelopmentMode())
     .ConfigureServices((context, services) =>
     {
         services.AddLogging(builder =>

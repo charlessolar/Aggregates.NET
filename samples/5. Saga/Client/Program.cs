@@ -8,6 +8,7 @@ using NServiceBus;
 using Shared;
 
 
+var csc = new CancellationTokenSource();
 var endpointConfiguration = new EndpointConfiguration("Client");
 endpointConfiguration.UsePersistence<LearningPersistence>();
 endpointConfiguration.UseTransport<LearningTransport>();
@@ -27,7 +28,8 @@ var host = Host.CreateDefaultBuilder(args)
             .EventStore(es => es.AddClient("esdb://admin:changeit@localhost:2113?tls=false", "Client"))
             .NewtonsoftJson()
             .NServiceBus(endpointConfiguration)
-            .SetCommandDestination("Domain"))
+            .SetCommandDestination("Domain")
+            .SetDevelopmentMode())
     .ConfigureServices((context, services) =>
     {
         services.AddLogging(builder =>
@@ -39,16 +41,46 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<EchoService>();
     }).Build();
 
+AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) =>
+{
+    var logging = host.Services.GetRequiredService<ILogger>();
+    logging.LogCritical($"Unhandled exception: {eventArgs.ExceptionObject.ToString()}");
 
-await Task.WhenAny(host.RunAsync(), Task.Run(() => Loop(host)));
+    if (eventArgs.IsTerminating)
+    {
+        csc.Cancel();
+        host.StopAsync();
+        host.Dispose();
+    }
+};
 
+await Task.WhenAny(host.RunAsync(csc.Token), Task.Run(() => Loop(host, csc.Token)));
 
-static async Task Loop(IHost host)
+static async Task<bool> WaitForAppStartup(IHostApplicationLifetime lifetime, CancellationToken stoppingToken)
+{
+    var startedSource = new TaskCompletionSource();
+    var cancelledSource = new TaskCompletionSource();
+
+    using var reg1 = lifetime.ApplicationStarted.Register(() => startedSource.SetResult());
+    using var reg2 = stoppingToken.Register(() => cancelledSource.SetResult());
+
+    Task completedTask = await Task.WhenAny(
+        startedSource.Task,
+        cancelledSource.Task).ConfigureAwait(false);
+
+    // If the completed tasks was the "app started" task, return true, otherwise false
+    return completedTask == startedSource.Task;
+}
+
+static async Task Loop(IHost host, CancellationToken token)
 {
     // wait for app to start NSB connected etc etc
     var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
-    lifetime.ApplicationStarted.WaitHandle.WaitOne();
-
+    if (!await WaitForAppStartup(lifetime, token).ConfigureAwait(false))
+    {
+        // if canceled
+        return;
+    }
     var senderService = host.Services.GetRequiredService<EchoService>();
 
     while (true)
@@ -60,7 +92,8 @@ static async Task Loop(IHost host)
         {
             await senderService.SendMessage("Hello World")
                 .ConfigureAwait(false);
-        }catch (Exception ex)
+        }
+        catch (Exception ex)
         {
             Console.WriteLine(ex);
         }
