@@ -5,7 +5,7 @@
 | **Quality**  | [![GitHub issues](https://img.shields.io/github/issues-raw/charlessolar/aggregates.net.svg)](https://github.com/charlessolar/Aggregates.NET/issues)                                |
 | **Nuget**    | [![Nuget](https://buildstats.info/nuget/Aggregates.NET)](http://nuget.org/packages/Aggregates.NET)                                                                                 |
 
-# Aggregates.NET v0.17
+# Aggregates.NET v0.18
 
 Aggregates.NET is a library to facilitate integration between [NServiceBus](https://github.com/Particular/NServiceBus) and [EventStore](https://github.com/EventStore/EventStore). It provides a framework to define entities, value objects, command and event handlers, and many other domain driven design and CQRS principles. The framework should take all the tediousness of dealing with event streams and message queues out of your consideration and give you a solid base to build a solid event sourced application.
 

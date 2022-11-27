@@ -22,7 +22,7 @@
 
     <Authors>Charles Solar</Authors>
     <Company>Charles Solar</Company>
-    <Copyright>Copyright (c) 2022</Copyright>
+    <Copyright>Copyright (c) 2023</Copyright>
     <PackageTags>CQRS ES event sourcing NServiceBus GetEventStore eventstore ddd</PackageTags>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/charlessolar/Aggregates.NET</RepositoryUrl>
