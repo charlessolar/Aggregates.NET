@@ -19,7 +19,7 @@
 
 
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
     <PackageReference Include="NServiceBus.Callbacks.Testing" Version="4.0.0" />
     <PackageReference Include="NServiceBus.Testing" Version="8.0.0" />
   </ItemGroup>
