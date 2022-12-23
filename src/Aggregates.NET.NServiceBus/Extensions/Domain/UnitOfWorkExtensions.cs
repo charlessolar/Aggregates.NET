@@ -14,10 +14,6 @@ namespace Aggregates.Domain
 {
     public static class UnitOfWorkExtensions
     {
-        public static UnitOfWork.IDomainUnitOfWork Uow(this IServiceContext context)
-        {
-            return context.Uow<UnitOfWork.IDomainUnitOfWork>();
-        }
         public static IRepository<T> For<T>(this IMessageHandlerContext context) where T : class, IEntity
         {
             var uow = context.Extensions.Get<UnitOfWork.IDomainUnitOfWork>();
