@@ -13,12 +13,12 @@ namespace Aggregates
     [ExcludeFromCodeCoverage]
     public static class ServiceCollectionExtensions
     {
-        public static IHostBuilder AddAggregatesNet(this IHostBuilder builder, Action<Settings> settings)
+        public static IHostBuilder AddAggregatesNet(this IHostBuilder builder, Action<HostBuilderContext, Settings> settings)
         {
 
             builder.ConfigureServices((context, collection) =>
             {
-                Configuration.Build(collection, settings).Wait();
+                Configuration.Build(collection, x => settings(context, x)).Wait();
                 collection.AddHostedService<HostedService>();
             });
 
