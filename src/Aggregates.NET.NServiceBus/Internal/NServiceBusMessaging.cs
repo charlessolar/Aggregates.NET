@@ -34,21 +34,33 @@ namespace Aggregates.Internal
             // include Domain Assemblies because NSB's assembly scanning doesn't catch all types
             return AppDomain.CurrentDomain.GetAssemblies()
                 .Where(x => !x.IsDynamic)
-                .SelectMany(x => x.DefinedTypes.Where(IsMessageType)).ToArray()
+                .SelectMany(x => {
+                    try {
+                        return x.DefinedTypes.Where(IsMessageType)).ToArray();
+                    } catch {}
+                })
                 .Distinct().ToArray();
         }
         public Type[] GetEntityTypes()
         {
             return AppDomain.CurrentDomain.GetAssemblies()
                 .Where(x => !x.IsDynamic)
-                .SelectMany(x => x.DefinedTypes.Where(IsEntityType)).ToArray()
+                .SelectMany(x => {
+                    try {
+                        return x.DefinedTypes.Where(IsEntityType)).ToArray();
+                    } catch {}
+                })
                 .Distinct().ToArray();
         }
         public Type[] GetStateTypes()
         {
             return AppDomain.CurrentDomain.GetAssemblies()
                 .Where(x => !x.IsDynamic)
-                .SelectMany(x => x.DefinedTypes.Where(IsStateType)).ToArray()
+                .SelectMany(x => {
+                    try {
+                        return x.DefinedTypes.Where(IsStateType)).ToArray();
+                    } catch {}
+                })
                 .Distinct().ToArray();
         }
 
