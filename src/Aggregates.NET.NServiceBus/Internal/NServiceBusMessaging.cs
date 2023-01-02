@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Aggregates.Contracts;
@@ -36,8 +37,9 @@ namespace Aggregates.Internal
                 .Where(x => !x.IsDynamic)
                 .SelectMany(x => {
                     try {
-                        return x.DefinedTypes.Where(IsMessageType)).ToArray();
+                        return x.DefinedTypes.Where(IsMessageType).ToArray();
                     } catch {}
+                    return Enumerable.Empty<TypeInfo>();
                 })
                 .Distinct().ToArray();
         }
@@ -47,8 +49,9 @@ namespace Aggregates.Internal
                 .Where(x => !x.IsDynamic)
                 .SelectMany(x => {
                     try {
-                        return x.DefinedTypes.Where(IsEntityType)).ToArray();
-                    } catch {}
+                        return x.DefinedTypes.Where(IsEntityType).ToArray();
+                    } catch { }
+                    return Enumerable.Empty<TypeInfo>();
                 })
                 .Distinct().ToArray();
         }
@@ -58,8 +61,9 @@ namespace Aggregates.Internal
                 .Where(x => !x.IsDynamic)
                 .SelectMany(x => {
                     try {
-                        return x.DefinedTypes.Where(IsStateType)).ToArray();
-                    } catch {}
+                        return x.DefinedTypes.Where(IsStateType).ToArray();
+                    } catch { }
+                    return Enumerable.Empty<TypeInfo>();
                 })
                 .Distinct().ToArray();
         }
