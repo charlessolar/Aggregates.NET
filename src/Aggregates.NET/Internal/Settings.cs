@@ -208,6 +208,7 @@ namespace Aggregates.Internal
             // Hook up DI so a call to get IUnitOfWork, IApplicationUnitOfWork, and TService will return the same object
             RegistrationTasks.Add((container, settings) =>
             {
+                container.AddScoped<TImplementation>();
                 container.AddScoped<TService, TImplementation>();
                 container.AddScoped<Aggregates.UnitOfWork.IApplicationUnitOfWork>(factory => factory.GetRequiredService<TService>());
                 container.AddScoped<Aggregates.UnitOfWork.IUnitOfWork>(factory => factory.GetRequiredService<Aggregates.UnitOfWork.IApplicationUnitOfWork>());
