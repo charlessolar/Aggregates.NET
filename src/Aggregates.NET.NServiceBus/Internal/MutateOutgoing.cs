@@ -28,7 +28,7 @@ namespace Aggregates.Internal
             if(context.Headers.ContainsKey(Headers.CorrelationId))
                 context.Headers[$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = context.Headers[Headers.CorrelationId];
 
-            if (context.GetMessageIntent() == MessageIntent.Reply)
+            if (context.GetMessageIntent() == MessageIntent.Reply || context.GetMessageIntent() == MessageIntent.Publish)
                 return next();
 
             // gets the child provider
