@@ -25,14 +25,13 @@ namespace Aggregates
 
             try
             {
+                await Internal.Settings.BusTasks.WhenAllAsync(x => x(serviceProvider, Settings)).ConfigureAwait(false);
+                await Internal.Settings.StartupTasks.WhenAllAsync(x => x(serviceProvider, Settings)).ConfigureAwait(false);
                 // verify certain agg.net stuff now we have a container
                 var uow = serviceProvider.GetService<UnitOfWork.IUnitOfWork>();
                 // i didnt want to make this interface explicit to avoid the user being able to do `ctx.Uow().End()` in his handlers like a silly
                 if (uow != null && !(uow is UnitOfWork.IBaseUnitOfWork))
                     throw new InvalidOperationException($"Unit of work {uow.GetType().Name} needs to also implement {typeof(UnitOfWork.IBaseUnitOfWork)}");
-
-                await Internal.Settings.BusTasks.WhenAllAsync(x => x(serviceProvider, Settings)).ConfigureAwait(false);
-                await Internal.Settings.StartupTasks.WhenAllAsync(x => x(serviceProvider, Settings)).ConfigureAwait(false);
             }
             catch
             {
