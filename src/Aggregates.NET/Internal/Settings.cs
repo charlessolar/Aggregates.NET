@@ -197,6 +197,7 @@ namespace Aggregates.Internal
         {
             RegistrationTasks.Add((container, settings) =>
             {
+                container.AddScoped<TImplementation>();
                 container.AddScoped<Aggregates.UnitOfWork.IApplicationUnitOfWork, TImplementation>();
                 container.AddScoped<Aggregates.UnitOfWork.IUnitOfWork>(factory => factory.GetRequiredService<Aggregates.UnitOfWork.IApplicationUnitOfWork>());
                 return Task.CompletedTask;
