@@ -47,14 +47,15 @@ namespace Aggregates.Internal
 
             foreach (var mutator in mutators)
             {
+                var instance = mutator();
                 try
                 {
-                    Logger.DebugEvent("Mutate", "Mutating outgoing message with {Mutator}", mutator.GetType().FullName);
-                    mutated = mutator().MutateOutgoing(mutated);
+                    Logger.DebugEvent("Mutate", "Mutating outgoing message with {Mutator}", instance.GetType().FullName);
+                    mutated = instance.MutateOutgoing(mutated);
                 }
                 catch (Exception ex)
                 {
-                    Logger.WarnEvent("MutateFailure", ex, "Failed to run mutator {Mutator}", mutator.GetType().FullName);
+                    Logger.WarnEvent("MutateFailure", ex, "Failed to run mutator {Mutator}", instance.GetType().FullName);
                 }
             }
             
