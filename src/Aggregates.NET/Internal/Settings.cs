@@ -221,7 +221,7 @@ namespace Aggregates.Internal
         {
             RegistrationTasks.Add((container, settings) =>
             {
-                container.AddScoped<Aggregates.UnitOfWork.IDomainUnitOfWork, Internal.UnitOfWork>();
+                container.TryAdd(ServiceDescriptor.Scoped<Aggregates.UnitOfWork.IDomainUnitOfWork, Internal.UnitOfWork>());
                 container.AddScoped<Aggregates.UnitOfWork.IUnitOfWork>(factory => factory.GetRequiredService<Aggregates.UnitOfWork.IDomainUnitOfWork>());
 
                 // IMutate is a depend on IStoreEvents which is used by IUnitOfWork

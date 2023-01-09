@@ -20,14 +20,12 @@ namespace Aggregates.Internal
         private readonly ILogger Logger;
 
         private readonly ISettings _settings;
-        private readonly IServiceProvider _provider;
         private readonly IMetrics _metrics;
 
-        public UnitOfWorkExecutor(ILogger<UnitOfWorkExecutor> logger, ISettings settings, IServiceProvider provider, IMetrics metrics)
+        public UnitOfWorkExecutor(ILogger<UnitOfWorkExecutor> logger, ISettings settings, IMetrics metrics)
         {
             Logger = logger;
             _settings = settings;
-            _provider = provider;
             _metrics = metrics;
         }
 
@@ -124,10 +122,10 @@ namespace Aggregates.Internal
             stepId: "UnitOfWorkExecution",
             behavior: typeof(UnitOfWorkExecutor),
             description: "Begins and Ends unit of work for your endpoint",
-            factoryMethod: (b) => new UnitOfWorkExecutor(b.GetService<ILogger<UnitOfWorkExecutor>>(), b.GetService<ISettings>(), b.GetService<IServiceProvider>(), b.GetService<IMetrics>())
+            factoryMethod: (b) => new UnitOfWorkExecutor(b.GetService<ILogger<UnitOfWorkExecutor>>(), b.GetService<ISettings>(), b.GetService<IMetrics>())
         )
         {
-            InsertAfter("FailureReply");
+            InsertBefore("MutateIncomingMessages");
         }
     }
 }

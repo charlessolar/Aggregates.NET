@@ -21,7 +21,7 @@ namespace Aggregates.Internal
 
         public override IMutating MutateIncoming(IMutating command)
         {
-            CurrentMessage = command.Message;
+            base.MutateIncoming(command);
 
             // There are certain headers that we can make note of
             // These will be committed to the event stream and included in all .Reply or .Publish done via this Unit Of Work
@@ -91,6 +91,8 @@ namespace Aggregates.Internal
 
         public override IMutating MutateOutgoing(IMutating command)
         {
+            base.MutateOutgoing(command);
+
             foreach (var header in CurrentHeaders)
                 command.Headers[header.Key] = header.Value;
 

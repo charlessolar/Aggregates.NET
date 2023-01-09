@@ -150,6 +150,23 @@ namespace Aggregates.Internal
 
         public virtual IMutating MutateIncoming(IMutating command)
         {
+            CurrentMessage = command.Message;
+
+            string messageId;
+            Guid commitId = Guid.NewGuid();
+
+            if (command.Headers.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}", out messageId))
+                Guid.TryParse(messageId, out commitId);
+
+            // Allow the user to send a CommitId along with his message if he wants
+            if (command.Headers.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.CommitIdHeader}", out messageId))
+                Guid.TryParse(messageId, out commitId);
+
+
+            CommitId = commitId;
+
+            // Helpful log and gets CommitId into the dictionary
+            var firstEventId = UnitOfWork.NextEventId(CommitId);
             return command;
         }
         public virtual IMutating MutateOutgoing(IMutating command)

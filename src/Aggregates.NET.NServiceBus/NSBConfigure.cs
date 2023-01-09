@@ -60,7 +60,9 @@ namespace Aggregates
 
                 container.AddTransient<IEventMapper, EventMapper>();
 
-                container.Replace(ServiceDescriptor.Scoped<UnitOfWork.IDomainUnitOfWork, NSBUnitOfWork>());
+                // Replacing the possible existing Aggregates.UnitOfWork
+                container.RemoveAll<UnitOfWork.IDomainUnitOfWork>();
+                container.Add(ServiceDescriptor.Scoped<UnitOfWork.IDomainUnitOfWork, NSBUnitOfWork>());
 
                 container.AddTransient<IEventFactory, EventFactory>();
                 container.AddTransient<Contracts.IMessageDispatcher, Dispatcher>();
