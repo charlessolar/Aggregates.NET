@@ -48,16 +48,25 @@ namespace Aggregates.Internal
             }
 
             Aggregates.UnitOfWork.IUnitOfWork uow = null;
-            if (context.Message.Instance is Messages.ICommand)
+
+            var domainUow = provider.GetService<Aggregates.UnitOfWork.IDomainUnitOfWork>();
+            if (domainUow != null)
             {
-                uow = provider.GetService<Aggregates.UnitOfWork.IDomainUnitOfWork>();
-                context.Extensions.Set(uow as Aggregates.UnitOfWork.IDomainUnitOfWork);
+                // only ICommands make commitable domain unit of works
+                if (context.Message.Instance is Messages.ICommand)
+                    uow = domainUow;
+                context.Extensions.Set(domainUow);
             }
-            else
+
+            var appUow = provider.GetService<Aggregates.UnitOfWork.IApplicationUnitOfWork>();
+            if (appUow != null)
             {
-                uow = provider.GetService<Aggregates.UnitOfWork.IApplicationUnitOfWork>();
-                context.Extensions.Set(uow as Aggregates.UnitOfWork.IApplicationUnitOfWork);
+                // only IEvents make commitable app unit of works
+                if (context.Message.Instance is Messages.IEvent)
+                    uow = appUow;
+                context.Extensions.Set(appUow);
             }
+
 
             // uow can be null if the message is an event and application unit of work was not defined.
             // this means the event can still read things but no changes will be committed anywhere
