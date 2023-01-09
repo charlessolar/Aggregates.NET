@@ -38,13 +38,18 @@ namespace Aggregates.Internal
 
             IMutating mutated = new Mutating(context.Message.Instance, context.Headers ?? new Dictionary<string, string>());
 
-            if (!mutators.Any()) return next();
+            if (!mutators.Any())
+            {
+                Logger.DebugEvent("Mutate", "No registered outgoing mutators");
+                return next();
+            }
 
 
             foreach (var mutator in mutators)
             {
                 try
                 {
+                    Logger.DebugEvent("Mutate", "Mutating outgoing message with {Mutator}", mutator.GetType().FullName);
                     mutated = mutator().MutateOutgoing(mutated);
                 }
                 catch (Exception ex)
