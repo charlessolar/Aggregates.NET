@@ -46,7 +46,7 @@ namespace Aggregates
 
         public static ISettings GetSettings(this IMessageHandlerContext context)
         {
-            var settings = context.Extensions.Get<ISettings>();
+            context.Extensions.TryGet<ISettings>(out var settings);
             return settings;
         }
     }
