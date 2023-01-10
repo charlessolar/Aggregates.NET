@@ -5,10 +5,10 @@ using System.Text;
 
 namespace Aggregates.Exceptions
 {
-    public class EntityAlreadyExistsException<TEntity> : Exception
+    internal class EntityAlreadyExistsException : Exception
     {
-        public EntityAlreadyExistsException(string bucket, Id id, Id[] parents) :
-            base($"New stream [{id}] bucket [{bucket}] parents [{parents.BuildParentsString()}] entity {typeof(TEntity).FullName} already exists in store")
+        public EntityAlreadyExistsException(string entityType, string bucket, Id id, Id[] parents) :
+            base($"New stream [{id}] bucket [{bucket}] parents [{parents.BuildParentsString()}] entity {entityType} already exists in store")
         { }
     }
 }

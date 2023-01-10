@@ -217,7 +217,7 @@ namespace Aggregates.Internal
         {
             // If the test wants to NEW an existing stream, mimic what would happen (AlreadyExistsException)
             if (_eventstore.StreamExists<TEntity>(bucket, id, parent.GetParentIds()))
-                throw new EntityAlreadyExistsException<TEntity>(bucket, id, parent.GetParentIds());
+                throw new EntityAlreadyExistsException(typeof(TEntity).FullName, bucket, id, parent.GetParentIds());
 
             id = _ids.MakeId(id);
             var entity = Factory.Create(new NullLogger<TestableRepository<TEntity, TState>>(), bucket, id, getParents(parent));

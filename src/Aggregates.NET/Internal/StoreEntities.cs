@@ -130,7 +130,7 @@ namespace Aggregates.Internal
                 if (entity.Version == EntityFactory.NewEntityVersion)
                 {
                     Logger.DebugEvent("AlreadyExists", "[{EntityId:l}] entity [{EntityType:l}] already exists", entity.Id, typeof(TEntity).FullName);
-                    throw new EntityAlreadyExistsException<TEntity>(entity.Bucket, entity.Id, entity.GetParentIds());
+                    throw new EntityAlreadyExistsException(typeof(TEntity).FullName, entity.Bucket, entity.Id, entity.GetParentIds());
                 }
 
             }

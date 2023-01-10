@@ -24,7 +24,7 @@ namespace Aggregates.Common.Exceptions
         [Fact]
         public void ShouldHaveEntityBucketIdAndParentsInEntityAlreadyExistsException()
         {
-            var e = new EntityAlreadyExistsException<FakeEntity>("testBucket", "testId", new Id[] { "testParent " });
+            var e = new EntityAlreadyExistsException(typeof(FakeEntity).FullName, "testBucket", "testId", new Id[] { "testParent " });
             e.Message.Should().ContainAll(typeof(FakeEntity).Name, "testBucket", "testId", "testParent");
         }
         [Fact]
