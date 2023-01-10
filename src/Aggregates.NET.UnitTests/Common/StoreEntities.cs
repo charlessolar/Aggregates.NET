@@ -181,7 +181,7 @@ namespace Aggregates.Common
 
             var e = await Record.ExceptionAsync(() => Sut.Commit<FakeEntity, FakeState>(entity, Guid.NewGuid(), new Dictionary<string, string>())).ConfigureAwait(false);
 
-            e.Should().BeOfType<EntityAlreadyExistsException<FakeEntity>>();
+            e.Should().BeOfType<EntityAlreadyExistsException>();
         }
     }
 }
