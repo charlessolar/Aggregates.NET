@@ -8,9 +8,9 @@ namespace Aggregates.Sagas
     public class StartCommandSaga : Messages.IMessage
     {
         public string SagaId { get; set; }
-        public Messages.IMessage Originating { get; set; }
-        public Messages.ICommand[] Commands { get; set; }
-        public Messages.ICommand[] AbortCommands { get; set; }
+        public CommandSagaHandler.MessageData Originating { get; set; }
+        public CommandSagaHandler.MessageData[] Commands { get; set; }
+        public CommandSagaHandler.MessageData[] AbortCommands { get; set; }
     }
     [Versioned("StartCommandSaga", "Aggregates")]
     public class ContinueCommandSaga : Messages.IMessage

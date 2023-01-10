@@ -57,26 +57,13 @@ namespace Aggregates.Sagas
         }
         public async Task Handle(StartCommandSaga message, IMessageHandlerContext context)
         {
-            var originating = new MessageData
-            {
-                Version = _registrar.GetVersionedName(message.Originating.GetType()),
-                Message = _serializer.Serialize(message.Originating).AsString()
-            };
 
             Data.CurrentIndex = 0;
-            Data.Originating = originating;
-            Data.Commands = message.Commands.Select(x => new MessageData
-            {
-                Version = _registrar.GetVersionedName(x.GetType()),
-                Message = _serializer.Serialize(x).AsString()
-            }).ToArray();
-            Data.AbortCommands = message.AbortCommands.Select(x => new MessageData
-            {
-                Version = _registrar.GetVersionedName(x.GetType()),
-                Message = _serializer.Serialize(x).AsString()
-            }).ToArray();
+            Data.Originating = message.Originating;
+            Data.Commands = message.Commands;
+            Data.AbortCommands = message.AbortCommands;
 
-            _logger.InfoEvent("Saga", "Starting saga {SagaId} originating {OriginatingType} {@OriginatingMessage:j}", Data.SagaId, originating.Version, message.Originating);
+            _logger.InfoEvent("Saga", "Starting saga {SagaId} originating {OriginatingType} {OriginatingMessage:j}", Data.SagaId, message.Originating.Version, message.Originating.Message);
             await RequestTimeout(context, TimeSpan.FromMinutes(10), new TimeoutMessage { SagaId = Data.SagaId });
             // Send first command
             await SendNextCommand(context);

@@ -1,4 +1,6 @@
-﻿using Aggregates.Extensions;
+﻿using Aggregates.Contracts;
+using Aggregates.Extensions;
+using Microsoft.Extensions.DependencyInjection;
 using NServiceBus;
 using System;
 using System.Collections.Generic;
@@ -11,20 +13,33 @@ namespace Aggregates.Sagas
     public class CommandSaga
     {
         private IMessageHandlerContext _context;
+        private IVersionRegistrar _versionRegistrar;
+        private IMessageSerializer _serializer;
         private string _sagaId;
-        private Messages.IMessage _originating;
-        private List<Messages.ICommand> _commands;
-        private List<Messages.ICommand> _abortCommands;
+        private CommandSagaHandler.MessageData _originating;
+        private List<CommandSagaHandler.MessageData> _commands;
+        private List<CommandSagaHandler.MessageData> _abortCommands;
         private string _domainDestination;
 
         internal CommandSaga(IMessageHandlerContext context, string sagaId, Messages.IMessage originating, string domainDestimation)
         {
+            // Getting the provider here is icky
+            // but the problem is this start message needs to describe the messages inside otherwise the types
+            // dont survive persistance
+
             _context = context;
+            var provider = context.Extensions.Get<IServiceProvider>();
+            _versionRegistrar = provider.GetRequiredService<IVersionRegistrar>();
+            _serializer = provider.GetRequiredService<IMessageSerializer>();
             _sagaId = sagaId;
-            _originating = originating;
+            _originating = new CommandSagaHandler.MessageData
+            {
+                Version = _versionRegistrar.GetVersionedName(originating.GetType()),
+                Message = _serializer.Serialize(originating).AsString()
+            };
             _domainDestination = domainDestimation;
-            _commands = new List<Messages.ICommand>();
-            _abortCommands = new List<Messages.ICommand>();
+            _commands = new List<CommandSagaHandler.MessageData>();
+            _abortCommands = new List<CommandSagaHandler.MessageData>();
 
             if (string.IsNullOrEmpty(_domainDestination))
                 throw new ArgumentException($"Usage of SAGA needs a domain destination or specify Configuration.SetCommandDestination");
@@ -32,13 +47,21 @@ namespace Aggregates.Sagas
 
         public CommandSaga Command(Messages.ICommand command)
         {
-            _commands.Add(command);
+            _commands.Add(new CommandSagaHandler.MessageData
+            {
+                Version = _versionRegistrar.GetVersionedName(command.GetType()),
+                Message = _serializer.Serialize(command).AsString()
+            });
             return this;
         }
 
         public CommandSaga OnAbort(Messages.ICommand command)
         {
-            _abortCommands.Add(command);
+            _abortCommands.Add(new CommandSagaHandler.MessageData
+            {
+                Version = _versionRegistrar.GetVersionedName(command.GetType()),
+                Message = _serializer.Serialize(command).AsString()
+            });
             return this;
         }
 
