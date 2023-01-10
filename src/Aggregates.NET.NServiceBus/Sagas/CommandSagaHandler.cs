@@ -1,5 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
+using Microsoft.Extensions.Logging;
 using NServiceBus;
 using System;
 using System.Collections.Generic;
@@ -16,6 +17,7 @@ namespace Aggregates.Sagas
         IHandleMessages<AbortCommandSaga>,
         IHandleTimeouts<CommandSagaHandler.TimeoutMessage>
     {
+        private ILogger _logger;
         private readonly IMessageSerializer _serializer;
         private readonly IVersionRegistrar _registrar;
 
@@ -39,8 +41,9 @@ namespace Aggregates.Sagas
             public string SagaId { get; set; }
         }
 
-        public CommandSagaHandler(IMessageSerializer serializer, IVersionRegistrar registrar)
+        public CommandSagaHandler(ILogger<CommandSagaHandler> logger, IMessageSerializer serializer, IVersionRegistrar registrar)
         {
+            _logger = logger;
             _serializer = serializer;
             _registrar = registrar;
         }
@@ -73,6 +76,7 @@ namespace Aggregates.Sagas
                 Message = _serializer.Serialize(x).AsString()
             }).ToArray();
 
+            _logger.InfoEvent("Saga", "Starting saga {SagaId} originating {OriginatingType} {@OriginatingMessage:j}", Data.SagaId, originating.Version, message.Originating);
             await RequestTimeout(context, TimeSpan.FromMinutes(10), new TimeoutMessage { SagaId = Data.SagaId });
             // Send first command
             await SendNextCommand(context);
@@ -80,6 +84,7 @@ namespace Aggregates.Sagas
         public Task Handle(ContinueCommandSaga message, IMessageHandlerContext context)
         {
             Data.CurrentIndex++;
+            _logger.InfoEvent("Saga", "Continuing saga {SagaId} {CurrentIndex}/{TotalCommands}", Data.SagaId, Data.CurrentIndex, Data.Commands.Length);
 
             if (!Data.Aborting && Data.CurrentIndex == Data.Commands.Length)
             {
@@ -97,6 +102,7 @@ namespace Aggregates.Sagas
         }
         public Task Handle(AbortCommandSaga message, IMessageHandlerContext context)
         {
+            _logger.InfoEvent("Saga", "Aborting saga {SagaId}");
             // some command was rejected - abort
             Data.CurrentIndex = 0;
             Data.Aborting = true;
@@ -151,10 +157,11 @@ namespace Aggregates.Sagas
                 else
                     data = Data.Commands[Data.CurrentIndex];
 
+                _logger.DebugEvent("Saga", "Saga {SagaId} sending {MessageType} {MessageData:j}", Data.SagaId, data.Version, data.Message);
                 var message = _serializer.Deserialize(
                     _registrar.GetNamedType(data.Version),
                     data.Message.AsByteArray()
-                    ) as Messages.ICommand;
+                    );
 
                 await context.Send(message, options).ConfigureAwait(false);
             }
