@@ -7,7 +7,9 @@ using NServiceBus.Extensibility;
 using NServiceBus.MessageInterfaces;
 using NServiceBus.MessageInterfaces.MessageMapper.Reflection;
 using NServiceBus.Persistence;
+using NServiceBus.Pipeline;
 using NServiceBus.Testing;
+using NServiceBus.Unicast.Messages;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -19,7 +21,7 @@ using System.Threading.Tasks;
 namespace Aggregates
 {
     [ExcludeFromCodeCoverage]
-    public class TestableContext : IMessageHandlerContext
+    public class TestableContext : IMessageHandlerContext, IInvokeHandlerContext
     {
         static IMessageCreator messageCreator = new MessageMapper();
 
@@ -178,5 +180,16 @@ namespace Aggregates
             }
         }
 
+        public MessageHandler MessageHandler => throw new NotImplementedException();
+
+        public Dictionary<string, string> Headers => throw new NotImplementedException();
+
+        public object MessageBeingHandled => new object();
+
+        public bool HandlerInvocationAborted => throw new NotImplementedException();
+
+        public MessageMetadata MessageMetadata => throw new NotImplementedException();
+
+        public IServiceProvider Builder => ServiceProvider;
     }
 }
