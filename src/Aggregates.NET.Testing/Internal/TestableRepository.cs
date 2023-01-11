@@ -2,6 +2,7 @@
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Aggregates.Internal;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
@@ -128,10 +129,10 @@ namespace Aggregates.Internal
         {
             _uow = uow;
             _ids = ids;
-            _factory = new TestableEventFactory(new MessageMapper());
-            _eventstore = new TestableEventStore();
-            _snapstore = new TestableSnapshotStore();
-            _registrar = new TestableVersionRegistrar();
+            _factory = uow.Context.ServiceProvider.GetService<TestableEventFactory>();
+            _eventstore = uow.Context.ServiceProvider.GetService<TestableEventStore>();
+            _snapstore = uow.Context.ServiceProvider.GetService<TestableSnapshotStore>(); 
+            _registrar = uow.Context.ServiceProvider.GetService<TestableVersionRegistrar>();
         }
 
         public int ChangedStreams => Tracked.Count(x => x.Value.Dirty);

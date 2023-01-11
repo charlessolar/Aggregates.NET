@@ -13,11 +13,14 @@ namespace Aggregates
     [ExcludeFromCodeCoverage]
     class TestableDomain : ITestableDomain
     {
+        public readonly TestableContext Context;
+
         private IdRegistry _ids;
         private Dictionary<string, IRepository> _repositories;
 
-        public TestableDomain(IdRegistry ids)
+        public TestableDomain(TestableContext ctx, IdRegistry ids)
         {
+            Context = ctx;
             _ids = ids;
             _repositories = new Dictionary<string, IRepository>();
         }

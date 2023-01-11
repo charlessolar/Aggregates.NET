@@ -1,5 +1,6 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Internal;
+using Microsoft.Extensions.DependencyInjection;
 using NServiceBus;
 using NServiceBus.Callbacks.Testing;
 using NServiceBus.Extensibility;
@@ -21,6 +22,7 @@ namespace Aggregates
     {
         static IMessageCreator messageCreator = new MessageMapper();
 
+        public readonly IServiceProvider ServiceProvider;
         public readonly ITestableDomain UoW;
         public readonly ITestableApplication App;
         public readonly ITestableProcessor Processor;
@@ -33,14 +35,24 @@ namespace Aggregates
             _ids = new IdRegistry();
             _ctx = new TestableMessageHandlerContext();
 
-            UoW = new TestableDomain(_ids);
+            UoW = new TestableDomain(this, _ids);
             App = new TestableApplication(_ids);
             Processor = new TestableProcessor();
+
+            ServiceProvider = new Microsoft.Extensions.DependencyInjection.ServiceCollection()
+                .AddTransient<TestableVersionRegistrar>()
+                .AddTransient<TestableMessageSerializer>()
+                .AddTransient<MessageMapper>()
+                .AddTransient<TestableEventFactory>()
+                .AddTransient<TestableEventStore>()
+                .AddTransient<TestableSnapshotStore>()
+                .BuildServiceProvider();
 
             _ctx.Extensions.Set("CommandDestination", "");
             _ctx.Extensions.Set<UnitOfWork.IDomainUnitOfWork>(UoW);
             _ctx.Extensions.Set<UnitOfWork.IUnitOfWork>(App);
             _ctx.Extensions.Set<IProcessor>(Processor);
+            _ctx.Extensions.Set<IServiceProvider>(ServiceProvider);
             
         }
         static TMessage CreateInstance<TMessage>(Action<TMessage> action)
