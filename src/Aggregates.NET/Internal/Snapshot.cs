@@ -1,5 +1,5 @@
-﻿using System;
-using Aggregates.Contracts;
+﻿using Aggregates.Contracts;
+using System;
 
 namespace Aggregates.Internal
 {

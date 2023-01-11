@@ -1,11 +1,9 @@
 ﻿using Aggregates.Contracts;
-using Aggregates.Exceptions;
 using Aggregates.Internal;
 using Aggregates.Messages;
 using Aggregates.UnitOfWork.Query;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates
@@ -157,7 +155,7 @@ namespace Aggregates
             throw new NotImplementedException();
         }
     }
-    public interface SimpleUnitOfWork: Aggregates.UnitOfWork.IApplicationUnitOfWork { }
+    public interface SimpleUnitOfWork : Aggregates.UnitOfWork.IApplicationUnitOfWork { }
     public class FakeAppUnitOfWork : SimpleUnitOfWork
     {
         public Task Add<T>(Id id, T document) where T : class

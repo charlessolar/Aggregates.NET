@@ -1,12 +1,7 @@
-﻿using Aggregates.UnitOfWork.Query;
-using FakeItEasy;
+﻿using FakeItEasy;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -145,7 +140,7 @@ namespace Aggregates.Common
                 config.AddMetrics<FakeMetrics>();
             });
 
-            A.CallTo(() => 
+            A.CallTo(() =>
                 collection.Add(
                     A<ServiceDescriptor>
                         .That.Matches(x => x.ServiceType == typeof(Contracts.IMetrics) && x.ImplementationType == typeof(FakeMetrics)))).MustHaveHappened();

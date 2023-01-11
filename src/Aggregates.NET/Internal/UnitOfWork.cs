@@ -1,14 +1,12 @@
+using Aggregates.Contracts;
+using Aggregates.Extensions;
+using Aggregates.Messages;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using Aggregates.Contracts;
-using Aggregates.Exceptions;
-using Aggregates.Extensions;
-using Aggregates.Messages;
-using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {
@@ -34,7 +32,7 @@ namespace Aggregates.Internal
 
         private bool _disposed;
         private readonly IDictionary<string, IRepository> _repositories;
-        
+
         public Guid CommitId { get; internal set; }
         public object CurrentMessage { get; internal set; }
         public IDictionary<string, string> CurrentHeaders { get; internal set; }
@@ -124,7 +122,7 @@ namespace Aggregates.Internal
                 _repositories.Values.Cast<IRepositoryCommit>().ToArray();
 
             var changedStreams = allRepos.Sum(x => x.ChangedStreams);
-            
+
             Logger.DebugEvent("Changed", "{Changed} streams {CommitId}", changedStreams, CommitId);
             // Only prepare if multiple changed streams, which will quickly check all changed streams to see if they are all the same version as when we read them
             // Not 100% guarenteed to eliminate writing 1 stream then failing the other one but will help - and we also tell the user to not do this.. 
@@ -134,7 +132,7 @@ namespace Aggregates.Internal
                 // First check all streams read but not modified - if the store has a different version a VersionException will be thrown
                 await allRepos.WhenAllAsync(x => x.Prepare(CommitId)).ConfigureAwait(false);
             }
-            
+
             Logger.DebugEvent("Commit", "{CommitId} for {Repositories} repositories", CommitId, allRepos.Length);
             try
             {

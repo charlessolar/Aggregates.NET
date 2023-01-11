@@ -1,14 +1,6 @@
-﻿using Aggregates.Contracts;
-using Aggregates.Exceptions;
-using FakeItEasy;
+﻿using Aggregates.Exceptions;
 using FluentAssertions;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Text;
-using System.Threading.Tasks;
 using Xunit;
 
 namespace Aggregates.Common.Exceptions

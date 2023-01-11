@@ -3,11 +3,9 @@ using Aggregates.Exceptions;
 using Aggregates.Internal;
 using FakeItEasy;
 using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -15,7 +13,7 @@ namespace Aggregates.Common
 {
     public class StoreEntities : TestSubject<Internal.StoreEntities>
     {
-        IStoreSnapshots Snapstore;
+        readonly IStoreSnapshots Snapstore;
 
         public StoreEntities()
         {

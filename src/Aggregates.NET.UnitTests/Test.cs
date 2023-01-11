@@ -3,12 +3,9 @@ using Aggregates.Internal;
 using Aggregates.Messages;
 using AutoFixture;
 using AutoFixture.AutoFakeItEasy;
-using FakeItEasy;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace Aggregates
 {
@@ -18,7 +15,7 @@ namespace Aggregates
         protected IFixture Fixture { get; private set; }
         protected ISettings Settings { get; private set; }
         protected IServiceProvider Provider { get; private set; }
-        
+
         public Test()
         {
             Fixture = new Fixture().Customize(new AutoFakeItEasyCustomization { ConfigureMembers = true });
@@ -57,7 +54,7 @@ namespace Aggregates
         protected T Fake<T>(bool inject = true)
         {
             var instance = Fixture.Create<T>();
-            if(inject)
+            if (inject)
                 Inject(instance);
             return instance;
         }

@@ -1,13 +1,9 @@
 ﻿using Aggregates.Contracts;
-using FakeItEasy;
+using Aggregates.Extensions;
 using FluentAssertions;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using Xunit;
-using Aggregates.Extensions;
-using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Common.Extensions
 {

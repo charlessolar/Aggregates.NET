@@ -1,14 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Threading.Tasks;
-using Aggregates.Contracts;
+﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Pipeline;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
@@ -25,7 +25,7 @@ namespace Aggregates.Internal
             // Set aggregates.net message and corr id
             if (context.Headers.ContainsKey(Headers.MessageId))
                 context.Headers[$"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}"] = context.Headers[Headers.MessageId];
-            if(context.Headers.ContainsKey(Headers.CorrelationId))
+            if (context.Headers.ContainsKey(Headers.CorrelationId))
                 context.Headers[$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = context.Headers[Headers.CorrelationId];
 
             if (context.GetMessageIntent() == MessageIntent.Reply || context.GetMessageIntent() == MessageIntent.Publish)
@@ -58,7 +58,7 @@ namespace Aggregates.Internal
                     Logger.WarnEvent("MutateFailure", ex, "Failed to run mutator {Mutator}", instance.GetType().FullName);
                 }
             }
-            
+
             foreach (var header in mutated.Headers)
                 context.Headers[header.Key] = header.Value;
             context.UpdateMessage(mutated.Message);

@@ -1,16 +1,12 @@
-﻿using System;
+﻿using Aggregates.Contracts;
+using Aggregates.Exceptions;
+using Aggregates.Extensions;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using Aggregates.Contracts;
-using Aggregates.Exceptions;
-using Aggregates.Extensions;
-using Aggregates.Messages;
-using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Internal
 {

@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Text;
-using Aggregates.Contracts;
+﻿using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Aggregates.Messages;
-using Aggregates.Exceptions;
-using System.Linq;
-using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace Aggregates.Internal
 {
@@ -60,7 +57,7 @@ namespace Aggregates.Internal
 
             // Todo: can suport "named" events with an attribute here so instead of routing based on object type 
             // route based on event name.
-            if(!_mutators.TryGetValue($"Handle.{eventType}", out var eventMutator))
+            if (!_mutators.TryGetValue($"Handle.{eventType}", out var eventMutator))
                 throw new NoRouteException(typeof(TState), $"Handle({eventType})");
             eventMutator((TState)state, @event);
         }

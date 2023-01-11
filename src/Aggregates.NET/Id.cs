@@ -38,7 +38,7 @@ namespace Aggregates
         public static implicit operator Id(string id) => new Id(id);
         public static implicit operator Id(long id) => new Id(id);
         public static implicit operator Id(Guid id) => new Id(id);
-    
+
         public static implicit operator long(Id id) => id.GetLongValue();
         public static implicit operator Guid(Id id) => id.GetGuidValue();
         public static implicit operator string(Id id) => id?.GetStringValue();

@@ -1,9 +1,7 @@
 ﻿using Aggregates.Contracts;
 using NServiceBus;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace Aggregates.Internal
 {

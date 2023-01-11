@@ -1,9 +1,6 @@
 ﻿using FakeItEasy;
 using FakeItEasy.Configuration;
 using FluentAssertions.Primitives;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Aggregates
 {
@@ -17,7 +14,7 @@ namespace Aggregates
 
     public class FakeItEasyCallAssertions : ReferenceTypeAssertions<IAssertConfiguration, FakeItEasyCallAssertions>
     {
-        private IAssertConfiguration _configuration;
+        private readonly IAssertConfiguration _configuration;
 
         public FakeItEasyCallAssertions(IAssertConfiguration configuration) : base(configuration)
         {
@@ -25,7 +22,7 @@ namespace Aggregates
         }
 
         protected override string Identifier => "call";
-        
+
         public void HaveHappenedOnce()
         {
             _configuration.MustHaveHappenedOnceExactly();
@@ -36,5 +33,5 @@ namespace Aggregates
             _configuration.MustNotHaveHappened();
         }
     }
-    
+
 }

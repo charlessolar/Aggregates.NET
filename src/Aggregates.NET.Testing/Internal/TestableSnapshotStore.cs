@@ -1,8 +1,6 @@
 ﻿using Aggregates.Contracts;
-using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates.Internal
@@ -10,8 +8,8 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     class TestableSnapshotStore : IStoreSnapshots
     {
-        private Dictionary<string, ISnapshot> _snapshots;
-        private Dictionary<string, IState> _writtenSnapshots;
+        private readonly Dictionary<string, ISnapshot> _snapshots;
+        private readonly Dictionary<string, IState> _writtenSnapshots;
 
         public TestableSnapshotStore()
         {

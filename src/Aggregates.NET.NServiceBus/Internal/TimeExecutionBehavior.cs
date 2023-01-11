@@ -1,15 +1,14 @@
-﻿using System;
+﻿using Aggregates.Extensions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using NServiceBus;
+using NServiceBus.Pipeline;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading.Tasks;
-using Aggregates.Contracts;
-using Aggregates.Extensions;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using NServiceBus;
-using NServiceBus.Pipeline;
 
 namespace Aggregates.Internal
 {
@@ -29,7 +28,7 @@ namespace Aggregates.Internal
 
         public override async Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)
         {
-            if(!_slowAlert.HasValue)
+            if (!_slowAlert.HasValue)
             {
                 await next().ConfigureAwait(false);
                 return;
@@ -51,7 +50,7 @@ namespace Aggregates.Internal
                     Defaults.MinimumLogging.Value = LogLevel.Debug;
                     verbose = true;
                 }
-                
+
                 var start = Stopwatch.GetTimestamp();
 
                 await next().ConfigureAwait(false);

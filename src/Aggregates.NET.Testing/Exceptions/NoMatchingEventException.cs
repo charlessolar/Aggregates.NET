@@ -1,8 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace Aggregates.Exceptions
 {
@@ -18,5 +16,5 @@ namespace Aggregates.Exceptions
         private readonly string _message;
         public override string Message => _message;
     }
-    
+
 }

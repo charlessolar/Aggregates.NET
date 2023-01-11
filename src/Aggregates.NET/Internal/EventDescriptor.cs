@@ -1,7 +1,7 @@
-﻿using System;
+﻿using Aggregates.Contracts;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using Aggregates.Contracts;
 
 namespace Aggregates.Internal
 {

@@ -1,12 +1,8 @@
 ﻿
-using System.Collections.Generic;
-using System.Linq;
 using Aggregates.Contracts;
 using Aggregates.Internal;
 using Aggregates.Messages;
-using Aggregates.Exceptions;
-using Aggregates.Extensions;
-using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 
 namespace Aggregates
 {
@@ -53,7 +49,7 @@ namespace Aggregates
         IState IState.Snapshot { get; set; }
         IEvent[] IState.Committed => _committed.ToArray();
 
-        private List<IEvent> _committed = new List<IEvent>();
+        private readonly List<IEvent> _committed = new List<IEvent>();
 
         // Allow user to perform and needed initial tasks with the snapshot info
         protected virtual void SnapshotRestored() { }
@@ -85,6 +81,6 @@ namespace Aggregates
             Mutator.Handle(this, @event);
 
         }
-    
+
     }
 }

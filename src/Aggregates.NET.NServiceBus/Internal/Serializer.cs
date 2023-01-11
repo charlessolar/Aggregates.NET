@@ -1,13 +1,11 @@
-﻿using System;
+﻿using Aggregates.Contracts;
+using Microsoft.Extensions.DependencyInjection;
+using NServiceBus.MessageInterfaces;
+using NServiceBus.Settings;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Text;
-using Aggregates.Contracts;
-using Microsoft.Extensions.DependencyInjection;
-using NServiceBus.MessageInterfaces;
-using NServiceBus.ObjectBuilder;
-using NServiceBus.Settings;
 
 namespace Aggregates.Internal
 {

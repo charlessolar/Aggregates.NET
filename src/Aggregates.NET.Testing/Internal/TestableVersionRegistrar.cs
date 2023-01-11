@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace Aggregates.Internal
 {
     [ExcludeFromCodeCoverage]
     class TestableVersionRegistrar : Contracts.IVersionRegistrar
     {
-        private static Dictionary<string, Type> Versions = new Dictionary<string, Type>();
+        private static readonly Dictionary<string, Type> Versions = new Dictionary<string, Type>();
 
         public Type GetNamedType(string versionedName)
         {

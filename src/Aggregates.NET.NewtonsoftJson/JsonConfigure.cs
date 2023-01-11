@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Newtonsoft.Json;
-using Aggregates.Contracts;
+﻿using Aggregates.Contracts;
 using Aggregates.Internal;
-using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Mime;
-using Microsoft.Extensions.DependencyInjection;
+using System.Threading.Tasks;
 
 namespace Aggregates
 {
@@ -19,7 +16,7 @@ namespace Aggregates
             extraConverters = extraConverters ?? new JsonConverter[] { };
 
             config.MessageContentType = MediaTypeNames.Application.Json;
-            
+
             Settings.RegistrationTasks.Add((container, settings) =>
             {
                 container.AddSingleton<IMessageSerializer>((factory) => new JsonMessageSerializer(factory.GetRequiredService<IEventMapper>(), factory.GetRequiredService<IEventFactory>(), extraConverters, config.DevelopmentMode));

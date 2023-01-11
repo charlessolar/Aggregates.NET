@@ -1,25 +1,16 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Extensions;
 using Aggregates.Internal;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Configuration.AdvancedExtensibility;
-using NServiceBus.Pipeline;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using NServiceBus.Transport;
-using System.Threading.Tasks;
-using System.Diagnostics.CodeAnalysis;
-using NServiceBus.MessageInterfaces;
-using NServiceBus.Settings;
-using NServiceBus.Unicast.Messages;
-using NServiceBus.Unicast;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.DependencyInjection;
-using Aggregates.Extensions;
-using Aggregates.Messages;
 using NServiceBus.Extensions.Logging;
-using Microsoft.Extensions.DependencyInjection.Extensions;
+using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Aggregates
 {

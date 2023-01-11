@@ -1,14 +1,12 @@
-﻿using System;
+﻿using Aggregates.Contracts;
+using Aggregates.Internal;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Text;
-using Aggregates.Contracts;
-using Aggregates.Messages;
 using System.Threading.Tasks;
-using Aggregates.Internal;
-using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Extensions
 {
@@ -20,23 +18,23 @@ namespace Aggregates.Extensions
         public static Dictionary<string, Action<TState, object>> GetStateMutators<TState>() where TState : IState
         {
 
-        var methods = typeof(TState)
-                .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-                .Where(
-                    m => (m.Name == "Handle"/* || m.Name == "Conflict"*/) &&
-                         m.GetParameters().Length == 1 &&
-                         m.ReturnType == typeof(void))
-                .ToArray();
+            var methods = typeof(TState)
+                    .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                    .Where(
+                        m => (m.Name == "Handle"/* || m.Name == "Conflict"*/) &&
+                             m.GetParameters().Length == 1 &&
+                             m.ReturnType == typeof(void))
+                    .ToArray();
 
             var stateEventMutators = from method in methods
-                where !method.IsPublic
-                let eventType = method.GetParameters()[0].ParameterType
-                select new
-                {
-                    Name = eventType.Name,
-                    Type = method.Name,
-                    Handler = BuildStateEventMutatorHandler<TState>(eventType, method)
-                };
+                                     where !method.IsPublic
+                                     let eventType = method.GetParameters()[0].ParameterType
+                                     select new
+                                     {
+                                         Name = eventType.Name,
+                                         Type = method.Name,
+                                         Handler = BuildStateEventMutatorHandler<TState>(eventType, method)
+                                     };
 
             return stateEventMutators.ToDictionary(m => $"{m.Type}.{m.Name}", m => m.Handler);
         }
@@ -46,8 +44,8 @@ namespace Aggregates.Extensions
             var method = queryHandler
                 .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
                 .Where(
-                    m => (m.Name == "Handle") && 
-                    m.GetParameters()[0].ParameterType == typeof(TService) && 
+                    m => (m.Name == "Handle") &&
+                    m.GetParameters()[0].ParameterType == typeof(TService) &&
                     m.ReturnType == typeof(Task<TResponse>))
                 .SingleOrDefault();
 
@@ -85,7 +83,7 @@ namespace Aggregates.Extensions
             var ctor = typeof(TEntity).GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { }, null);
             if (ctor == null)
                 throw new AggregateException("Could not find constructor");
-            
+
 
             var body = Expression.New(ctor);
             var lambda = Expression.Lambda<Func<TEntity>>(body);

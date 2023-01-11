@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Aggregates.Contracts
 {
@@ -25,7 +23,8 @@ namespace Aggregates.Contracts
         ITimer Begin(string name);
     }
 
-    public interface ITimer : IDisposable {
+    public interface ITimer : IDisposable
+    {
         TimeSpan Elapsed { get; }
     }
 }

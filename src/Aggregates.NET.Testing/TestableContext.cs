@@ -15,7 +15,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -24,7 +23,7 @@ namespace Aggregates
     [ExcludeFromCodeCoverage]
     public class TestableContext : IMessageHandlerContext, IInvokeHandlerContext
     {
-        static IMessageCreator messageCreator = new MessageMapper();
+        static readonly IMessageCreator messageCreator = new MessageMapper();
 
         public readonly IServiceProvider ServiceProvider;
         public readonly ITestableDomain UoW;

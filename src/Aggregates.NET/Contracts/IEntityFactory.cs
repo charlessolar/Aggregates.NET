@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Aggregates.Internal;
-using Aggregates.Messages;
+﻿using Aggregates.Messages;
 using Microsoft.Extensions.Logging;
 
 namespace Aggregates.Contracts

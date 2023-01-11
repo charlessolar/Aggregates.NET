@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using NServiceBus;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates.Sagas
@@ -12,14 +11,14 @@ namespace Aggregates.Sagas
 
     public class CommandSaga
     {
-        private IMessageHandlerContext _context;
-        private IVersionRegistrar _versionRegistrar;
-        private IMessageSerializer _serializer;
-        private string _sagaId;
-        private CommandSagaHandler.MessageData _originating;
-        private List<CommandSagaHandler.MessageData> _commands;
-        private List<CommandSagaHandler.MessageData> _abortCommands;
-        private string _domainDestination;
+        private readonly IMessageHandlerContext _context;
+        private readonly IVersionRegistrar _versionRegistrar;
+        private readonly IMessageSerializer _serializer;
+        private readonly string _sagaId;
+        private readonly CommandSagaHandler.MessageData _originating;
+        private readonly List<CommandSagaHandler.MessageData> _commands;
+        private readonly List<CommandSagaHandler.MessageData> _abortCommands;
+        private readonly string _domainDestination;
 
         internal CommandSaga(IMessageHandlerContext context, string sagaId, Messages.IMessage originating, string domainDestimation)
         {

@@ -1,15 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
-using Aggregates.Contracts;
-using NServiceBus;
+﻿using Aggregates.Contracts;
 using NServiceBus.Settings;
 using NServiceBus.Unicast;
 using NServiceBus.Unicast.Messages;
+using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Reflection;
 
 namespace Aggregates.Internal
 {
@@ -35,10 +31,13 @@ namespace Aggregates.Internal
             // include Domain Assemblies because NSB's assembly scanning doesn't catch all types
             return AppDomain.CurrentDomain.GetAssemblies()
                 .Where(x => !x.IsDynamic)
-                .SelectMany(x => {
-                    try {
+                .SelectMany(x =>
+                {
+                    try
+                    {
                         return x.DefinedTypes.Where(IsMessageType).ToArray();
-                    } catch {}
+                    }
+                    catch { }
                     return Enumerable.Empty<TypeInfo>();
                 })
                 .Distinct().ToArray();
@@ -47,10 +46,13 @@ namespace Aggregates.Internal
         {
             return AppDomain.CurrentDomain.GetAssemblies()
                 .Where(x => !x.IsDynamic)
-                .SelectMany(x => {
-                    try {
+                .SelectMany(x =>
+                {
+                    try
+                    {
                         return x.DefinedTypes.Where(IsEntityType).ToArray();
-                    } catch { }
+                    }
+                    catch { }
                     return Enumerable.Empty<TypeInfo>();
                 })
                 .Distinct().ToArray();
@@ -59,10 +61,13 @@ namespace Aggregates.Internal
         {
             return AppDomain.CurrentDomain.GetAssemblies()
                 .Where(x => !x.IsDynamic)
-                .SelectMany(x => {
-                    try {
+                .SelectMany(x =>
+                {
+                    try
+                    {
                         return x.DefinedTypes.Where(IsStateType).ToArray();
-                    } catch { }
+                    }
+                    catch { }
                     return Enumerable.Empty<TypeInfo>();
                 })
                 .Distinct().ToArray();
@@ -102,7 +107,7 @@ namespace Aggregates.Internal
                 var cur = toCheck.IsGenericType ? toCheck.GetGenericTypeDefinition() : toCheck;
                 if (generic == cur)
                     return true;
-                
+
                 toCheck = toCheck.BaseType;
             }
             return false;

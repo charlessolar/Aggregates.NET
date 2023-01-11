@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Aggregates.Contracts;
+﻿using Aggregates.Contracts;
 using Aggregates.Internal;
 using Aggregates.UnitOfWork;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates
 {
@@ -15,8 +12,8 @@ namespace Aggregates
     {
         public readonly TestableContext Context;
 
-        private IdRegistry _ids;
-        private Dictionary<string, IRepository> _repositories;
+        private readonly IdRegistry _ids;
+        private readonly Dictionary<string, IRepository> _repositories;
 
         public TestableDomain(TestableContext ctx, IdRegistry ids)
         {

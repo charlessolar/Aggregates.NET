@@ -1,7 +1,6 @@
 ﻿using Aggregates.Internal;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates.Contracts
@@ -9,7 +8,7 @@ namespace Aggregates.Contracts
     public interface IEventStoreClient : IDisposable
     {
         public delegate Task EventAppeared(string eventStream, long eventNumber, IFullEvent @event);
-        
+
 
         Task<bool> SubscribeToStreamStart(string stream, IEventStoreClient.EventAppeared callback);
         Task<bool> SubscribeToStreamEnd(string stream, IEventStoreClient.EventAppeared callback);

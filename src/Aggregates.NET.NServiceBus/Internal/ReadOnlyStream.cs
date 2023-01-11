@@ -7,7 +7,7 @@ namespace Aggregates.Internal
     // https://github.com/Particular/NServiceBus.Newtonsoft.Json/blob/master/src/NServiceBus.Newtonsoft.Json/ReadonlyStream.cs
     class ReadOnlyStream : Stream
     {
-        ReadOnlyMemory<byte> memory;
+        readonly ReadOnlyMemory<byte> memory;
         long position;
 
         public ReadOnlyStream(ReadOnlyMemory<byte> memory)

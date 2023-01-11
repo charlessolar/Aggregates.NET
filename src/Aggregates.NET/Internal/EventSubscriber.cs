@@ -1,19 +1,11 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-using Aggregates.Contracts;
-using Aggregates.Exceptions;
+﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Aggregates.Messages;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
@@ -59,7 +51,7 @@ namespace Aggregates.Internal
                 return;
             }
 
-            Logger.InfoEvent("Setup", "Setup projection for discovered events\n{Events}", discoveredEvents.Select(x => x.FullName).Aggregate((cur,next) => $"{cur}{Environment.NewLine}{next}"));
+            Logger.InfoEvent("Setup", "Setup projection for discovered events\n{Events}", discoveredEvents.Select(x => x.FullName).Aggregate((cur, next) => $"{cur}{Environment.NewLine}{next}"));
             await _consumer.SetupProjection(_endpoint, _version, discoveredEvents.ToArray());
             _setup = true;
         }

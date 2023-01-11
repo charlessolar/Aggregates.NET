@@ -1,5 +1,4 @@
-﻿using Aggregates.Internal;
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace Aggregates.Contracts

@@ -1,11 +1,11 @@
 ﻿using Aggregates.Contracts;
-using Newtonsoft.Json.Serialization;
-using System.Reflection;
-using System;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Reflection;
 
 namespace Aggregates.Internal
 {

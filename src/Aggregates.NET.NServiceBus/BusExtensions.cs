@@ -1,14 +1,12 @@
-﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Aggregates.Exceptions;
+﻿using Aggregates.Exceptions;
 using Aggregates.Messages;
 using NServiceBus;
+using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Threading;
+using System.Threading.Tasks;
 using ICommand = Aggregates.Messages.ICommand;
 using IMessage = Aggregates.Messages.IMessage;
-using Aggregates.Extensions;
-using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.Logging;
 
 namespace Aggregates
 {

@@ -1,20 +1,13 @@
-﻿using Aggregates.Contracts;
-using Aggregates.Extensions;
+﻿using Aggregates.Extensions;
 using Aggregates.Internal;
 using Aggregates.Messages;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Features;
-using NServiceBus.MessageInterfaces;
-using NServiceBus.Settings;
-using NServiceBus.Unicast;
-using NServiceBus.Unicast.Messages;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -59,9 +52,10 @@ namespace Aggregates
             // We are sending IEvents, which NSB doesn't like out of the box - so turn that check off
             context.Pipeline.Replace("EnforceSendBestPractices", typeof(EmptyBehavior));
 
-            context.RegisterStartupTask(provider => {
+            context.RegisterStartupTask(provider =>
+            {
                 var receiveAddress = provider.GetRequiredService<ReceiveAddresses>();
-                return new EndpointRunner(provider.GetRequiredService<ILogger<EndpointRunner>>(), receiveAddress.InstanceReceiveAddress, aggSettings); 
+                return new EndpointRunner(provider.GetRequiredService<ILogger<EndpointRunner>>(), receiveAddress.InstanceReceiveAddress, aggSettings);
             });
         }
         private static bool IsServiceHandler(Type type)

@@ -1,5 +1,4 @@
 ﻿using Aggregates.Contracts;
-using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Aggregates.Internal;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Aggregates.Sagas
+﻿namespace Aggregates.Sagas
 {
     [Versioned("StartCommandSaga", "Aggregates")]
     public class StartCommandSaga : Messages.IMessage

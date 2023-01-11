@@ -1,8 +1,7 @@
-﻿using System;
+﻿using Aggregates.Internal;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Aggregates.Internal;
-using Aggregates.Messages;
 
 namespace Aggregates.Contracts
 {

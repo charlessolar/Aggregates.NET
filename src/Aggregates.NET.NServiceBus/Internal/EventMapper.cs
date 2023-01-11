@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Aggregates.Contracts;
+﻿using Aggregates.Contracts;
 using NServiceBus.MessageInterfaces;
-using System.Threading.Tasks;
-using System.Threading;
+using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
@@ -21,7 +17,7 @@ namespace Aggregates.Internal
 
         public void Initialize(Type type)
         {
-            _mapper.Initialize(new[] {type});
+            _mapper.Initialize(new[] { type });
         }
 
         public Type GetMappedTypeFor(Type type)

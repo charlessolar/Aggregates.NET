@@ -5,8 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Net;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates.Internal
@@ -14,7 +12,7 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     class TestableEventStore : IStoreEvents
     {
-        private Dictionary<string, IFullEvent[]> _events = new Dictionary<string, IFullEvent[]>();
+        private readonly Dictionary<string, IFullEvent[]> _events = new Dictionary<string, IFullEvent[]>();
 
 
         public bool StreamExists<TEntity>(string bucket, Id streamId, Id[] parents) where TEntity : IEntity

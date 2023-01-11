@@ -1,17 +1,16 @@
-﻿using System;
+﻿using Aggregates.Contracts;
+using System;
 using System.IO;
 using System.IO.Compression;
-using System.Text;
-using Aggregates.Contracts;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Linq;
+using System.Text;
 
 namespace Aggregates.Extensions
 {
     static class StoreExtensions
     {
         public static readonly UTF8Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-        
+
         public static byte[] AsByteArray(this string json)
         {
             return Utf8NoBom.GetBytes(json);
@@ -65,9 +64,9 @@ namespace Aggregates.Extensions
 
         public static T Deserialize<T>(this IMessageSerializer serializer, byte[] bytes)
         {
-            return (T) Deserialize(serializer, typeof(T), bytes);
+            return (T)Deserialize(serializer, typeof(T), bytes);
         }
-        
+
         public static byte[] Serialize(this IMessageSerializer serializer, object payload)
         {
             using (var stream = new MemoryStream())
@@ -83,6 +82,6 @@ namespace Aggregates.Extensions
                 }
             }
         }
-        
+
     }
 }

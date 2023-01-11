@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Aggregates.Internal
@@ -30,11 +29,11 @@ namespace Aggregates.Internal
         }
 
 
-        private static object _sync = new object();
-        private static Dictionary<string, List<VersionDefinition>> NameToType = new Dictionary<string, List<VersionDefinition>>();
-        private static Dictionary<Type, VersionDefinition> TypeToDefinition = new Dictionary<Type, VersionDefinition>();
+        private static readonly object _sync = new object();
+        private static readonly Dictionary<string, List<VersionDefinition>> NameToType = new Dictionary<string, List<VersionDefinition>>();
+        private static readonly Dictionary<Type, VersionDefinition> TypeToDefinition = new Dictionary<Type, VersionDefinition>();
 
-        private Contracts.IMessaging _messaging;
+        private readonly Contracts.IMessaging _messaging;
 
         public VersionRegistrar(ILogger<VersionRegistrar> logger, Contracts.IMessaging messaging)
         {
@@ -125,7 +124,7 @@ namespace Aggregates.Internal
                     return definitions.OrderByDescending(x => x.Version).First().Type;
 
                 var type = definitions.SingleOrDefault(x => x.Version == intVersion)?.Type;
-                if(type == null)
+                if (type == null)
                 {
                     Logger.WarnEvent("VersionMissing", "Missing version {Version} for {TypeName}", intVersion, versionedName);
                     throw new InvalidOperationException($"Missing version {intVersion} for {versionedName}");

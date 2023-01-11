@@ -1,7 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 
 namespace Aggregates
@@ -22,7 +20,7 @@ namespace Aggregates
         public const string CorrelationIdHeader = "CorrelationId";
 
         public const string OriginatingHeader = "Originating";
-        
+
         public const string Retries = "Aggregates.NET.Retries";
         public const string RequestResponse = "Aggregates.NET.Request";
         public const string ChannelKey = "Aggregates.NET.ChannelKey";
@@ -37,7 +35,7 @@ namespace Aggregates
         public const string InstanceHeader = "Endpoint.Instance";
         public const string MachineHeader = "Endpoint.Machine";
         public const string EndpointVersionHeader = "Endpoint.Version";
-        
+
         public const string Bucket = "default";
         public const string CommitIdHeader = "CommitId";
 

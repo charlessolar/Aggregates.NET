@@ -1,11 +1,8 @@
-﻿using Aggregates.Contracts;
-using Aggregates.Exceptions;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using NServiceBus.MessageInterfaces.MessageMapper.Reflection;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates.Internal

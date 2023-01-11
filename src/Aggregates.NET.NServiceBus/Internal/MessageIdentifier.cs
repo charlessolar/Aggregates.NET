@@ -6,7 +6,6 @@ using NServiceBus.Unicast.Messages;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates.Internal
@@ -30,7 +29,7 @@ namespace Aggregates.Internal
             var messageTypeKey = global::NServiceBus.Headers.EnclosedMessageTypes;
             if (!headers.TryGetValue(messageTypeKey, out var messageType))
                 return next();
-            
+
             // if enclosed type is a full type
             if (messageType.IndexOf(';') != -1)
                 return next();

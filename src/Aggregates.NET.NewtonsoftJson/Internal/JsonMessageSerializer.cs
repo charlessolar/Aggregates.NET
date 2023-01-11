@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Net.Mime;
+using System.Text;
 using NewtonSerializer = Newtonsoft.Json.JsonSerializer;
 
 namespace Aggregates.Internal
@@ -17,12 +17,11 @@ namespace Aggregates.Internal
     class JsonMessageSerializer : IMessageSerializer
     {
         public static readonly UTF8Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-
-        IEventMapper messageMapper;
-        IEventFactory messageFactory;
-        Func<Stream, JsonReader> readerCreator;
-        Func<Stream, JsonWriter> writerCreator;
-        NewtonSerializer jsonSerializer;
+        readonly IEventMapper messageMapper;
+        readonly IEventFactory messageFactory;
+        readonly Func<Stream, JsonReader> readerCreator;
+        readonly Func<Stream, JsonWriter> writerCreator;
+        readonly NewtonSerializer jsonSerializer;
 
         public JsonMessageSerializer(
             IEventMapper messageMapper,

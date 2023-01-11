@@ -3,25 +3,23 @@ using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text;
 
 namespace Aggregates.Internal
 {
     [ExcludeFromCodeCoverage]
     class EventPlanner<TEntity, TState> : IEventPlanner<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
-        private IdRegistry _ids;
-        private TestableDomain _uow;
-        private TestableEventStore _events;
-        private TestableSnapshotStore _snapshots;
-        private TestableEventFactory _factory;
-        private Func<TEntity> _entityFactory;
-        private string _bucket;
-        private TestableId _id;
-        private IEntity _parent;
+        private readonly IdRegistry _ids;
+        private readonly TestableDomain _uow;
+        private readonly TestableEventStore _events;
+        private readonly TestableSnapshotStore _snapshots;
+        private readonly TestableEventFactory _factory;
+        private readonly Func<TEntity> _entityFactory;
+        private readonly string _bucket;
+        private readonly TestableId _id;
+        private readonly IEntity _parent;
 
         public EventPlanner(TestableDomain uow, IdRegistry ids, TestableEventStore events, TestableSnapshotStore snapshots, TestableEventFactory factory, Func<TEntity> entityFactory, string bucket, TestableId id, IEntity parent = null)
         {
@@ -66,10 +64,10 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     class EventChecker<TEntity, TState> : IEventChecker<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
-        private IdRegistry _ids;
-        private TestableDomain _uow;
-        private TestableEventFactory _factory;
-        private TEntity _entity;
+        private readonly IdRegistry _ids;
+        private readonly TestableDomain _uow;
+        private readonly TestableEventFactory _factory;
+        private readonly TEntity _entity;
 
         public EventChecker(TestableDomain uow, IdRegistry ids, TestableEventFactory factory, TEntity entity)
         {
@@ -90,7 +88,7 @@ namespace Aggregates.Internal
         }
         public IEventChecker<TEntity> Raised<TEvent>() where TEvent : Messages.IEvent
         {
-            if(!_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).OfType<TEvent>().Any())
+            if (!_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).OfType<TEvent>().Any())
                 throw new NoMatchingEventException(_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).ToArray());
             return this;
         }
@@ -124,9 +122,9 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     class ModelChecker<TModel> : IModelChecker<TModel> where TModel : class, new()
     {
-        private TestableApplication _app;
-        private IdRegistry _ids;
-        private TestableId _id;
+        private readonly TestableApplication _app;
+        private readonly IdRegistry _ids;
+        private readonly TestableId _id;
 
         public ModelChecker(TestableApplication app, IdRegistry ids, Id id)
         {
@@ -211,9 +209,9 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     class ModelPlanner<TModel> : IModelPlanner<TModel> where TModel : class, new()
     {
-        private TestableApplication _app;
-        private IdRegistry _ids;
-        private TestableId _id;
+        private readonly TestableApplication _app;
+        private readonly IdRegistry _ids;
+        private readonly TestableId _id;
 
         public ModelPlanner(TestableApplication app, IdRegistry ids, Id id)
         {
@@ -238,8 +236,8 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     class ServicePlanner<TService, TResponse> : IServicePlanner<TService, TResponse> where TService : IService<TResponse>
     {
-        private TestableProcessor _processor;
-        private TService _service;
+        private readonly TestableProcessor _processor;
+        private readonly TService _service;
 
         public ServicePlanner(TestableProcessor processor, TService service)
         {
@@ -257,8 +255,8 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     class ServiceChecker<TService, TResponse> : IServiceChecker<TService, TResponse> where TService : IService<TResponse>
     {
-        private TestableProcessor _processor;
-        private TService _service;
+        private readonly TestableProcessor _processor;
+        private readonly TService _service;
 
         public ServiceChecker(TestableProcessor processor, TService service)
         {

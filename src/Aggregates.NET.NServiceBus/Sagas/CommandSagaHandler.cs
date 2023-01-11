@@ -3,9 +3,6 @@ using Aggregates.Extensions;
 using Microsoft.Extensions.Logging;
 using NServiceBus;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates.Sagas
@@ -17,7 +14,7 @@ namespace Aggregates.Sagas
         IHandleMessages<AbortCommandSaga>,
         IHandleTimeouts<CommandSagaHandler.TimeoutMessage>
     {
-        private ILogger _logger;
+        private readonly ILogger _logger;
         private readonly IMessageSerializer _serializer;
         private readonly IVersionRegistrar _registrar;
 

@@ -1,5 +1,4 @@
 ﻿using Aggregates.Contracts;
-using Aggregates.Internal;
 using System;
 using System.Linq;
 
@@ -17,7 +16,7 @@ namespace Aggregates.Extensions
         {
             var ret = "";
             var lines = 0;
-            while(lines < max)
+            while (lines < max)
             {
                 var newline = source.IndexOf("\n", StringComparison.Ordinal);
                 if (newline == -1)

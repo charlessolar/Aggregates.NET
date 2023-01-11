@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
-using Aggregates.Contracts;
+﻿using Aggregates.Contracts;
 using NServiceBus;
+using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {

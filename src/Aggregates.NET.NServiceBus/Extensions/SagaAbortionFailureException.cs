@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Aggregates.Extensions
 {
@@ -8,7 +6,7 @@ namespace Aggregates.Extensions
     {
         public Messages.IMessage Originating { get; private set; }
 
-        public SagaAbortionFailureException(Messages.IMessage originating) : 
+        public SagaAbortionFailureException(Messages.IMessage originating) :
             base("Failed to run abort commands for saga")
         {
             Originating = originating;

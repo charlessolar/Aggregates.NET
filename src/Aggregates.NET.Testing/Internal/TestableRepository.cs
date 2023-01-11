@@ -1,18 +1,13 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Internal;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Newtonsoft.Json;
-using NServiceBus.MessageInterfaces.MessageMapper.Reflection;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates.Internal
@@ -131,7 +126,7 @@ namespace Aggregates.Internal
             _ids = ids;
             _factory = uow.Context.ServiceProvider.GetRequiredService<TestableEventFactory>();
             _eventstore = uow.Context.ServiceProvider.GetRequiredService<TestableEventStore>();
-            _snapstore = uow.Context.ServiceProvider.GetRequiredService<TestableSnapshotStore>(); 
+            _snapstore = uow.Context.ServiceProvider.GetRequiredService<TestableSnapshotStore>();
             _registrar = uow.Context.ServiceProvider.GetRequiredService<TestableVersionRegistrar>();
         }
 

@@ -1,10 +1,8 @@
 ﻿using Aggregates.Internal;
-using Aggregates.UnitOfWork;
 using Aggregates.UnitOfWork.Query;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates
@@ -12,10 +10,10 @@ namespace Aggregates
     [ExcludeFromCodeCoverage]
     class TestableApplication : ITestableApplication
     {
-        private IdRegistry _ids;
+        private readonly IdRegistry _ids;
         public dynamic Bag { get; set; }
 
-        internal Dictionary<Tuple<Type,TestableId>, object> Planned;
+        internal Dictionary<Tuple<Type, TestableId>, object> Planned;
         internal Dictionary<Tuple<Type, TestableId>, object> Added;
         internal Dictionary<Tuple<Type, TestableId>, object> Updated;
         internal List<Tuple<Type, TestableId>> Deleted;

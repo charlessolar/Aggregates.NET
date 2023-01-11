@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Xunit;
+﻿using Xunit;
 
 namespace Aggregates.Testing
 {
@@ -10,7 +7,7 @@ namespace Aggregates.Testing
         [Fact]
         public void ShouldNotChangeId()
         {
-            
+
         }
     }
 }

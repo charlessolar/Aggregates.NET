@@ -4,8 +4,6 @@ using FakeItEasy;
 using FluentAssertions;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -123,7 +121,7 @@ namespace Aggregates.Common
             (entity as INeedVersionRegistrar).Registrar = Fake<IVersionRegistrar>();
             entity.ApplyEvents(Many<FakeDomainEvent.FakeEvent>());
 
-            await (Sut as IRepositoryCommit).Commit(Guid.NewGuid(), new Dictionary<string,string>()).ConfigureAwait(false);
+            await (Sut as IRepositoryCommit).Commit(Guid.NewGuid(), new Dictionary<string, string>()).ConfigureAwait(false);
 
             A.CallTo(() => store.Commit<FakeEntity, FakeState>(A<FakeEntity>.Ignored, A<Guid>.Ignored, A<Dictionary<string, string>>.Ignored)).MustHaveHappened();
         }

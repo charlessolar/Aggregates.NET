@@ -1,14 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Threading.Tasks;
-using Aggregates.Contracts;
+﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NServiceBus;
 using NServiceBus.Pipeline;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
@@ -27,7 +27,7 @@ namespace Aggregates.Internal
                 return next();
 
             // gets the child provider
-            if(!context.Extensions.TryGet<IServiceProvider>(out var provider))
+            if (!context.Extensions.TryGet<IServiceProvider>(out var provider))
                 return next();
             var mutators = provider.GetServices<Func<IMutate>>();
 

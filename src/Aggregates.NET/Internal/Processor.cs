@@ -1,15 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Text;
-using System.Threading.Tasks;
-using Aggregates.Contracts;
-using Aggregates.Messages;
-using System.Collections.Concurrent;
+﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
-using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
@@ -34,7 +31,7 @@ namespace Aggregates.Internal
             }
 
             // Todo: both units of work should come from the pipeline not the container
-            var context = new HandleContext( container);
+            var context = new HandleContext(container);
 
             return handlerFunc(handler, service, context);
         }

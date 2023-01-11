@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Aggregates.Contracts;
+﻿using Aggregates.Contracts;
 using Aggregates.Messages;
+using System;
 
 namespace Aggregates.Internal
 {

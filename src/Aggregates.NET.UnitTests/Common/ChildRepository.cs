@@ -2,10 +2,6 @@
 using Aggregates.Exceptions;
 using FakeItEasy;
 using FluentAssertions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -24,7 +20,7 @@ namespace Aggregates.Common
         {
             var store = Fake<IStoreEntities>();
             A.CallTo(() => store.Get<FakeChildEntity, FakeChildState>(A<string>.Ignored, A<Id>.Ignored, A<IEntity>.Ignored)).Throws<NotFoundException>();
-            
+
             var entity = await Sut.TryGet("test").ConfigureAwait(false);
             entity.Should().BeNull();
         }

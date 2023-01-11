@@ -1,20 +1,15 @@
 ﻿using Aggregates.Contracts;
-using FakeItEasy;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Xunit;
 
 namespace Aggregates.Common
 {
     public class State : Test
     {
-        private IEntityFactory<FakeEntity> Factory = Internal.EntityFactory.For<FakeEntity>();
-    
+        private readonly IEntityFactory<FakeEntity> Factory = Internal.EntityFactory.For<FakeEntity>();
+
         [Fact]
         public void ShouldRestoreFromSnapshot()
         {

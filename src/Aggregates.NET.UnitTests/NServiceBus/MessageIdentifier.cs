@@ -1,18 +1,9 @@
 ﻿using Aggregates.Contracts;
-using Aggregates.Internal;
-using Aggregates.Messages;
 using FakeItEasy;
 using FluentAssertions;
 using NServiceBus;
-using NServiceBus.Pipeline;
 using NServiceBus.Testing;
-using NServiceBus.Unicast.Messages;
 using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 

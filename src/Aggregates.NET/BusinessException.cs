@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 
 namespace Aggregates
@@ -16,7 +15,7 @@ namespace Aggregates
         {
             Rule = rule;
         }
-        
+
         public string Rule { get; private set; }
         // Constructor needed for serialization 
         // when exception propagates from a remote server to the client.

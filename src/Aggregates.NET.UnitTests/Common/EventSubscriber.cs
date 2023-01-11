@@ -1,9 +1,6 @@
 ﻿using Aggregates.Contracts;
 using FakeItEasy;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -29,7 +26,7 @@ namespace Aggregates.Common
             var consumer = Fake<IEventStoreConsumer>();
             var messaging = Fake<IMessaging>();
 
-            A.CallTo(() => messaging.GetHandledTypes()).Returns(new Type[] {  });
+            A.CallTo(() => messaging.GetHandledTypes()).Returns(new Type[] { });
 
             await Sut.Setup("test", Version.Parse("1.0.0"));
 

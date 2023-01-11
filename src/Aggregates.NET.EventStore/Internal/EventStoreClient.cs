@@ -1,19 +1,17 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using Aggregates.Extensions;
-using System.Threading.Tasks;
-using System.Threading;
-using Aggregates.Contracts;
-using System.Net;
+﻿using Aggregates.Contracts;
 using Aggregates.Exceptions;
+using Aggregates.Extensions;
 using Aggregates.Messages;
-using System.Text.RegularExpressions;
-using System.Collections.Concurrent;
 using EventStore.Client;
 using Grpc.Core;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
@@ -187,7 +185,7 @@ namespace Aggregates.Internal
                     await store.CreateAsync(stream, group, settings).ConfigureAwait(false);
                     Logger.InfoEvent("CreatePinned", "Creating pinned subscription to [{Stream:l}] group [{Group:l}]", stream, group);
                 }
-                catch 
+                catch
                 {
                     // Already created
                 }
@@ -343,7 +341,7 @@ namespace Aggregates.Internal
                 await deserializeEvent(e, callback).ConfigureAwait(false);
                 await sub.Ack(e).ConfigureAwait(false);
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 Logger.ErrorEvent("Event Failed", ex, "Event processing failed - Stream: [{Stream:l}] Position: {StreamPosition} {ExceptionType} - {ExceptionMessage}", e.Event.EventStreamId, e.Event.EventNumber, ex.GetType().Name, ex.Message);
                 await sub.Nack(PersistentSubscriptionNakEventAction.Park, $"Deserialize exception {ex.GetType().Name} - {ex.Message}", e).ConfigureAwait(false);

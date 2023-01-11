@@ -1,9 +1,7 @@
-﻿using System;
+﻿using Aggregates.Contracts;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text;
-using Aggregates.Contracts;
 
 namespace Aggregates.Internal
 {

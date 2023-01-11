@@ -1,11 +1,10 @@
 ﻿
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {

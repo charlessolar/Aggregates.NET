@@ -1,12 +1,11 @@
-﻿using System;
-using System.Threading.Tasks;
-using AutoFixture;
+﻿using AutoFixture;
+using System;
 
 namespace Aggregates
 {
     public abstract class TestSubject<T> : Test, IDisposable
     {
-        private Lazy<T> _lazy;
+        private readonly Lazy<T> _lazy;
         protected T Sut => _lazy.Value;
 
         public TestSubject()

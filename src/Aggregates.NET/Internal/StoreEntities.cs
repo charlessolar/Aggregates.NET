@@ -1,13 +1,11 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Exceptions;
 using Aggregates.Extensions;
-using Aggregates.Messages;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates.Internal
@@ -26,14 +24,14 @@ namespace Aggregates.Internal
         private readonly ITrackChildren _childTracker;
 
         public StoreEntities(
-            ILogger<StoreEntities> logger, 
-            ISettings settings, 
-            IServiceProvider provider, 
-            IMetrics metrics, 
-            IStoreEvents eventstore, 
-            IStoreSnapshots snapstore, 
-            IEventFactory factory, 
-            IVersionRegistrar registrar, 
+            ILogger<StoreEntities> logger,
+            ISettings settings,
+            IServiceProvider provider,
+            IMetrics metrics,
+            IStoreEvents eventstore,
+            IStoreSnapshots snapstore,
+            IEventFactory factory,
+            IVersionRegistrar registrar,
             ITrackChildren childTracker
             )
         {
@@ -52,7 +50,7 @@ namespace Aggregates.Internal
         {
             if (entity == null)
                 return null;
-            
+
             var parents = getParents((entity as IChildEntity)?.Parent)?.ToList() ?? new List<IParentDescriptor>();
             parents.Add(new ParentDescriptor { EntityType = _registrar.GetVersionedName(entity.GetType()), StreamId = entity.Id });
             return parents.ToArray();

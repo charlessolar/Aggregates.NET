@@ -8,7 +8,7 @@ namespace Aggregates.Extensions
         public static Dictionary<T, TU> Merge<T, TU>(this IDictionary<T, TU> first, IDictionary<T, TU> second)
         {
             var result = new Dictionary<T, TU>(first);
-            
+
             foreach (var item in second)
                 result[item.Key] = item.Value;
             return result;

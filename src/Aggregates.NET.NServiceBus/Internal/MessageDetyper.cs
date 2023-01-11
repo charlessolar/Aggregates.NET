@@ -4,9 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NServiceBus.Pipeline;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates.Internal
@@ -31,12 +29,12 @@ namespace Aggregates.Internal
             if (!context.Headers.TryGetValue(messageTypeKey, out var messageType))
                 return next();
 
-            if(messageType.IndexOf(';') != -1)
+            if (messageType.IndexOf(';') != -1)
                 messageType = messageType.Substring(0, messageType.IndexOf(';'));
-            
+
             // Don't use context.Message.Instance because it will be IEvent_impl
             var type = Type.GetType(messageType, false);
-            if(type == null)
+            if (type == null)
             {
                 Logger.WarnEvent("UnknownType", "{MessageType} sent - but could not load type?", messageType);
                 return next();

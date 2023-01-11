@@ -1,16 +1,9 @@
 ﻿using Aggregates.Contracts;
-using Aggregates.Messages;
+using Microsoft.Extensions.DependencyInjection;
 using NServiceBus;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Aggregates.Internal;
 using System.Diagnostics.CodeAnalysis;
-using Aggregates.Sagas;
-using NServiceBus.Pipeline;
-using Microsoft.Extensions.DependencyInjection;
+using System.Threading.Tasks;
 
 namespace Aggregates
 {
@@ -29,7 +22,7 @@ namespace Aggregates
         {
             var config = context.Extensions.Get<IConfiguration>();
             IProcessor processor;
-            if(!context.Extensions.TryGet<IProcessor>(out processor))
+            if (!context.Extensions.TryGet<IProcessor>(out processor))
                 processor = config.ServiceProvider.GetRequiredService<IProcessor>();
             return processor.Process<TService, TResponse>(service, config.ServiceProvider);
         }

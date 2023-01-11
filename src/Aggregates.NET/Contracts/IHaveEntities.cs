@@ -1,6 +1,4 @@
-﻿using Aggregates.Internal;
-
-namespace Aggregates.Contracts
+﻿namespace Aggregates.Contracts
 {
     public interface IHaveEntities<TParent> : IEntity where TParent : IEntity
     {
