@@ -48,6 +48,10 @@ namespace Aggregates
                 .AddTransient<IEventFactory, TestableEventFactory>()
                 .AddTransient<IStoreEvents, TestableEventStore>()
                 .AddTransient<IStoreSnapshots, TestableSnapshotStore>()
+                .AddTransient<TestableVersionRegistrar>()
+                .AddTransient<TestableEventFactory>()
+                .AddTransient<TestableEventStore>()
+                .AddTransient<TestableSnapshotStore>()
                 .BuildServiceProvider();
 
             _ctx.Extensions.Set("CommandDestination", "");

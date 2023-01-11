@@ -129,10 +129,10 @@ namespace Aggregates.Internal
         {
             _uow = uow;
             _ids = ids;
-            _factory = uow.Context.ServiceProvider.GetService<TestableEventFactory>();
-            _eventstore = uow.Context.ServiceProvider.GetService<TestableEventStore>();
-            _snapstore = uow.Context.ServiceProvider.GetService<TestableSnapshotStore>(); 
-            _registrar = uow.Context.ServiceProvider.GetService<TestableVersionRegistrar>();
+            _factory = uow.Context.ServiceProvider.GetRequiredService<TestableEventFactory>();
+            _eventstore = uow.Context.ServiceProvider.GetRequiredService<TestableEventStore>();
+            _snapstore = uow.Context.ServiceProvider.GetRequiredService<TestableSnapshotStore>(); 
+            _registrar = uow.Context.ServiceProvider.GetRequiredService<TestableVersionRegistrar>();
         }
 
         public int ChangedStreams => Tracked.Count(x => x.Value.Dirty);
