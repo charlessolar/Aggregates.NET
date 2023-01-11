@@ -36,7 +36,7 @@ namespace Aggregates.Internal
             var settings = new JsonSerializerSettings
             {
                 // Use of TypeNameHandling.Auto is a potential security vulnerability 
-                TypeNameHandling = TypeNameHandling.None,
+                TypeNameHandling = TypeNameHandling.Auto,
                 Converters = new JsonConverter[] { new Newtonsoft.Json.Converters.StringEnumConverter(), new NewtonsoftIdJsonConverter() }.Concat(extraConverters).ToArray(),
                 //Error = new EventHandler<Newtonsoft.Json.Serialization.ErrorEventArgs>(HandleError),
                 ContractResolver = new EventContractResolver(messageMapper, messageFactory),
