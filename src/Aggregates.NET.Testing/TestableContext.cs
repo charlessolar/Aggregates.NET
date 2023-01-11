@@ -174,7 +174,7 @@ namespace Aggregates
             {
                 // Combine commands sent via "Saga" into sent messages
                 var sagas = _ctx.SentMessages.Where(x => x.Message is Sagas.StartCommandSaga);
-                var translatedCommands = sagas.SelectMany(x => (x.Message as Sagas.StartCommandSaga).Commands.Select(y => new SentMessage<object>(y, x.Options)));
+                var translatedCommands = sagas.SelectMany(x => (x.Message as Sagas.StartCommandSaga).Commands.Select(y => new SentMessage<object>(y.Message, x.Options)));
 
                 return _ctx.SentMessages.Where(x => !(x.Message is Sagas.StartCommandSaga)).Concat(translatedCommands).ToArray();
             }
