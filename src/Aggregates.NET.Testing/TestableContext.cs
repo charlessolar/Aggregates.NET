@@ -184,7 +184,7 @@ namespace Aggregates
 
         public Dictionary<string, string> Headers => throw new NotImplementedException();
 
-        public object MessageBeingHandled => new object();
+        public object MessageBeingHandled => new TestMessage();
 
         public bool HandlerInvocationAborted => throw new NotImplementedException();
 
