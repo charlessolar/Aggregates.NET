@@ -35,7 +35,7 @@ namespace Aggregates.Sagas
             _originating = new CommandSagaHandler.MessageData
             {
                 Version = _versionRegistrar.GetVersionedName(originating.GetType()),
-                Message = originating
+                Message = _serializer.Serialize(originating).AsString()
             };
             _domainDestination = domainDestimation;
             _commands = new List<CommandSagaHandler.MessageData>();
@@ -50,7 +50,7 @@ namespace Aggregates.Sagas
             _commands.Add(new CommandSagaHandler.MessageData
             {
                 Version = _versionRegistrar.GetVersionedName(command.GetType()),
-                Message = command
+                Message = _serializer.Serialize(command).AsString()
             });
             return this;
         }
@@ -60,7 +60,7 @@ namespace Aggregates.Sagas
             _abortCommands.Add(new CommandSagaHandler.MessageData
             {
                 Version = _versionRegistrar.GetVersionedName(command.GetType()),
-                Message = command
+                Message = _serializer.Serialize(command).AsString()
             });
             return this;
         }

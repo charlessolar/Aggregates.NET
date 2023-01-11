@@ -8,14 +8,20 @@ namespace Aggregates.Internal
     [ExcludeFromCodeCoverage]
     class TestableVersionRegistrar : Contracts.IVersionRegistrar
     {
+        private readonly Dictionary<string, Type> _versions = new Dictionary<string, Type>();
+
         public Type GetNamedType(string versionedName)
         {
-            throw new NotImplementedException();
+            if (!_versions.TryGetValue(versionedName, out var type))
+                throw new Exception($"Unknown {versionedName}");
+            return type;
         }
 
         public string GetVersionedName(Type versionedType)
         {
-            return $"Testing.{versionedType.FullName}";
+            var name = $"Testing.{versionedType.FullName}";
+            _versions[name] = versionedType;
+            return name;
         }
 
         public void Load(Type[] types)

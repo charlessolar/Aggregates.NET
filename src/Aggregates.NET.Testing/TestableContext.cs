@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Extensions;
 using Aggregates.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using NServiceBus;
@@ -172,9 +173,22 @@ namespace Aggregates
         {
             get
             {
+                var serializer = ServiceProvider.GetRequiredService<IMessageSerializer>();
+                var versionRegistrar = ServiceProvider.GetRequiredService<IVersionRegistrar>();
+
                 // Combine commands sent via "Saga" into sent messages
                 var sagas = _ctx.SentMessages.Where(x => x.Message is Sagas.StartCommandSaga);
-                var translatedCommands = sagas.SelectMany(x => (x.Message as Sagas.StartCommandSaga).Commands.Select(y => new SentMessage<object>(y.Message, x.Options)));
+                var translatedCommands = sagas.SelectMany(x => (x.Message as Sagas.StartCommandSaga).Commands.Select(y =>
+                {
+                    // The data is serialized into strings to preserve types 
+                    // deserialize for the testing
+                    var message = serializer.Deserialize(
+                       versionRegistrar.GetNamedType(y.Version),
+                       y.Message.AsByteArray()
+                       );
+
+                    return new SentMessage<object>(message, x.Options);
+                }));
 
                 return _ctx.SentMessages.Where(x => !(x.Message is Sagas.StartCommandSaga)).Concat(translatedCommands).ToArray();
             }
