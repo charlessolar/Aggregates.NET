@@ -1,14 +1,12 @@
-﻿using Aggregates.Contracts;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System;
 
 namespace Aggregates
 {
     public interface IServiceContext
     {
-        Aggregates.UnitOfWork.IUnitOfWork BaseUow { get; }
-        Aggregates.Contracts.IProcessor Processor { get; }
+        UnitOfWork.IDomainUnitOfWork Domain { get; }
+        UnitOfWork.IApplicationUnitOfWork App { get; }
+        Contracts.IProcessor Processor { get; }
 
         IServiceProvider Container { get; }
     }

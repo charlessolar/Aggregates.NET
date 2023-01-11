@@ -6,9 +6,9 @@ namespace Aggregates.Application
 {
     public static class UnitOfWorkExtensions
     {
-        public static UnitOfWork.IApplicationUnitOfWork Uow(this IServiceContext context)
+        public static TUnitOfWork Uow<TUnitOfWork>(this IServiceContext context) where TUnitOfWork : UnitOfWork.IApplicationUnitOfWork
         {
-            return context.Uow<UnitOfWork.IApplicationUnitOfWork>();
+            return (TUnitOfWork)context.App ;
         }
     }
 }

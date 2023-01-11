@@ -3,21 +3,22 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Aggregates.Contracts;
+using Aggregates.UnitOfWork;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Aggregates.Internal
 {
     [ExcludeFromCodeCoverage]
     class HandleContext : IServiceContext
     {
-        public HandleContext(Aggregates.UnitOfWork.IUnitOfWork uow, IProcessor processor, IServiceProvider container)
+        public HandleContext(IServiceProvider container)
         {
-            BaseUow = uow;
-            Processor = processor;
             Container = container;
         }
 
-        public Aggregates.UnitOfWork.IUnitOfWork BaseUow { get; }
-        public IProcessor Processor { get; }
+        public IDomainUnitOfWork Domain => Container.GetRequiredService<IDomainUnitOfWork>();
+        public IApplicationUnitOfWork App => Container.GetRequiredService<IApplicationUnitOfWork>();
+        public IProcessor Processor => Container.GetRequiredService<IProcessor>();
         public IServiceProvider Container { get; }
 
     }

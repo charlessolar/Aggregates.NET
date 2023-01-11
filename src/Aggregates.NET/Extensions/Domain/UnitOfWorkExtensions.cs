@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Aggregates.Contracts;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,9 +7,9 @@ namespace Aggregates.Domain
 {
     public static class UnitOfWorkExtensions
     {
-        public static UnitOfWork.IDomainUnitOfWork Uow(this IServiceContext context)
+        public static IRepository<T> For<T>(this IServiceContext context) where T : class, IEntity
         {
-            return context.Uow<UnitOfWork.IDomainUnitOfWork>();
+            return context.Domain.For<T>();
         }
     }
 }

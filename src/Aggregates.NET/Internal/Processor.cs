@@ -34,7 +34,7 @@ namespace Aggregates.Internal
             }
 
             // Todo: both units of work should come from the pipeline not the container
-            var context = new HandleContext(container.GetRequiredService<Aggregates.UnitOfWork.IUnitOfWork>(), container.GetRequiredService<IProcessor>(), container);
+            var context = new HandleContext( container);
 
             return handlerFunc(handler, service, context);
         }
