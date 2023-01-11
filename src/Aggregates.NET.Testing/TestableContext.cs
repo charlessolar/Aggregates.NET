@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NServiceBus;
 using NServiceBus.Callbacks.Testing;
 using NServiceBus.Extensibility;
+using NServiceBus.MessageInterfaces;
 using NServiceBus.MessageInterfaces.MessageMapper.Reflection;
 using NServiceBus.Persistence;
 using NServiceBus.Testing;
@@ -42,7 +43,8 @@ namespace Aggregates
             ServiceProvider = new Microsoft.Extensions.DependencyInjection.ServiceCollection()
                 .AddTransient<TestableVersionRegistrar>()
                 .AddTransient<TestableMessageSerializer>()
-                .AddTransient<MessageMapper>()
+                .AddTransient<IMessageCreator, MessageMapper>()
+                .AddTransient<IMessageMapper, MessageMapper>()
                 .AddTransient<TestableEventFactory>()
                 .AddTransient<TestableEventStore>()
                 .AddTransient<TestableSnapshotStore>()
