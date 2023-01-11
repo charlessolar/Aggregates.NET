@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Sagas
 {
-    
+
     public class CommandSaga
     {
         private IMessageHandlerContext _context;
@@ -35,7 +35,7 @@ namespace Aggregates.Sagas
             _originating = new CommandSagaHandler.MessageData
             {
                 Version = _versionRegistrar.GetVersionedName(originating.GetType()),
-                Message = _serializer.Serialize(originating).AsString()
+                Message = originating
             };
             _domainDestination = domainDestimation;
             _commands = new List<CommandSagaHandler.MessageData>();
@@ -50,7 +50,7 @@ namespace Aggregates.Sagas
             _commands.Add(new CommandSagaHandler.MessageData
             {
                 Version = _versionRegistrar.GetVersionedName(command.GetType()),
-                Message = _serializer.Serialize(command).AsString()
+                Message = command
             });
             return this;
         }
@@ -60,7 +60,7 @@ namespace Aggregates.Sagas
             _abortCommands.Add(new CommandSagaHandler.MessageData
             {
                 Version = _versionRegistrar.GetVersionedName(command.GetType()),
-                Message = _serializer.Serialize(command).AsString()
+                Message = command
             });
             return this;
         }
@@ -85,5 +85,5 @@ namespace Aggregates.Sagas
         }
 
     }
-    
+
 }

@@ -33,7 +33,7 @@ namespace Aggregates.Sagas
         public class MessageData
         {
             public string Version { get; set; }
-            public string Message { get; set; }
+            public object Message { get; set; }
         }
         [Versioned("TimeoutMessage", "Aggregates")]
         public class TimeoutMessage : Messages.IMessage
@@ -113,12 +113,8 @@ namespace Aggregates.Sagas
                 return Handle(new AbortCommandSaga { SagaId = Data.SagaId }, context);
             try
             {
-                var originalMessage = _serializer.Deserialize(
-                    _registrar.GetNamedType(Data.Originating.Version),
-                    Data.Originating.Message.AsByteArray()
-                    ) as Messages.IMessage;
                 // a timeout while aborting........
-                throw new SagaAbortionFailureException(originalMessage);
+                throw new SagaAbortionFailureException(Data.Originating.Message as Messages.IMessage);
             }
             catch
             {
@@ -145,12 +141,12 @@ namespace Aggregates.Sagas
                     data = Data.Commands[Data.CurrentIndex];
 
                 _logger.DebugEvent("Saga", "Saga {SagaId} sending {MessageType} {MessageData:j}", Data.SagaId, data.Version, data.Message);
-                var message = _serializer.Deserialize(
-                    _registrar.GetNamedType(data.Version),
-                    data.Message.AsByteArray()
-                    );
+                //var message = _serializer.Deserialize(
+                //    _registrar.GetNamedType(data.Version),
+                //    data.Message.AsByteArray()
+                //    );
 
-                await context.Send(message, options).ConfigureAwait(false);
+                await context.Send(data.Message, options).ConfigureAwait(false);
             }
             catch
             {
