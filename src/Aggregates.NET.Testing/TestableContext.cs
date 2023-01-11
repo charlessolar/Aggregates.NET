@@ -41,13 +41,13 @@ namespace Aggregates
             Processor = new TestableProcessor();
 
             ServiceProvider = new Microsoft.Extensions.DependencyInjection.ServiceCollection()
-                .AddTransient<TestableVersionRegistrar>()
-                .AddTransient<TestableMessageSerializer>()
+                .AddTransient<Contracts.IVersionRegistrar, TestableVersionRegistrar>()
+                .AddTransient<IMessageSerializer, TestableMessageSerializer>()
                 .AddTransient<IMessageCreator, MessageMapper>()
                 .AddTransient<IMessageMapper, MessageMapper>()
-                .AddTransient<TestableEventFactory>()
-                .AddTransient<TestableEventStore>()
-                .AddTransient<TestableSnapshotStore>()
+                .AddTransient<IEventFactory, TestableEventFactory>()
+                .AddTransient<IStoreEvents, TestableEventStore>()
+                .AddTransient<IStoreSnapshots, TestableSnapshotStore>()
                 .BuildServiceProvider();
 
             _ctx.Extensions.Set("CommandDestination", "");
@@ -55,7 +55,7 @@ namespace Aggregates
             _ctx.Extensions.Set<UnitOfWork.IUnitOfWork>(App);
             _ctx.Extensions.Set<IProcessor>(Processor);
             _ctx.Extensions.Set<IServiceProvider>(ServiceProvider);
-            
+
         }
         static TMessage CreateInstance<TMessage>(Action<TMessage> action)
         {
