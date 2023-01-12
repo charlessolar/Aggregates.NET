@@ -71,7 +71,10 @@ namespace Aggregates.Internal
                     {
                         state.Apply(events[i]);
                     }
-                    catch (NoRouteException) { }
+                    catch (NoRouteException)
+                    {
+                        Logger.DebugEvent("NoRoute", "{State} has no route for {EventType}", typeof(TState).FullName, events[i].GetType().FullName);
+                    }
                 }
             }
 

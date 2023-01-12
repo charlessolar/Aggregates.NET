@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Internal;
 using Aggregates.Messages;
 using Aggregates.UnitOfWork.Query;
@@ -87,7 +88,13 @@ namespace Aggregates
         public void ApplyEvents<TEvent>(TEvent[] events) where TEvent : IEvent
         {
             foreach (var @event in events)
-                (this as IEntity<FakeChildState>).Apply(@event);
+            {
+                try
+                {
+                    (this as IEntity<FakeChildState>).Apply(@event);
+                }
+                catch (NoRouteException) { }
+            }
         }
     }
 

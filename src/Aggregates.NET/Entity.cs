@@ -50,7 +50,6 @@ namespace Aggregates
         IVersionRegistrar INeedVersionRegistrar.Registrar { get; set; }
         ITrackChildren INeedChildTracking.Tracker { get; set; }
 
-        internal ILogger Logger { get; set; }
 
 
         void IEntity<TState>.Instantiate(TState state)
@@ -100,16 +99,19 @@ namespace Aggregates
 
         void IEntity<TState>.Apply(IEvent @event)
         {
+            NoRouteException thrown = null;
             try
             {
                 State.Apply(@event);
             }
-            catch (NoRouteException)
+            catch (NoRouteException ex)
             {
-                Logger?.DebugEvent("NoRoute", "{State} has no route for {EventType}", typeof(TThis).FullName, @event.GetType().FullName);
+                thrown = ex;
             }
             var newEvent = FullEventFactory.Event(VersionRegistrar, Uow, this, @event);
             _uncommitted.Add(newEvent);
+            if (thrown != null)
+                throw thrown;
         }
 
 
