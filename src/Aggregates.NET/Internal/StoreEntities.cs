@@ -130,7 +130,7 @@ namespace Aggregates.Internal
                     Logger.DebugEvent("AlreadyExists", "[{EntityId:l}] entity [{EntityType:l}] already exists", entity.Id, typeof(TEntity).FullName);
                     throw new EntityAlreadyExistsException(typeof(TEntity).FullName, entity.Bucket, entity.Id, entity.GetParentIds());
                 }
-
+                throw;
             }
             catch (PersistenceException e)
             {

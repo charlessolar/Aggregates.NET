@@ -25,6 +25,7 @@ namespace Aggregates.Internal
         public override async Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)
         {
             context.MessageHeaders.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}", out var corrId);
+            context.MessageHeaders.TryGetValue($"{NServiceBus.Headers.EnclosedMessageTypes}", out var messageTypes);
 
             if (string.IsNullOrEmpty(corrId))
                 corrId = context.MessageId;
@@ -37,6 +38,7 @@ namespace Aggregates.Internal
                 ["MessageId"] = context.MessageId,
                 // Could body and headers be slow?
                 ["MessageBody"] = body,
+                ["MessageType"] = messageTypes,
                 ["MessageHeaders"] = new Dictionary<string, string>(context.MessageHeaders),
                 ["CorrId"] = corrId,
                 ["Endpoint"] = _settings.Endpoint,
