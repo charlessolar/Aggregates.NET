@@ -99,19 +99,10 @@ namespace Aggregates
 
         void IEntity<TState>.Apply(IEvent @event)
         {
-            NoRouteException thrown = null;
-            try
-            {
-                State.Apply(@event);
-            }
-            catch (NoRouteException ex)
-            {
-                thrown = ex;
-            }
+            State.Apply(@event);
+
             var newEvent = FullEventFactory.Event(VersionRegistrar, Uow, this, @event);
             _uncommitted.Add(newEvent);
-            if (thrown != null)
-                throw thrown;
         }
 
 

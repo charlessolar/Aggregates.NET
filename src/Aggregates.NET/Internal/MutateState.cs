@@ -58,7 +58,9 @@ namespace Aggregates.Internal
             // Todo: can suport "named" events with an attribute here so instead of routing based on object type 
             // route based on event name.
             if (!_mutators.TryGetValue($"Handle.{eventType}", out var eventMutator))
-                throw new NoRouteException(typeof(TState), $"Handle({eventType})");
+                //throw new NoRouteException(typeof(TState), $"Handle({eventType})");
+                // no longer makes sense to even throw this
+                return;
             eventMutator((TState)state, @event);
         }
     }

@@ -20,12 +20,6 @@ namespace Aggregates.Common.Exceptions
             e.Message.Should().ContainAll(typeof(FakeEntity).Name, "testBucket", "testId", "testParent");
         }
         [Fact]
-        public void ShouldHaveStateAndHandler()
-        {
-            var e = new NoRouteException(typeof(FakeState), "testHandler");
-            e.Message.Should().ContainAll(typeof(FakeState).Name, "testHandler");
-        }
-        [Fact]
         public void ShouldHaveStreamAndClient()
         {
             var e = new NotFoundException("testStream", "test");

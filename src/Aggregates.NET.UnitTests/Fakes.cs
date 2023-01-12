@@ -89,11 +89,7 @@ namespace Aggregates
         {
             foreach (var @event in events)
             {
-                try
-                {
-                    (this as IEntity<FakeChildState>).Apply(@event);
-                }
-                catch (NoRouteException) { }
+                (this as IEntity<FakeChildState>).Apply(@event);
             }
         }
     }
