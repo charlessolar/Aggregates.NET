@@ -22,11 +22,6 @@ namespace Aggregates.Internal
         }
         public override Task Invoke(IOutgoingLogicalMessageContext context, Func<Task> next)
         {
-            // Set aggregates.net message and corr id
-            if (context.Headers.ContainsKey(Headers.MessageId))
-                context.Headers[$"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}"] = context.Headers[Headers.MessageId];
-            if (context.Headers.ContainsKey(Headers.CorrelationId))
-                context.Headers[$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = context.Headers[Headers.CorrelationId];
 
             if (context.GetMessageIntent() == MessageIntent.Reply || context.GetMessageIntent() == MessageIntent.Publish)
                 return next();

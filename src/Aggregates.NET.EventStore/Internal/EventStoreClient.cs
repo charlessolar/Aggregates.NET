@@ -647,6 +647,7 @@ namespace Aggregates.Internal
                 if (ctx.Elapsed > TimeSpan.FromSeconds(1))
                     Logger.InfoEvent("Slow Alarm", "Writting {Events} events size {Size} stream [{Stream:l}] version {ExpectedVersion} took {Milliseconds} ms", events.Count(), events.Sum(x => x.Data.Length), stream, expectedVersion, ctx.Elapsed.TotalMilliseconds);
                 Logger.DebugEvent("Write", "{Events} events size {Size} stream [{Stream:l}] version {ExpectedVersion} took {Milliseconds} ms", events.Count(), events.Sum(x => x.Data.Length), stream, expectedVersion, ctx.Elapsed.TotalMilliseconds);
+
             }
             return nextVersion;
         }

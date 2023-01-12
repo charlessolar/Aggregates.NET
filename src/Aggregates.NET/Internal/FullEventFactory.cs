@@ -23,10 +23,10 @@ namespace Aggregates.Internal
                     Parents = getParents(versionRegistry, entity),
                     Timestamp = DateTime.UtcNow,
                     Version = entity.StateVersion,
-                    Headers = new Dictionary<string, string>()
+                    Headers = new Dictionary<string, string>(uow.CurrentHeaders)
                     {
-                        [$"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}"] = eventId.ToString(),
-                        [$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = uow.CommitId.ToString(),
+                        [$"{Defaults.PrefixHeader}.{Defaults.CommitIdHeader}"] = uow.CommitId.ToString(),
+                        [$"{Defaults.PrefixHeader}.{Defaults.EventIdHeader}"] = eventId.ToString(),
                     }
                 },
                 EventId = eventId,

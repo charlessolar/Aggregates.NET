@@ -62,6 +62,7 @@ namespace Aggregates.Internal
 
             _repositories.Clear();
 
+            EventIds.TryRemove(CommitId, out _);
             _disposed = true;
         }
 
@@ -98,8 +99,6 @@ namespace Aggregates.Internal
                 // On exception Begin and End will run multiple times without a new unit of work instance
                 _repositories.Clear();
 
-                Guid eventId;
-                EventIds.TryRemove(CommitId, out eventId);
                 return Task.CompletedTask;
             }
 
@@ -134,16 +133,8 @@ namespace Aggregates.Internal
             }
 
             Logger.DebugEvent("Commit", "{CommitId} for {Repositories} repositories", CommitId, allRepos.Length);
-            try
-            {
-                await allRepos.WhenAllAsync(x => x.Commit(CommitId, headers)).ConfigureAwait(false);
-            }
-            finally
-            {
-                Guid eventId;
-                EventIds.TryRemove(CommitId, out eventId);
-            }
 
+            await allRepos.WhenAllAsync(x => x.Commit(CommitId, headers)).ConfigureAwait(false);
         }
 
         public virtual IMutating MutateIncoming(IMutating command)
@@ -154,10 +145,6 @@ namespace Aggregates.Internal
             Guid commitId = Guid.NewGuid();
 
             if (command.Headers.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}", out messageId))
-                Guid.TryParse(messageId, out commitId);
-
-            // Allow the user to send a CommitId along with his message if he wants
-            if (command.Headers.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.CommitIdHeader}", out messageId))
                 Guid.TryParse(messageId, out commitId);
 
 

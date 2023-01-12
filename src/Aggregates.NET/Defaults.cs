@@ -18,6 +18,7 @@ namespace Aggregates
         public const string PrefixHeader = "Aggregates.NET";
         public const string MessageIdHeader = "MessageId";
         public const string CorrelationIdHeader = "CorrelationId";
+        public const string EventIdHeader = "EventId";
 
         public const string OriginatingHeader = "Originating";
 

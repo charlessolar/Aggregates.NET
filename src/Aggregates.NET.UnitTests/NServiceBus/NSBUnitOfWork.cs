@@ -39,35 +39,6 @@ namespace Aggregates.NServiceBus
             Sut.CommitId.Should().Be(guid);
         }
         [Fact]
-        public void ShouldGetCommitIdFromCommitId()
-        {
-            var guid = Guid.NewGuid();
-            var mutating = Fake<IMutating>();
-            A.CallTo(() => mutating.Headers).Returns(new Dictionary<string, string>
-            {
-                [$"{Defaults.PrefixHeader}.{Defaults.CommitIdHeader}"] = guid.ToString()
-            });
-
-            Sut.MutateIncoming(mutating);
-
-            Sut.CommitId.Should().Be(guid);
-        }
-        [Fact]
-        public void ShouldGetCorrelationId()
-        {
-            var guid = Guid.NewGuid();
-            var mutating = Fake<IMutating>();
-            A.CallTo(() => mutating.Headers).Returns(new Dictionary<string, string>
-            {
-                [global::NServiceBus.Headers.CorrelationId] = guid.ToString()
-            });
-
-            Sut.MutateIncoming(mutating);
-
-            Sut.CurrentHeaders.Should().ContainKey($"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}");
-            Sut.CurrentHeaders[$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"].Should().Be(guid.ToString());
-        }
-        [Fact]
         public void ShouldGetCommitIdFromNServiceBusMessageId()
         {
             var guid = Guid.NewGuid();

@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Extensions;
 using Microsoft.Extensions.Logging;
 using NServiceBus;
 using System;
@@ -60,9 +61,6 @@ namespace Aggregates.Internal
             foreach (var header in userHeaders)
                 CurrentHeaders[header] = command.Headers[header];
 
-            if (command.Headers.ContainsKey(Headers.CorrelationId))
-                CurrentHeaders[$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"] = command.Headers[Headers.CorrelationId];
-
             string messageId;
             Guid commitId = Guid.NewGuid();
 
@@ -73,13 +71,9 @@ namespace Aggregates.Internal
             if (command.Headers.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}", out messageId))
                 Guid.TryParse(messageId, out commitId);
 
-            // Allow the user to send a CommitId along with his message if he wants
-            if (command.Headers.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.CommitIdHeader}", out messageId))
-                Guid.TryParse(messageId, out commitId);
 
 
             CommitId = commitId;
-
             // Helpful log and gets CommitId into the dictionary
             var firstEventId = UnitOfWork.NextEventId(CommitId);
 
