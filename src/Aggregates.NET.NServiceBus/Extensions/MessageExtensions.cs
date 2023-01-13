@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace Aggregates.Extensions
 {
     [ExcludeFromCodeCoverage]
-    public static class MessageExtensions
+    static class MessageExtensions
     {
         public static MessageIntent GetMessageIntent(this IIncomingLogicalMessageContext message)
         {

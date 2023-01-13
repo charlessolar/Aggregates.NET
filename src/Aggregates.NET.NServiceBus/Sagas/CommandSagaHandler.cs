@@ -1,4 +1,5 @@
 ﻿using Aggregates.Contracts;
+using Aggregates.Exceptions;
 using Aggregates.Extensions;
 using Microsoft.Extensions.Logging;
 using NServiceBus;

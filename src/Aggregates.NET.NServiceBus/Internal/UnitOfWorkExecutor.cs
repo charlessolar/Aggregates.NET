@@ -46,23 +46,22 @@ namespace Aggregates.Internal
 
             Aggregates.UnitOfWork.IUnitOfWork uow = null;
 
+            var appUow = provider.GetService<Aggregates.UnitOfWork.IApplicationUnitOfWork>();
+            if (appUow != null)
+            {
+                uow = appUow;
+                context.Extensions.Set(appUow);
+            }
             var domainUow = provider.GetService<Aggregates.UnitOfWork.IDomainUnitOfWork>();
             if (domainUow != null)
             {
                 // only ICommands make commitable domain unit of works
+                // override uow
                 if (context.Message.Instance is Messages.ICommand)
                     uow = domainUow;
                 context.Extensions.Set(domainUow);
             }
 
-            var appUow = provider.GetService<Aggregates.UnitOfWork.IApplicationUnitOfWork>();
-            if (appUow != null)
-            {
-                // only IEvents make commitable app unit of works
-                if (context.Message.Instance is Messages.IEvent)
-                    uow = appUow;
-                context.Extensions.Set(appUow);
-            }
 
 
             // uow can be null if the message is an event and application unit of work was not defined.

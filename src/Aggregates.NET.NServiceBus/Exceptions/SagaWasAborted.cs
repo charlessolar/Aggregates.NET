@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Aggregates.Extensions
+namespace Aggregates.Exceptions
 {
     public class SagaWasAborted : Exception
     {
