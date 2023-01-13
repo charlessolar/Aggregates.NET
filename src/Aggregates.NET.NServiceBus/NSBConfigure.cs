@@ -87,6 +87,18 @@ namespace Aggregates
                 nsbSettings.Set("NServiceBus.Routing.EndpointName", settings.Endpoint);
 
                 var recoverability = endpointConfig.Recoverability();
+
+                // Callbacks that are too late - discard instead of moving to error queue
+                recoverability.CustomPolicy((config, context) =>
+                {
+                    if (context.Exception is InvalidOperationException invalidOperationException &&
+                        invalidOperationException.Message.StartsWith("No handlers could be found", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return RecoverabilityAction.Discard("Callback no longer active");
+                    }
+                    return DefaultRecoverabilityPolicy.Invoke(config, context);
+                });
+
                 recoverability.Failed(recovery =>
                 {
                     recovery.OnMessageSentToErrorQueue((message, token) =>

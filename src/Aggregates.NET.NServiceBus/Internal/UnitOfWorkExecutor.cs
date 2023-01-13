@@ -49,7 +49,9 @@ namespace Aggregates.Internal
             var appUow = provider.GetService<Aggregates.UnitOfWork.IApplicationUnitOfWork>();
             if (appUow != null)
             {
-                uow = appUow;
+                // only get a commitable unit of work if its IEvent or ICommand
+                if (context.Message.Instance is Messages.IEvent)
+                    uow = appUow;
                 context.Extensions.Set(appUow);
             }
             var domainUow = provider.GetService<Aggregates.UnitOfWork.IDomainUnitOfWork>();
@@ -59,6 +61,7 @@ namespace Aggregates.Internal
                 // override uow
                 if (context.Message.Instance is Messages.ICommand)
                     uow = domainUow;
+
                 context.Extensions.Set(domainUow);
             }
 
