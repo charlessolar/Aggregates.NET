@@ -265,30 +265,30 @@ namespace Aggregates.Internal
                 // so in case of any error retry 3 times
                 while (count < 3)
                 {
-                    try
-                    {
+                    try {
                         // todo: the client will eventually have "emit" option
                         // https://github.com/EventStore/EventStore/pull/3384
                         await connection.Value.CreateContinuousAsync(name, definition, trackEmittedStreams: true).ConfigureAwait(false);
                         break;
-                    }
-                    catch (RpcException e) when (e.StatusCode is StatusCode.AlreadyExists)
-                    {
+                    } catch (RpcException e) when (e.StatusCode is StatusCode.Unknown) {
+						Logger.WarnEvent("Projection", "Unknown error when creating projection [{Name}]: {Message}", name, e.Message);
+						try {
+							// If in development mode try to update it incase theres new events to consider
+							if (_settings.DevelopmentMode) {
+								await connection.Value.UpdateAsync(name, definition).ConfigureAwait(false);
+							}
+						} catch {
+						}
+					} catch (RpcException e) when (e.StatusCode is StatusCode.AlreadyExists) {
                         Logger.WarnEvent("Projection", "Projection [{Name}] already exists", name);
-                        try
-                        {
+                        try {
                             // If in development mode try to update it incase theres new events to consider
-                            if (_settings.DevelopmentMode)
-                            {
+                            if (_settings.DevelopmentMode) {
                                 await connection.Value.UpdateAsync(name, definition).ConfigureAwait(false);
                             }
+                        } catch {
                         }
-                        catch
-                        {
-                        }
-                    }
-                    catch (Exception ex)
-                    {
+                    } catch (Exception ex) {
                         Logger.ErrorEvent("Projection", ex, "Failed to create projection [{Name}]", name);
                         await Task.Delay(1000).ConfigureAwait(false);
                     }
