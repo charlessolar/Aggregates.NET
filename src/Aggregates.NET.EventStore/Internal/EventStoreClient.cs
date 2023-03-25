@@ -182,7 +182,7 @@ namespace Aggregates.Internal
                 try
                 {
 
-                    await store.CreateAsync(stream, group, settings).ConfigureAwait(false);
+                    await store.CreateToStreamAsync(stream, group, settings).ConfigureAwait(false);
                     Logger.InfoEvent("CreatePinned", "Creating pinned subscription to [{Stream:l}] group [{Group:l}]", stream, group);
                 }
                 catch
