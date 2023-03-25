@@ -69,7 +69,7 @@ namespace Aggregates.Sagas
         public Task Handle(ContinueCommandSaga message, IMessageHandlerContext context)
         {
             Data.CurrentIndex++;
-            _logger.InfoEvent("Saga", "Continuing saga {SagaId} {CurrentIndex}/{TotalCommands}", Data.SagaId, Data.CurrentIndex, Data.Commands.Length);
+            _logger.DebugEvent("Saga", "Continuing saga {SagaId} {CurrentIndex}/{TotalCommands}", Data.SagaId, Data.CurrentIndex, Data.Commands.Length);
 
             if (!Data.Aborting && Data.CurrentIndex == Data.Commands.Length)
             {
@@ -87,7 +87,7 @@ namespace Aggregates.Sagas
         }
         public Task Handle(AbortCommandSaga message, IMessageHandlerContext context)
         {
-            _logger.InfoEvent("Saga", "Aborting saga {SagaId}");
+            _logger.WarnEvent("Saga", "Aborting saga {SagaId}");
             // some command was rejected - abort
             Data.CurrentIndex = 0;
             Data.Aborting = true;
@@ -107,7 +107,8 @@ namespace Aggregates.Sagas
                 return Task.CompletedTask;
             }
 
-            if (!Data.Aborting)
+			_logger.WarnEvent("Saga", "Saga {SagaId} has timed out on {CurrentIndex}/{TotalCommands}", Data.SagaId, Data.CurrentIndex, Data.Commands.Length);
+			if (!Data.Aborting)
                 return Handle(new AbortCommandSaga { SagaId = Data.SagaId }, context);
             try
             {
