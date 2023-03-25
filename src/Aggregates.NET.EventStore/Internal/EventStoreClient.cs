@@ -275,7 +275,7 @@ namespace Aggregates.Internal
 						try {
 							// If in development mode try to update it incase theres new events to consider
 							if (_settings.DevelopmentMode) {
-								await connection.Value.UpdateAsync(name, definition).ConfigureAwait(false);
+								await connection.Value.UpdateAsync(name, definition, emitEnabled: true).ConfigureAwait(false);
 							}
 						} catch {
 						}
@@ -284,7 +284,7 @@ namespace Aggregates.Internal
                         try {
                             // If in development mode try to update it incase theres new events to consider
                             if (_settings.DevelopmentMode) {
-                                await connection.Value.UpdateAsync(name, definition).ConfigureAwait(false);
+                                await connection.Value.UpdateAsync(name, definition, emitEnabled: true).ConfigureAwait(false);
                             }
                         } catch {
                         }
