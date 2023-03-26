@@ -67,8 +67,9 @@ namespace Aggregates.Common
             var collection = Fake<IServiceCollection>();
             var provider = Fake<IServiceProvider>();
             A.CallTo(() => provider.GetService(typeof(Aggregates.UnitOfWork.IUnitOfWork))).Returns(null);
+			A.CallTo(() => provider.GetService(A<Type>.Ignored)).Returns(null);
 
-            var config = await Aggregates.Configuration.Build(collection, config =>
+			var config = await Aggregates.Configuration.Build(collection, config =>
             {
             });
 
@@ -81,9 +82,10 @@ namespace Aggregates.Common
         {
             var collection = Fake<IServiceCollection>();
             var provider = Fake<IServiceProvider>();
-            A.CallTo(() => provider.GetService(typeof(Aggregates.UnitOfWork.IUnitOfWork))).Returns(Fake<Aggregates.UnitOfWork.IUnitOfWork>());
+			A.CallTo(() => provider.GetService(A<Type>.Ignored)).Returns(null);
+			A.CallTo(() => provider.GetService(typeof(Aggregates.UnitOfWork.IUnitOfWork))).Returns(Fake<Aggregates.UnitOfWork.IUnitOfWork>());
 
-            var config = await Aggregates.Configuration.Build(collection, config =>
+			var config = await Aggregates.Configuration.Build(collection, config =>
             {
             });
 

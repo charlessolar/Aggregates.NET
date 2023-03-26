@@ -40,9 +40,6 @@ namespace Aggregates.Internal
             _messaging = messaging;
             Logger = logger;
 
-            Load(_messaging.GetMessageTypes());
-            Load(_messaging.GetEntityTypes());
-            Load(_messaging.GetStateTypes());
         }
         internal static void Clear()
         {
@@ -50,9 +47,9 @@ namespace Aggregates.Internal
             TypeToDefinition.Clear();
         }
 
-        public void Load(Type[] types)
-        {
-            lock (_sync)
+        public void Load(Type[] types) {
+			var duplicates = false;
+			lock (_sync)
             {
                 foreach (var type in types.Distinct())
                 {
@@ -63,12 +60,18 @@ namespace Aggregates.Internal
                         versionInfo = new Versioned(type.Name, type.Assembly.GetName().Name, 1);
                     }
                     Logger.DebugEvent("VersionedType", "{Namespace}.{TypeName} version {Version} found", versionInfo.Namespace, versionInfo.Name, versionInfo.Version);
-                    RegisterType(type, versionInfo.Name, versionInfo.Namespace, versionInfo.Version);
+					duplicates |= !RegisterType(type, versionInfo.Name, versionInfo.Namespace, versionInfo.Version);
                 }
             }
+
+            if (duplicates) {
+                Logger.FatalEvent("Duplicates", "Discovered duplicate versioned types during startup. Having multiple types with the same versioned name causes many issues. Aborting startup.");
+                throw new InvalidOperationException("Discovered duplicate versioned types during startup. Having multiple types with the same versioned name causes many issues.");
+            }
+                
         }
 
-        private void RegisterType(Type type, string name, string @namespace, int version)
+        private bool RegisterType(Type type, string name, string @namespace, int version)
         {
             if (!NameToType.TryGetValue($"{@namespace}.{name}", out var list))
                 list = new List<VersionDefinition>();
@@ -76,14 +79,20 @@ namespace Aggregates.Internal
             var definition = new VersionDefinition(name, @namespace, version, type);
 
             TypeToDefinition[type] = definition;
+            // Check the registry for the same Versioned() name, namespace, and version - but different underlying type
+            // * If they call Load() twice with the same type, no need to throw a duplicate exception 
             if (list.Any(x => x.Name == name && x.Namespace == @namespace && x.Version == version))
             {
-                Logger.WarnEvent("Duplicate", "Tried to register a duplicate type {Namespace}.{Name} v{Version}", @namespace, name, version);
-                return;
+                // if the duplicate is the same underlying type, its not an issue
+                if (list.Any(x => x.Name == name && x.Namespace == @namespace && x.Version == version && x.Type == type))
+                    return true;
+                Logger.ErrorEvent("VersionedType", "Tried to register a duplicate type {Namespace}.{Name} v{Version}", @namespace, name, version);
+                return false;
             }
 
             list.Add(definition);
             NameToType[$"{@namespace}.{name}"] = list;
+            return true;
         }
 
         public string GetVersionedName(Type versionedType)

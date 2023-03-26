@@ -23,6 +23,7 @@ namespace Aggregates
         string UniqueAddress { get; }
         int Retries { get; }
 
+        TimeSpan SagaTimeout { get; }
         bool AllEvents { get; }
         bool TrackChildren { get; }
 

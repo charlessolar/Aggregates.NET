@@ -13,7 +13,9 @@ namespace Aggregates
     {
         [Versioned("FakeEvent", "Fakes", 100)]
         public class FakeEvent : IEvent { }
-        [Versioned("FakeEvent", "Fakes", 99)]
+		[Versioned("FakeEvent", "Fakes", 100)]
+		public class FakeDuplicateEvent : IEvent { }
+		[Versioned("FakeEvent", "Fakes", 99)]
         public class FakeOldEvent : IEvent { }
 
         public Guid? EventId { get; set; }

@@ -8,12 +8,12 @@
         public CommandSagaHandler.MessageData[] Commands { get; set; }
         public CommandSagaHandler.MessageData[] AbortCommands { get; set; }
     }
-    [Versioned("StartCommandSaga", "Aggregates")]
+    [Versioned("ContinueCommandSaga", "Aggregates")]
     public class ContinueCommandSaga : Messages.IMessage
     {
         public string SagaId { get; set; }
     }
-    [Versioned("StartCommandSaga", "Aggregates")]
+    [Versioned("AbortCommandSaga", "Aggregates")]
     public class AbortCommandSaga : Messages.IMessage
     {
         public string SagaId { get; set; }

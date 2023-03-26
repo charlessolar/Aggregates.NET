@@ -30,7 +30,8 @@ namespace Aggregates.Internal
         public string UniqueAddress { get; internal set; }
         public int Retries { get; internal set; }
 
-        public bool AllEvents { get; internal set; }
+		public TimeSpan SagaTimeout { get; internal set; }
+		public bool AllEvents { get; internal set; }
         public bool TrackChildren { get; internal set; }
 
         // Disable certain "production" features related to versioning 
@@ -65,6 +66,7 @@ namespace Aggregates.Internal
             Compression = Compression.None;
             UniqueAddress = Guid.NewGuid().ToString("N");
             MessageContentType = "";
+            SagaTimeout = TimeSpan.FromMinutes(10);
 
             RegistrationTasks.Add((container, settings) =>
             {
@@ -113,7 +115,16 @@ namespace Aggregates.Internal
             });
             StartupTasks.Add((container, settings) =>
             {
-                return Task.CompletedTask;
+                // perform initial versioned registration
+                var versionRegistrar = container.GetService<IVersionRegistrar>();
+                var messaging = container.GetService<Contracts.IMessaging>();
+
+                if (versionRegistrar != null && messaging != null) {
+                    versionRegistrar.Load(messaging.GetMessageTypes());
+                    versionRegistrar.Load(messaging.GetEntityTypes());
+                    versionRegistrar.Load(messaging.GetStateTypes());
+                }
+				return Task.CompletedTask;
             });
         }
         public Settings SetEndpointName(string endpoint)
@@ -174,6 +185,10 @@ namespace Aggregates.Internal
         public Settings SetDevelopmentMode(bool mode = true)
         {
             DevelopmentMode = mode;
+            return this;
+        }
+        public Settings SetSagaTimeout(TimeSpan timeout) {
+            SagaTimeout = timeout;
             return this;
         }
 

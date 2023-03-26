@@ -18,6 +18,7 @@ namespace Aggregates.Sagas
         private readonly ILogger _logger;
         private readonly IMessageSerializer _serializer;
         private readonly IVersionRegistrar _registrar;
+        private readonly TimeSpan _timeout;
 
         public class SagaData : ContainSagaData
         {
@@ -39,11 +40,12 @@ namespace Aggregates.Sagas
             public string SagaId { get; set; }
         }
 
-        public CommandSagaHandler(ILogger<CommandSagaHandler> logger, IMessageSerializer serializer, IVersionRegistrar registrar)
+        public CommandSagaHandler(ILogger<CommandSagaHandler> logger, ISettings settings, IMessageSerializer serializer, IVersionRegistrar registrar)
         {
             _logger = logger;
             _serializer = serializer;
             _registrar = registrar;
+            _timeout = settings.SagaTimeout;
         }
 
         protected override void ConfigureHowToFindSaga(SagaPropertyMapper<CommandSagaHandler.SagaData> mapper)
@@ -62,7 +64,7 @@ namespace Aggregates.Sagas
             Data.AbortCommands = message.AbortCommands;
 
             _logger.InfoEvent("Saga", "Starting saga {SagaId} originating {OriginatingType} {OriginatingMessage:j}", Data.SagaId, message.Originating.Version, message.Originating.Message);
-            await RequestTimeout(context, TimeSpan.FromMinutes(10), new TimeoutMessage { SagaId = Data.SagaId });
+            await RequestTimeout(context, _timeout, new TimeoutMessage { SagaId = Data.SagaId });
             // Send first command
             await SendNextCommand(context);
         }
@@ -107,12 +109,13 @@ namespace Aggregates.Sagas
                 return Task.CompletedTask;
             }
 
-			_logger.WarnEvent("Saga", "Saga {SagaId} has timed out on {CurrentIndex}/{TotalCommands}", Data.SagaId, Data.CurrentIndex, Data.Commands.Length);
-			if (!Data.Aborting)
-                return Handle(new AbortCommandSaga { SagaId = Data.SagaId }, context);
-            try
-            {
-                var originalMessage = _serializer.Deserialize(
+            if (!Data.Aborting) {
+				_logger.WarnEvent("Saga", "Saga {SagaId} has timed out on {CurrentIndex}/{TotalCommands}, will abort", Data.SagaId, Data.CurrentIndex, Data.Commands.Length);
+				return Handle(new AbortCommandSaga { SagaId = Data.SagaId }, context);
+            }
+            try {
+				_logger.ErrorEvent("Saga", "While aborting saga {SagaId} we timed out on {CurrentIndex}/{TotalCommands}", Data.SagaId, Data.CurrentIndex, Data.AbortCommands.Length);
+				var originalMessage = _serializer.Deserialize(
                     _registrar.GetNamedType(Data.Originating.Version),
                     Data.Originating.Message.AsByteArray()
                     ) as Messages.IMessage;
@@ -135,14 +138,17 @@ namespace Aggregates.Sagas
             options.SetHeader(Defaults.RequestResponse, "1");
             options.SetHeader(Defaults.SagaHeader, Data.SagaId);
 
+            int totalCommands;
             try {
                 MessageData data;
-                if (Data.Aborting)
+                if (Data.Aborting) {
+                    totalCommands = Data.AbortCommands.Length;
                     data = Data.AbortCommands[Data.CurrentIndex];
-                else
+                } else {
+                    totalCommands = Data.Commands.Length;
                     data = Data.Commands[Data.CurrentIndex];
-
-                _logger.DebugEvent("Saga", "Saga {SagaId} sending {MessageType} {MessageData:j}", Data.SagaId, data.Version, data.Message);
+                }
+                _logger.DebugEvent("Saga", "Saga {SagaId} sending command {CurrentIndex}/{TotalCommands}. {MessageType} {MessageData:j}", Data.SagaId, Data.CurrentIndex, totalCommands, data.Version, data.Message);
                 var message = _serializer.Deserialize(
                     _registrar.GetNamedType(data.Version),
                     data.Message.AsByteArray()

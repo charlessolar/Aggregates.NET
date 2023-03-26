@@ -20,13 +20,20 @@ namespace Aggregates.Common
         }
 
         [Fact]
-        public void DuplicatedTypeIsFine()
+        public void LoadTwiceTypeIsFine()
         {
             Sut.Load(new[] { typeof(FakeDomainEvent.FakeEvent), typeof(FakeDomainEvent.FakeEvent) });
             var named = Sut.GetVersionedName(typeof(FakeDomainEvent.FakeEvent));
             Sut.GetNamedType(named).Should().Be(typeof(FakeDomainEvent.FakeEvent));
-        }
-        [Fact]
+		}
+		[Fact]
+		public void TwiceLoadedIsFine() {
+			Sut.Load(new[] { typeof(FakeDomainEvent.FakeEvent), typeof(FakeDomainEvent.FakeEvent) });
+			Sut.Load(new[] { typeof(FakeDomainEvent.FakeEvent), typeof(FakeDomainEvent.FakeEvent) });
+			var named = Sut.GetVersionedName(typeof(FakeDomainEvent.FakeEvent));
+			Sut.GetNamedType(named).Should().Be(typeof(FakeDomainEvent.FakeEvent));
+		}
+		[Fact]
         public void NonVersionedWorks()
         {
             Sut.Load(new[] { typeof(FakeNotHandledEvent.UnknownEvent) });
@@ -79,5 +86,10 @@ namespace Aggregates.Common
             var withoutVersion = named.Substring(0, named.Length - 5);
             Sut.GetNamedType($"{withoutVersion} v99").Should().Be(typeof(FakeDomainEvent.FakeOldEvent));
         }
+        [Fact]
+        public void DuplicateTypesThrow() {
+            var act = () => Sut.Load(new[] { typeof(FakeDomainEvent.FakeEvent), typeof(FakeDomainEvent.FakeDuplicateEvent) });
+            act.Should().Throw<InvalidOperationException>();
+		}
     }
 }
