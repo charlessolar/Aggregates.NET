@@ -21,6 +21,7 @@ namespace Aggregates
         public Guid? EventId { get; set; }
 
         public IEvent Event => new FakeEvent();
+        public string EventType => "FakeEvent";
 
         public IEventDescriptor Descriptor => new EventDescriptor { StreamType = StreamTypes.Domain };
     }
@@ -31,8 +32,9 @@ namespace Aggregates
         public Guid? EventId { get; set; }
 
         public IEvent Event => new UnknownEvent();
+		public string EventType => "UnknownEvent";
 
-        public IEventDescriptor Descriptor => new EventDescriptor { StreamType = StreamTypes.Domain };
+		public IEventDescriptor Descriptor => new EventDescriptor { StreamType = StreamTypes.Domain };
     }
 
 

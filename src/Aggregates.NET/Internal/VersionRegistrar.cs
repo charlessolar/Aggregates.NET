@@ -103,8 +103,11 @@ namespace Aggregates.Internal
             {
                 contains = TypeToDefinition.ContainsKey(versionedType);
             }
-            if (!contains)
-                Load(new[] { versionedType });
+            if (!contains) {
+                try {
+                    Load(new[] { versionedType });
+                } catch { }
+			}
 
             lock (_sync)
             {

@@ -162,7 +162,9 @@ fromCategory('{0}')
                 (eventStream, eventNumber, @event) =>
                 {
                     var headers = @event.Descriptor.Headers;
-                    headers[$"{Defaults.PrefixHeader}.EventId"] = @event.EventId.ToString();
+					headers[$"{Defaults.PrefixHeader}.EventType"] = @event.EventType;
+                    // added in FullEventFactory
+					//headers[$"{Defaults.PrefixHeader}.EventId"] = @event.EventId.ToString();
                     headers[$"{Defaults.PrefixHeader}.EventStream"] = eventStream;
                     headers[$"{Defaults.PrefixHeader}.EventPosition"] = eventNumber.ToString();
 

@@ -3,10 +3,10 @@ using System;
 
 namespace Aggregates.Contracts
 {
-    public interface IFullEvent
-    {
-        Guid? EventId { get; }
+    public interface IFullEvent {
+		Guid? EventId { get; }
         IEvent Event { get; }
-        IEventDescriptor Descriptor { get; }
+		string EventType { get; }
+		IEventDescriptor Descriptor { get; }
     }
 }

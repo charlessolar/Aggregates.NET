@@ -37,12 +37,18 @@ namespace Aggregates.Internal
         {
             headers = headers ?? new Dictionary<string, string>();
 
-            var messageType = message.Message.GetType();
-            if (!messageType.IsInterface)
-                messageType = _mapper.GetMappedTypeFor(messageType) ?? messageType;
+			var finalHeaders = message.Headers.Merge(headers);
 
-            var finalHeaders = message.Headers.Merge(headers);
-            finalHeaders[Headers.EnclosedMessageTypes] = _registrar.GetVersionedName(messageType);
+            // prioritize the event type from EventStore if we have it
+            if (!finalHeaders.TryGetValue($"{Defaults.PrefixHeader}.EventType", out var messageType)) {
+
+                var objectType = message.Message.GetType();
+                if (!objectType.IsInterface)
+					objectType = _mapper.GetMappedTypeFor(objectType) ?? objectType;
+                messageType = _registrar.GetVersionedName(objectType);
+
+			}
+            finalHeaders[Headers.EnclosedMessageTypes] = messageType;
             finalHeaders[Headers.MessageIntent] = MessageIntent.Send.ToString();
 
 
@@ -50,7 +56,9 @@ namespace Aggregates.Internal
             var corrId = "";
             if (finalHeaders.ContainsKey($"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}"))
                 messageId = finalHeaders[$"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}"];
-            if (finalHeaders.ContainsKey($"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"))
+			if (finalHeaders.ContainsKey($"{Defaults.PrefixHeader}.{Defaults.EventIdHeader}"))
+				messageId = finalHeaders[$"{Defaults.PrefixHeader}.{Defaults.EventIdHeader}"];
+			if (finalHeaders.ContainsKey($"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"))
                 corrId = finalHeaders[$"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}"];
 
             finalHeaders[Headers.MessageId] = messageId;
@@ -67,7 +75,7 @@ namespace Aggregates.Internal
                 request,
                 new UnicastAddressTag(_receiveAddresses.InstanceReceiveAddress));
 
-            Logger.DebugEvent("SendLocal", "Starting local message [{MessageId:l}] Corr [{CorrelationId:l}]", messageId, corrId);
+            Logger.DebugEvent("SendLocal", "Starting local message {messageType} [{MessageId:l}] Corr [{CorrelationId:l}]", messageId, corrId);
             await _dispatcher.Dispatch(
                 outgoingMessages: new TransportOperations(operation),
                 transaction: new TransportTransaction())

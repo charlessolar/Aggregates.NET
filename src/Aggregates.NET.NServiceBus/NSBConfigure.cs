@@ -57,7 +57,7 @@ namespace Aggregates
                 container.Add(ServiceDescriptor.Scoped<UnitOfWork.IDomainUnitOfWork, NSBUnitOfWork>());
 
                 // Carry over important NSB headers
-                container.AddTransient<Func<IMutate>>(_ => () => new NSBMutator());
+                //container.AddTransient<Func<IMutate>>(_ => () => new NSBMutator());
 
                 container.AddTransient<IEventFactory, EventFactory>();
                 container.AddTransient<Contracts.IMessageDispatcher, Dispatcher>();

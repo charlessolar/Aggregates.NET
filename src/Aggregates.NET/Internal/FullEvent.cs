@@ -4,10 +4,10 @@ using System;
 
 namespace Aggregates.Internal
 {
-    class FullEvent : IFullEvent
-    {
-        public IEventDescriptor Descriptor { get; set; }
+    class FullEvent : IFullEvent {
+		public Guid? EventId { get; set; }
         public IEvent Event { get; set; }
-        public Guid? EventId { get; set; }
-    }
+		public string EventType { get; set; }
+		public IEventDescriptor Descriptor { get; set; }
+	}
 }
