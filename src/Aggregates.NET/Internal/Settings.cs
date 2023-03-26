@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 
@@ -120,9 +121,7 @@ namespace Aggregates.Internal
                 var messaging = container.GetService<Contracts.IMessaging>();
 
                 if (versionRegistrar != null && messaging != null) {
-                    versionRegistrar.Load(messaging.GetMessageTypes());
-                    versionRegistrar.Load(messaging.GetEntityTypes());
-                    versionRegistrar.Load(messaging.GetStateTypes());
+                    versionRegistrar.Load(messaging.GetMessageTypes().Concat(messaging.GetEntityTypes()).Concat(messaging.GetStateTypes()).ToArray());
                 }
 				return Task.CompletedTask;
             });
