@@ -71,39 +71,39 @@ namespace Aggregates.Sagas
             Data.CurrentIndex++;
             _logger.DebugEvent("Saga", "Continuing saga {SagaId} {CurrentIndex}/{TotalCommands}", Data.SagaId, Data.CurrentIndex, Data.Commands.Length);
 
-            if (!Data.Aborting && Data.CurrentIndex == Data.Commands.Length)
-            {
-                MarkAsComplete();
+            if (checkCompleted())
                 return Task.CompletedTask;
-            }
-            if (Data.Aborting && Data.CurrentIndex == Data.AbortCommands.Length)
-            {
-                MarkAsComplete();
-                return Task.CompletedTask;
-            }
-
             // Send next command
             return SendNextCommand(context);
         }
+        private bool checkCompleted() {
+			if (!Data.Aborting && Data.CurrentIndex == Data.Commands.Length) {
+				MarkAsComplete();
+                return true;
+			}
+			if (Data.Aborting && Data.CurrentIndex == Data.AbortCommands.Length) {
+				MarkAsComplete();
+				return true;
+			}
+            return false;
+		}
         public Task Handle(AbortCommandSaga message, IMessageHandlerContext context)
         {
             _logger.WarnEvent("Saga", "Aborting saga {SagaId}");
             // some command was rejected - abort
             Data.CurrentIndex = 0;
             Data.Aborting = true;
-            return SendNextCommand(context);
+
+            // if there are no aborting commands
+			if (checkCompleted()) {
+				return Task.CompletedTask;
+			}
+			return SendNextCommand(context);
         }
         public Task Timeout(TimeoutMessage state, IMessageHandlerContext context)
         {
             // Can receive timeouts when saga is actually complete
-            if (!Data.Aborting && Data.CurrentIndex == Data.Commands.Length)
-            {
-                MarkAsComplete();
-                return Task.CompletedTask;
-            }
-            if (Data.Aborting && Data.CurrentIndex == Data.AbortCommands.Length)
-            {
-                MarkAsComplete();
+            if (checkCompleted()) {
                 return Task.CompletedTask;
             }
 
@@ -135,8 +135,7 @@ namespace Aggregates.Sagas
             options.SetHeader(Defaults.RequestResponse, "1");
             options.SetHeader(Defaults.SagaHeader, Data.SagaId);
 
-            try
-            {
+            try {
                 MessageData data;
                 if (Data.Aborting)
                     data = Data.AbortCommands[Data.CurrentIndex];
@@ -150,10 +149,12 @@ namespace Aggregates.Sagas
                     );
 
                 await context.Send(message, options).ConfigureAwait(false);
-            }
-            catch
-            {
-                await Handle(new AbortCommandSaga { SagaId = Data.SagaId }, context);
+            } catch (Exception ex) {
+                if (!Data.Aborting)
+                    await Handle(new AbortCommandSaga { SagaId = Data.SagaId }, context);
+                else 
+                    _logger.ErrorEvent("Saga", ex, "Saga {SagaId} encountered an error while aborting");
+                
             }
 
 
