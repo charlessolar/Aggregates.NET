@@ -14,9 +14,9 @@
       },
       "Newtonsoft.Json": {
         "type": "Direct",
-        "requested": "[13.0.1, )",
-        "resolved": "13.0.1",
-        "contentHash": "ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A=="
+        "requested": "[13.0.3, )",
+        "resolved": "13.0.3",
+        "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
       },
       "NServiceBus.Callbacks.Testing": {
         "type": "Direct",
@@ -30,9 +30,9 @@
       },
       "NServiceBus.Testing": {
         "type": "Direct",
-        "requested": "[8.0.0, )",
-        "resolved": "8.0.0",
-        "contentHash": "JDpiEAdcBd5SekSSmTUDt5DW1UGoXFh9eaZbkRdQGhdnI/EfEFuUTCJAFPSBepG44pnsV4GdEr7+Bzs85Rzwrw==",
+        "requested": "[8.0.1, )",
+        "resolved": "8.0.1",
+        "contentHash": "5k4vVk6ymr5RNKmzVSgNLr74ZpCs6vsMFyTn5U93h6+AwWOXHt4lbaVm3o2GGGIk2HFxIGPsI2M0gkqKX70kYw==",
         "dependencies": {
           "NServiceBus": "[8.0.0, 9.0.0)"
         }
@@ -107,8 +107,8 @@
       },
       "NServiceBus": {
         "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "Q9YcZCmDGH+Yn0BvWYtfc/UKveKM5zTL6wP1W1pLArRN5nEPBOCNUWCzunsMVpb4nIcD0LryJGrs/YatI7fNOA==",
+        "resolved": "8.0.3",
+        "contentHash": "bVHe5IX8KA+b0yYufCofa2444nvpG61FP66Lw6VZsbmAEDrsAW17udtwm1qZ5CEZkairjjNnp/MNXUhLkAUCrA==",
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection": "6.0.0",
           "System.Diagnostics.DiagnosticSource": "6.0.0",
@@ -188,22 +188,22 @@
       "aggregates.net": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.CSharp": "4.7.0",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "7.0.0",
-          "Microsoft.Extensions.Hosting.Abstractions": "7.0.0",
-          "Microsoft.Extensions.Logging.Abstractions": "7.0.0"
+          "Microsoft.CSharp": "[4.7.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[7.0.0, )",
+          "Microsoft.Extensions.Hosting.Abstractions": "[7.0.0, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[7.0.0, )"
         }
       },
       "aggregates.net.nservicebus": {
         "type": "Project",
         "dependencies": {
-          "Aggregates.NET": "1.0.0",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "7.0.0",
-          "NServiceBus": "8.0.0",
-          "NServiceBus.Callbacks": "4.0.0",
-          "NServiceBus.Extensions.DependencyInjection": "2.0.0",
-          "NServiceBus.Extensions.Logging": "2.0.0",
-          "System.Memory": "4.5.5"
+          "Aggregates.NET": "[1.0.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[7.0.0, )",
+          "NServiceBus": "[8.0.3, )",
+          "NServiceBus.Callbacks": "[4.0.0, )",
+          "NServiceBus.Extensions.DependencyInjection": "[2.0.0, )",
+          "NServiceBus.Extensions.Logging": "[2.0.0, )",
+          "System.Memory": "[4.5.5, )"
         }
       }
     }

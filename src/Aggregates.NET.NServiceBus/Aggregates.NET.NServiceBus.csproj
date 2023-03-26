@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="7.0.0" />
-    <PackageReference Include="NServiceBus" Version="8.0.0" />
+    <PackageReference Include="NServiceBus" Version="8.0.3" />
     <PackageReference Include="NServiceBus.Callbacks" Version="4.0.0" />
     <PackageReference Include="NServiceBus.Extensions.DependencyInjection" Version="2.0.0" />
     <PackageReference Include="NServiceBus.Extensions.Logging" Version="2.0.0" />

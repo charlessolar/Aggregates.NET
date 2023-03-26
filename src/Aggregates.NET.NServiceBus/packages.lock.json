@@ -20,9 +20,9 @@
       },
       "NServiceBus": {
         "type": "Direct",
-        "requested": "[8.0.0, )",
-        "resolved": "8.0.0",
-        "contentHash": "Q9YcZCmDGH+Yn0BvWYtfc/UKveKM5zTL6wP1W1pLArRN5nEPBOCNUWCzunsMVpb4nIcD0LryJGrs/YatI7fNOA==",
+        "requested": "[8.0.3, )",
+        "resolved": "8.0.3",
+        "contentHash": "bVHe5IX8KA+b0yYufCofa2444nvpG61FP66Lw6VZsbmAEDrsAW17udtwm1qZ5CEZkairjjNnp/MNXUhLkAUCrA==",
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection": "6.0.0",
           "System.Diagnostics.DiagnosticSource": "6.0.0",
@@ -169,10 +169,10 @@
       "aggregates.net": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.CSharp": "4.7.0",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "7.0.0",
-          "Microsoft.Extensions.Hosting.Abstractions": "7.0.0",
-          "Microsoft.Extensions.Logging.Abstractions": "7.0.0"
+          "Microsoft.CSharp": "[4.7.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[7.0.0, )",
+          "Microsoft.Extensions.Hosting.Abstractions": "[7.0.0, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[7.0.0, )"
         }
       }
     }
