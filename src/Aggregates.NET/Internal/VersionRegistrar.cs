@@ -53,7 +53,7 @@ namespace Aggregates.Internal
             {
                 foreach (var type in types.Distinct())
                 {
-                    var versionInfo = type.GetCustomAttributes().OfType<Versioned>().SingleOrDefault();
+                    var versionInfo = type.GetCustomAttributes(typeof(Versioned), false).OfType<Versioned>().SingleOrDefault();
                     if (versionInfo == null)
                     {
                         Logger.WarnEvent("ShouldVersion", "{TypeName} needs a [Versioned] attribute", type.FullName);
@@ -86,7 +86,7 @@ namespace Aggregates.Internal
                 // if the duplicate is the same underlying type, its not an issue
                 if (list.Any(x => x.Name == name && x.Namespace == @namespace && x.Version == version && x.Type == type))
                     return true;
-                Logger.ErrorEvent("VersionedType", "Tried to register a duplicate type {Namespace}.{Name} v{Version}", @namespace, name, version);
+                Logger.ErrorEvent("VersionedType", "Tried to register a duplicate type {Namespace}.{Name} v{Version}: {UnderylingType}", @namespace, name, version, type.FullName);
                 return false;
             }
 
