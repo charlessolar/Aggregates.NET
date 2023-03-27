@@ -23,8 +23,9 @@ namespace Aggregates
         }
 
         public Guid CommitId => Guid.Empty;
+		public Guid MessageId => Guid.Empty;
 
-        public object CurrentMessage => null;
+		public object CurrentMessage => null;
         public IDictionary<string, string> CurrentHeaders => new Dictionary<string, string>();
 
         public IMutating MutateIncoming(IMutating command) { return command; }

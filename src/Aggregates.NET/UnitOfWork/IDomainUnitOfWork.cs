@@ -10,6 +10,7 @@ namespace Aggregates.UnitOfWork
         IRepository<TEntity, TParent> For<TEntity, TParent>(TParent parent) where TEntity : IChildEntity<TParent> where TParent : IHaveEntities<TParent>;
 
         Guid CommitId { get; }
+        Guid MessageId { get; }
         object CurrentMessage { get; }
         IDictionary<string, string> CurrentHeaders { get; }
     }

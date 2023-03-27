@@ -54,6 +54,7 @@ namespace Aggregates.Internal
                             !h.StartsWith("NServiceBus", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.StartsWith("$", StringComparison.InvariantCultureIgnoreCase) &&
                             !h.StartsWith(Defaults.PrefixHeader, StringComparison.InvariantCultureIgnoreCase) &&
+							!h.StartsWith(Defaults.OriginatingHeader, StringComparison.InvariantCultureIgnoreCase) &&
 							!h.Equals(Defaults.RequestResponse, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.Retries, StringComparison.InvariantCultureIgnoreCase) &&
                             !h.Equals(Defaults.LocalHeader, StringComparison.InvariantCultureIgnoreCase) &&
@@ -77,8 +78,9 @@ namespace Aggregates.Internal
 
 
 			CommitId = commitId;
-            // Helpful log and gets CommitId into the dictionary
-            var firstEventId = UnitOfWork.NextEventId(CommitId);
+			MessageId = commitId;
+			// Helpful log and gets CommitId into the dictionary
+			var firstEventId = UnitOfWork.NextEventId(CommitId);
 
             return command;
         }

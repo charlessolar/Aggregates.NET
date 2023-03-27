@@ -29,8 +29,9 @@ namespace Aggregates
         public const string BulkHeader = "Aggregates.NET.BulkMessage";
         public const string SagaHeader = "Aggregates.NET.Saga";
         public const string OriginatingMessageHeader = "Aggregates.NET.OriginatingMessage";
+		public const string OriginatingMessageId = "Aggregates.NET.OriginatingMessageId";
 
-        public const string AggregatesVersionHeader = "Aggregates.NET.LibraryVersion";
+		public const string AggregatesVersionHeader = "Aggregates.NET.LibraryVersion";
 
         public const string EndpointHeader = "Endpoint";
         public const string InstanceHeader = "Endpoint.Instance";

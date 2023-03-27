@@ -34,6 +34,7 @@ namespace Aggregates.Internal
         private readonly IDictionary<string, IRepository> _repositories;
 
         public Guid CommitId { get; internal set; }
+        public Guid MessageId { get; internal set; }
         public object CurrentMessage { get; internal set; }
         public IDictionary<string, string> CurrentHeaders { get; internal set; }
 
@@ -146,9 +147,12 @@ namespace Aggregates.Internal
 
             if (command.Headers.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}", out messageId))
                 Guid.TryParse(messageId, out commitId);
+			if (command.Headers.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.EventIdHeader}", out messageId))
+				Guid.TryParse(messageId, out commitId);
 
 
-            CommitId = commitId;
+			CommitId = commitId;
+            MessageId = commitId;
 
             // Helpful log and gets CommitId into the dictionary
             var firstEventId = UnitOfWork.NextEventId(CommitId);
