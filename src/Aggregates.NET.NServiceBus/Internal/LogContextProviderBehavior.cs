@@ -22,31 +22,27 @@ namespace Aggregates.Internal
             _settings = settings;
         }
 
-        public override async Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)
-        {
-            context.MessageHeaders.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}", out var corrId);
+        public override async Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next) {
+			if(!context.MessageHeaders.TryGetValue($"{NSBDefaults.CorrelationIdHeader}", out var corrId))
+			    context.MessageHeaders.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.CorrelationIdHeader}", out corrId);
             context.MessageHeaders.TryGetValue($"{NServiceBus.Headers.EnclosedMessageTypes}", out var messageTypes);
 
             if (string.IsNullOrEmpty(corrId))
                 corrId = context.MessageId;
 
-            var body = Encoding.UTF8.GetString(context.Message.Body.Span);
 
             var properties = new Dictionary<string, object>
             {
-                ["Instance"] = Defaults.Instance.ToString(),
                 ["MessageId"] = context.MessageId,
-                // Could body and headers be slow?
-                ["MessageBody"] = body,
                 ["MessageType"] = messageTypes,
-                ["MessageHeaders"] = new Dictionary<string, string>(context.MessageHeaders),
-                ["CorrId"] = corrId,
+                ["CorrelationId"] = corrId,
                 ["Endpoint"] = _settings.Endpoint,
-                ["EndpointVersion"] = _settings.EndpointVersion.ToString(),
+				["EndpointInstance"] = Defaults.Instance.ToString(),
+				["EndpointVersion"] = _settings.EndpointVersion.ToString(),
             };
 
             // Populate the logging context with useful data from the message
-            using (Logger.BeginContext(properties))
+            using (Logger.BeginScope(properties))
             {
                 Logger.DebugEvent("Start", "Started processing [{MessageId:l}] Corr: [{CorrelationId:l}]", context.MessageId, corrId);
                 await next().ConfigureAwait(false);
