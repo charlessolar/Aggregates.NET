@@ -16,7 +16,7 @@ namespace Aggregates.Internal
             return type;
         }
 
-        public string GetVersionedName(Type versionedType)
+        public string GetVersionedName(Type versionedType, bool insert = true)
         {
             var name = $"Testing.{versionedType.FullName}";
             Versions[name] = versionedType;

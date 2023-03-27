@@ -39,7 +39,7 @@ namespace Aggregates.EventStore
             var client = Fake<IEventStoreClient>();
             var registrar = Fake<IVersionRegistrar>();
             A.CallTo(() => settings.AllEvents).Returns(false);
-            A.CallTo(() => registrar.GetVersionedName(A<Type>.Ignored)).Returns("xxx");
+            A.CallTo(() => registrar.GetVersionedName(A<Type>.Ignored, A<bool>.Ignored)).Returns("xxx");
 
             await Sut.SetupProjection("test", new Version("1.0.0"), new Type[] { typeof(FakeDomainEvent.FakeEvent) });
 

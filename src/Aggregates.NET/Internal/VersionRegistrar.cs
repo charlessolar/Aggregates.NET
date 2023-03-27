@@ -95,7 +95,7 @@ namespace Aggregates.Internal
             return true;
         }
 
-        public string GetVersionedName(Type versionedType)
+        public string GetVersionedName(Type versionedType, bool insert = true)
         {
             var contains = false;
 
@@ -103,6 +103,9 @@ namespace Aggregates.Internal
             {
                 contains = TypeToDefinition.ContainsKey(versionedType);
             }
+            if (!contains && !insert)
+                return null;
+
             if (!contains) {
                 try {
                     Load(new[] { versionedType });

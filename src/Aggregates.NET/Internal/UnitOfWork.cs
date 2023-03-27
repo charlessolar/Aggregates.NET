@@ -29,8 +29,9 @@ namespace Aggregates.Internal
         internal readonly ILogger Logger;
 
         private readonly IRepositoryFactory _repoFactory;
+		protected readonly IVersionRegistrar _registrar;
 
-        private bool _disposed;
+		private bool _disposed;
         private readonly IDictionary<string, IRepository> _repositories;
 
         public Guid CommitId { get; internal set; }
@@ -38,11 +39,12 @@ namespace Aggregates.Internal
         public object CurrentMessage { get; internal set; }
         public IDictionary<string, string> CurrentHeaders { get; internal set; }
 
-        public UnitOfWork(ILogger<UnitOfWork> logger, IRepositoryFactory repoFactory)
+        public UnitOfWork(ILogger<UnitOfWork> logger, IRepositoryFactory repoFactory, IVersionRegistrar registrar)
         {
             Logger = logger;
             _repoFactory = repoFactory;
-            _repositories = new Dictionary<string, IRepository>();
+			_registrar = registrar;
+			_repositories = new Dictionary<string, IRepository>();
             CurrentHeaders = new Dictionary<string, string>();
         }
 
@@ -145,7 +147,9 @@ namespace Aggregates.Internal
             string messageId;
             Guid commitId = Guid.NewGuid();
 
-            if (command.Headers.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}", out messageId))
+			CurrentHeaders[Defaults.OriginatingMessageHeader] = CurrentMessage == null ? "<UNKNOWN>" : _registrar.GetVersionedName(CurrentMessage.GetType(), insert: false);
+
+			if (command.Headers.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.MessageIdHeader}", out messageId))
                 Guid.TryParse(messageId, out commitId);
 			if (command.Headers.TryGetValue($"{Defaults.PrefixHeader}.{Defaults.EventIdHeader}", out messageId))
 				Guid.TryParse(messageId, out commitId);
@@ -153,9 +157,10 @@ namespace Aggregates.Internal
 
 			CommitId = commitId;
             MessageId = commitId;
+			CurrentHeaders[Defaults.OriginatingMessageId] = messageId;
 
-            // Helpful log and gets CommitId into the dictionary
-            var firstEventId = UnitOfWork.NextEventId(CommitId);
+			// Helpful log and gets CommitId into the dictionary
+			var firstEventId = UnitOfWork.NextEventId(CommitId);
             return command;
         }
         public virtual IMutating MutateOutgoing(IMutating command)

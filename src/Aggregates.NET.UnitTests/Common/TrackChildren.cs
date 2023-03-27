@@ -118,7 +118,7 @@ namespace Aggregates.Common
             A.CallTo(() => settings.TrackChildren).Returns(true);
 
             var registrar = Fake<IVersionRegistrar>();
-            A.CallTo(() => registrar.GetVersionedName(A<Type>.Ignored)).Returns("test");
+            A.CallTo(() => registrar.GetVersionedName(A<Type>.Ignored, A<bool>.Ignored)).Returns("test");
             A.CallTo(() => registrar.GetNamedType(A<string>.Ignored)).Returns(typeof(FakeChildEntity));
 
             await Sut.Setup("test", new Version("1.0.0"));

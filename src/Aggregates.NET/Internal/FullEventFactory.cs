@@ -24,7 +24,6 @@ namespace Aggregates.Internal
                     Timestamp = DateTime.UtcNow,
                     Version = entity.StateVersion,
                     Headers = new Dictionary<string, string>(uow.CurrentHeaders) {
-						[$"{Defaults.PrefixHeader}.{Defaults.OriginatingMessageId}"] = uow.MessageId.ToString(),
 						[$"{Defaults.PrefixHeader}.{Defaults.CommitIdHeader}"] = uow.CommitId.ToString(),
                         [$"{Defaults.PrefixHeader}.{Defaults.EventIdHeader}"] = eventId.ToString(),
                     }

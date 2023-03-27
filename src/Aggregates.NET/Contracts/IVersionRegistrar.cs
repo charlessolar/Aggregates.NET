@@ -6,7 +6,7 @@ namespace Aggregates.Contracts
     {
         void Load(Type[] types);
 
-        string GetVersionedName(Type versionedType);
+        string GetVersionedName(Type versionedType, bool insert = true);
         Type GetNamedType(string versionedName);
     }
 }

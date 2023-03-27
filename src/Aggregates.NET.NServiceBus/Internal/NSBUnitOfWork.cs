@@ -9,11 +9,9 @@ namespace Aggregates.Internal
 {
     public class NSBUnitOfWork : UnitOfWork, IMutate
     {
-        private readonly IVersionRegistrar _registrar;
 
-        public NSBUnitOfWork(ILogger<NSBUnitOfWork> logger, IRepositoryFactory repoFactory, IEventFactory eventFactory, IVersionRegistrar registrar) : base(logger, repoFactory)
+        public NSBUnitOfWork(ILogger<NSBUnitOfWork> logger, IRepositoryFactory repoFactory, IVersionRegistrar registrar) : base(logger, repoFactory, registrar)
         {
-            _registrar = registrar;
         }
 
 
@@ -44,7 +42,7 @@ namespace Aggregates.Internal
                 type = Type.GetType(messageType, false);
             }
 
-            CurrentHeaders[Defaults.OriginatingMessageHeader] = type == null ? "<UNKNOWN>" : _registrar.GetVersionedName(type);
+            CurrentHeaders[Defaults.OriginatingMessageHeader] = type == null ? "<UNKNOWN>" : _registrar.GetVersionedName(type, insert: false);
 
 
             // Copy any application headers the user might have included
@@ -79,6 +77,7 @@ namespace Aggregates.Internal
 
 			CommitId = commitId;
 			MessageId = commitId;
+            CurrentHeaders[Defaults.OriginatingMessageId] = messageId;
 			// Helpful log and gets CommitId into the dictionary
 			var firstEventId = UnitOfWork.NextEventId(CommitId);
 

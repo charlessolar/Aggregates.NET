@@ -35,7 +35,7 @@ namespace Aggregates.NServiceBus
             await Sut.Invoke(context, next).ConfigureAwait(false);
 
             A.CallTo(() => next()).MustHaveHappened();
-            A.CallTo(() => registrar.GetVersionedName(A<Type>.Ignored)).MustNotHaveHappened();
+            A.CallTo(() => registrar.GetVersionedName(A<Type>.Ignored, A<bool>.Ignored)).MustNotHaveHappened();
             context.Headers[Headers.EnclosedMessageTypes].Should().Be("xx");
         }
         [Fact]
@@ -48,7 +48,7 @@ namespace Aggregates.NServiceBus
             var context = new TestableOutgoingPhysicalMessageContext();
 
             A.CallTo(() => mapper.GetMappedTypeFor(typeof(FakeDomainEvent.FakeEvent))).Returns(null);
-            A.CallTo(() => registrar.GetVersionedName(typeof(FakeDomainEvent.FakeEvent))).Returns("test");
+            A.CallTo(() => registrar.GetVersionedName(typeof(FakeDomainEvent.FakeEvent), A<bool>.Ignored)).Returns("test");
 
             context.Headers.Add(Headers.EnclosedMessageTypes, typeof(FakeDomainEvent.FakeEvent).AssemblyQualifiedName.ToString());
             context.UpdateMessage(new byte[0]);
@@ -68,7 +68,7 @@ namespace Aggregates.NServiceBus
             var context = new TestableOutgoingPhysicalMessageContext();
 
             A.CallTo(() => mapper.GetMappedTypeFor(typeof(FakeDomainEvent.FakeEvent))).Returns(null);
-            A.CallTo(() => registrar.GetVersionedName(typeof(FakeDomainEvent.FakeEvent))).Returns("test");
+            A.CallTo(() => registrar.GetVersionedName(typeof(FakeDomainEvent.FakeEvent), A<bool>.Ignored)).Returns("test");
 
             context.Headers.Add(Headers.EnclosedMessageTypes, $"{typeof(FakeDomainEvent.FakeEvent).AssemblyQualifiedName};xxx");
             context.UpdateMessage(new byte[0]);
@@ -88,7 +88,7 @@ namespace Aggregates.NServiceBus
             var context = new TestableOutgoingPhysicalMessageContext();
 
             A.CallTo(() => mapper.GetMappedTypeFor(typeof(FakeDomainEvent.FakeEvent))).Returns(null);
-            A.CallTo(() => registrar.GetVersionedName(typeof(FakeDomainEvent.FakeEvent))).Returns("test");
+            A.CallTo(() => registrar.GetVersionedName(typeof(FakeDomainEvent.FakeEvent), A<bool>.Ignored)).Returns("test");
 
             context.Headers.Add(Headers.EnclosedMessageTypes, $"xxx;{typeof(FakeDomainEvent.FakeEvent).AssemblyQualifiedName}");
             context.UpdateMessage(new byte[0]);
@@ -96,7 +96,7 @@ namespace Aggregates.NServiceBus
             await Sut.Invoke(context, next).ConfigureAwait(false);
 
             A.CallTo(() => next()).MustHaveHappened();
-            A.CallTo(() => registrar.GetVersionedName(A<Type>.Ignored)).MustNotHaveHappened();
+            A.CallTo(() => registrar.GetVersionedName(A<Type>.Ignored, A<bool>.Ignored)).MustNotHaveHappened();
             context.Headers[Headers.EnclosedMessageTypes].Should().Be($"xxx;{typeof(FakeDomainEvent.FakeEvent).AssemblyQualifiedName}");
         }
         [Fact]
@@ -109,7 +109,7 @@ namespace Aggregates.NServiceBus
             var context = new TestableOutgoingPhysicalMessageContext();
 
             A.CallTo(() => mapper.GetMappedTypeFor(typeof(FakeDomainEvent.FakeEvent))).Returns(null);
-            A.CallTo(() => registrar.GetVersionedName(typeof(FakeDomainEvent.FakeEvent))).Returns(null);
+            A.CallTo(() => registrar.GetVersionedName(typeof(FakeDomainEvent.FakeEvent), A<bool>.Ignored)).Returns(null);
 
             context.Headers.Add(Headers.EnclosedMessageTypes, $"{typeof(FakeDomainEvent.FakeEvent).AssemblyQualifiedName}");
             context.UpdateMessage(new byte[0]);
