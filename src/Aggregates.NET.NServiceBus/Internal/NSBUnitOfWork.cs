@@ -77,7 +77,7 @@ namespace Aggregates.Internal
 
 			CommitId = commitId;
 			MessageId = commitId;
-            CurrentHeaders[Defaults.OriginatingMessageId] = messageId;
+            CurrentHeaders[Defaults.OriginatingMessageId] = commitId.ToString();
 			// Helpful log and gets CommitId into the dictionary
 			var firstEventId = UnitOfWork.NextEventId(CommitId);
 
