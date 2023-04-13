@@ -37,6 +37,7 @@ namespace Aggregates
         {
             _ids = new IdRegistry();
             _ctx = new TestableMessageHandlerContext();
+            _session = new TestableCallbackAwareSession();
 
             UoW = new TestableDomain(this, _ids);
             App = new TestableApplication(_ids);
@@ -117,32 +118,32 @@ namespace Aggregates
             throw new NotImplementedException();
         }
 
-        public Task Publish(object message, PublishOptions options)
+        public virtual Task Publish(object message, PublishOptions options)
         {
             return _ctx.Publish(message, options);
         }
 
-        public Task Publish<T>(Action<T> messageConstructor, PublishOptions publishOptions)
+        public virtual Task Publish<T>(Action<T> messageConstructor, PublishOptions publishOptions)
         {
             return _ctx.Publish<T>(messageConstructor, publishOptions);
         }
 
-        public Task Reply(object message, ReplyOptions options)
+        public virtual Task Reply(object message, ReplyOptions options)
         {
             return _ctx.Reply(message, options);
         }
 
-        public Task Reply<T>(Action<T> messageConstructor, ReplyOptions options)
+        public virtual Task Reply<T>(Action<T> messageConstructor, ReplyOptions options)
         {
             return _ctx.Reply(messageConstructor, options);
         }
 
-        public Task Send(object message, SendOptions options)
+        public virtual Task Send(object message, SendOptions options)
         {
             return _ctx.Send(message, options);
         }
 
-        public Task Send<T>(Action<T> messageConstructor, SendOptions options)
+        public virtual Task Send<T>(Action<T> messageConstructor, SendOptions options)
         {
             return _ctx.Send(messageConstructor, options);
         }

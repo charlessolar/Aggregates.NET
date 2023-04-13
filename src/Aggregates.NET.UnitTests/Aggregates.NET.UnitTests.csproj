@@ -1,10 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="../Common.props" />
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <RootNamespace>Aggregates</RootNamespace>
     
     <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,11 +29,6 @@
     <PackageReference Include="XunitXml.TestLogger" Version="3.0.78" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="..\SharedAssemblyInfo.cs">
-      <Link>Properties\SharedAssemblyInfo.cs</Link>
-    </Compile>
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Aggregates.NET.EventStore\Aggregates.NET.EventStore.csproj" />
