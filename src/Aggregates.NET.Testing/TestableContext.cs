@@ -123,9 +123,9 @@ namespace Aggregates
             return _ctx.Publish(message, options);
         }
 
-        public virtual Task Publish<T>(Action<T> messageConstructor, PublishOptions publishOptions)
+        public Task Publish<T>(Action<T> messageConstructor, PublishOptions publishOptions)
         {
-            return _ctx.Publish<T>(messageConstructor, publishOptions);
+            return Publish(messageCreator.CreateInstance(messageConstructor), publishOptions);
         }
 
         public virtual Task Reply(object message, ReplyOptions options)
@@ -133,9 +133,8 @@ namespace Aggregates
             return _ctx.Reply(message, options);
         }
 
-        public virtual Task Reply<T>(Action<T> messageConstructor, ReplyOptions options)
-        {
-            return _ctx.Reply(messageConstructor, options);
+        public Task Reply<T>(Action<T> messageConstructor, ReplyOptions options) {
+            return Reply(messageCreator.CreateInstance(messageConstructor), options);
         }
 
         public virtual Task Send(object message, SendOptions options)
@@ -143,9 +142,8 @@ namespace Aggregates
             return _ctx.Send(message, options);
         }
 
-        public virtual Task Send<T>(Action<T> messageConstructor, SendOptions options)
-        {
-            return _ctx.Send(messageConstructor, options);
+        public Task Send<T>(Action<T> messageConstructor, SendOptions options) {
+            return Send(messageCreator.CreateInstance(messageConstructor), options);
         }
 
         public void AcceptCommand<TCommand>() where TCommand : class, Aggregates.Messages.ICommand
