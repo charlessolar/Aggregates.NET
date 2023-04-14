@@ -1,6 +1,7 @@
 ﻿using Aggregates.Contracts;
 using Aggregates.Extensions;
 using Aggregates.Internal;
+using Aggregates.Messages;
 using Microsoft.Extensions.DependencyInjection;
 using NServiceBus;
 using NServiceBus.Callbacks.Testing;
@@ -17,6 +18,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using static System.Collections.Specialized.BitVector32;
 
 namespace Aggregates
 {
@@ -45,6 +47,7 @@ namespace Aggregates
 
             ServiceProvider = new Microsoft.Extensions.DependencyInjection.ServiceCollection()
                 .AddTransient<Contracts.IVersionRegistrar, TestableVersionRegistrar>()
+                .AddTransient<IMessageSession>((_) => _session)
                 .AddTransient<IMessageSerializer, TestableMessageSerializer>()
                 .AddTransient<IMessageCreator, MessageMapper>()
                 .AddTransient<IMessageMapper, MessageMapper>()
@@ -77,7 +80,6 @@ namespace Aggregates
         {
             return CreateInstance<TEvent>(action);
         }
-
 
         public TestableId Id()
         {
