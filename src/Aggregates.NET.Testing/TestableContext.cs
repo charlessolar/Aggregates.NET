@@ -32,14 +32,12 @@ namespace Aggregates
         public readonly ITestableApplication App;
         public readonly ITestableProcessor Processor;
         protected readonly TestableMessageHandlerContext _ctx;
-        protected readonly TestableCallbackAwareSession _session;
         protected readonly IdRegistry _ids;
 
         public TestableContext()
         {
             _ids = new IdRegistry();
             _ctx = new TestableMessageHandlerContext();
-            _session = new TestableCallbackAwareSession();
 
             UoW = new TestableDomain(this, _ids);
             App = new TestableApplication(_ids);
@@ -47,7 +45,6 @@ namespace Aggregates
 
             ServiceProvider = new Microsoft.Extensions.DependencyInjection.ServiceCollection()
                 .AddTransient<Contracts.IVersionRegistrar, TestableVersionRegistrar>()
-                .AddTransient<IMessageSession>((_) => _session)
                 .AddTransient<IMessageSerializer, TestableMessageSerializer>()
                 .AddTransient<IMessageCreator, MessageMapper>()
                 .AddTransient<IMessageMapper, MessageMapper>()
@@ -148,24 +145,6 @@ namespace Aggregates
             return Send(messageCreator.CreateInstance(messageConstructor), options);
         }
 
-        public void AcceptCommand<TCommand>() where TCommand : class, Aggregates.Messages.ICommand
-        {
-            AcceptCommand<TCommand>((command) => command.GetType() == typeof(TCommand));
-        }
-        public void RejectCommand<TCommand>() where TCommand : class, Aggregates.Messages.ICommand
-        {
-            RejectCommand<TCommand>((command) => command.GetType() == typeof(TCommand));
-        }
-        public void AcceptCommand<TCommand>(Func<TCommand, bool> match) where TCommand : class, Aggregates.Messages.ICommand
-        {
-            var accept = CreateInstance<Messages.Accept>();
-            _session.When(match, accept);
-        }
-        public void RejectCommand<TCommand>(Func<TCommand, bool> match) where TCommand : class, Aggregates.Messages.ICommand
-        {
-            var reject = CreateInstance<Messages.Reject>();
-            _session.When(match, reject);
-        }
 
         public RepliedMessage<object>[] RepliedMessages => _ctx.RepliedMessages;
         public string[] ForwardedMessages => _ctx.ForwardedMessages;
