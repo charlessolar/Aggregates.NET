@@ -7,9 +7,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NServiceBus.Callbacks.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Aggregates {
     public class TestableSession: TestableCallbackAwareSession {
+
+        public readonly IServiceProvider ServiceProvider;
+        public TestableSession() {
+
+            ServiceProvider = new Microsoft.Extensions.DependencyInjection.ServiceCollection()
+                .BuildServiceProvider();
+        }
 
         //static readonly IMessageCreator messageCreator = new MessageMapper();
         TMessage CreateInstance<TMessage>(Action<TMessage> action) {
