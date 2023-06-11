@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using NServiceBus.Callbacks.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Aggregates.Messages;
 
 namespace Aggregates {
     public class TestableSession: TestableCallbackAwareSession {
@@ -34,11 +35,16 @@ namespace Aggregates {
         }
         public void AcceptCommand<TCommand>(Func<TCommand, bool> match) where TCommand : class, Aggregates.Messages.ICommand {
             var accept = CreateInstance<Messages.Accept>();
-            When(match, accept);
+            RespondToMessage(match, accept);
         }
         public void RejectCommand<TCommand>(Func<TCommand, bool> match) where TCommand : class, Aggregates.Messages.ICommand {
             var reject = CreateInstance<Messages.Reject>();
-            When(match, reject);
+            RespondToMessage(match, reject);
+        }
+        public void RespondToMessage<TMessage, TResponse>(Func<TMessage, bool> match, TResponse response)
+            where TMessage : class, Aggregates.Messages.IMessage
+            where TResponse : class {
+            When(match, response);
         }
     }
 }

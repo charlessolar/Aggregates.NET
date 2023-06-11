@@ -38,6 +38,7 @@ namespace Aggregates
                 conventions.DefiningMessagesAs(type => typeof(Messages.IMessage).IsAssignableFrom(type));
 
                 endpointConfig.AssemblyScanner().ScanAppDomainAssemblies = true;
+                endpointConfig.AssemblyScanner().ThrowExceptions = false;
                 endpointConfig.EnableCallbacks();
                 endpointConfig.EnableInstallers();
 
