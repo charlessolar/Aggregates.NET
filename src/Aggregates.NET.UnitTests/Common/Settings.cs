@@ -66,16 +66,36 @@ namespace Aggregates.Common
         {
             var collection = Fake<IServiceCollection>();
             var provider = Fake<IServiceProvider>();
-            A.CallTo(() => provider.GetService(typeof(Aggregates.UnitOfWork.IUnitOfWork))).Returns(null);
+            var scopeFactory = Fake<IServiceScopeFactory>();
+            A.CallTo(() => scopeFactory.CreateScope()).Returns(Fake<IServiceScope>());
 			A.CallTo(() => provider.GetService(A<Type>.Ignored)).Returns(null);
+            A.CallTo(() => provider.GetService(typeof(Aggregates.UnitOfWork.IUnitOfWork))).Returns(null);
+            A.CallTo(() => provider.GetService(typeof(IServiceScopeFactory))).Returns(scopeFactory);
 
-			var config = await Aggregates.Configuration.Build(collection, config =>
+            var config = await Aggregates.Configuration.Build(collection, config =>
             {
             });
 
             await config.Start(provider).ConfigureAwait(false);
 
             config.Setup.Should().BeTrue();
+        }
+        [Fact]
+        public async Task GettingUnitOfWorkScopeException() {
+            var collection = Fake<IServiceCollection>();
+            var provider = Fake<IServiceProvider>();
+            var scopeFactory = Fake<IServiceScopeFactory>();
+            A.CallTo(() => scopeFactory.CreateScope()).Returns(Fake<IServiceScope>());
+            A.CallTo(() => provider.GetService(A<Type>.Ignored)).Returns(null);
+            A.CallTo(() => provider.GetService(typeof(Aggregates.UnitOfWork.IUnitOfWork))).Throws<InvalidOperationException>();
+            A.CallTo(() => provider.GetService(typeof(IServiceScopeFactory))).Returns(scopeFactory);
+
+            var config = await Aggregates.Configuration.Build(collection, config => {
+            });
+
+            Func<Task> act = () => config.Start(provider);
+            await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("Failed to create IUnitOfWork *");
+
         }
         [Fact]
         public async Task ThrowsWhenDoesntImplementBaseUnitOfWork()
