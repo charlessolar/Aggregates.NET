@@ -59,7 +59,7 @@ namespace Aggregates
 
             _ctx.Extensions.Set("CommandDestination", "");
             _ctx.Extensions.Set<UnitOfWork.IDomainUnitOfWork>(UoW);
-            _ctx.Extensions.Set<UnitOfWork.IUnitOfWork>(App);
+            _ctx.Extensions.Set<UnitOfWork.IApplicationUnitOfWork>(App);
             _ctx.Extensions.Set<IProcessor>(Processor);
             _ctx.Extensions.Set<IServiceProvider>(ServiceProvider);
 
