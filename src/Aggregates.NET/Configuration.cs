@@ -30,7 +30,7 @@ namespace Aggregates {
                 try {
                     using (var scope = scopeFactory.CreateScope()) {
                         // verify certain agg.net stuff now we have a container
-                        uow = serviceProvider.GetService<UnitOfWork.IUnitOfWork>();
+                        uow = scope.ServiceProvider.GetService<UnitOfWork.IUnitOfWork>();
                     }
                 } catch(Exception ex) {
                     throw new InvalidOperationException($"Failed to create IUnitOfWork object, something might be wrong with your IApplicationUnitOfWork implementation", ex);
