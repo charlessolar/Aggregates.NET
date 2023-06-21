@@ -90,7 +90,6 @@ namespace Aggregates.Internal
             factoryMethod: (b) => new TimeExecutionBehavior(b.GetService<ILogger<TimeExecutionBehavior>>(), b.GetService<Settings>())
         )
         {
-            InsertBefore("MutateIncomingMessages");
         }
     }
 }
