@@ -48,6 +48,8 @@ namespace Aggregates.Internal
                 {
                     lock (SlowLock) SlowCommandTypes.Remove(messageTypeIdentifier);
                     Defaults.MinimumLogging.Value = LogLevel.Debug;
+                    Logger.InfoEvent("Slow Alarm", "[{MessageId:l}] Enabling verbose logging for {MessageType}", context.MessageId, messageTypeIdentifier);
+
                     verbose = true;
                 }
 
@@ -56,13 +58,18 @@ namespace Aggregates.Internal
                 await next().ConfigureAwait(false);
 
                 var end = Stopwatch.GetTimestamp();
-                var elapsed = (end - start) * (1.0 / Stopwatch.Frequency) * 1000;
+                // support high resolution 
+                var elapsed = (end - start) * (1.0d / Stopwatch.Frequency) * 1000;
+                Logger.InfoEvent("Timing", "[{MessageId:l}] {MessageType} took {Milliseconds:F3}ms", context.MessageId, messageTypeIdentifier, elapsed);
+
 
                 if (elapsed > _slowAlert.Value.TotalSeconds)
                 {
-                    Logger.WarnEvent("Slow Alarm", "[{MessageId:l}] {MessageType} took {Milliseconds} payload {Payload}", context.MessageId, messageTypeIdentifier, elapsed, Encoding.UTF8.GetString(context.Message.Body.Span).MaxLines(10));
-                    if (!verbose)
+                    if (!verbose) {
+                        Logger.WarnEvent("Slow Alarm", "[{MessageId:l}] {MessageType} took {Milliseconds:F3}ms payload {Payload}", context.MessageId, messageTypeIdentifier, elapsed, Encoding.UTF8.GetString(context.Message.Body.Span).MaxLines(10));
+
                         lock (SlowLock) SlowCommandTypes.Add(messageTypeIdentifier);
+                    }
                 }
 
             }

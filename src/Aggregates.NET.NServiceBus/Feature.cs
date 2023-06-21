@@ -37,8 +37,7 @@ namespace Aggregates
 
             context.Pipeline.Register<LogContextProviderRegistration>();
 
-            if (aggSettings.SlowAlertThreshold.HasValue)
-                context.Pipeline.Register<TimeExecutionRegistration>();
+            context.Pipeline.Register<TimeExecutionRegistration>();
             var types = settings.GetAvailableTypes();
 
             context.Pipeline.Register<MessageIdentifierRegistration>();
