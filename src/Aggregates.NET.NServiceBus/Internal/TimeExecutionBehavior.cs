@@ -87,7 +87,7 @@ namespace Aggregates.Internal
             stepId: "Time Execution",
             behavior: typeof(TimeExecutionBehavior),
             description: "htimes message processing and logs slow ones",
-            factoryMethod: (b) => new TimeExecutionBehavior(b.GetService<ILogger<TimeExecutionBehavior>>(), b.GetService<Settings>())
+            factoryMethod: (b) => new TimeExecutionBehavior(b.GetService<ILogger<TimeExecutionBehavior>>(), b.GetService<ISettings>())
         )
         {
         }
