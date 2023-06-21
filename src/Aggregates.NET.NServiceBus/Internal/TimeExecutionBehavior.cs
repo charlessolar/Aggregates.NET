@@ -28,11 +28,6 @@ namespace Aggregates.Internal
 
         public override async Task Invoke(IIncomingPhysicalMessageContext context, Func<Task> next)
         {
-            if (!_slowAlert.HasValue)
-            {
-                await next().ConfigureAwait(false);
-                return;
-            }
 
             var verbose = false;
 
@@ -63,7 +58,7 @@ namespace Aggregates.Internal
                 Logger.InfoEvent("Timing", "[{MessageId:l}] {MessageType} took {Milliseconds:F3}ms", context.MessageId, messageTypeIdentifier, elapsed);
 
 
-                if (elapsed > _slowAlert.Value.TotalSeconds)
+                if (_slowAlert.HasValue && elapsed > _slowAlert.Value.TotalSeconds)
                 {
                     if (!verbose) {
                         Logger.WarnEvent("Slow Alarm", "[{MessageId:l}] {MessageType} took {Milliseconds:F3}ms payload {Payload}", context.MessageId, messageTypeIdentifier, elapsed, Encoding.UTF8.GetString(context.Message.Body.Span).MaxLines(10));
