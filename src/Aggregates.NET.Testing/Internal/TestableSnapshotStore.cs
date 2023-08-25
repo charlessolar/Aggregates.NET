@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    [ExcludeFromCodeCoverage]
     class TestableSnapshotStore : IStoreSnapshots
     {
         private readonly Dictionary<string, ISnapshot> _snapshots;
@@ -17,12 +16,12 @@ namespace Aggregates.Internal
             _writtenSnapshots = new Dictionary<string, IState>();
         }
 
-        public void SpecifySnapshot<T>(string bucket, Id streamId, object payload)
+        public void SpecifySnapshot<TEntity>(string bucket, Id streamId, object payload)
         {
-            _snapshots[$"{bucket}.{typeof(T).FullName}.{streamId}"] = new Internal.Snapshot
+            _snapshots[$"{bucket}.{typeof(TEntity).FullName}.{streamId}"] = new Internal.Snapshot
             {
                 Bucket = bucket,
-                EntityType = typeof(T).FullName,
+                EntityType = typeof(TEntity).FullName,
                 StreamId = streamId,
                 Payload = payload,
             };
@@ -36,9 +35,9 @@ namespace Aggregates.Internal
             return Task.FromResult(_snapshots[key]);
         }
 
-        public Task WriteSnapshots<T>(IState memento, IDictionary<string, string> commitHeaders) where T : IEntity
+        public Task WriteSnapshots<TEntity>(IState memento, IDictionary<string, string> commitHeaders) where TEntity : IEntity
         {
-            var key = $"{memento.Bucket}.{typeof(T).FullName}.{memento.Id}";
+            var key = $"{memento.Bucket}.{typeof(TEntity).FullName}.{memento.Id}";
             _writtenSnapshots[key] = memento;
 
             return Task.CompletedTask;

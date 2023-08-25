@@ -7,11 +7,9 @@ using System.Threading.Tasks;
 
 namespace Aggregates
 {
-    [ExcludeFromCodeCoverage]
     class TestableApplication : ITestableApplication
     {
         private readonly IdRegistry _ids;
-        public dynamic Bag { get; set; }
 
         internal Dictionary<Tuple<Type, TestableId>, object> Planned;
         internal Dictionary<Tuple<Type, TestableId>, object> Added;

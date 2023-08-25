@@ -3,7 +3,6 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {
-    [ExcludeFromCodeCoverage]
     class Constants
     {
         public static readonly string GeneratedIdPrefix = ">>";

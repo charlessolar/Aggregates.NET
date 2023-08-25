@@ -3,7 +3,6 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {
-    [ExcludeFromCodeCoverage]
     public class TestableId : Id
     {
         public readonly string GeneratedIdKey;

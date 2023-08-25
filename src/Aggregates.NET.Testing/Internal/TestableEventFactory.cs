@@ -5,7 +5,6 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {
-    [ExcludeFromCodeCoverage]
     class TestableEventFactory : IEventFactory
     {
         private readonly IMessageCreator _creator;

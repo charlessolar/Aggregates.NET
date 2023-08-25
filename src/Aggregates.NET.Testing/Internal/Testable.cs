@@ -8,7 +8,6 @@ using System.Linq;
 
 namespace Aggregates.Internal
 {
-    [ExcludeFromCodeCoverage]
     class EventPlanner<TEntity, TState> : IEventPlanner<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
         private readonly IdRegistry _ids;
@@ -39,29 +38,30 @@ namespace Aggregates.Internal
             _events.Exists<TEntity>(_bucket, _id, _parent.GetParentIds());
             return this;
         }
-        public IEventPlanner<TEntity> HasEvent<TEvent>(Action<TEvent> factory)
-        {
+        public IEventPlanner<TEntity> HasEvent<TEvent>(Action<TEvent> factory) {
+            Exists();
             _events.AddEvent<TEntity>(_bucket, _id, _parent.GetParentIds(), (Messages.IEvent)_factory.Create(factory));
             return this;
         }
-        public IEventPlanner<TEntity> HasSnapshot(object snapshot)
-        {
-            _snapshots.SpecifySnapshot<TState>(_bucket, _id, snapshot);
+        public IEventPlanner<TEntity> HasSnapshot(object snapshot) {
+            Exists();
+            _snapshots.SpecifySnapshot<TEntity>(_bucket, _id, snapshot);
             return this;
         }
         public IEventPlanner<TChild> Plan<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>
         {
+            Exists();
             // Use a factory so its 'lazy' - meaning defining the parent doesn't necessarily have to come before defining child
             return _uow.Plan<TChild, TEntity>(_entityFactory(), _ids.MakeId(id));
         }
-        public IEventPlanner<TChild> Plan<TChild>(TestableId id) where TChild : IEntity, IChildEntity<TEntity>
-        {
+        public IEventPlanner<TChild> Plan<TChild>(TestableId id) where TChild : IEntity, IChildEntity<TEntity> {
+            Exists();
             // Use a factory so its 'lazy' - meaning defining the parent doesn't necessarily have to come before defining child
             return _uow.Plan<TChild, TEntity>(_entityFactory(), id);
         }
 
     }
-    [ExcludeFromCodeCoverage]
+
     class EventChecker<TEntity, TState> : IEventChecker<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
         private readonly IdRegistry _ids;
@@ -119,7 +119,6 @@ namespace Aggregates.Internal
             return this;
         }
     }
-    [ExcludeFromCodeCoverage]
     class ModelChecker<TModel> : IModelChecker<TModel> where TModel : class, new()
     {
         private readonly TestableApplication _app;
@@ -206,7 +205,6 @@ namespace Aggregates.Internal
         }
     }
 
-    [ExcludeFromCodeCoverage]
     class ModelPlanner<TModel> : IModelPlanner<TModel> where TModel : class, new()
     {
         private readonly TestableApplication _app;
@@ -233,7 +231,6 @@ namespace Aggregates.Internal
         }
     }
 
-    [ExcludeFromCodeCoverage]
     class ServicePlanner<TService, TResponse> : IServicePlanner<TService, TResponse> where TService : IService<TResponse>
     {
         private readonly TestableProcessor _processor;
@@ -252,7 +249,6 @@ namespace Aggregates.Internal
         }
     }
 
-    [ExcludeFromCodeCoverage]
     class ServiceChecker<TService, TResponse> : IServiceChecker<TService, TResponse> where TService : IService<TResponse>
     {
         private readonly TestableProcessor _processor;

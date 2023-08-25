@@ -5,7 +5,6 @@ using System.Linq;
 
 namespace Aggregates.Internal
 {
-    [ExcludeFromCodeCoverage]
     public class IdRegistry
     {
         private int _longIdCounter = -1;

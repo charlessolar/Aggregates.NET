@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    [ExcludeFromCodeCoverage]
     class TestableEventStore : IStoreEvents
     {
         private readonly Dictionary<string, IFullEvent[]> _events = new Dictionary<string, IFullEvent[]>();

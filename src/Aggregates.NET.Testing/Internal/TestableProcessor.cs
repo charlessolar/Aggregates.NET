@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    [ExcludeFromCodeCoverage]
     class TestableProcessor : ITestableProcessor
     {
         private readonly TestableEventFactory _factory;
