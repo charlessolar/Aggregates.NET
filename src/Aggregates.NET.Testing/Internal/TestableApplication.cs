@@ -41,9 +41,8 @@ namespace Aggregates
 
         public Task<T> Get<T>(Id id) where T : class
         {
-            var testable = Tuple.Create(typeof(T), _ids.MakeId(id));
-            Read.Add(testable);
-            return Task.FromResult(Planned[testable] as T);
+            // Getting an unplanned model doesn't need to throw for testing
+            return TryGet<T>(id);
         }
 
         public Task<IQueryResult<T>> Query<T>(IDefinition query) where T : class
@@ -57,7 +56,7 @@ namespace Aggregates
             Read.Add(testable);
             if (Planned.ContainsKey(testable))
                 return Task.FromResult(Planned[testable] as T);
-            return Task.FromResult((T)null);
+            return Task.FromResult<T>(null);
         }
 
         public Task Update<T>(Id id, T document) where T : class

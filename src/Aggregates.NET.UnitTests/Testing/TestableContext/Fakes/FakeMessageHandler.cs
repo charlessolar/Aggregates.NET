@@ -1,4 +1,5 @@
-﻿using NServiceBus;
+﻿using Aggregates.Extensions;
+using NServiceBus;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,15 +7,25 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Aggregates.Testing.TestableContext.Fakes {
-    public class FakeMessageHandler : 
-        IHandleMessages<FakeEvent>, 
-        IHandleMessages<FakeCommand> {
+    public class FakeMessageHandler {
 
-        public Task Handle(FakeEvent @event, IMessageHandlerContext context) {
-            return Task.CompletedTask;
+        public async Task Handle(FakeEvent @event, IMessageHandlerContext context) {
+            if (@event.CreateModel) {
+                await context.App().Add(@event.EntityId, new FakeModel { EntityId=@event.EntityId, Content=@event.Content });
+            }
+            if (@event.DeleteModel) {
+                await context.App().Delete< FakeModel>(@event.EntityId);
+            }
+            if (@event.UpdateModel) {
+                await context.App().Update(@event.EntityId, new FakeModel { EntityId = @event.EntityId, Content = @event.Content });
+            }
+            if (@event.ReadModel) {
+                await context.App().Get<FakeModel>(@event.EntityId);
+            }
         }
-        public async Task Handle(FakeCommand command, IMessageHandlerContext context) {
 
+
+        public async Task Handle(FakeCommand command, IMessageHandlerContext context) {
 
             var entity = await context.Uow().For<FakeEntity>().Get(command.EntityId);
             if (command.RaiseEvent)

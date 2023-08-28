@@ -6,10 +6,8 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
-namespace Aggregates.Internal
-{
-    class EventPlanner<TEntity, TState> : IEventPlanner<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
-    {
+namespace Aggregates.Internal {
+    class EventPlanner<TEntity, TState> : IEventPlanner<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new() {
         private readonly IdRegistry _ids;
         private readonly TestableDomain _uow;
         private readonly TestableEventStore _events;
@@ -20,8 +18,7 @@ namespace Aggregates.Internal
         private readonly TestableId _id;
         private readonly IEntity _parent;
 
-        public EventPlanner(TestableDomain uow, IdRegistry ids, TestableEventStore events, TestableSnapshotStore snapshots, TestableEventFactory factory, Func<TEntity> entityFactory, string bucket, TestableId id, IEntity parent = null)
-        {
+        public EventPlanner(TestableDomain uow, IdRegistry ids, TestableEventStore events, TestableSnapshotStore snapshots, TestableEventFactory factory, Func<TEntity> entityFactory, string bucket, TestableId id, IEntity parent = null) {
             _ids = ids;
             _uow = uow;
             _events = events;
@@ -33,8 +30,7 @@ namespace Aggregates.Internal
             _parent = parent;
         }
 
-        public IEventPlanner<TEntity> Exists()
-        {
+        public IEventPlanner<TEntity> Exists() {
             _events.Exists<TEntity>(_bucket, _id, _parent.GetParentIds());
             return this;
         }
@@ -48,8 +44,7 @@ namespace Aggregates.Internal
             _snapshots.SpecifySnapshot<TEntity>(_bucket, _id, snapshot);
             return this;
         }
-        public IEventPlanner<TChild> Plan<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>
-        {
+        public IEventPlanner<TChild> Plan<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity> {
             Exists();
             // Use a factory so its 'lazy' - meaning defining the parent doesn't necessarily have to come before defining child
             return _uow.Plan<TChild, TEntity>(_entityFactory(), _ids.MakeId(id));
@@ -57,83 +52,70 @@ namespace Aggregates.Internal
 
     }
 
-    class EventChecker<TEntity, TState> : IEventChecker<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
-    {
+    class EventChecker<TEntity, TState> : IEventChecker<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new() {
         private readonly IdRegistry _ids;
         private readonly TestableDomain _uow;
         private readonly TestableEventFactory _factory;
         private readonly TEntity _entity;
 
-        public EventChecker(TestableDomain uow, IdRegistry ids, TestableEventFactory factory, TEntity entity)
-        {
+        public EventChecker(TestableDomain uow, IdRegistry ids, TestableEventFactory factory, TEntity entity) {
             _ids = ids;
             _uow = uow;
             _factory = factory;
             _entity = entity;
         }
 
-        public IEventChecker<TEntity> Raised<TEvent>(Action<TEvent> factory) where TEvent : Messages.IEvent
-        {
+        public IEventChecker<TEntity> Raised<TEvent>(Action<TEvent> factory) where TEvent : Messages.IEvent {
             var @event = _factory.Create(factory);
 
-            if (!_entity.Uncommitted.Any(x => x.Event.GetType() == @event.GetType() &&  JsonConvert.SerializeObject(x.Event) == JsonConvert.SerializeObject(@event)))
+            if (!_entity.Uncommitted.Any(x => x.Event.GetType() == @event.GetType() && JsonConvert.SerializeObject(x.Event) == JsonConvert.SerializeObject(@event)))
                 throw new DidNotRaisedException(@event, _entity.Uncommitted.Select(x => x.Event as Messages.IEvent).ToArray());
 
             return this;
         }
-        public IEventChecker<TEntity> Raised<TEvent>() where TEvent : Messages.IEvent
-        {
+        public IEventChecker<TEntity> Raised<TEvent>() where TEvent : Messages.IEvent {
             if (!_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).OfType<TEvent>().Any())
                 throw new NoMatchingEventException(_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).ToArray());
             return this;
         }
-        public IEventChecker<TEntity> Raised<TEvent>(Func<TEvent, bool> assert) where TEvent : Messages.IEvent
-        {
+        public IEventChecker<TEntity> Raised<TEvent>(Func<TEvent, bool> assert) where TEvent : Messages.IEvent {
             if (!_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).OfType<TEvent>().Any(assert))
                 throw new NoMatchingEventException(_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).ToArray());
             return this;
         }
-        public IEventChecker<TEntity> Unchanged()
-        {
+        public IEventChecker<TEntity> Unchanged() {
             if (_entity.Uncommitted.Any())
                 throw new RaisedException(_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).ToArray());
             return this;
         }
-        public IEventChecker<TChild> Check<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>
-        {
+        public IEventChecker<TChild> Check<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity> {
             return _uow.Check<TChild, TEntity>(_entity, _ids.MakeId(id));
         }
-        public IEventChecker<TEntity> NotRaised<TEvent>() where TEvent : Messages.IEvent
-        {
+        public IEventChecker<TEntity> NotRaised<TEvent>() where TEvent : Messages.IEvent {
             if (_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).OfType<TEvent>().Any())
                 throw new RaisedException(_entity.Uncommitted.Select(x => x.Event as Messages.IEvent).ToArray());
             return this;
         }
     }
-    class ModelChecker<TModel> : IModelChecker<TModel> where TModel : class, new()
-    {
+    class ModelChecker<TModel> : IModelChecker<TModel> where TModel : class, new() {
         private readonly TestableApplication _app;
         private readonly IdRegistry _ids;
         private readonly TestableId _id;
 
-        public ModelChecker(TestableApplication app, IdRegistry ids, Id id)
-        {
+        public ModelChecker(TestableApplication app, IdRegistry ids, Id id) {
             _app = app;
             _ids = ids;
             _id = _ids.MakeId(id);
         }
 
-        public IModelChecker<TModel> Added()
-        {
+        public IModelChecker<TModel> Added() {
             if (!_app.Added.ContainsKey(Tuple.Create(typeof(TModel), _id)))
                 throw new ModelException(typeof(TModel), _id, "added");
             return this;
         }
 
-        public IModelChecker<TModel> Added(Func<TModel, bool> assert)
-        {
-            if (!_app.Added.ContainsKey(Tuple.Create(typeof(TModel), _id)))
-                throw new ModelException(typeof(TModel), _id, "added");
+        public IModelChecker<TModel> Added(Func<TModel, bool> assert) {
+            Added();
             var model = _app.Added[Tuple.Create(typeof(TModel), _id)] as TModel;
 
             if (!assert(model))
@@ -141,10 +123,8 @@ namespace Aggregates.Internal
             return this;
         }
 
-        public IModelChecker<TModel> Added(TModel check)
-        {
-            if (!_app.Added.ContainsKey(Tuple.Create(typeof(TModel), _id)))
-                throw new ModelException(typeof(TModel), _id, "added");
+        public IModelChecker<TModel> Added(TModel check) {
+            Added();
             var model = _app.Added[Tuple.Create(typeof(TModel), _id)] as TModel;
 
             if (JsonConvert.SerializeObject(model) != JsonConvert.SerializeObject(check))
@@ -152,29 +132,25 @@ namespace Aggregates.Internal
             return this;
         }
 
-        public IModelChecker<TModel> Deleted()
-        {
+        public IModelChecker<TModel> Deleted() {
             if (!_app.Deleted.Contains(Tuple.Create(typeof(TModel), _id)))
                 throw new ModelException(typeof(TModel), _id, "deleted");
             return this;
         }
 
-        public IModelChecker<TModel> Read()
-        {
+        public IModelChecker<TModel> Read() {
             if (!_app.Read.Contains(Tuple.Create(typeof(TModel), _id)))
                 throw new ModelException(typeof(TModel), _id, "read");
             return this;
         }
 
-        public IModelChecker<TModel> Updated()
-        {
+        public IModelChecker<TModel> Updated() {
             if (!_app.Updated.ContainsKey(Tuple.Create(typeof(TModel), _id)))
                 throw new ModelException(typeof(TModel), _id, "updated");
             return this;
         }
 
-        public IModelChecker<TModel> Updated(Func<TModel, bool> assert)
-        {
+        public IModelChecker<TModel> Updated(Func<TModel, bool> assert) {
             if (!_app.Updated.ContainsKey(Tuple.Create(typeof(TModel), _id)))
                 throw new ModelException(typeof(TModel), _id, "updated");
             var model = _app.Updated[Tuple.Create(typeof(TModel), _id)] as TModel;
@@ -184,8 +160,7 @@ namespace Aggregates.Internal
             return this;
         }
 
-        public IModelChecker<TModel> Updated(TModel check)
-        {
+        public IModelChecker<TModel> Updated(TModel check) {
             if (!_app.Updated.ContainsKey(Tuple.Create(typeof(TModel), _id)))
                 throw new ModelException(typeof(TModel), _id, "updated");
             var model = _app.Updated[Tuple.Create(typeof(TModel), _id)] as TModel;
@@ -196,63 +171,53 @@ namespace Aggregates.Internal
         }
     }
 
-    class ModelPlanner<TModel> : IModelPlanner<TModel> where TModel : class, new()
-    {
+    class ModelPlanner<TModel> : IModelPlanner<TModel> where TModel : class, new() {
         private readonly TestableApplication _app;
         private readonly IdRegistry _ids;
         private readonly TestableId _id;
 
-        public ModelPlanner(TestableApplication app, IdRegistry ids, Id id)
-        {
+        public ModelPlanner(TestableApplication app, IdRegistry ids, Id id) {
             _app = app;
             _ids = ids;
             _id = _ids.MakeId(id);
         }
 
-        public IModelPlanner<TModel> Exists()
-        {
+        public IModelPlanner<TModel> Exists() {
             _app.Planned[Tuple.Create(typeof(TModel), _id)] = new TModel();
             return this;
         }
 
-        public IModelPlanner<TModel> Exists(TModel model)
-        {
+        public IModelPlanner<TModel> Exists(TModel model) {
             _app.Planned[Tuple.Create(typeof(TModel), _id)] = model;
             return this;
         }
     }
 
-    class ServicePlanner<TService, TResponse> : IServicePlanner<TService, TResponse> where TService : IService<TResponse>
-    {
+    class ServicePlanner<TService, TResponse> : IServicePlanner<TService, TResponse> where TService : IService<TResponse> {
         private readonly TestableProcessor _processor;
         private readonly TService _service;
 
-        public ServicePlanner(TestableProcessor processor, TService service)
-        {
+        public ServicePlanner(TestableProcessor processor, TService service) {
             _processor = processor;
             _service = service;
         }
 
-        public IServicePlanner<TService, TResponse> Response(TResponse response)
-        {
+        public IServicePlanner<TService, TResponse> Response(TResponse response) {
             _processor.Planned[$"{typeof(TService).FullName}.{JsonConvert.SerializeObject(_service)}"] = response;
             return this;
         }
     }
 
-    class ServiceChecker<TService, TResponse> : IServiceChecker<TService, TResponse> where TService : IService<TResponse>
-    {
+    class ServiceChecker<TService, TResponse> : IServiceChecker<TService, TResponse> where TService : IService<TResponse> {
         private readonly TestableProcessor _processor;
         private readonly TService _service;
 
-        public ServiceChecker(TestableProcessor processor, TService service)
-        {
+        public ServiceChecker(TestableProcessor processor, TService service) {
             _processor = processor;
             _service = service;
         }
 
-        public IServiceChecker<TService, TResponse> Requested()
-        {
+        public IServiceChecker<TService, TResponse> Requested() {
             if (!_processor.Requested.Contains($"{typeof(TService).FullName}.{JsonConvert.SerializeObject(_service)}"))
                 throw new ServiceException(typeof(TService), JsonConvert.SerializeObject(_service));
             return this;
