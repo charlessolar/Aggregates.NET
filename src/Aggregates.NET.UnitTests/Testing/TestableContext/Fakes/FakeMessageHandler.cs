@@ -72,5 +72,9 @@ namespace Aggregates.Testing.TestableContext.Fakes {
             var child = await entity.For<FakeChildEntity>().Get(command.EntityId);
             return child.State;
         }
+
+        public Task<FakeResponse> QueryService(FakeCommand command, IMessageHandlerContext context) {
+            return context.Service<FakeService, FakeResponse>(x => { });
+        }
     }
 }

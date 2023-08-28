@@ -29,21 +29,20 @@ namespace Aggregates
         public static Task<TResponse> Service<TService, TResponse>(this IMessageHandlerContext context, TService service)
             where TService : class, IService<TResponse>
         {
-            var config = context.Extensions.Get<IConfiguration>();
+            var provider = context.Extensions.Get<IServiceProvider>();
             IProcessor processor;
             if (!context.Extensions.TryGet<IProcessor>(out processor))
-                processor = config.ServiceProvider.GetRequiredService<IProcessor>();
-            return processor.Process<TService, TResponse>(service, config.ServiceProvider);
+                processor = provider.GetRequiredService<IProcessor>();
+            return processor.Process<TService, TResponse>(service, provider);
         }
         public static Task<TResponse> Service<TService, TResponse>(this IMessageHandlerContext context, Action<TService> service)
-            where TService : class, IService<TResponse>
-        {
-            var config = context.Extensions.Get<IConfiguration>();
+            where TService : class, IService<TResponse> {
+            var provider = context.Extensions.Get<IServiceProvider>();
             IProcessor processor;
             if (!context.Extensions.TryGet<IProcessor>(out processor))
-                processor = config.ServiceProvider.GetRequiredService<IProcessor>();
+                processor = provider.GetRequiredService<IProcessor>();
 
-            return processor.Process<TService, TResponse>(service, config.ServiceProvider);
+            return processor.Process<TService, TResponse>(service, provider);
         }
 
         public static ISettings GetSettings(this IMessageHandlerContext context)

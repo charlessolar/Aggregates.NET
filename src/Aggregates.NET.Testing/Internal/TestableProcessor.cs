@@ -32,9 +32,11 @@ namespace Aggregates.Internal
         public Task<TResponse> Process<TService, TResponse>(TService service, IServiceProvider container) where TService : IService<TResponse>
         {
             var serviceString = JsonConvert.SerializeObject(service);
-            if (!Planned.ContainsKey($"{typeof(TService).FullName}.{serviceString}"))
+            var key = $"{typeof(TService).FullName}.{serviceString}";
+            if (!Planned.ContainsKey(key))
                 throw new ArgumentException($"Service {typeof(TService).FullName} body {serviceString} was not planned");
-            return Task.FromResult((TResponse)Planned[$"{typeof(TService).FullName}.{serviceString}"]);
+            Requested.Add(key);
+            return Task.FromResult((TResponse)Planned[key]);
         }
 
         public Task<TResponse> Process<TService, TResponse>(Action<TService> service, IServiceProvider container) where TService : IService<TResponse>
