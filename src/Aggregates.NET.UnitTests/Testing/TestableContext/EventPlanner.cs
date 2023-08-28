@@ -224,5 +224,31 @@ namespace Aggregates.Testing.TestableContext {
 
             state.LoadedSnap.Should().BeFalse();
         }
+
+        [Fact]
+        public async Task RaisedContainsContent() {
+            Sut.UoW.Plan<Fakes.FakeEntity>("test").Exists();
+
+            var handler = new FakeMessageHandler();
+            await handler.Handle(new FakeCommand { EntityId = "test", RaiseEvent = true, Content = "test" }, Sut);
+
+
+            Sut.UoW.Check<Fakes.FakeEntity>("test")
+                .Raised<Fakes.FakeEvent>(e => { e.Content = "test"; });
+        }
+        [Fact]
+        public async Task RaisedContainsContentForChild() {
+            Sut.UoW.Plan<Fakes.FakeEntity>("test")
+                .Plan<Fakes.FakeChildEntity>("test")
+                .Exists();
+
+            var handler = new FakeMessageHandler();
+            await handler.HandleInChild(new FakeCommand { EntityId = "test", RaiseEvent = true, Content = "test" }, Sut);
+
+
+            Sut.UoW.Check<Fakes.FakeEntity>("test")
+                .Check<Fakes.FakeChildEntity>("test")
+                .Raised<Fakes.FakeEvent>(e => { e.Content = "test"; });
+        }
     }
 }

@@ -54,11 +54,6 @@ namespace Aggregates.Internal
             // Use a factory so its 'lazy' - meaning defining the parent doesn't necessarily have to come before defining child
             return _uow.Plan<TChild, TEntity>(_entityFactory(), _ids.MakeId(id));
         }
-        public IEventPlanner<TChild> Plan<TChild>(TestableId id) where TChild : IEntity, IChildEntity<TEntity> {
-            Exists();
-            // Use a factory so its 'lazy' - meaning defining the parent doesn't necessarily have to come before defining child
-            return _uow.Plan<TChild, TEntity>(_entityFactory(), id);
-        }
 
     }
 
@@ -81,7 +76,7 @@ namespace Aggregates.Internal
         {
             var @event = _factory.Create(factory);
 
-            if (!_entity.Uncommitted.Any(x => JsonConvert.SerializeObject(x.Event) == JsonConvert.SerializeObject(@event)))
+            if (!_entity.Uncommitted.Any(x => x.Event.GetType() == @event.GetType() &&  JsonConvert.SerializeObject(x.Event) == JsonConvert.SerializeObject(@event)))
                 throw new DidNotRaisedException(@event, _entity.Uncommitted.Select(x => x.Event as Messages.IEvent).ToArray());
 
             return this;
@@ -107,10 +102,6 @@ namespace Aggregates.Internal
         public IEventChecker<TChild> Check<TChild>(Id id) where TChild : IEntity, IChildEntity<TEntity>
         {
             return _uow.Check<TChild, TEntity>(_entity, _ids.MakeId(id));
-        }
-        public IEventChecker<TChild> Check<TChild>(TestableId id) where TChild : IEntity, IChildEntity<TEntity>
-        {
-            return _uow.Check<TChild, TEntity>(_entity, id);
         }
         public IEventChecker<TEntity> NotRaised<TEvent>() where TEvent : Messages.IEvent
         {

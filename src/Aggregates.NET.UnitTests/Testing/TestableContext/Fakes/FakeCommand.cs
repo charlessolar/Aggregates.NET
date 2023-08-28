@@ -8,5 +8,6 @@ namespace Aggregates.Testing.TestableContext.Fakes {
     public class FakeCommand {
         public string EntityId { get; set; }
         public bool RaiseEvent { get; set; }
+        public string Content { get; set; }
     }
 }

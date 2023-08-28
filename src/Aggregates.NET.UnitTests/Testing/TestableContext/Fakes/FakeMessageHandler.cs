@@ -18,7 +18,15 @@ namespace Aggregates.Testing.TestableContext.Fakes {
 
             var entity = await context.Uow().For<FakeEntity>().Get(command.EntityId);
             if (command.RaiseEvent)
-                entity.RaiseEvent();
+                entity.RaiseEvent(command.Content);
+
+        }
+        public async Task HandleOther(FakeCommand command, IMessageHandlerContext context) {
+
+
+            var entity = await context.Uow().For<FakeEntity>().Get(command.EntityId);
+            if (command.RaiseEvent)
+                entity.RaiseOtherEvent(command.Content);
 
         }
 
@@ -40,7 +48,7 @@ namespace Aggregates.Testing.TestableContext.Fakes {
             var child = await entity.For<FakeChildEntity>().Get(command.EntityId);
 
             if (command.RaiseEvent)
-                child.RaiseEvent();
+                child.RaiseEvent(command.Content);
         }
         public async Task<long> GetChildEntityVersion(FakeCommand command, IMessageHandlerContext context) {
             var entity = await context.Uow().For<FakeEntity>().Get(command.EntityId);

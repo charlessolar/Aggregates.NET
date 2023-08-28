@@ -11,8 +11,14 @@ namespace Aggregates.Testing.TestableContext.Fakes {
     public class FakeEntity : Aggregates.Entity<FakeEntity, FakeState> {
         private FakeEntity() { }
 
-        public void RaiseEvent() {
+        public void RaiseEvent(string content = "") {
             Apply<FakeEvent>(e => {
+                e.Content = content;
+            });
+        }
+        public void RaiseOtherEvent(string content = "") {
+            Apply<FakeEvent2>(e => {
+                e.Content = content;
             });
         }
     }
@@ -23,8 +29,9 @@ namespace Aggregates.Testing.TestableContext.Fakes {
 
         private FakeChildEntity() { }
 
-        public void RaiseEvent() {
+        public void RaiseEvent(string content = "") {
             Apply<FakeEvent>(e => {
+                e.Content = content;
             });
         }
     }
