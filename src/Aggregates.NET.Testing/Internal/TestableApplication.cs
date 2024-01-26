@@ -45,6 +45,7 @@ namespace Aggregates
             return TryGet<T>(id);
         }
 
+        [ExcludeFromCodeCoverage]
         public Task<IQueryResult<T>> Query<T>(IDefinition query) where T : class
         {
             throw new NotImplementedException();
@@ -70,19 +71,11 @@ namespace Aggregates
             return new ModelChecker<TModel>(this, _ids, id);
         }
 
-        public IModelChecker<TModel> Check<TModel>(TestableId id) where TModel : class, new()
-        {
-            return new ModelChecker<TModel>(this, _ids, id);
-        }
 
         public IModelPlanner<TModel> Plan<TModel>(Id id) where TModel : class, new()
         {
             return new ModelPlanner<TModel>(this, _ids, id);
         }
 
-        public IModelPlanner<TModel> Plan<TModel>(TestableId id) where TModel : class, new()
-        {
-            return new ModelPlanner<TModel>(this, _ids, id);
-        }
     }
 }

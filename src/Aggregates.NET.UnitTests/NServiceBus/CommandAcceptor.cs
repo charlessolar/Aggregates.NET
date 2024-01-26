@@ -18,7 +18,7 @@ namespace Aggregates.NServiceBus
             var context = new TestableIncomingLogicalMessageContext();
             context.UpdateMessageInstance(Fake<Messages.IEvent>());
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
         }
@@ -31,7 +31,7 @@ namespace Aggregates.NServiceBus
             context.MessageHeaders[Defaults.RequestResponse] = "1";
             context.ServiceCollection.TryAddSingleton(A.Fake<Action<Accept>>());
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
             context.RepliedMessages.Should().NotBeEmpty();
@@ -47,7 +47,7 @@ namespace Aggregates.NServiceBus
             context.MessageHeaders[Defaults.RequestResponse] = "1";
             context.ServiceCollection.TryAddSingleton(A.Fake<Action<BusinessException, Reject>>());
 
-            var e = await Record.ExceptionAsync(() => Sut.Invoke(context, next)).ConfigureAwait(false);
+            var e = await Record.ExceptionAsync(() => Sut.Invoke(context, next));
 
             e.Should().BeOfType<BusinessException>();
             context.RepliedMessages.Should().NotBeEmpty();
@@ -61,7 +61,7 @@ namespace Aggregates.NServiceBus
             context.UpdateMessageInstance(Fake<Messages.ICommand>());
             context.MessageHeaders[Defaults.RequestResponse] = "0";
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
             context.RepliedMessages.Should().BeEmpty();
@@ -75,7 +75,7 @@ namespace Aggregates.NServiceBus
             context.UpdateMessageInstance(Fake<Messages.ICommand>());
             context.MessageHeaders[Defaults.RequestResponse] = "0";
 
-            var e = await Record.ExceptionAsync(() => Sut.Invoke(context, next)).ConfigureAwait(false);
+            var e = await Record.ExceptionAsync(() => Sut.Invoke(context, next));
 
             e.Should().BeOfType<BusinessException>();
             A.CallTo(() => next()).MustHaveHappened();

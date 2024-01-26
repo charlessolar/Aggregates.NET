@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    class TestableEventStore : IStoreEvents
+    public class TestableEventStore : IStoreEvents
     {
         private readonly Dictionary<string, IFullEvent[]> _events = new Dictionary<string, IFullEvent[]>();
 
@@ -59,11 +59,12 @@ namespace Aggregates.Internal
             return Task.FromResult(ret.ToArray());
         }
 
-
+        [ExcludeFromCodeCoverage]
         public Task<ISnapshot> GetSnapshot<TEntity>(string bucket, Id streamId, Id[] parents) where TEntity : IEntity
         {
             throw new NotImplementedException();
         }
+        [ExcludeFromCodeCoverage]
         public Task WriteSnapshot<TEntity>(ISnapshot snapshot, IDictionary<string, string> commitHeaders) where TEntity : IEntity
         {
             throw new NotImplementedException();
@@ -71,17 +72,20 @@ namespace Aggregates.Internal
 
 
 
+        [ExcludeFromCodeCoverage]
         public Task<bool> VerifyVersion<TEntity>(string bucket, Id streamId, Id[] parents, long expectedVersion) where TEntity : IEntity
         {
             throw new NotImplementedException();
         }
 
+        [ExcludeFromCodeCoverage]
         public Task<long> WriteEvents<TEntity>(string bucket, Id streamId, Id[] parents, IFullEvent[] events, IDictionary<string, string> commitHeaders, long? expectedVersion = null) where TEntity : IEntity
         {
             throw new NotImplementedException();
         }
 
 
+        [ExcludeFromCodeCoverage]
         public Task WriteMetadata<TEntity>(string bucket, Id streamId, Id[] parents, int? maxCount = null, long? truncateBefore = null, TimeSpan? maxAge = null, TimeSpan? cacheControl = null) where TEntity : IEntity
         {
             throw new NotImplementedException();

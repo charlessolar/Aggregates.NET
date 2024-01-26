@@ -12,11 +12,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="EventStore.Client.Grpc.PersistentSubscriptions" Version="23.0.0" />
-    <PackageReference Include="EventStore.Client.Grpc.ProjectionManagement" Version="23.0.0" />
-    <PackageReference Include="EventStore.Client.Grpc.Streams" Version="23.0.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="7.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
+    <PackageReference Include="EventStore.Client.Grpc.PersistentSubscriptions" Version="23.1.0" />
+    <PackageReference Include="EventStore.Client.Grpc.ProjectionManagement" Version="23.1.0" />
+    <PackageReference Include="EventStore.Client.Grpc.Streams" Version="23.1.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,6 +27,10 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="8.0.0" />
   </ItemGroup>
 
 

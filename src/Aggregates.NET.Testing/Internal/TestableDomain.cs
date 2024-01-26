@@ -7,7 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates
 {
-    class TestableDomain : ITestableDomain
+    public class TestableDomain : ITestableDomain
     {
         public readonly TestableContext Context;
 

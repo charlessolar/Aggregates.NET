@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 namespace Aggregates.Internal
 {
 
-    class TestableRepository<TEntity, TState, TParent> : TestableRepository<TEntity, TState>, IRepository<TEntity, TParent>, IRepositoryTest<TEntity, TParent> where TParent : IEntity where TEntity : Entity<TEntity, TState, TParent> where TState : class, IState, new()
+    public class TestableRepository<TEntity, TState, TParent> : TestableRepository<TEntity, TState>, IRepository<TEntity, TParent>, IRepositoryTest<TEntity, TParent> where TParent : IEntity where TEntity : Entity<TEntity, TState, TParent> where TState : class, IState, new()
     {
         private readonly TParent _parent;
 
@@ -105,7 +105,7 @@ namespace Aggregates.Internal
             return entity;
         }
     }
-    class TestableRepository<TEntity, TState> : IRepository<TEntity>, IRepositoryTest<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
+    public class TestableRepository<TEntity, TState> : IRepository<TEntity>, IRepositoryTest<TEntity> where TEntity : Entity<TEntity, TState> where TState : class, IState, new()
     {
         private static readonly IEntityFactory<TEntity> Factory = EntityFactory.For<TEntity>();
 

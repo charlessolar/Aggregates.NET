@@ -15,7 +15,7 @@ namespace Aggregates.Common
             var container = Fake<IServiceCollection>();
             var config = await Aggregates.Configuration.Build(container, config =>
              {
-             }).ConfigureAwait(false);
+             });
 
             config.Setup.Should().BeTrue();
         }
@@ -25,7 +25,7 @@ namespace Aggregates.Common
         public async Task ShouldRequireContainerDefinition()
         {
             var container = Fake<IServiceCollection>();
-            var e = await Record.ExceptionAsync(() => Aggregates.Configuration.Build(null, config => { })).ConfigureAwait(false);
+            var e = await Record.ExceptionAsync(() => Aggregates.Configuration.Build(null, config => { }));
             e.Should().BeOfType<ArgumentException>();
         }
 
@@ -42,7 +42,7 @@ namespace Aggregates.Common
                     called = true;
                     return Task.CompletedTask;
                 });
-            }).ConfigureAwait(false);
+            });
 
             called.Should().BeTrue();
         }
@@ -57,7 +57,7 @@ namespace Aggregates.Common
                 {
                     throw new Exception();
                 });
-            })).ConfigureAwait(false);
+            }));
 
             e.Should().BeOfType<Exception>();
         }
@@ -76,7 +76,7 @@ namespace Aggregates.Common
             {
             });
 
-            await config.Start(provider).ConfigureAwait(false);
+            await config.Start(provider);
 
             config.Setup.Should().BeTrue();
         }
@@ -109,7 +109,7 @@ namespace Aggregates.Common
             {
             });
 
-            var e = await Record.ExceptionAsync(() => config.Start(provider)).ConfigureAwait(false);
+            var e = await Record.ExceptionAsync(() => config.Start(provider));
 
             e.Should().BeOfType<InvalidOperationException>();
             config.Setup.Should().BeFalse();
@@ -135,7 +135,7 @@ namespace Aggregates.Common
                 config.SetRetries(1);
                 config.SetTrackChildren();
                 config.SetDevelopmentMode();
-            }).ConfigureAwait(false);
+            });
 
             config.Settings.Endpoint.Should().Be("test");
             config.Settings.SlowAlertThreshold.Should().Be(TimeSpan.FromSeconds(1));

@@ -24,7 +24,7 @@ namespace Aggregates.NServiceBus
             context.Extensions.Set<IServiceProvider>(provider);
             context.UpdateMessage(Fake<Messages.IEvent>());
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
             mutator.MutatedOutgoing.Should().BeTrue();
@@ -41,7 +41,7 @@ namespace Aggregates.NServiceBus
             context.Headers[Headers.MessageIntent] = MessageIntent.Reply.ToString();
             context.UpdateMessage(Fake<Messages.IEvent>());
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
             mutator.MutatedOutgoing.Should().BeFalse();

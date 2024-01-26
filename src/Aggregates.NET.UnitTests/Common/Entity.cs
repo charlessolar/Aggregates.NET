@@ -70,7 +70,7 @@ namespace Aggregates.Common
         //    A.CallTo(store).WithReturnType<Task<long>>().Returns(1L);
         //    Inject(store);
 
-        //    var size = await Sut.GetSize().ConfigureAwait(false);
+        //    var size = await Sut.GetSize();
         //    size.Should().Be(1);
         //}
         //[Fact]
@@ -80,7 +80,7 @@ namespace Aggregates.Common
         //    A.CallTo(store).WithReturnType<Task<long>>().Returns(1L);
         //    Inject(store);
 
-        //    var size = await Sut.GetSize("test").ConfigureAwait(false);
+        //    var size = await Sut.GetSize("test");
         //    size.Should().Be(1);
         //}
         //[Fact]
@@ -90,7 +90,7 @@ namespace Aggregates.Common
         //    A.CallTo(store).WithReturnType<IFullEvent[]>().Returns(Many<IFullEvent>());
         //    Inject(store);
 
-        //    var events = await Sut.GetEvents(0, 100).ConfigureAwait(false);
+        //    var events = await Sut.GetEvents(0, 100);
         //    events.Should().HaveCount(3);
         //}
         //[Fact]
@@ -100,7 +100,7 @@ namespace Aggregates.Common
         //    A.CallTo(store).WithReturnType<IFullEvent[]>().Returns(Many<IFullEvent>());
         //    Inject(store);
 
-        //    var events = await Sut.GetEventsBackwards(0, 100).ConfigureAwait(false);
+        //    var events = await Sut.GetEventsBackwards(0, 100);
         //    events.Should().HaveCount(3);
         //}
         //[Fact]
@@ -110,7 +110,7 @@ namespace Aggregates.Common
         //    A.CallTo(store).WithReturnType<IFullEvent[]>().Returns(Many<IFullEvent>());
         //    Inject(store);
 
-        //    var events = await Sut.GetEvents(0, 100, oob: "test").ConfigureAwait(false);
+        //    var events = await Sut.GetEvents(0, 100, oob: "test");
         //    events.Should().HaveCount(3);
         //}
         //[Fact]
@@ -120,7 +120,7 @@ namespace Aggregates.Common
         //    A.CallTo(store).WithReturnType<IFullEvent[]>().Returns(Many<IFullEvent>());
         //    Inject(store);
 
-        //    var events = await Sut.GetEventsBackwards(0, 100, oob: "test").ConfigureAwait(false);
+        //    var events = await Sut.GetEventsBackwards(0, 100, oob: "test");
         //    events.Should().HaveCount(3);
         //}
         [Fact]

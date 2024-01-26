@@ -14,7 +14,7 @@ namespace Aggregates.Common
             var store = Fake<IStoreEvents>();
             A.CallTo(() => store.GetSnapshot<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).Returns(Fake<ISnapshot>());
 
-            await Sut.GetSnapshot<FakeEntity, FakeState>("test", "test", new Id[] { }).ConfigureAwait(false);
+            await Sut.GetSnapshot<FakeEntity, FakeState>("test", "test", new Id[] { });
 
             A.CallTo(() => store.GetSnapshot<FakeEntity>(A<string>.Ignored, A<Id>.Ignored, A<Id[]>.Ignored)).MustHaveHappened();
         }
@@ -23,7 +23,7 @@ namespace Aggregates.Common
         {
             var store = Fake<IStoreEvents>();
 
-            await Sut.WriteSnapshots<FakeEntity>(Fake<FakeState>(), new Dictionary<string, string>()).ConfigureAwait(false);
+            await Sut.WriteSnapshots<FakeEntity>(Fake<FakeState>(), new Dictionary<string, string>());
 
             A.CallTo(() => store.WriteSnapshot<FakeEntity>(A<ISnapshot>.Ignored, A<Dictionary<string, string>>.Ignored)).MustHaveHappened();
         }

@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    class TestableSnapshotStore : IStoreSnapshots
+    public class TestableSnapshotStore : IStoreSnapshots
     {
         private readonly Dictionary<string, ISnapshot> _snapshots;
         private readonly Dictionary<string, IState> _writtenSnapshots;

@@ -19,7 +19,7 @@ namespace Aggregates.NServiceBus
             var context = new TestableIncomingLogicalMessageContext();
             context.UpdateMessageInstance(Fake<Messages.IEvent>());
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
         }
@@ -36,7 +36,7 @@ namespace Aggregates.NServiceBus
 
             context.UpdateMessageInstance(Fake<Messages.IEvent>());
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             context.RepliedMessages.Should().OnlyContain(x => x.Message is Error);
         }
@@ -53,7 +53,7 @@ namespace Aggregates.NServiceBus
 
             context.UpdateMessageInstance(Fake<Messages.IEvent>());
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             context.RepliedMessages.Should().BeEmpty();
         }
@@ -69,7 +69,7 @@ namespace Aggregates.NServiceBus
 
             context.UpdateMessageInstance(Fake<Messages.IEvent>());
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             context.RepliedMessages.Should().BeEmpty();
         }
@@ -85,7 +85,7 @@ namespace Aggregates.NServiceBus
 
             context.UpdateMessageInstance(Fake<Messages.IEvent>());
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             context.RepliedMessages.Should().BeEmpty();
         }

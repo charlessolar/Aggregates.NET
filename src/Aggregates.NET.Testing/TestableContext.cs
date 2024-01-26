@@ -22,7 +22,6 @@ using static System.Collections.Specialized.BitVector32;
 
 namespace Aggregates
 {
-    [ExcludeFromCodeCoverage]
     public class TestableContext : IMessageHandlerContext, IInvokeHandlerContext
     {
         static readonly IMessageCreator messageCreator = new MessageMapper();

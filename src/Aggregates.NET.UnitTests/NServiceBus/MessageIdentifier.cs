@@ -32,7 +32,7 @@ namespace Aggregates.NServiceBus
             var context = new TestableIncomingPhysicalMessageContext();
             context.UpdateMessage(new byte[0]);
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
         }
@@ -48,7 +48,7 @@ namespace Aggregates.NServiceBus
 
             A.CallTo(() => registrar.GetNamedType("xx")).Returns(typeof(FakeDomainEvent.FakeEvent));
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
             context.Message.Headers[Headers.EnclosedMessageTypes].Should().Be($"{Sut.SerializeEnclosedMessageTypes(typeof(FakeDomainEvent.FakeEvent))}");
@@ -64,7 +64,7 @@ namespace Aggregates.NServiceBus
 
             A.CallTo(() => registrar.GetNamedType("xx")).Returns(null);
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
             context.Message.Headers.Should().NotContainKey(Headers.EnclosedMessageTypes);

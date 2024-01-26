@@ -43,7 +43,7 @@ namespace Aggregates.Common.Extensions
         {
             var handler = ReflectionExtensions.MakeServiceHandler<IService<int>, int>(typeof(FakeService));
 
-            var result = await handler(new FakeService(), Fake<IService<int>>(), Fake<IServiceContext>()).ConfigureAwait(false);
+            var result = await handler(new FakeService(), Fake<IService<int>>(), Fake<IServiceContext>());
 
             result.Should().Be(1);
         }

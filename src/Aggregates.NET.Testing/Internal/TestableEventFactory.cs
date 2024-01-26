@@ -5,7 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {
-    class TestableEventFactory : IEventFactory
+    public class TestableEventFactory : IEventFactory
     {
         private readonly IMessageCreator _creator;
 

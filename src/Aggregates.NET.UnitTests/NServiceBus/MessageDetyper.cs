@@ -19,7 +19,7 @@ namespace Aggregates.NServiceBus
             var context = new TestableOutgoingPhysicalMessageContext();
             context.UpdateMessage(new byte[0]);
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
         }
@@ -32,7 +32,7 @@ namespace Aggregates.NServiceBus
             context.Headers.Add(Headers.EnclosedMessageTypes, "xx");
             context.UpdateMessage(new byte[0]);
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
             A.CallTo(() => registrar.GetVersionedName(A<Type>.Ignored, A<bool>.Ignored)).MustNotHaveHappened();
@@ -53,7 +53,7 @@ namespace Aggregates.NServiceBus
             context.Headers.Add(Headers.EnclosedMessageTypes, typeof(FakeDomainEvent.FakeEvent).AssemblyQualifiedName.ToString());
             context.UpdateMessage(new byte[0]);
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
             context.Headers[Headers.EnclosedMessageTypes].Should().Be("test");
@@ -73,7 +73,7 @@ namespace Aggregates.NServiceBus
             context.Headers.Add(Headers.EnclosedMessageTypes, $"{typeof(FakeDomainEvent.FakeEvent).AssemblyQualifiedName};xxx");
             context.UpdateMessage(new byte[0]);
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
             context.Headers[Headers.EnclosedMessageTypes].Should().Be("test");
@@ -93,7 +93,7 @@ namespace Aggregates.NServiceBus
             context.Headers.Add(Headers.EnclosedMessageTypes, $"xxx;{typeof(FakeDomainEvent.FakeEvent).AssemblyQualifiedName}");
             context.UpdateMessage(new byte[0]);
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
             A.CallTo(() => registrar.GetVersionedName(A<Type>.Ignored, A<bool>.Ignored)).MustNotHaveHappened();
@@ -114,7 +114,7 @@ namespace Aggregates.NServiceBus
             context.Headers.Add(Headers.EnclosedMessageTypes, $"{typeof(FakeDomainEvent.FakeEvent).AssemblyQualifiedName}");
             context.UpdateMessage(new byte[0]);
 
-            await Sut.Invoke(context, next).ConfigureAwait(false);
+            await Sut.Invoke(context, next);
 
             A.CallTo(() => next()).MustHaveHappened();
             context.Headers[Headers.EnclosedMessageTypes].Should().Be($"{typeof(FakeDomainEvent.FakeEvent).AssemblyQualifiedName}");

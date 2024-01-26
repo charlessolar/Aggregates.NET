@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Aggregates.Internal
 {
-    class TestableVersionRegistrar : Contracts.IVersionRegistrar
+    public class TestableVersionRegistrar : Contracts.IVersionRegistrar
     {
         private static readonly Dictionary<string, Type> Versions = new Dictionary<string, Type>();
 
