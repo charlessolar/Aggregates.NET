@@ -62,7 +62,7 @@ namespace Aggregates.Common
             e.Should().BeOfType<Exception>();
         }
         [Fact]
-        public async Task DoesNotThrowsWhenNoUnitOfWork()
+        public async Task ThrowsWhenNoUnitOfWork()
         {
             var collection = Fake<IServiceCollection>();
             var provider = Fake<IServiceProvider>();
@@ -76,9 +76,11 @@ namespace Aggregates.Common
             {
             });
 
-            await config.Start(provider);
+            var act = () => config.Start(provider);
+            await act.Should().ThrowAsync<InvalidOperationException>();
 
-            config.Setup.Should().BeTrue();
+            //config.Setup.Should().BeTrue();
+            config.Setup.Should().BeFalse();
         }
         [Fact]
         public async Task GettingUnitOfWorkScopeException() {
