@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Cake.Incubator.Project;
+using Cake.Core.Diagnostics;
 
 namespace Build.Helpers
 {
@@ -55,6 +56,39 @@ namespace Build.Helpers
                 // so that when we clean/zip we get ALLL builds
                 var binDir = info.OutputPaths[0].Combine("..");
 
+                // dont build "build" projects
+                if (info.HasPackage("Cake.Core") || info.HasPackage("Cake.Frosting"))
+                    continue;
+
+                /*
+                 * If you see this error in build:
+                 * 
+                 * Exception: NullReferenceException: Object reference not set to an instance of an object.
+                   at Cake.Incubator.StringExtensions.StringExtensions.EqualsIgnoreCase(String source, String value)
+                   at Cake.Incubator.Project.ProjectParserExtensions.<>c.<IsDotNetCliTestProject>b__7_0(PackageReference x)
+                   at System.Linq.Enumerable.Any[TSource](IEnumerable`1 source, Func`2 predicate)
+                   at Cake.Incubator.Project.ProjectParserExtensions.IsDotNetCliTestProject(CustomProjectParserResult projectParserResult)
+                   at Cake.Incubator.Project.ProjectParserExtensions.IsTestProject(CustomProjectParserResult projectParserResult)
+                   at Build.Helpers.BuildPaths.GetPaths(BuildParameters context, String configuration, String semVersion) in D:\projects\Aggregates.NET\cake\Helpers\Paths.cs:line 78
+                   at Build.Helpers.BuildParameters.Setup() in D:\projects\Aggregates.NET\cake\Helpers\Parameters.cs:line 194
+                   at Build.BuildLifetime.Setup(BuildParameters parameters, ISetupContext context) in D:\projects\Aggregates.NET\cake\Program.cs:line 52
+                   at Cake.Frosting.FrostingLifetime`1.Cake.Frosting.IFrostingSetup.Setup(ICakeContext context, ISetupContext info)
+                   at Cake.Frosting.Internal.FrostingEngine`1.<ConfigureLifetime>b__14_0(ISetupContext info)
+                   at Cake.Core.DefaultExecutionStrategy.PerformSetup(Action`1 action, ISetupContext context)
+                   at Cake.Core.CakeEngine.PerformSetup(ICakeContext context, IExecutionStrategy strategy, CakeTask[] orderedTasks, String target, Stopwatch stopWatch, CakeReport report)
+                   at Cake.Core.CakeEngine.RunTargetAsync(ICakeContext context, IExecutionStrategy strategy, ExecutionSettings settings)
+
+                Its because somewhere in your .csproj there is an "Update" package like this:
+
+                  <ItemGroup>
+                    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+                  </ItemGroup>
+
+                Change it to "Include" or remove 
+                 * 
+                 * 
+                 */
+
                 if (context.FileExists(projectDir.CombineWithFilePath("./Dockerfile")))
                 {
                     output = "Docker";
@@ -66,11 +100,12 @@ namespace Build.Helpers
                 }
                 if (info.IsTestProject())
                 {
+                    if (!info.PackageReferences.Any(x => x.Name == "coverlet.collector"))
+                    {
+                        context.Log.Warning($"Assembly {info.AssemblyName} is a test project without \"coverlet.collector\" package. No coverage report possible");
+                    }
                     output = "Test";
                 }
-                // dont build "build" projects
-                if (info.HasPackage("Cake.Core") || info.HasPackage("Cake.Frosting"))
-                    continue;
 
 
                 binDirs.Add(binDir);

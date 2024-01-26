@@ -1,11 +1,7 @@
 using System.Threading.Tasks;
-using Cake.Core;
 using Cake.Core.Diagnostics;
-using Cake.Frosting;
 using Build.Extensions;
 using Cake.Common.Build;
-using Cake.Common.IO;
-using System;
 using Cake.Common.Xml;
 using Build.Helpers;
 using System.Linq;
@@ -18,14 +14,13 @@ using Cake.Docker;
 using Cake.Coverlet;
 using System.Collections.Generic;
 using Cake.Common.Tools.ReportUnit;
-using Cake.Core.IO;
-using Cake.Common;
 using Cake.Common.Build.AzurePipelines.Data;
 using Cake.Common.Tools.DotNet.Test;
 using Cake.Common.Tools.DotNet;
 using Cake.Common.Tools.DotNet.Publish;
 using Cake.Common.Tools.DotNet.Pack;
 using Cake.Common.Tools.DotNet.Build;
+
 
 namespace Build
 {
@@ -52,54 +47,53 @@ namespace Build
     }
     public sealed class BuildLifetime : FrostingLifetime<Helpers.BuildParameters>
     {
-        public override void Setup(BuildParameters context)
+        public override void Setup(BuildParameters parameters, ISetupContext context)
         {
-            context.Setup();
+            parameters.Setup();
             context.Info("==============================================");
             context.Info("==============================================");
 
-            context.Info("Calculated Semantic Version: {0} sha: {1}", context.Version.SemVersion, context.Version.Sha.Substring(0, 8));
-            context.Info("Calculated NuGet Version: {0}", context.Version.NuGet);
+            context.Info("Calculated Semantic Version: {0} sha: {1}", parameters.Version.SemVersion, parameters.Version.Sha.Substring(0, 8));
+            context.Info("Calculated NuGet Version: {0}", parameters.Version.NuGet);
 
             context.Info("==============================================");
             context.Info("==============================================");
 
-            context.Info("Solution: " + context.Solution);
-            context.Info("Target: " + context.Target);
-            context.Info("Configuration: " + context.BuildConfiguration);
-            context.Info("IsLocalBuild: " + context.IsLocalBuild);
-            context.Info("IsRunningOnUnix: " + context.IsRunningOnUnix);
-            context.Info("IsRunningOnWindows: " + context.IsRunningOnWindows);
-            context.Info("IsRunningOnVSTS: " + context.IsRunningOnVSTS);
-            context.Info("IsReleaseBuild: " + context.IsReleaseBuild);
-            context.Info("IsPullRequest: " + context.IsPullRequest);
-            context.Info("IsMaster: " + context.IsMaster + " Branch: " + context.Branch);
-            context.Info("BuildNumber: " + context.BuildNumber);
+            context.Info("Solution: " + parameters.Solution);
+            context.Info("Target: " + parameters.Target);
+            context.Info("Configuration: " + parameters.BuildConfiguration);
+            context.Info("IsLocalBuild: " + parameters.IsLocalBuild);
+            context.Info("IsRunningOnUnix: " + parameters.IsRunningOnUnix);
+            context.Info("IsRunningOnWindows: " + parameters.IsRunningOnWindows);
+            context.Info("IsRunningOnVSTS: " + parameters.IsRunningOnVSTS);
+            context.Info("IsReleaseBuild: " + parameters.IsReleaseBuild);
+            context.Info("IsPullRequest: " + parameters.IsPullRequest);
+            context.Info("IsMaster: " + parameters.IsMaster + " Branch: " + parameters.Branch);
+            context.Info("BuildNumber: " + parameters.BuildNumber);
 
             // Increase verbosity?
-            if (context.IsReleaseBuild && (context.Log.Verbosity != Verbosity.Diagnostic))
+            if (parameters.IsReleaseBuild && (context.Log.Verbosity != Verbosity.Diagnostic))
             {
                 context.Info("Increasing verbosity to diagnostic.");
                 context.Log.Verbosity = Verbosity.Diagnostic;
             }
 
-            if (context.IsRunningOnVSTS)
+            if (parameters.IsRunningOnVSTS)
             {
                 var commands = context.BuildSystem().AzurePipelines.Commands;
-                commands.UpdateBuildNumber(context.Version.SemVersion);
-                commands.AddBuildTag(context.Version.Sha.Substring(0, 8));
-                commands.AddBuildTag(context.Version.SemVersion);
-                commands.AddBuildTag(context.BuildConfiguration);
+                commands.UpdateBuildNumber(parameters.Version.SemVersion);
+                commands.AddBuildTag(parameters.Version.Sha.Substring(0, 8));
+                commands.AddBuildTag(parameters.Version.SemVersion);
+                commands.AddBuildTag(parameters.BuildConfiguration);
             }
 
-
             context.Info("Building version {0} {5} of {4} ({1}, {2}) using version {3} of Cake",
-                context.Version.SemVersion,
-                context.Configuration,
-                context.Target,
-                context.Version.CakeVersion,
-                context.Solution,
-                context.Version.Sha.Substring(0, 8));
+                parameters.Version.SemVersion,
+                parameters.Configuration,
+                parameters.Target,
+                parameters.Version.CakeVersion,
+                parameters.Solution,
+                parameters.Version.Sha.Substring(0, 8));
         }
 
         public override void Teardown(BuildParameters context, ITeardownContext info)
@@ -108,6 +102,10 @@ namespace Build
             {
                 context.Log.Warning("This was not a successful build");
                 throw new CakeException("Publish task chain failed");
+            }
+            if (info.ThrownException != null)
+            {
+                context.Log.Error($"Exception: {info.ThrownException.GetType().Name}: {info.ThrownException.Message}\n{info.ThrownException.StackTrace}");
             }
         }
     }

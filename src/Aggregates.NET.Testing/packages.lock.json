@@ -227,7 +227,8 @@
           "Microsoft.CSharp": "[4.7.0, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[8.0.0, )",
           "Microsoft.Extensions.Hosting.Abstractions": "[8.0.0, )",
-          "Microsoft.Extensions.Logging.Abstractions": "[8.0.0, )"
+          "Microsoft.Extensions.Logging.Abstractions": "[8.0.0, )",
+          "Microsoft.SourceLink.GitHub": "[8.0.0, )"
         }
       },
       "aggregates.net.nservicebus": {
@@ -235,6 +236,7 @@
         "dependencies": {
           "Aggregates.NET": "[1.0.0, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[8.0.0, )",
+          "Microsoft.SourceLink.GitHub": "[8.0.0, )",
           "NServiceBus": "[8.1.6, )",
           "NServiceBus.Callbacks": "[4.0.0, )",
           "NServiceBus.Extensions.DependencyInjection": "[2.0.0, )",

@@ -29,9 +29,6 @@
     <ProjectReference Include="..\Aggregates.NET\Aggregates.NET.csproj" />
   </ItemGroup>
   
-  <ItemGroup>
-    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="8.0.0" />
-  </ItemGroup>
   
   
 </Project>

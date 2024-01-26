@@ -22,7 +22,7 @@
 
     <Authors>Charles Solar</Authors>
     <Company>Charles Solar</Company>
-    <Copyright>Copyright (c) 2023</Copyright>
+    <Copyright>Copyright (c) 2024</Copyright>
     <PackageTags>CQRS ES event sourcing NServiceBus GetEventStore eventstore ddd</PackageTags>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/charlessolar/Aggregates.NET</RepositoryUrl>
@@ -34,7 +34,7 @@
 
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0"/>
   </ItemGroup>
   <ItemGroup>
     <None Include="../../icon.png" Pack="true" PackagePath=""/>
