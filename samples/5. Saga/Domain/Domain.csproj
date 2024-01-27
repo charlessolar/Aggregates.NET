@@ -8,10 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aggregates.NET" Version="0.18.77.172" />
-    <PackageReference Include="Aggregates.NET.EventStore" Version="0.18.77.172" />
-    <PackageReference Include="Aggregates.NET.NewtonsoftJson" Version="0.18.77.172" />
-    <PackageReference Include="Aggregates.NET.NServiceBus" Version="0.18.77.172" />
+    <PackageReference Include="Aggregates.NET" Version="0.18.*" />
+    <PackageReference Include="Aggregates.NET.EventStore" Version="0.18.*" />
+    <PackageReference Include="Aggregates.NET.NewtonsoftJson" Version="0.18.*" />
+    <PackageReference Include="Aggregates.NET.NServiceBus" Version="0.18.*" />
     <PackageReference Include="Karambolo.Extensions.Logging.File" Version="3.5.0" />
     <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />

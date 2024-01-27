@@ -7,9 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aggregates.NET" Version="0.17.13" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
-    <PackageReference Include="NServiceBus" Version="8.0.0" />
+    <PackageReference Include="Aggregates.NET" Version="0.18.*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="NServiceBus" Version="8.1.6" />
   </ItemGroup>
 
 </Project>

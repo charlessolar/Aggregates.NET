@@ -1,5 +1,4 @@
 ﻿using Aggregates;
-using Aggregates.Domain;
 using NServiceBus;
 using Shared;
 using System;

@@ -36,7 +36,7 @@ namespace Aggregates
                     try
                     {
                         // verify certain agg.net stuff now we have a container
-                        uow = scope.ServiceProvider.GetRequiredService<UnitOfWork.IUnitOfWork>();
+                        uow = scope.ServiceProvider.GetService<UnitOfWork.IUnitOfWork>();
                     } catch (Exception ex)
                     {
                         throw new InvalidOperationException($"Failed to create IUnitOfWork object, something might be wrong with your Aggregates constructor implementation", ex);
