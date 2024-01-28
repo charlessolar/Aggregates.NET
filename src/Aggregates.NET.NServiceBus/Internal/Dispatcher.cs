@@ -75,7 +75,7 @@ namespace Aggregates.Internal
                 request,
                 new UnicastAddressTag(_receiveAddresses.InstanceReceiveAddress));
 
-            Logger.DebugEvent("SendLocal", "Starting local message {messageType} [{MessageId:l}] Corr [{CorrelationId:l}]", messageId, corrId);
+            Logger.DebugEvent("SendLocal", "Starting local message {messageType} [{MessageId:l}] Corr [{CorrelationId:l}]", messageType, messageId, corrId);
             await _dispatcher.Dispatch(
                 outgoingMessages: new TransportOperations(operation),
                 transaction: new TransportTransaction())

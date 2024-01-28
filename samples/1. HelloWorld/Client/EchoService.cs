@@ -19,7 +19,7 @@ namespace Client
         {
             var command = new Send {
                 Message = message
-        };
+            };
 
             return _session.Command(_settings.CommandDestination, command);
         }

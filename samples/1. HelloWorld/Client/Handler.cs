@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Client
 {
-    internal class Handler : IHandleMessages<Echo>
+    public class Handler : IHandleMessages<Echo>
     {
         public Task Handle(Echo @event, IMessageHandlerContext context)
         {
