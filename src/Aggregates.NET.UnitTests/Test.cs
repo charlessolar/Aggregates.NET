@@ -20,7 +20,6 @@ namespace Aggregates
         {
             Fixture = new Fixture().Customize(new AutoFakeItEasyCustomization { ConfigureMembers = true });
 
-
             Provider = Fake<IServiceProvider>();
             Fixture.Customize<Id>(x => x.FromFactory(() => Guid.NewGuid()));
             Fixture.Customize<IEvent>(x => x.FromFactory(() => new FakeDomainEvent.FakeEvent()));

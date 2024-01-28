@@ -11,8 +11,7 @@ using System.Threading.Tasks;
 
 namespace Aggregates.Internal
 {
-    [ExcludeFromCodeCoverage]
-    class Dispatcher : Contracts.IMessageDispatcher
+    public class Dispatcher : Contracts.IMessageDispatcher
     {
         private readonly ILogger Logger;
         private readonly IMessageSerializer _serializer;
