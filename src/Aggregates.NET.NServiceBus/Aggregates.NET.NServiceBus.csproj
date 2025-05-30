@@ -17,7 +17,6 @@
     <PackageReference Include="NServiceBus.Callbacks" Version="4.0.0" />
     <PackageReference Include="NServiceBus.Extensions.DependencyInjection" Version="2.0.0" />
     <PackageReference Include="NServiceBus.Extensions.Logging" Version="2.0.0" />
-    <PackageReference Include="System.Memory" Version="4.5.5" />
   </ItemGroup>
 
   <ItemGroup>
