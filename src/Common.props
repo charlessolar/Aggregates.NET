@@ -29,7 +29,7 @@
     <PackageProjectUrl>https://github.com/charlessolar/Aggregates.NET</PackageProjectUrl>
     <PackageIconUrl>https://raw.githubusercontent.com/charlessolar/Aggregates.NET/master/icon.png</PackageIconUrl>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <NeutralLanguage>en-US</NeutralLanguage>
 
   </PropertyGroup>
@@ -38,6 +38,5 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="../../icon.png" Pack="true" PackagePath=""/>
-    <None Include="../../LICENSE" Pack="true" PackagePath=""/>
   </ItemGroup>
 </Project>
